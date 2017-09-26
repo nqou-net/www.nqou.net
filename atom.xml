@@ -6,7 +6,7 @@
   <link href="/atom.xml" rel="self"/>
   
   <link href="http://nqou.net/"/>
-  <updated>2017-09-26T05:10:36.000Z</updated>
+  <updated>2017-09-26T14:27:35.000Z</updated>
   <id>http://nqou.net/</id>
   
   <author>
@@ -21,7 +21,7 @@
     <link href="http://nqou.net/2017/09/25/043337/"/>
     <id>http://nqou.net/2017/09/25/043337/</id>
     <published>2017-09-25T19:33:37.000Z</published>
-    <updated>2017-09-26T05:10:36.000Z</updated>
+    <updated>2017-09-26T14:27:35.000Z</updated>
     
     <content type="html"><![CDATA[<h2 id="試しにISO8601で書いてみたら動いた"><a href="#試しにISO8601で書いてみたら動いた" class="headerlink" title="試しにISO8601で書いてみたら動いた"></a>試しにISO8601で書いてみたら動いた</h2><p>アメリカに来て、 <code>hexo new post</code> としてみたところ、やはり <code>date</code> はローカルタイムで作成されていた。</p><p>ふと思いついて、 <code>date</code> の部分を <code>ISO8601</code> の形式で書いてみたところ、正常に読み込めた。</p><h2 id="Hexoのソースコードを読んでみた"><a href="#Hexoのソースコードを読んでみた" class="headerlink" title="Hexoのソースコードを読んでみた"></a>Hexoのソースコードを読んでみた</h2><p>どういうことかと思ってソースコードを読んでみたら、読み込む時は <code>Moment.js</code> を使って読み込んでいたようだ。</p><p>ということは、 <code>hexo new post</code> の時に <code>ISO8601</code> の形式で出力しておけば万事解決。</p><p>…のはずなんですが、どこを修正すればよいのかわかりませんでした。</p><p>仕方なく、 Perl で書き直すことにしました。</p><h2 id="PerlでYAMLも再構築"><a href="#PerlでYAMLも再構築" class="headerlink" title="PerlでYAMLも再構築"></a>PerlでYAMLも再構築</h2><p><code>date</code> が <code>ISO8601</code> の形式でなかった場合は、そのローカルタイムのタイムゾーンであるとみなして、 <code>ISO8601</code> の形式で書き直す、というふうにしました。</p><p>また、そうした時に、どのタイムゾーンの日付をファイルの基準にするのか悩ましいのですが、 <code>UTC</code> の時間にすることにしました。</p><p>なので、これまで書いてきた記事のファイルのパスも変更になります。</p><figure class="highlight perl"><figcaption><span>tools/rename_posts</span></figcaption><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div></pre></td><td class="code"><pre><div class="line"></div><div class="line"><span class="comment">#!/usr/bin/env perl</span></div><div class="line"><span class="keyword">use</span> utf8;</div><div class="line"><span class="keyword">use</span> strict;</div><div class="line"><span class="keyword">use</span> warnings;</div><div class="line"><span class="keyword">use</span> Path::Tiny <span class="string">qw(path)</span>;</div><div class="line"><span class="keyword">use</span> YAML         ();</div><div class="line"><span class="keyword">use</span> Time::Moment ();</div><div class="line"></div><div class="line"><span class="keyword">my</span> $root = path(__FILE_<span class="number">_</span>)-&gt;absolute-&gt;parent(<span class="number">2</span>);</div><div class="line"></div><div class="line"><span class="comment"># 記事を取得</span></div><div class="line"><span class="keyword">my</span> $posts_dir = path($root, <span class="string">'source'</span>, <span class="string">'_posts'</span>);</div><div class="line"><span class="keyword">my</span> $iterator = $posts_dir-&gt;iterator(+&#123;<span class="string">recurse =&gt;</span> <span class="number">1</span>&#125;);</div><div class="line"></div><div class="line"><span class="comment"># タイムゾーンを取得</span></div><div class="line"><span class="keyword">my</span> $tm     = Time::Moment-&gt;now;</div><div class="line"><span class="keyword">my</span> $offset = $tm-&gt;offset;</div><div class="line"></div><div class="line"><span class="comment"># 記事から時間を取得して、名称変更</span></div><div class="line"><span class="keyword">while</span> (<span class="keyword">my</span> $post = $iterator-&gt;()) &#123;</div><div class="line">    <span class="keyword">next</span> <span class="keyword">unless</span> $post-&gt;is_file;</div><div class="line">    <span class="keyword">my</span> ($yaml, $after) = <span class="keyword">split</span> <span class="regexp">/\n---/</span>, $post-&gt;slurp_utf8;</div><div class="line">    <span class="keyword">my</span> $info = YAML::Load($yaml);</div><div class="line"></div><div class="line">    <span class="comment"># 時間がISO8601でない場合は変換</span></div><div class="line">    <span class="keyword">if</span> (-<span class="number">1</span> &lt; <span class="keyword">index</span>($info-&gt;&#123;date&#125;, <span class="string">' '</span>)) &#123;</div><div class="line">        <span class="keyword">my</span> $date     = <span class="keyword">join</span>(<span class="string">'T'</span>, <span class="keyword">split</span>(<span class="regexp">/\s/</span>, $info-&gt;&#123;date&#125;)) . <span class="string">'Z'</span>;</div><div class="line">        <span class="keyword">my</span> $tm       = Time::Moment-&gt;from_string($date);</div><div class="line">        <span class="keyword">my</span> $new_date = $tm-&gt;with_offset_same_local($offset);</div><div class="line">        $info-&gt;&#123;date&#125; = $new_date-&gt;to_string;</div><div class="line"></div><div class="line">        <span class="comment"># 結合して出力</span></div><div class="line">        <span class="keyword">my</span> $dump_yaml = YAML::Dump($info);</div><div class="line">        <span class="keyword">my</span> $body = <span class="keyword">join</span> <span class="string">qq&#123;\n---&#125;</span>, $dump_yaml, $after;</div><div class="line">        $post-&gt;spew_utf8($body);</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment"># 時間でファイル名を変更</span></div><div class="line">    <span class="keyword">my</span> $tm       = Time::Moment-&gt;from_string($info-&gt;&#123;date&#125;)-&gt;at_utc;</div><div class="line">    <span class="keyword">my</span> $path     = $tm-&gt;strftime(<span class="string">'%Y/%m/%d/%H%M%S'</span>);</div><div class="line">    <span class="keyword">my</span> $new_post = path($posts_dir, <span class="string">qq&#123;$path.md&#125;</span>)-&gt;absolute;</div><div class="line">    $new_post-&gt;parent-&gt;mkpath;</div><div class="line">    $post-&gt;move($new_post-&gt;stringify);</div><div class="line">&#125;</div></pre></td></tr></table></figure>]]></content>
     
@@ -35,7 +35,9 @@
     </summary>
     
     
-      <category term="undef" scheme="http://nqou.net/tags/undef/"/>
+      <category term="hexo" scheme="http://nqou.net/tags/hexo/"/>
+    
+      <category term="perl" scheme="http://nqou.net/tags/perl/"/>
     
   </entry>
   
@@ -44,7 +46,7 @@
     <link href="http://nqou.net/2017/09/23/015813/"/>
     <id>http://nqou.net/2017/09/23/015813/</id>
     <published>2017-09-23T16:58:13.000Z</published>
-    <updated>2017-09-26T04:33:05.000Z</updated>
+    <updated>2017-09-26T14:28:57.000Z</updated>
     
     <content type="html"><![CDATA[<h2 id="時間の形式"><a href="#時間の形式" class="headerlink" title="時間の形式"></a>時間の形式</h2><p>最初に書こうと思っていたネタにようやくたどり着いた。</p><p>ファイル名を変更する時に微妙に困ったのが時間の扱い。</p><p><code>Hexo</code> では、 <code>date</code> の形式が <code>MySQL</code> と同じような形式になっている。</p><p>この表示の仕方は割と一般的だとは思うのだけど、この形式について何も感じたことはないのだろうか？</p><h2 id="表示形式について"><a href="#表示形式について" class="headerlink" title="表示形式について"></a>表示形式について</h2><p>時間の表示方法はいろいろな表し方があるようでいつも戸惑う。</p><p>私の場合は <code>yyyy-mm-dd HH:MM:SS</code> のように、日付部分は小文字、時間部分は大文字で書く。</p><p>しかし、 <code>YYYY-mm-dd</code> のように、4桁の西暦を大文字で書く人もいる。（2桁の年を <code>yy</code> と表現する）</p><p>あるいは、 <code>strftime</code> のように、 <code>%Y-%m-%d %H:%M:%S</code> とか、場合によっては <code>%F %T</code> とか。</p><h2 id="時差について"><a href="#時差について" class="headerlink" title="時差について"></a>時差について</h2><p>いずれにしても、このような表現の場合、時差というかタイムゾーンについての情報が完全に欠落する。</p><p><code>Hexo</code> はローカル環境でビルドするので、ローカル環境のタイムゾーンに依存する。</p><p>なので、この <code>date</code> をローカルのタイムゾーンを元にして <code>UTC</code> になおしてファイル名にすると、日本にいる時に実行して変更したファイルは、アメリカに行って実行すると全部書き換わってしまう。と思う。試してないけど。（ローカル環境のタイムゾーンを変えない、という選択肢もあるけど）</p><p>今時、 <code>momentjs</code> もあるし、文字列にする場合は、少なくとも <code>ISO8601</code> に沿ってくれればよいのに。と思いながら、日本時間ということにしてファイル名を変更するスクリプトを書いた。</p><p>ようやくこのネタを書けたので、ちょっとアメリカ行ってきます。</p>]]></content>
     
@@ -59,7 +61,7 @@
     </summary>
     
     
-      <category term="undef" scheme="http://nqou.net/tags/undef/"/>
+      <category term="time" scheme="http://nqou.net/tags/time/"/>
     
   </entry>
   
