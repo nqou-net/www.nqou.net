@@ -24,23 +24,7 @@
 
 <p>使い方を見て、ほぼそのまま使えました。</p>
 
-<pre class="lang:perl decode:true " title="SYNOPSIS">use KeyedMutex::Memcached;
-
-my $key   = 'query:XXXXXX';
-my $cache = Cache::Memcached::Fast-&gt;new( ... );
-my $mutex = KeyedMutex::Memcached-&gt;new( cache =&gt; $cache );
-
-until ( my $value = $cache-&gt;get($key) ) {
-  {
-    if ( my $lock = $mutex-&gt;lock( $key, 1 ) ) {
-      #locked read from DB
-      $value = get_from_db($key);
-      $cache-&gt;set($key, $value);
-      last;
-    }
-  };
-}</pre>
-
+<figure class="highlight perl"><figcaption><span>SYNOPSIS</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">use</span> KeyedMutex::Memcached;</span><br><span class="line"></span><br><span class="line"><span class="keyword">my</span> $key   = <span class="string">'query:XXXXXX'</span>;</span><br><span class="line"><span class="keyword">my</span> $cache = Cache::Memcached::Fast-&gt;new( ... );</span><br><span class="line"><span class="keyword">my</span> $mutex = KeyedMutex::Memcached-&gt;new( <span class="string">cache =&gt;</span> $cache );</span><br><span class="line"></span><br><span class="line"><span class="keyword">until</span> ( <span class="keyword">my</span> $value = $cache-&gt;get($key) ) &#123;</span><br><span class="line">  &#123;</span><br><span class="line">    <span class="keyword">if</span> ( <span class="keyword">my</span> $lock = $mutex-&gt;lock( $key, <span class="number">1</span> ) ) &#123;</span><br><span class="line">      <span class="comment">#locked read from DB</span></span><br><span class="line">      $value = get_from_db($key);</span><br><span class="line">      $cache-&gt;set($key, $value);</span><br><span class="line">      <span class="keyword">last</span>;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 <p>new するときに <code>Cache::Memcached::Fast</code> のインスタンスを渡せるので、既に利用しているインスタンスを再利用することができるのが良いですね。</p>
 
 <p><code>lock</code> の第二引数は <code>use_raii</code> のフラグですが、これを使うと <code>$lock</code> がなくなった時にロックをはずしてくれます。<br>よくわからない場合は、黙って上のコードのように書くと良いと思います。<br>（<code>use_raii</code>をしなかった場合は、if文の中で<code>$mutex-&gt;release</code>としてロックをはずす必要があるので、上のコードのように書いておくのが間違いないでしょう。この機構は <code>Scope::Guard</code> を利用しているのですが、こういうのは便利だなと思いました）</p>
@@ -53,26 +37,7 @@ until ( my $value = $cache-&gt;get($key) ) {
 
 <p>イメージは以下の様な感じです。</p>
 
-<pre class="lang:perl decode:true " title="Entry.pm">package Entry;
-use Moo;
-
-has id =&gt; (is =&gt; 'rw', predicate =&gt; 1);
-has mutex =&gt; (is =&gt; 'lazy');
-
-sub _build_mutex {
-    my $cache = Cache::Memcached::Fast-&gt;new( ... );
-    return KeyedMutex::Memcached-&gt;new( cache =&gt; $cache );
-}
-
-sub create_mutex {
-    my $self = shift;
-
-    return 1 unless $self-&gt;has_id;
-    my $key = join ':', 'entry', $self-&gt;id;
-    return $self-&gt;mutex-&gt;lock($key, 1);
-}
-</pre>
-
+<figure class="highlight perl"><figcaption><span>Entry.pm</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> Entry;</span><br><span class="line"><span class="keyword">use</span> Moo;</span><br><span class="line"></span><br><span class="line">has <span class="string">id =&gt;</span> (<span class="string">is =&gt;</span> <span class="string">'rw'</span>, <span class="string">predicate =&gt;</span> <span class="number">1</span>);</span><br><span class="line">has <span class="string">mutex =&gt;</span> (<span class="string">is =&gt;</span> <span class="string">'lazy'</span>);</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">sub</span> _<span class="title">build_mutex</span> </span>&#123;</span><br><span class="line">    <span class="keyword">my</span> $cache = Cache::Memcached::Fast-&gt;new( ... );</span><br><span class="line">    <span class="keyword">return</span> KeyedMutex::Memcached-&gt;new( <span class="string">cache =&gt;</span> $cache );</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">sub</span> <span class="title">create_mutex</span> </span>&#123;</span><br><span class="line">    <span class="keyword">my</span> $self = <span class="keyword">shift</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="number">1</span> <span class="keyword">unless</span> $self-&gt;has_id;</span><br><span class="line">    <span class="keyword">my</span> $key = <span class="keyword">join</span> <span class="string">':'</span>, <span class="string">'entry'</span>, $self-&gt;id;</span><br><span class="line">    <span class="keyword">return</span> $self-&gt;mutex-&gt;lock($key, <span class="number">1</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 <p>ロックをかけたいところで <code>if (my $mutex = $entry-&gt;create_mutex) { … }</code> という感じで使えるかなと。</p>
 
 <p>IDがない場合はロック不要（insertするのでDBが適切に処理してくれる）とみなして何もせずに真を返しています。</p>
