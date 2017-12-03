@@ -1,0 +1,72 @@
+<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><meta name="X-UA-Compatible" content="IE=edge"><title> OwlCarouselを使うと簡単にカルーセルが実装できた | nqou.net</title><meta name="description" content="OwlCarouselを使うと簡単にカルーセルが実装できた - nqounet"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="short icon" href="/favicon.png"><link rel="stylesheet" href="/css/casual.css"><link rel="stylesheet" href="/css/semantic.min.css"><link rel="search" type="application/opensearchdescription+xml" href="http://nqou.net/atom.xml" title="nqou.net"></head><body><div class="sidebar"><div class="ui vertical inverted menu"><div class="h100"></div><h3 class="ui inverted aligned icon header"><div class="content"><a href="/" class="title-link">nqou.net</a></div></h3><div class="h50"></div><div class="side-nav"><a href="/" target="_self" class="item">HOME<i class="icon home"></i></a><a href="/archives" target="_self" class="item">ARCHIVE<i class="icon archive"></i></a><a href="/tags" target="_self" class="item">TAGS<i class="icon tags"></i></a><a href="/about" target="_self" class="item">INFO<i class="icon info"></i></a><a href="/atom.xml" target="_self" class="item">RSS<i class="icon rss"></i></a></div><div class="h50"></div></div><div class="h50 mq"><a class="ui teal big label"><i class="content icon"></i></a></div><div class="author-info"><a href="/" class="img-link"><img src="/avatar.png" class="author-photo ui tiny circular image"></a><h4 class="ui aligned icon header"><div class="content">nqounet</div></h4><p class="author-desc">Beer, Perl, Kansai.pm</p><div class="social-outer"><div class="social-inner"><a href="http://github.com/nqounet" target="_blank" class="social-link"><i class="icon github"></i></a><a href="http://twitter.com/nqounet" target="_blank" class="social-link"><i class="icon twitter"></i></a><a href="https://www.facebook.com/nobutaka.wakabayashi" target="_blank" class="social-link"><i class="icon facebook"></i></a></div></div></div></div><div class="main"><div class="wrap"><section class="container"><div class="post"><article class="post-block"><h1 class="post-title">OwlCarouselを使うと簡単にカルーセルが実装できた</h1><div class="post-info"><div class="post-date"><h6 class="ui header"><i class="calendar icon"></i><div class="content">2014年6月16日</div></h6></div></div><div class="post-content"><p><ins>追記：Mojoliciousについての記述で一部間違っていた部分がありました。一部修正してあります。</ins></p>
+
+<p><a href="https://twitter.com/nqounet" target="_blank" rel="noopener">@nqounet</a>です。</p>
+
+<p>画像を使った何かを作ろうと思い、過去に自分自身で作ったサンプルを眺めていたのですが、どれもイマイチなので、カルーセル（スライダー？）を簡単に作れるライブラリである「OwlCarousel」を試してみました。</p>
+
+<p>このライブラリ自体はとても簡単だったのですが、JSONを返すAPIのプログラムを作ったり、それらを動作させる開発環境を作ったりするのが結構大変でした。</p>
+
+<ul><br><li><a href="http://nqou.net/samples/owlcarousel.html">OwlCarousel | JavaScript Samples | nqou.net</a></li><br></ul>
+
+
+
+<h2>やってみたかったのは画像とJSON</h2>
+
+<p>画像ファイルは、以前使っていたサイズが揃ったものがあるので、それを流用するとして、そのリストをどのようにして作成するのか、というのを考えました。</p>
+
+<p>また、昨今のアプリ事情を鑑みて、サーバからはHTMLではなくJSONを主に返すことにして、AJAXでリストを取得できるようにしようと思いました。</p>
+
+<p>開発するときは、JavaScriptの<code>Same Origin policy</code>が問題になってきます。</p>
+
+<p>実際の運用では、同じサーバにAPIを設定すればよいのですが、開発時は、例えばlocalhost:3000で起動させておいたサーバに対して、gruntで起動したサーバからAJAXで取得しようとするとエラーになります。</p>
+
+<p>というわけで、<code>grunt-connect-proxy</code>を使って開発してみました。</p>
+
+<ul><br><li><a href="https://github.com/nqounet/web-js-samples/commit/19aba9a90d91d00435e95052041136de144688a1" target="_blank" rel="noopener">npm install grunt-connect-proxy(master) · 19aba9a · nqounet/web-js-samples</a></li><br></ul>
+
+<h2>JSONを返すプログラム</h2>
+
+<p>APIを返すプログラムは作ったことがほぼないのですが、HTMLではなくJSONを返すのがメインになるようなプログラムもそんなに大したことはありませんでした。</p>
+
+<p>使ったのはいつものMojolicious。</p>
+
+<p>最初はMojolicious::Liteで作ったのですが、APIを増やすとわかりにくそうな気がしたので、普通に作りました。</p>
+
+<p>ただ、基本的にはHTMLを返すプログラムなので、404エラーなどはHTMLで返ってきます。</p>
+
+<p>この初期値を変更するのをどこでやればよいのかについて、結構調べました<del>が、route情報の設定で、formatを指定すればよかったようです</del>。</p>
+
+<p><ins>Mojolicious::Rendererのdefault_formatで初期値を設定できるようです。下記のソースは書き換えてあります。</ins></p>
+
+<pre class="lang:perl">
+sub startup {
+  my $app = shift;
+  $app->renderer->default_format('json');
+  my $r = $app->routes;
+  $r = $r->under('/api/v1');
+  $r->get('/images')->to('images#get');
+}
+</pre>
+
+<p>久しぶりに作ると、色々と忘れていて、ますますメモの大切さが身にしみてきますね。</p>
+
+<p>また、nginxの設定で、nqou.netのサブディレクトリ（/api/v1）にアプリサーバを割り当てたのですが、その場合に、アプリサーバへ渡るpathの情報にもサブディレクトリがついていることに気が付かなくて、ずっと404エラーになっていて困りました。</p>
+
+<p>かといって、route情報をアレコレ変えたくなかったのですが、幸いにも、その辺を簡単に処理できるメソッドもありました。便利ですね。</p>
+
+<p><del>それも踏まえてroute情報は以下のようになりました。</del></p>
+
+<p>フレームワークは先人の知恵が詰まっていて、後に続く私のような者を助けてくれます。</p>
+
+<h2>参考になる資料</h2>
+
+<ul><br><li><a href="https://github.com/OwlFonk/OwlCarousel" target="_blank" rel="noopener">OwlFonk/OwlCarousel</a></li><br><li><a href="http://owlgraphic.com/owlcarousel/" target="_blank" rel="noopener">Owl Carousel</a></li><br><li><a href="http://nantokaworks.com/p1047/" target="_blank" rel="noopener">Yeomanでフロントエンドとバックエンドサーバを一緒に開発する</a></li><br><li><a href="https://github.com/drewzboto/grunt-connect-proxy" target="_blank" rel="noopener">drewzboto/grunt-connect-proxy</a></li><br></ul>
+</div></article></div></section><footer><div class="paginator"><a href="/2014/06/17/002848/" class="prev"><button class="ui button teal">前の記事</button></a><a href="/2014/06/07/073658/" class="next"><button class="ui button teal">次の記事</button></a></div><div id="disqus_thread"></div><script>var disqus_shortname = 'nqounet';
+var disqus_identifier = '2014/06/16/004553/';
+var disqus_title = 'OwlCarouselを使うと簡単にカルーセルが実装できた';
+var disqus_url = 'http://nqou.net/2014/06/16/004553/';
+(function() {
+    var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+})();</script><script id="dsq-count-scr" src="//nqounet.disqus.com/count.js" async></script><div class="copyright"><p>© 2016 - 2017 <a href="http://nqou.net">nqounet</a>, powered by <a href="https://hexo.io/" target="_blank">Hexo</a> and theme by <a href="https://github.com/littlewin-wang/hexo-theme-casual" target="_blank">casual</a></p></div></footer></div><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script><script src="/js/jquery.goup.min.js"></script><script src="/js/semantic.min.js"></script><script src="/js/casual.js"></script><script async src="//cdn.bootcss.com/mathjax/2.6.1/MathJax.js?config=TeX-MML-AM_CHTML"></script><script>$(document).ready(function(){$.goup({trigger:100,bottomOffset:100,locationOffset:5,title:'',titleAsText:true});});</script><script>(function(b,o,i,l,e,r){b.GoogleAnalyticsObject=l;b[l]||(b[l]=function(){(b[l].q=b[l].q||[]).push(arguments)});b[l].l=+new Date;e=o.createElement(i);r=o.getElementsByTagName(i)[0];e.src='//www.google-analytics.com/analytics.js';r.parentNode.insertBefore(e,r)}(window,document,'script','ga'));ga('create',"UA-3538047-6",'auto');ga('send','pageview');</script></div></body></html>

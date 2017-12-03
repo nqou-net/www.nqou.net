@@ -1,0 +1,75 @@
+<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><meta name="X-UA-Compatible" content="IE=edge"><title> XML::Simple におけるパーサーの実行速度比較 | nqou.net</title><meta name="description" content="XML::Simple におけるパーサーの実行速度比較 - nqounet"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="short icon" href="/favicon.png"><link rel="stylesheet" href="/css/casual.css"><link rel="stylesheet" href="/css/semantic.min.css"><link rel="search" type="application/opensearchdescription+xml" href="http://nqou.net/atom.xml" title="nqou.net"></head><body><div class="sidebar"><div class="ui vertical inverted menu"><div class="h100"></div><h3 class="ui inverted aligned icon header"><div class="content"><a href="/" class="title-link">nqou.net</a></div></h3><div class="h50"></div><div class="side-nav"><a href="/" target="_self" class="item">HOME<i class="icon home"></i></a><a href="/archives" target="_self" class="item">ARCHIVE<i class="icon archive"></i></a><a href="/tags" target="_self" class="item">TAGS<i class="icon tags"></i></a><a href="/about" target="_self" class="item">INFO<i class="icon info"></i></a><a href="/atom.xml" target="_self" class="item">RSS<i class="icon rss"></i></a></div><div class="h50"></div></div><div class="h50 mq"><a class="ui teal big label"><i class="content icon"></i></a></div><div class="author-info"><a href="/" class="img-link"><img src="/avatar.png" class="author-photo ui tiny circular image"></a><h4 class="ui aligned icon header"><div class="content">nqounet</div></h4><p class="author-desc">Beer, Perl, Kansai.pm</p><div class="social-outer"><div class="social-inner"><a href="http://github.com/nqounet" target="_blank" class="social-link"><i class="icon github"></i></a><a href="http://twitter.com/nqounet" target="_blank" class="social-link"><i class="icon twitter"></i></a><a href="https://www.facebook.com/nobutaka.wakabayashi" target="_blank" class="social-link"><i class="icon facebook"></i></a></div></div></div></div><div class="main"><div class="wrap"><section class="container"><div class="post"><article class="post-block"><h1 class="post-title">XML::Simple におけるパーサーの実行速度比較</h1><div class="post-info"><div class="post-date"><h6 class="ui header"><i class="calendar icon"></i><div class="content">2009年2月23日</div></h6></div></div><div class="post-content"><p>ソースだけでなくタイトルもパクリですが。<br>実行結果は環境によって変わるんでしょうか。<br>それとも、何らかの速度改善が行われたのかもしれません。<br>参考：<a href="http://d.hatena.ne.jp/naoya/20050801/1122884138" target="_blank">XML::Simple におけるパーサーの実行速度比較 - naoyaのはてなダイアリー</a></p>
+
+<pre><code>Benchmark: running XML::LibXML::SAX, XML::Parser, XML::SAX::Expat, XML::SAX::ExpatXS, XML::SAX::PP for at least 3 CPU seconds...
+XML::LibXML::SAX:  3 wallclock secs ( 3.03 usr +  0.00 sys =  3.03 CPU) @ 20.79/s (n=63)
+XML::Parser:  3 wallclock secs ( 3.11 usr +  0.01 sys =  3.12 CPU) @ 57.30/s (n=179)
+XML::SAX::Expat:  3 wallclock secs ( 3.27 usr +  0.00 sys =  3.27 CPU) @ 18.38/s (n=60)
+XML::SAX::ExpatXS:  3 wallclock secs ( 3.30 usr +  0.00 sys =  3.30 CPU) @ 67.33/s (n=222)
+XML::SAX::PP:  3 wallclock secs ( 3.25 usr +  0.00 sys =  3.25 CPU) @  4.00/s (n=13)
+Rate XML::SAX::PP XML::SAX::Expat XML::LibXML::SAX XML::Parser XML::SAX::ExpatXS
+XML::SAX::PP      4.00/s           --            -78%             -81%        -93%              -94%
+XML::SAX::Expat   18.4/s         360%              --             -12%        -68%              -73%
+XML::LibXML::SAX  20.8/s         420%             13%               --        -64%              -69%
+XML::Parser       57.3/s        1333%            212%             176%          --              -15%
+XML::SAX::ExpatXS 67.3/s        1584%            266%             224%         18%                --
+</code></pre>
+
+<p>使ったRSSファイルは前回と同じです。<br>なんともコメントしにくいです。<br>参考にした記事は、3年前半ほど前のものなので色々と変わっているとも言えるし、Windowsという環境のせいとも言えるし。<br>まあ、それにしても、XML::Parserが無難に速いことは間違いなさそうですね。<br>ソースコードは以下のとおり。</p>
+
+<p><br>ソースコード</p>
+
+<pre><code>use strict;
+use warnings;
+use Benchmark qw(:all);
+use Perl6::Say;
+use FileHandle;
+use XML::Simple;
+use Data::Dumper;
+my &#36;rss_file = &#34;../satomi.xml&#34;;
+my &#36;fh = FileHandle-&#62;new(&#36;rss_file)
+or die &#34;cannot open &#36;rss_file: &#36;!&#34;;
+local &#36;/; # slurp mode
+our &#36;content = &#36;fh-&#62;getline;
+&#36;fh-&#62;close;
+sub parse {
+my &#36;xml = XML::Simple-&#62;new-&#62;XMLin(&#36;content);
+#    say Dumper &#36;xml;
+}
+cmpthese(timethese(0,
+{
+'XML::Parser'       =&#62; \&#38;with_xml_parser,
+'XML::LibXML::SAX'  =&#62; \&#38;with_xml_libxml_sax,
+'XML::SAX::ExpatXS' =&#62; \&#38;with_xml_sax_expatxs,
+'XML::SAX::Expat'   =&#62; \&#38;with_xml_sax_expat,
+'XML::SAX::PP'      =&#62; \&#38;with_xml_sax_pp,
+}));
+sub with_xml_parser {
+&#36;XML::Simple::PREFERRED_PARSER = 'XML::Parser';
+parse();
+}
+sub with_xml_sax_pp {
+&#36;XML::Simple::PREFERRED_PARSER = 'XML::SAX::PurePerl';
+parse();
+}
+sub with_xml_libxml_sax {
+&#36;XML::Simple::PREFERRED_PARSER = 'XML::LibXML::SAX';
+parse();
+}
+sub with_xml_sax_expatxs {
+&#36;XML::Simple::PREFERRED_PARSER = 'XML::SAX::ExpatXS';
+parse();
+}
+sub with_xml_sax_expat {
+&#36;XML::Simple::PREFERRED_PARSER = 'XML::SAX::Expat';
+parse();
+}
+</code></pre>
+</div></article></div></section><footer><div class="paginator"><a href="/2009/02/28/014616/" class="prev"><button class="ui button teal">前の記事</button></a><a href="/2009/02/23/224328/" class="next"><button class="ui button teal">次の記事</button></a></div><div id="disqus_thread"></div><script>var disqus_shortname = 'nqounet';
+var disqus_identifier = '2009/02/23/231043/';
+var disqus_title = 'XML::Simple におけるパーサーの実行速度比較';
+var disqus_url = 'http://nqou.net/2009/02/23/231043/';
+(function() {
+    var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+})();</script><script id="dsq-count-scr" src="//nqounet.disqus.com/count.js" async></script><div class="copyright"><p>© 2016 - 2017 <a href="http://nqou.net">nqounet</a>, powered by <a href="https://hexo.io/" target="_blank">Hexo</a> and theme by <a href="https://github.com/littlewin-wang/hexo-theme-casual" target="_blank">casual</a></p></div></footer></div><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script><script src="/js/jquery.goup.min.js"></script><script src="/js/semantic.min.js"></script><script src="/js/casual.js"></script><script async src="//cdn.bootcss.com/mathjax/2.6.1/MathJax.js?config=TeX-MML-AM_CHTML"></script><script>$(document).ready(function(){$.goup({trigger:100,bottomOffset:100,locationOffset:5,title:'',titleAsText:true});});</script><script>(function(b,o,i,l,e,r){b.GoogleAnalyticsObject=l;b[l]||(b[l]=function(){(b[l].q=b[l].q||[]).push(arguments)});b[l].l=+new Date;e=o.createElement(i);r=o.getElementsByTagName(i)[0];e.src='//www.google-analytics.com/analytics.js';r.parentNode.insertBefore(e,r)}(window,document,'script','ga'));ga('create',"UA-3538047-6",'auto');ga('send','pageview');</script></div></body></html>

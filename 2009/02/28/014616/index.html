@@ -1,0 +1,103 @@
+<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><meta name="X-UA-Compatible" content="IE=edge"><title> Atomのパース速度の比較 | nqou.net</title><meta name="description" content="Atomのパース速度の比較 - nqounet"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="short icon" href="/favicon.png"><link rel="stylesheet" href="/css/casual.css"><link rel="stylesheet" href="/css/semantic.min.css"><link rel="search" type="application/opensearchdescription+xml" href="http://nqou.net/atom.xml" title="nqou.net"></head><body><div class="sidebar"><div class="ui vertical inverted menu"><div class="h100"></div><h3 class="ui inverted aligned icon header"><div class="content"><a href="/" class="title-link">nqou.net</a></div></h3><div class="h50"></div><div class="side-nav"><a href="/" target="_self" class="item">HOME<i class="icon home"></i></a><a href="/archives" target="_self" class="item">ARCHIVE<i class="icon archive"></i></a><a href="/tags" target="_self" class="item">TAGS<i class="icon tags"></i></a><a href="/about" target="_self" class="item">INFO<i class="icon info"></i></a><a href="/atom.xml" target="_self" class="item">RSS<i class="icon rss"></i></a></div><div class="h50"></div></div><div class="h50 mq"><a class="ui teal big label"><i class="content icon"></i></a></div><div class="author-info"><a href="/" class="img-link"><img src="/avatar.png" class="author-photo ui tiny circular image"></a><h4 class="ui aligned icon header"><div class="content">nqounet</div></h4><p class="author-desc">Beer, Perl, Kansai.pm</p><div class="social-outer"><div class="social-inner"><a href="http://github.com/nqounet" target="_blank" class="social-link"><i class="icon github"></i></a><a href="http://twitter.com/nqounet" target="_blank" class="social-link"><i class="icon twitter"></i></a><a href="https://www.facebook.com/nobutaka.wakabayashi" target="_blank" class="social-link"><i class="icon facebook"></i></a></div></div></div></div><div class="main"><div class="wrap"><section class="container"><div class="post"><article class="post-block"><h1 class="post-title">Atomのパース速度の比較</h1><div class="post-info"><div class="post-date"><h6 class="ui header"><i class="calendar icon"></i><div class="content">2009年2月28日</div></h6></div></div><div class="post-content"><p>RSSもいいけど、今後のことを思えばAtomも欠かせません。<br>ざっくりとCPANを漁っていくつか見繕ってベンチマークしました。<br>ついでにXPathでAtomを解析してみました。<br>いまいち納得はいきませんが、とりあえず同じ出力を得ることができたので良しとします。</p>
+<pre><code>Benchmark: running Data::Feed, XML::Atom, XML::Feed, XML::FeedPP, XML::LibXML for at least 3 CPU seconds...
+Data::Feed:  3 wallclock secs ( 3.14 usr +  0.00 sys =  3.14 CPU) @ 413.88/s (n=1300)
+XML::Atom:  3 wallclock secs ( 3.20 usr +  0.00 sys =  3.20 CPU) @ 525.76/s (n=1684)
+XML::Feed:  3 wallclock secs ( 3.28 usr +  0.02 sys =  3.30 CPU) @ 415.23/s (n=1369)
+XML::FeedPP:  3 wallclock secs ( 3.19 usr +  0.00 sys =  3.19 CPU) @ 120.49/s (n=384)
+XML::LibXML:  3 wallclock secs ( 3.16 usr +  0.05 sys =  3.20 CPU) @ 1105.81/s (n=3543)
+Rate XML::FeedPP  Data::Feed   XML::Feed   XML::Atom XML::LibXML
+XML::FeedPP  120/s          --        -71%        -71%        -77%        -89%
+Data::Feed   414/s        243%          --         -0%        -21%        -63%
+XML::Feed    415/s        245%          0%          --        -21%        -62%
+XML::Atom    526/s        336%         27%         27%          --        -52%
+XML::LibXML 1106/s        818%        167%        166%        110%          --
+</code></pre>
+Atomは「<a href="https://www.google.co.jp/search?hl=ja&amp;q=Perl&amp;lr=lang_ja&amp;ie=utf-8&amp;tbm=blg&amp;tbs=qdr:d&amp;output=atom" target="_blank">Perl - Google ブログ検索</a>」な感じの10件です。
+結果から見ると、やはりXML::LibXMLの一人勝ち。XPathさえきっちり書くことができるなら、これを使うのが良いでしょうね。
+XML::Atom（実際はXML::Atom::Feedですが）は、PPを除いた他の二つよりは少し速いです。これはAtomに特化しているからかもしれませんが。
+XML::FeedとData::Feedはほぼ同じ程度でした。
+また、XML::FeedPPは残念な結果でした。しかし、Atomだから遅いというわけではなく、LibXMLとの比較だと同じ程度なので、単に比べたモジュールが高速なものが多かった、ということでしょう。
+ソースは以下のとおり。
+
+
+ソースコード
+<pre><code>use strict;
+use warnings;
+use Data::Dumper;
+use Benchmark qw(:all);
+use FileHandle;
+use XML::LibXML;
+use XML::Atom::Feed;
+use Data::Feed;
+use XML::Feed;
+use XML::FeedPP;
+my &#36;feed_file = q{../atom.xml};
+my &#36;fh = FileHandle-&#62;new(&#36;feed_file)
+or die &#34;cannot open &#36;feed_file: &#36;!&#34;;
+local &#36;/; # slurp mode
+our &#36;content = &#36;fh-&#62;getline;
+&#36;fh-&#62;close;
+cmpthese(timethese(0,
+{
+'XML::Atom'   =&#62; \&#38;with_xml_atom,
+'Data::Feed'  =&#62; \&#38;with_data_feed,
+'XML::Feed'   =&#62; \&#38;with_xml_feed,
+'XML::FeedPP' =&#62; \&#38;with_xml_feedpp,
+'XML::LibXML' =&#62; \&#38;with_xml_libxml,
+}));
+sub with_xml_libxml {
+my @links =();
+my &#36;parser = XML::LibXML-&#62;new;
+my &#36;doc = &#36;parser-&#62;parse_string(&#36;content);
+my @nodes = &#36;doc-&#62;findnodes(
+qq{//*[name()='entry']/*[name()='link']}
+);
+for my &#36;node (@nodes) {
+push @links, &#36;node-&#62;getAttribute('href');
+}
+#    print Dumper \@links;
+}
+sub with_xml_feedpp {
+my @links = ();
+my &#36;feed = XML::FeedPP-&#62;new(&#36;content);
+foreach my &#36;item ( &#36;feed-&#62;get_item() ) {
+push @links, &#36;item-&#62;link;
+}
+#    print Dumper \@links;
+}
+sub with_xml_feed {
+my @links = ();
+my &#36;atom = XML::Feed-&#62;parse(\&#36;content);
+for my &#36;entry (&#36;atom-&#62;entries) {
+push  @links, &#36;entry-&#62;link;
+}
+#    print Dumper \@links;
+}
+sub with_data_feed {
+my @links = ();
+my &#36;atom = Data::Feed-&#62;parse(\&#36;content);
+for my &#36;entry (&#36;atom-&#62;entries) {
+push  @links, &#36;entry-&#62;link;
+}
+#    print Dumper \@links;
+}
+sub with_xml_atom {
+my @links = ();
+my &#36;atom = XML::Atom::Feed-&#62;new(\&#36;content);
+for my &#36;entry (&#36;atom-&#62;entries) {
+for my &#36;link (&#36;entry-&#62;link) {
+push  @links, &#36;link-&#62;href;
+}
+}
+#    print Dumper \@links;
+}
+</code></pre>
+</div></article></div></section><footer><div class="paginator"><a href="/2009/02/28/024557/" class="prev"><button class="ui button teal">前の記事</button></a><a href="/2009/02/23/231043/" class="next"><button class="ui button teal">次の記事</button></a></div><div id="disqus_thread"></div><script>var disqus_shortname = 'nqounet';
+var disqus_identifier = '2009/02/28/014616/';
+var disqus_title = 'Atomのパース速度の比較';
+var disqus_url = 'http://nqou.net/2009/02/28/014616/';
+(function() {
+    var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+})();</script><script id="dsq-count-scr" src="//nqounet.disqus.com/count.js" async></script><div class="copyright"><p>© 2016 - 2017 <a href="http://nqou.net">nqounet</a>, powered by <a href="https://hexo.io/" target="_blank">Hexo</a> and theme by <a href="https://github.com/littlewin-wang/hexo-theme-casual" target="_blank">casual</a></p></div></footer></div><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script><script src="/js/jquery.goup.min.js"></script><script src="/js/semantic.min.js"></script><script src="/js/casual.js"></script><script async src="//cdn.bootcss.com/mathjax/2.6.1/MathJax.js?config=TeX-MML-AM_CHTML"></script><script>$(document).ready(function(){$.goup({trigger:100,bottomOffset:100,locationOffset:5,title:'',titleAsText:true});});</script><script>(function(b,o,i,l,e,r){b.GoogleAnalyticsObject=l;b[l]||(b[l]=function(){(b[l].q=b[l].q||[]).push(arguments)});b[l].l=+new Date;e=o.createElement(i);r=o.getElementsByTagName(i)[0];e.src='//www.google-analytics.com/analytics.js';r.parentNode.insertBefore(e,r)}(window,document,'script','ga'));ga('create',"UA-3538047-6",'auto');ga('send','pageview');</script></div></body></html>

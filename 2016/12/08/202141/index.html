@@ -1,0 +1,106 @@
+<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><meta name="X-UA-Compatible" content="IE=edge"><title> 遅延実行と仮実行（dry_run）について考えてみた | nqou.net</title><meta name="description" content="遅延実行と仮実行（dry_run）について考えてみた - nqounet"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="short icon" href="/favicon.png"><link rel="stylesheet" href="/css/casual.css"><link rel="stylesheet" href="/css/semantic.min.css"><link rel="search" type="application/opensearchdescription+xml" href="http://nqou.net/atom.xml" title="nqou.net"></head><body><div class="sidebar"><div class="ui vertical inverted menu"><div class="h100"></div><h3 class="ui inverted aligned icon header"><div class="content"><a href="/" class="title-link">nqou.net</a></div></h3><div class="h50"></div><div class="side-nav"><a href="/" target="_self" class="item">HOME<i class="icon home"></i></a><a href="/archives" target="_self" class="item">ARCHIVE<i class="icon archive"></i></a><a href="/tags" target="_self" class="item">TAGS<i class="icon tags"></i></a><a href="/about" target="_self" class="item">INFO<i class="icon info"></i></a><a href="/atom.xml" target="_self" class="item">RSS<i class="icon rss"></i></a></div><div class="h50"></div></div><div class="h50 mq"><a class="ui teal big label"><i class="content icon"></i></a></div><div class="author-info"><a href="/" class="img-link"><img src="/avatar.png" class="author-photo ui tiny circular image"></a><h4 class="ui aligned icon header"><div class="content">nqounet</div></h4><p class="author-desc">Beer, Perl, Kansai.pm</p><div class="social-outer"><div class="social-inner"><a href="http://github.com/nqounet" target="_blank" class="social-link"><i class="icon github"></i></a><a href="http://twitter.com/nqounet" target="_blank" class="social-link"><i class="icon twitter"></i></a><a href="https://www.facebook.com/nobutaka.wakabayashi" target="_blank" class="social-link"><i class="icon facebook"></i></a></div></div></div></div><div class="main"><div class="wrap"><section class="container"><div class="post"><article class="post-block"><h1 class="post-title">遅延実行と仮実行（dry_run）について考えてみた</h1><div class="post-info"><div class="post-date"><h6 class="ui header"><i class="calendar icon"></i><div class="content">2016年12月8日</div></h6></div></div><div class="post-content"><p>この記事は <a href="http://qiita.com/advent-calendar/2016/perl5" target="_blank" rel="noopener">Perl 5 Advent Calendar 2016</a> の8日目の記事です。</p>
+
+<p>昨日は <a href="https://twitter.com/wakegisky" target="_blank" rel="noopener">@wakegisky</a> さんの <a href="http://wakegisky.hatenablog.com/entry/2016/12/07/000000" target="_blank" rel="noopener">Perl の基礎知識で実用プログラミング 〜旅情編〜</a> でした。</p>
+
+<p>データを追加するだけで動作がどんどん良くなる、凄い仕組みのプログラムですね。<br>必要は発明の母です。</p>
+
+<p>さて、今日は関数のリファレンスを使った tips を書いてみたいと思います。</p>
+
+<h2>遅延実行と仮実行（dry_run）</h2>
+
+<p>シチュエーションは色々あると思いますが、実行結果を事前に確認したい、ということはよくあります。</p>
+
+<p>コマンドとかの場合は、「–dry-run」のようなオプションがあって、そのオプションを付けると実際には何も変更しないけれども、実行した感じで結果が返ってくる。みたいな。</p>
+
+<p>でも、これって結構面倒だと思いませんか？</p>
+
+<p>最初からちゃんと考えて実装していれば問題ないですが、そうでもない場合は、実行しているところが色々分散していて、仮実行のときはここは変更しない、みたいなところを色々とif文などで避けなければいけない。</p>
+
+<p>実際に実行する箇所を一つにまとめられたら楽なんじゃないかなと思いませんか？</p>
+
+<h2>関数のリファレンスで処理をまとめる</h2>
+
+<p>そこで登場するのが関数のリファレンスです。</p>
+
+<p>実装のイメージとしてはこんな感じ。</p>
+
+<pre>
+use strict;
+use warnings;
+use feature 'say';
+
+my @job;
+push @job, sub { say 1 };
+push @job, sub { say 2 };
+say "hoge";
+unshift @job, sub { say 3 };
+for (@job) { &{$_} }
+</pre>
+
+<p>これを実行すると以下のようになります。</p>
+
+<pre>
+hoge
+3
+1
+2
+</pre>
+
+<p>基本的な仕組みとしては、関数のリファレンスを push したり unshift したりして、配列に貯めておき、実行するときは関数のリファレンスをデリファレンスする、という感じです。</p>
+
+<p>こうしておくと、実際の実行部分は、関数のデリファレンス部分にまとまります。</p>
+
+<p>この仕組を利用すると、実際の書き込み処理は配列に貯めておいて、仮実行のときはこれを実行しない、というようにすることができます。</p>
+
+<pre>
+unless ($dry_run) {
+    for (@job) { &{$_} }
+}
+</pre>
+
+<p>$dry_run が真の場合、以下のように出力されます。</p>
+
+<pre>
+hoge
+</pre>
+
+<p>ということで、処理が各所に点在していても、仮実行の対象にしたい処理はグローバルな変数などを一つ用意して、そこにジョブ（関数のリファレンス）を貯めておき、仮実行でない場合だけ実行するようにすることができます。</p>
+
+<p>こういった仕組みを使うと、例えば <a href="https://metacpan.org/pod/Teng" target="_blank" rel="noopener">Teng</a> の場合は、値をセット（set, set_columnsなど）だけして、実際の更新処理（update）は関数のリファレンスで貯めておき、dry_runのときはupdateの処理を捨てることで、限りなく本番に近い仮実行ができるようになります。</p>
+
+<h2>CGIにも関数のリファレンスを</h2>
+
+<p>話は変わりますが、古き良きCGIは、スクリプトの最初にまずHTTPヘッダを出力したりしています。</p>
+
+<p>テンプレートを使っていない場合は、その次にHTMLのヘッダを出力したりしているのではないでしょうか。</p>
+
+<p>そうして順に処理していったところで何らかのエラーが発生した場合、突然エラーメッセージが出力されてHTMLがちぎれた状態になったりするんですよね。</p>
+
+<p>でも、そういうのを修正するのは面倒なので、なかなか手を付けられないのではないかとおもいます。</p>
+
+<p>そんな時に、先程の仕組みを使えば、あまり沢山のコードを書き換えなくてもよくなります。</p>
+
+<p>print で出力しているところをグローバルな変数に関数のリファレンスとして貯めておき、エラーのときは、それまで貯めておいた処理を捨てて、エラーだけを出力する、なんてことができるようになりますよ。</p>
+
+<h2>最後に</h2>
+
+<p>2017年3月4日（土）に YAPC::Japan と Kansai.pm がコラボした、「YAPC::Kansai 2017 OSAKA」を開催します。</p>
+
+<ul><br><li><a href="http://yapcjapan.org/2017kansai/" target="_blank" rel="noopener">YAPC::Kansai 2017 OSAKA</a></li><br></ul>
+
+<p>まだまだ未定なことが多いですが、今から予定を空けておいてください。</p>
+
+<p>明日は <a href="http://qiita.com/skaji" target="_blank" rel="noopener">skaji</a> さんで、「cpmについて書きます」のようです。</p>
+
+<p>また、アドベントカレンダーには、まだ空きがありますので、何か書いてみたい方は是非ご参加ください！！</p>
+
+<ul><br><li><a href="http://qiita.com/advent-calendar/2016/perl5" target="_blank" rel="noopener">Perl 5 Advent Calendar 2016 - Qiita</a></li><br></ul>
+</div></article></div></section><footer><div class="paginator"><a href="/2016/12/09/140321/" class="prev"><button class="ui button teal">前の記事</button></a><a href="/2016/12/02/001419/" class="next"><button class="ui button teal">次の記事</button></a></div><div id="disqus_thread"></div><script>var disqus_shortname = 'nqounet';
+var disqus_identifier = '2016/12/08/202141/';
+var disqus_title = '遅延実行と仮実行（dry_run）について考えてみた';
+var disqus_url = 'http://nqou.net/2016/12/08/202141/';
+(function() {
+    var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+})();</script><script id="dsq-count-scr" src="//nqounet.disqus.com/count.js" async></script><div class="copyright"><p>© 2016 - 2017 <a href="http://nqou.net">nqounet</a>, powered by <a href="https://hexo.io/" target="_blank">Hexo</a> and theme by <a href="https://github.com/littlewin-wang/hexo-theme-casual" target="_blank">casual</a></p></div></footer></div><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script><script src="/js/jquery.goup.min.js"></script><script src="/js/semantic.min.js"></script><script src="/js/casual.js"></script><script async src="//cdn.bootcss.com/mathjax/2.6.1/MathJax.js?config=TeX-MML-AM_CHTML"></script><script>$(document).ready(function(){$.goup({trigger:100,bottomOffset:100,locationOffset:5,title:'',titleAsText:true});});</script><script>(function(b,o,i,l,e,r){b.GoogleAnalyticsObject=l;b[l]||(b[l]=function(){(b[l].q=b[l].q||[]).push(arguments)});b[l].l=+new Date;e=o.createElement(i);r=o.getElementsByTagName(i)[0];e.src='//www.google-analytics.com/analytics.js';r.parentNode.insertBefore(e,r)}(window,document,'script','ga'));ga('create',"UA-3538047-6",'auto');ga('send','pageview');</script></div></body></html>

@@ -1,0 +1,190 @@
+<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><meta name="X-UA-Compatible" content="IE=edge"><title> JavaScriptで、配列を展開してメソッドに渡す方法 | nqou.net</title><meta name="description" content="JavaScriptで、配列を展開してメソッドに渡す方法 - nqounet"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="short icon" href="/favicon.png"><link rel="stylesheet" href="/css/casual.css"><link rel="stylesheet" href="/css/semantic.min.css"><link rel="search" type="application/opensearchdescription+xml" href="http://nqou.net/atom.xml" title="nqou.net"></head><body><div class="sidebar"><div class="ui vertical inverted menu"><div class="h100"></div><h3 class="ui inverted aligned icon header"><div class="content"><a href="/" class="title-link">nqou.net</a></div></h3><div class="h50"></div><div class="side-nav"><a href="/" target="_self" class="item">HOME<i class="icon home"></i></a><a href="/archives" target="_self" class="item">ARCHIVE<i class="icon archive"></i></a><a href="/tags" target="_self" class="item">TAGS<i class="icon tags"></i></a><a href="/about" target="_self" class="item">INFO<i class="icon info"></i></a><a href="/atom.xml" target="_self" class="item">RSS<i class="icon rss"></i></a></div><div class="h50"></div></div><div class="h50 mq"><a class="ui teal big label"><i class="content icon"></i></a></div><div class="author-info"><a href="/" class="img-link"><img src="/avatar.png" class="author-photo ui tiny circular image"></a><h4 class="ui aligned icon header"><div class="content">nqounet</div></h4><p class="author-desc">Beer, Perl, Kansai.pm</p><div class="social-outer"><div class="social-inner"><a href="http://github.com/nqounet" target="_blank" class="social-link"><i class="icon github"></i></a><a href="http://twitter.com/nqounet" target="_blank" class="social-link"><i class="icon twitter"></i></a><a href="https://www.facebook.com/nobutaka.wakabayashi" target="_blank" class="social-link"><i class="icon facebook"></i></a></div></div></div></div><div class="main"><div class="wrap"><section class="container"><div class="post"><article class="post-block"><h1 class="post-title">JavaScriptで、配列を展開してメソッドに渡す方法</h1><div class="post-info"><div class="post-date"><h6 class="ui header"><i class="calendar icon"></i><div class="content">2014年4月25日</div></h6></div></div><div class="post-content"><p><a href="https://twitter.com/nqounet" target="_blank" rel="noopener">@nqounet</a>です。</p>
+
+<p>JavaScript（というか、ほぼjQuery）にも大分慣れてきた気がしてきた今日このごろですが、皆さまいかがお過ごしでしょうか？</p>
+
+
+
+<h2>配列は展開しなくても大丈夫だった</h2>
+
+<p>やりたいのは、Perlでいう、デリファレンスのようなことなのです。</p>
+
+<pre class="lang:perl">
+use List::Util qw(sum);
+my $array = [1, 2, 3, 4, 5];
+sub func { print sum(@_); }
+
+func(@$array); # ここで$arrayを展開している
+</pre>
+
+<p>ありとあらゆる知識を総動員して検索したのですが、こんなことはする必要がなかったようです。</p>
+
+<p>結論としては、<code>apply</code>を使えばいいです。</p>
+
+<p><code>apply</code>を使うと、配列のままでも展開して渡したようにできるという、まるで魔法ですね。</p>
+
+<pre class="lang:js">
+var array = [1, 2, 3, 4, 5];
+var func = function(a, b, c, d, e){ alert(a + b + c + d + e); };
+
+func.apply(this, array); // 配列をそのまま渡しても動くという謎仕様
+</pre>
+
+<p>引数のように見える<code>this</code>は特に意味は無いようで、ここは<code>null</code>でも<code>0</code>でもなんでも良いです。</p>
+
+<p>ここからは、何故こういうことをしようとしたのかをツラツラと書いていきます。</p>
+
+<h2>AJAX万歳</h2>
+
+<p>AJAXでAPIにアクセスしてデータを取得し、それに基づいてゴニョゴニョする、という処理は頻繁にあると思います。</p>
+
+<p>こういった非同期な処理を書こうとすると、コールバックばかりになってしまいます。</p>
+
+<p>コールバックというのは、読み込みが終わったあとの処理のことで、jQueryではAJAXのgetの処理にコールバックも一緒に渡してやると、getしてきたコンテンツを引数にして、コールバックを実行してくれます。</p>
+
+<pre class="lang:js">
+// 非同期通信
+$.get(url, function(contents){
+    console.debug('contents:', contents);
+    /* ゴニョゴニョ */
+});
+</pre>
+
+<h2>キャッシュ万歳</h2>
+
+<p>それとは別の話ですが、サーバーとの通信は時間がかかるので、AJAXの結果はキャッシュしておいて、必要なときはキャッシュから取得するように作ると思います。</p>
+
+<p>しかも、読む方からはキャッシュがあるかどうかを気にせずに。</p>
+
+<p>キャッシュがあった場合は、非同期ではないので、値を直接受け取ることができます。</p>
+
+<p>なので、できればこういう感じで書きたいなと思うのです。</p>
+
+<pre class="lang:js">
+var contents = getContentsByAjax(url);
+</pre>
+
+<p>しかし、残念ながら、キャッシュがなかった場合にもこのような書き方で動作させる方法が全くわかりません。</p>
+
+<p>そして、間に一つでも非同期の処理が入ると、続けての処理も普通に書くことができなくなります。</p>
+
+<p>どこかでリセットしたいと思うわけです。</p>
+
+<p>そこで、イベントオブジェクトを経由して、同期的な処理として書いてみることにしました。</p>
+
+<h2>イベントオブジェクト経由でも同じように実行する</h2>
+
+<p>先に書いたとおり、<code>apply</code>を使えば配列を展開する必要がありません。</p>
+
+<pre class="lang:js">
+'use strict';
+
+jQuery(function($, undefined){
+    var eventHoge = function(e){
+        var args = Array.prototype.slice.apply(e.data);
+        hoge.apply(this, args); // hogeを呼び出し
+    },
+    hoge = function(foo, bar){
+        console.debug('hoge arguments:', arguments);
+    },
+    init = function(foo, bar){
+        console.debug('init arguments:', arguments);
+        hoge(foo, bar); // hogeを呼び出し
+        $(window).one('hoge', arguments, eventHoge);
+        $(window).triggerHandler('hoge');
+    };
+    init('foo', 'bar');
+});
+</pre>
+
+<p>こうすると<code>hoge arguments:</code>で出力される値は、<code>init</code>の中から呼び出したものと、<code>eventHoge</code>の中から呼び出したものとがおなじになります。</p>
+
+<p><code>arguments</code>を使いたいからこそ、こんなにややこしいことになっているのですが、それをするだけの価値はあると思っています。</p>
+
+<h2>コールバック方式で書いた一つの例</h2>
+
+<p>イベントオブジェクト方式で書いたのが手元にないので、とりあえずコールバック方式のほうを晒しておきます。</p>
+
+<p>AJAXでテンプレートファイルを取得して、それを使ってゴニョゴニョするスクリプトです。</p>
+
+<pre class="lang:js">
+'use strict';
+
+jQuery(function($, undefined){
+    var DEBUG = 1,
+    lscache,
+    Mustache,
+    $runButtons,
+    generateKeyFromPath = function(path){
+        return 'fetched:' + path;
+    },
+    fetchTemplate = function(path, $cb){
+        var key = generateKeyFromPath(path);
+        $.get(path, function(template){
+            console.debug('run $.get');
+            lscache.set(key, template, 1);
+            return $cb.fire(template);
+        });
+    },
+    getTemplate = function(path, $cb){
+        var key = generateKeyFromPath(path);
+        var template = lscache.get(key);
+        if (template) {
+            return $cb.fire(template);
+        }
+        else {
+            fetchTemplate(path, $cb);
+        }
+    },
+    render = function(targetId, targetName){
+        var obj = {
+            id: targetId,
+            name: targetName
+        };
+        var $cb = $.Callbacks();
+        $cb.add(function(template){
+            var rendered = Mustache.render(template, obj);
+            $('#' + targetId).html(rendered);
+        });
+        getTemplate('templates/init.mst', $cb);
+    },
+    changeName = function(e){
+        var $this = $(e.currentTarget);
+        render($this.data('id'), $this.html());
+    },
+    setVars = function(){
+        lscache = window.lscache;
+        Mustache = window.Mustache;
+        $runButtons = $('button[data-run=changeName]');
+    },
+    initHandlers = function(){
+        $runButtons.on('click', changeName);
+    },
+    init = function(){
+        setVars();
+        initHandlers();
+        if (DEBUG) {
+            lscache.flush();
+        }
+    };
+    init();
+});
+</pre>
+
+<p><code>render</code>の中がスッキリしない感じです。</p>
+
+<p>jQuery以外に以下のライブラリを使っています。</p>
+
+<ul><br><li><a href="https://github.com/pamelafox/lscache" target="_blank" rel="noopener">pamelafox/lscache</a><br><br><ul><br><li>ローカルストレージにキャッシュを作成してくれる便利なライブラリ</li><br></ul></li><br><li><a href="https://github.com/janl/mustache.js" target="_blank" rel="noopener">janl/mustache.js</a><br><br><ul><br><li>オブジェクトを渡すだけで使えるテンプレートエンジン</li><br></ul></li><br></ul>
+
+<p>動かしてみたい方はgithubにあげてありますのでお試しください。</p>
+
+<ul><br><li><a href="https://github.com/nqounet/try-mustache" target="_blank" rel="noopener">nqounet/try-mustache</a></li><br></ul>
+</div></article></div></section><footer><div class="paginator"><a href="/2014/04/26/011110/" class="prev"><button class="ui button teal">前の記事</button></a><a href="/2014/04/09/224817/" class="next"><button class="ui button teal">次の記事</button></a></div><div id="disqus_thread"></div><script>var disqus_shortname = 'nqounet';
+var disqus_identifier = '2014/04/25/012645/';
+var disqus_title = 'JavaScriptで、配列を展開してメソッドに渡す方法';
+var disqus_url = 'http://nqou.net/2014/04/25/012645/';
+(function() {
+    var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+})();</script><script id="dsq-count-scr" src="//nqounet.disqus.com/count.js" async></script><div class="copyright"><p>© 2016 - 2017 <a href="http://nqou.net">nqounet</a>, powered by <a href="https://hexo.io/" target="_blank">Hexo</a> and theme by <a href="https://github.com/littlewin-wang/hexo-theme-casual" target="_blank">casual</a></p></div></footer></div><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script><script src="/js/jquery.goup.min.js"></script><script src="/js/semantic.min.js"></script><script src="/js/casual.js"></script><script async src="//cdn.bootcss.com/mathjax/2.6.1/MathJax.js?config=TeX-MML-AM_CHTML"></script><script>$(document).ready(function(){$.goup({trigger:100,bottomOffset:100,locationOffset:5,title:'',titleAsText:true});});</script><script>(function(b,o,i,l,e,r){b.GoogleAnalyticsObject=l;b[l]||(b[l]=function(){(b[l].q=b[l].q||[]).push(arguments)});b[l].l=+new Date;e=o.createElement(i);r=o.getElementsByTagName(i)[0];e.src='//www.google-analytics.com/analytics.js';r.parentNode.insertBefore(e,r)}(window,document,'script','ga'));ga('create',"UA-3538047-6",'auto');ga('send','pageview');</script></div></body></html>

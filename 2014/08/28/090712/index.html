@@ -1,0 +1,104 @@
+<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><meta name="X-UA-Compatible" content="IE=edge"><title> 例外をテストするならTest::Fatalが書きやすい | nqou.net</title><meta name="description" content="例外をテストするならTest::Fatalが書きやすい - nqounet"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="short icon" href="/favicon.png"><link rel="stylesheet" href="/css/casual.css"><link rel="stylesheet" href="/css/semantic.min.css"><link rel="search" type="application/opensearchdescription+xml" href="http://nqou.net/atom.xml" title="nqou.net"></head><body><div class="sidebar"><div class="ui vertical inverted menu"><div class="h100"></div><h3 class="ui inverted aligned icon header"><div class="content"><a href="/" class="title-link">nqou.net</a></div></h3><div class="h50"></div><div class="side-nav"><a href="/" target="_self" class="item">HOME<i class="icon home"></i></a><a href="/archives" target="_self" class="item">ARCHIVE<i class="icon archive"></i></a><a href="/tags" target="_self" class="item">TAGS<i class="icon tags"></i></a><a href="/about" target="_self" class="item">INFO<i class="icon info"></i></a><a href="/atom.xml" target="_self" class="item">RSS<i class="icon rss"></i></a></div><div class="h50"></div></div><div class="h50 mq"><a class="ui teal big label"><i class="content icon"></i></a></div><div class="author-info"><a href="/" class="img-link"><img src="/avatar.png" class="author-photo ui tiny circular image"></a><h4 class="ui aligned icon header"><div class="content">nqounet</div></h4><p class="author-desc">Beer, Perl, Kansai.pm</p><div class="social-outer"><div class="social-inner"><a href="http://github.com/nqounet" target="_blank" class="social-link"><i class="icon github"></i></a><a href="http://twitter.com/nqounet" target="_blank" class="social-link"><i class="icon twitter"></i></a><a href="https://www.facebook.com/nobutaka.wakabayashi" target="_blank" class="social-link"><i class="icon facebook"></i></a></div></div></div></div><div class="main"><div class="wrap"><section class="container"><div class="post"><article class="post-block"><h1 class="post-title">例外をテストするならTest::Fatalが書きやすい</h1><div class="post-info"><div class="post-date"><h6 class="ui header"><i class="calendar icon"></i><div class="content">2014年8月28日</div></h6></div></div><div class="post-content"><p><a href="https://twitter.com/nqounet" target="_blank" rel="noopener">@nqounet</a>です。</p>
+
+<p>今日は<a href="http://yapcasia.org/2014/" target="_blank" rel="noopener">YAPC::Asia</a>の0日目ですね！</p>
+
+<p>さて、<a href="http://www.nishimiyahara.net/2014/08/14/122638" title="CPAN Authorになりました" target="_blank" rel="noopener">先日CPAN Authorになったばかりなの</a>ですが、自分でもびっくりするほどテストコードを書くようになってきました。</p>
+
+<p>例外（致命的なエラー）をテストするには<a href="https://metacpan.org/pod/Test::Fatal" target="_blank" rel="noopener">Test::Fatal</a>がとても書きやすい（と私は思う）のですが、意外と日本語の情報がなかったので書いてみようと思います。</p>
+
+
+
+<h2>テスト大事ですよ</h2>
+
+<p>テストは大事ですよ、というような話は今更言うことでもないと思うのですが、モジュールを書くことによってそれを実感できたのが、CPAN Authorになったことよりももっと収穫でした。</p>
+
+<h2>テストコードも読んでみよう</h2>
+
+<p>まず何より他の人（モジュール）のテストコードをよく読むようになったことです。</p>
+
+<p>これまでは、使い方の実例という位置付けで、使い方を確認する程度では見ていました。</p>
+
+<p>今は、全体的にどんなテストをしているのか、こういうメソッドはどうやってテストしているのか、というような気持ちで見るようになっています。</p>
+
+<p>そうすると不思議なもので、テスト用のモジュールについてもよく目に入るようになってきました。</p>
+
+<h2>例外テストの基本形はeval</h2>
+
+<p>例外が発生するとプログラムが止まってしまうので、evalを使って例外を補足します。</p>
+
+<p>evalの中で発生したエラーは「$@」に入りますので、テストを書くときはこんな感じになります。</p>
+
+<pre>
+use strict;
+use Test::More 0.98;
+
+like 'a', qr/a/, q{ like };
+eval {die 'a'};
+like  $@, qr/a/, q{ like eval };
+
+done_testing;
+</pre>
+
+<p></p><p>$@がqr/a/でマッチすればテストがOKなのですが、$@が何なのかが直感的に頭に入ってこない感じです。</p><p></p>
+<p>まあ仕方ないですよね。</p>
+
+<h2>Test::Exceptionの時代</h2>
+
+<p>evalのテストは結構書くのが面倒なので、検索で見つけた<a href="https://metacpan.org/pod/Test::Exception" target="_blank" rel="noopener">Test::Exception</a>を使ってみたのですが、書いてみると何か気持ち悪いなと思いました。</p>
+
+<p>何がそう感じさせるのか考えてみると、カンマが違うということに気づきました。</p>
+
+<p>例えばlikeは引数がカンマ区切りなのですが、throws_okは、例外を発生させるコードと検証用のコードの間にはカンマを書きません。</p>
+
+<pre>
+use strict;
+use Test::More 0.98;
+use Test::Exception;
+
+like           'a' , qr/a/, q{ like };
+throws_ok {die 'a'}  qr/a/, q{ throws_ok };
+
+done_testing;
+</pre>
+
+<p>慣れればこれで良いのかもしれませんが、<em>*</em>_okという書き方なのに引数の渡し方が違うのが、常に頭の隅で引っかかりました。</p>
+
+<p>で、ある時Test::Fatalを知って、即乗り換えました。</p>
+
+<h2>Test::Fatal</h2>
+
+<p>Test::Fatalを使うと「exception」という関数が使えるようになります。</p>
+
+<p>これを使うと、例外が発生するコードブロックを、テストの中に直接書くことができます。</p>
+
+<pre>
+use strict;
+use Test::More 0.98;
+use Test::Fatal;
+
+like                'a' , qr/a/, q{ like };
+like exception {die 'a'}, qr/a/, q{ like exception };
+
+done_testing;
+</pre>
+
+<p>書き方としては、evalのブロックを直接テストの中に書くことができるようなイメージです。</p>
+
+<p>exceptionを使うことで、テストの書き方を変えずに書くことができるようになりました。</p>
+
+<p>ちなみに、例外が発生しない、というテストを書く場合はこんな感じで書くことができます。</p>
+
+<pre>
+is exception {'a'}, undef, q{ live };
+</pre>
+
+<p>個人的には便利だと思うのですが、如何でしょうか？</p>
+</div></article></div></section><footer><div class="paginator"><a href="/2014/08/28/163444/" class="prev"><button class="ui button teal">前の記事</button></a><a href="/2014/08/16/164630/" class="next"><button class="ui button teal">次の記事</button></a></div><div id="disqus_thread"></div><script>var disqus_shortname = 'nqounet';
+var disqus_identifier = '2014/08/28/090712/';
+var disqus_title = '例外をテストするならTest::Fatalが書きやすい';
+var disqus_url = 'http://nqou.net/2014/08/28/090712/';
+(function() {
+    var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+})();</script><script id="dsq-count-scr" src="//nqounet.disqus.com/count.js" async></script><div class="copyright"><p>© 2016 - 2017 <a href="http://nqou.net">nqounet</a>, powered by <a href="https://hexo.io/" target="_blank">Hexo</a> and theme by <a href="https://github.com/littlewin-wang/hexo-theme-casual" target="_blank">casual</a></p></div></footer></div><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script><script src="/js/jquery.goup.min.js"></script><script src="/js/semantic.min.js"></script><script src="/js/casual.js"></script><script async src="//cdn.bootcss.com/mathjax/2.6.1/MathJax.js?config=TeX-MML-AM_CHTML"></script><script>$(document).ready(function(){$.goup({trigger:100,bottomOffset:100,locationOffset:5,title:'',titleAsText:true});});</script><script>(function(b,o,i,l,e,r){b.GoogleAnalyticsObject=l;b[l]||(b[l]=function(){(b[l].q=b[l].q||[]).push(arguments)});b[l].l=+new Date;e=o.createElement(i);r=o.getElementsByTagName(i)[0];e.src='//www.google-analytics.com/analytics.js';r.parentNode.insertBefore(e,r)}(window,document,'script','ga'));ga('create',"UA-3538047-6",'auto');ga('send','pageview');</script></div></body></html>

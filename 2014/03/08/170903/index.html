@@ -1,0 +1,155 @@
+<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><meta name="X-UA-Compatible" content="IE=edge"><title> Mojoliciousでイベント駆動型プログラミングをやってみたが… | nqou.net</title><meta name="description" content="Mojoliciousでイベント駆動型プログラミングをやってみたが… - nqounet"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="short icon" href="/favicon.png"><link rel="stylesheet" href="/css/casual.css"><link rel="stylesheet" href="/css/semantic.min.css"><link rel="search" type="application/opensearchdescription+xml" href="http://nqou.net/atom.xml" title="nqou.net"></head><body><div class="sidebar"><div class="ui vertical inverted menu"><div class="h100"></div><h3 class="ui inverted aligned icon header"><div class="content"><a href="/" class="title-link">nqou.net</a></div></h3><div class="h50"></div><div class="side-nav"><a href="/" target="_self" class="item">HOME<i class="icon home"></i></a><a href="/archives" target="_self" class="item">ARCHIVE<i class="icon archive"></i></a><a href="/tags" target="_self" class="item">TAGS<i class="icon tags"></i></a><a href="/about" target="_self" class="item">INFO<i class="icon info"></i></a><a href="/atom.xml" target="_self" class="item">RSS<i class="icon rss"></i></a></div><div class="h50"></div></div><div class="h50 mq"><a class="ui teal big label"><i class="content icon"></i></a></div><div class="author-info"><a href="/" class="img-link"><img src="/avatar.png" class="author-photo ui tiny circular image"></a><h4 class="ui aligned icon header"><div class="content">nqounet</div></h4><p class="author-desc">Beer, Perl, Kansai.pm</p><div class="social-outer"><div class="social-inner"><a href="http://github.com/nqounet" target="_blank" class="social-link"><i class="icon github"></i></a><a href="http://twitter.com/nqounet" target="_blank" class="social-link"><i class="icon twitter"></i></a><a href="https://www.facebook.com/nobutaka.wakabayashi" target="_blank" class="social-link"><i class="icon facebook"></i></a></div></div></div></div><div class="main"><div class="wrap"><section class="container"><div class="post"><article class="post-block"><h1 class="post-title">Mojoliciousでイベント駆動型プログラミングをやってみたが…</h1><div class="post-info"><div class="post-date"><h6 class="ui header"><i class="calendar icon"></i><div class="content">2014年3月8日</div></h6></div></div><div class="post-content"><p><a href="https://twitter.com/nqounet" target="_blank" rel="noopener">@nqounet</a>です。</p>
+
+<p>最近、なにかとjQuery(Mobile)を使うことが多くなってきて、イベント駆動型のプログラミングにはなんとなく期待を持っています。</p>
+
+<p>そこで、Mojoliciousに含まれているイベント駆動型クラスの<code>Mojo::EventEmitter</code>を使って何かできないかなと試してみました。</p>
+
+
+
+<p>とりあえず<code>SYNOPSIS</code>を試してみます。</p>
+
+<pre class="lang:perl title:synopsis">
+package Cat;
+use Mojo::Base 'Mojo::EventEmitter';
+
+# Emit events
+sub poke {
+  my $self = shift;
+  $self->emit(roar => 3);
+}
+
+package main;
+
+# Subscribe to events
+my $tiger = Cat->new;
+$tiger->on(roar => sub {
+  my ($tiger, $times) = @_;
+  say 'RAWR!' for 1 .. $times;
+});
+$tiger->poke;
+</pre>
+
+<p>結果としては、<code>RAWR!</code>と3回鳴く（画面に表示される）わけです。</p>
+
+<p>しかし、<code>package main</code>の中で<code>tiger</code>を定義しているあたりで、EventEmitterの醍醐味がよくわからない…。</p>
+
+<p>なんかモヤモヤする。</p>
+
+<h2>JavaScriptだとどうなの</h2>
+
+<p>JavaScriptで考えると、例えばボタンに<code>onclick</code>を書いておくと、そのボタンをクリックした時に<code>onclick</code>で定義した関数が実行される。</p>
+
+<p>JavaScriptで最初に試すのはこんな感じだと思う。</p>
+
+<pre class="lang:html">
+<a href="#" onclick="alert('こんにちは')">クリックして！</a>
+</pre>
+
+<p><code>クリックして！</code>をクリックすると、画面にアラートで「こんにちは」と表示されるプログラムだ。</p>
+
+<p>GUIだとわかりやすいような気がする。</p>
+
+<blockquote cite="http://itpro.nikkeibp.co.jp/word/page/10000108/" title="「イベント駆動型プログラミング」とは：ITpro" class="blockquote"><p>　イベント駆動の考え方は，ユーザーの操作と実行プログラムを密接に関連付けたもので，マウスとアイコンを組み合わせたGUI（グラフィカル・ユーザー・インタフェース）と相性が良い。これまで手続き型の文化に慣れ親しんできた技術者もイベント駆動型で開発しなければならない場面が増えてきた。 </p></blockquote>
+
+<div class="cite">[<cite><a href="http://itpro.nikkeibp.co.jp/word/page/10000108/" target="_blank" rel="noopener">「イベント駆動型プログラミング」とは：ITpro</a></cite>]</div>
+
+<p>ユーザーが操作した行動を、イベントとして、そのイベントに対応したプログラムが実行される。</p>
+
+<h2>操作しないイベント駆動</h2>
+
+<p>ところで、先ほどの<code>onclick</code>というのは、jQuery風に言い方を変えると、ボタンがクリックされた時に<code>click</code>イベントが発行される、という感じになる。</p>
+
+<p>プログラムの立場から考えると、ボタンをクリックした、ではなく、<code>click</code>イベントが発生した、となる。</p>
+
+<p>最近のjQueryでは、<code>on</code>という命令で、このイベントを仕掛けることができるようになっている。（昔は、<code>click</code>という命令で同じことができた）</p>
+
+<p>たとえばこんな風に。</p>
+
+<pre class="lang:javascript">
+$('#run-button').on('click', function(e){
+    /* id="run-button"がクリックされると、プログラムのこの部分が実行される */ 
+});
+</pre>
+
+<p>そして、その<code>click</code>イベントはプログラムからも発生させることができる。</p>
+
+<p>jQueryの場合だと<code>trigger</code>という命令だ。</p>
+
+<pre class="lang:javascript">
+$('#run-button').trigger('click');
+</pre>
+
+<p>こちらが実行されると、先に<code>on</code>で定義したプログラムが実行される。</p>
+
+<h2>Mojo::EventEmitterだとどうなの</h2>
+
+<p><code>Mojo::EventEmitter</code>で<code>trigger</code>に相当するのが<code>emit</code>で、<code>on</code>に相当するのは、jQueryと同じく<code>on</code>だ。</p>
+
+<p>synopsisを見てみると、イベントを発生させる’’emit’’がCatクラスに入っているのが、JavaScriptと大きく違うところだと思う。</p>
+
+<p>Catクラスは、メソッドの<code>poke</code>を実行すると、<code>roar</code>イベントが発生する、というクラス。</p>
+
+<p>なので、<code>$tiger</code>を定義するときに、pokeを実行する前に<code>roar</code>イベントが発行された時のプログラムを用意している。</p>
+
+<p>普通のOOPだと、Catクラスを継承したTigerクラスを作っていくところを、直接mainで定義しているのがわかりにくかった気がする。</p>
+
+<p>普通の（？）OOPだとこんな感じですかね。よくわかりませんが。</p>
+
+<pre class="lang:perl oop">-synopsis
+package Cat;
+use Mojo::Base -base;
+
+has roar => "MEOW";
+has times => 2;
+
+sub poke {
+  my $self = shift;
+  say $self->roar for 1 .. $self->times;
+}
+
+package Tiger;
+use Mojo::Base 'Cat';
+has roar => "RAWR!";
+has times => 3;
+
+package main;
+
+my $tiger = Tiger->new;
+$tiger->poke;
+</pre>
+
+<p>上を書いてみてから、synopsisと同じようにTigerを定義せずに書くとどうなるのか試してみました。</p>
+
+<pre class="lang:perl title:oop">-synopsis-2
+package Cat;
+use Mojo::Base -base;
+
+has roar => "MEOW";
+has times => 2;
+
+sub poke {
+  my $self = shift;
+  say $self->roar for 1 .. $self->times;
+}
+
+package main;
+
+my $tiger = Cat->new;
+$tiger->roar('RAWR!')->times(3);
+$tiger->poke;
+</pre>
+
+<p>うーむ。</p>
+
+<p>Tigerを定義してあるほうがしっくりきます。</p>
+
+<p>SYNOPSISに書いてあるとはいえ、この例だとわかりにくいというか、イベント駆動型プログラミングとしての特徴が活かされていない気がします。</p>
+</div></article></div></section><footer><div class="paginator"><a href="/2014/03/08/181544/" class="prev"><button class="ui button teal">前の記事</button></a><a href="/2014/03/07/160411/" class="next"><button class="ui button teal">次の記事</button></a></div><div id="disqus_thread"></div><script>var disqus_shortname = 'nqounet';
+var disqus_identifier = '2014/03/08/170903/';
+var disqus_title = 'Mojoliciousでイベント駆動型プログラミングをやってみたが…';
+var disqus_url = 'http://nqou.net/2014/03/08/170903/';
+(function() {
+    var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+})();</script><script id="dsq-count-scr" src="//nqounet.disqus.com/count.js" async></script><div class="copyright"><p>© 2016 - 2017 <a href="http://nqou.net">nqounet</a>, powered by <a href="https://hexo.io/" target="_blank">Hexo</a> and theme by <a href="https://github.com/littlewin-wang/hexo-theme-casual" target="_blank">casual</a></p></div></footer></div><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script><script src="/js/jquery.goup.min.js"></script><script src="/js/semantic.min.js"></script><script src="/js/casual.js"></script><script async src="//cdn.bootcss.com/mathjax/2.6.1/MathJax.js?config=TeX-MML-AM_CHTML"></script><script>$(document).ready(function(){$.goup({trigger:100,bottomOffset:100,locationOffset:5,title:'',titleAsText:true});});</script><script>(function(b,o,i,l,e,r){b.GoogleAnalyticsObject=l;b[l]||(b[l]=function(){(b[l].q=b[l].q||[]).push(arguments)});b[l].l=+new Date;e=o.createElement(i);r=o.getElementsByTagName(i)[0];e.src='//www.google-analytics.com/analytics.js';r.parentNode.insertBefore(e,r)}(window,document,'script','ga'));ga('create',"UA-3538047-6",'auto');ga('send','pageview');</script></div></body></html>

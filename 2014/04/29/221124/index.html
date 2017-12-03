@@ -1,0 +1,77 @@
+<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><meta name="X-UA-Compatible" content="IE=edge"><title> 開発時用のNodeモジュールをPerlでアップデートする | nqou.net</title><meta name="description" content="開発時用のNodeモジュールをPerlでアップデートする - nqounet"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="short icon" href="/favicon.png"><link rel="stylesheet" href="/css/casual.css"><link rel="stylesheet" href="/css/semantic.min.css"><link rel="search" type="application/opensearchdescription+xml" href="http://nqou.net/atom.xml" title="nqou.net"></head><body><div class="sidebar"><div class="ui vertical inverted menu"><div class="h100"></div><h3 class="ui inverted aligned icon header"><div class="content"><a href="/" class="title-link">nqou.net</a></div></h3><div class="h50"></div><div class="side-nav"><a href="/" target="_self" class="item">HOME<i class="icon home"></i></a><a href="/archives" target="_self" class="item">ARCHIVE<i class="icon archive"></i></a><a href="/tags" target="_self" class="item">TAGS<i class="icon tags"></i></a><a href="/about" target="_self" class="item">INFO<i class="icon info"></i></a><a href="/atom.xml" target="_self" class="item">RSS<i class="icon rss"></i></a></div><div class="h50"></div></div><div class="h50 mq"><a class="ui teal big label"><i class="content icon"></i></a></div><div class="author-info"><a href="/" class="img-link"><img src="/avatar.png" class="author-photo ui tiny circular image"></a><h4 class="ui aligned icon header"><div class="content">nqounet</div></h4><p class="author-desc">Beer, Perl, Kansai.pm</p><div class="social-outer"><div class="social-inner"><a href="http://github.com/nqounet" target="_blank" class="social-link"><i class="icon github"></i></a><a href="http://twitter.com/nqounet" target="_blank" class="social-link"><i class="icon twitter"></i></a><a href="https://www.facebook.com/nobutaka.wakabayashi" target="_blank" class="social-link"><i class="icon facebook"></i></a></div></div></div></div><div class="main"><div class="wrap"><section class="container"><div class="post"><article class="post-block"><h1 class="post-title">開発時用のNodeモジュールをPerlでアップデートする</h1><div class="post-info"><div class="post-date"><h6 class="ui header"><i class="calendar icon"></i><div class="content">2014年4月29日</div></h6></div></div><div class="post-content"><p><a href="https://twitter.com/nqounet" target="_blank" rel="noopener">@nqounet</a>です。</p>
+
+<p>Node.jsは使っていて驚くことがいくつかあります。</p>
+
+
+
+<p>ひとつはモジュールのバージョンアップが早いこと。</p>
+
+<p>ひとつはモジュールが依存するモジュールを独自に持つこと。</p>
+
+<h2>モジュールの更新が早い</h2>
+
+<p>npmで<code>-g</code>を付けてインストールしたファイル群は<code>npm update -g</code>でアップデートできますが、その量がとても多いです。</p>
+
+<p>ただ、ザーッと見ていると同じモジュールも何度か見かけるような気がしました。</p>
+
+<h2>依存モジュールを独自に持っている</h2>
+
+<p>で、ログを見たり、インストールしたディレクトリを見ると、<code>package.json</code>に書いてあるモジュール群は、全てそのディレクトリに入っています。</p>
+
+<p>例えば、gruntの依存モジュールで<a href="https://www.npmjs.org/package/async" target="_blank" rel="noopener">async.js</a>がありますが、grunt-contrib-connectもasync.jsに依存しています。</p>
+
+<p>手元でその2つのファイルを見てみると、バージョンが異なっています。</p>
+
+<p>gruntが依存している方は、0.1.22、grunt-contrib-connectが依存している方は、0.2.10でした。</p>
+
+<p>依存するモジュールをバージョンを固定したまま実行できるように、ローカルにモジュールを保持する仕組みになっているようですね。</p>
+
+<h2>勘違いしていたこと</h2>
+
+<p>gruntを使っていてあまりにも頻繁に沢山のモジュールをダウンロード、インストールするので嫌だなと思い、衝動的にいろいろなものを<code>-g</code>オプションでインストールした（例えばgrunt-contrib-connectとか）のですが、全く（？）意味がありませんでした。</p>
+
+<p>グローバルの方にそのモジュールがあっても、結局はローカルに適切なバージョンのモジュールをインストールするので使われません。</p>
+
+<p>むしろ、<code>npm update -g</code>の時に（使ってもいないのに）無駄にバージョンアップするため、余計なダウンロードが発生していました。</p>
+
+<h2>開発環境をアップデートする</h2>
+
+<p><code>yo webapp</code>で作成した環境には<code>package.json</code>が既に作成されていますが、モジュールのバージョンは更新されているものが多いです。</p>
+
+<p>例えば、gruntは、指定されているバージョンは0.4.1ですが、アップデートすれば0.4.4が入ります。</p>
+
+<p>アップデートし、かつ、package.jsonも更新するには<code>npm update –save-dev</code>で良いのですが、この場合、何故そうなるのか不明ですがgruntはアップデートされないようです。</p>
+
+<p>そういうのをいちいち気にするのがアレなので、簡単なスクリプトを書いて実行するようにしました。</p>
+
+<pre class="lang:perl">
+#!/usr/bin/env perl
+use utf8;
+use 5.012;
+
+use JSON::XS qw(decode_json);
+use Path::Tiny qw(path);
+
+my $json = decode_json(path('package.json')->slurp);
+my $modules = join(' ', keys $json->{devDependencies});
+system(qq{npm install -D $modules});
+</pre>
+
+<p>地味に便利です。</p>
+
+<h2>手元で静的ファイルを更新する考え方</h2>
+
+<p>ウェブサイトをgruntで管理していて思うのですが、設定ファイルとコマンドでウェブサイトを更新するという考え方は別に新しいわけじゃないんですよ。</p>
+
+<p>ただ、できることが多種多様になって、かつ、それが簡単なスクリプトを書いて組み合わせられる、というのが良いですね。</p>
+
+<p>ローカル環境で編集したものをウェブに公開する、ということが、簡単にカスタマイズできるのはほんとうに素晴らしいことだと思います。</p>
+</div></article></div></section><footer><div class="paginator"><a href="/2014/04/30/022534/" class="prev"><button class="ui button teal">前の記事</button></a><a href="/2014/04/29/040029/" class="next"><button class="ui button teal">次の記事</button></a></div><div id="disqus_thread"></div><script>var disqus_shortname = 'nqounet';
+var disqus_identifier = '2014/04/29/221124/';
+var disqus_title = '開発時用のNodeモジュールをPerlでアップデートする';
+var disqus_url = 'http://nqou.net/2014/04/29/221124/';
+(function() {
+    var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+})();</script><script id="dsq-count-scr" src="//nqounet.disqus.com/count.js" async></script><div class="copyright"><p>© 2016 - 2017 <a href="http://nqou.net">nqounet</a>, powered by <a href="https://hexo.io/" target="_blank">Hexo</a> and theme by <a href="https://github.com/littlewin-wang/hexo-theme-casual" target="_blank">casual</a></p></div></footer></div><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script><script src="/js/jquery.goup.min.js"></script><script src="/js/semantic.min.js"></script><script src="/js/casual.js"></script><script async src="//cdn.bootcss.com/mathjax/2.6.1/MathJax.js?config=TeX-MML-AM_CHTML"></script><script>$(document).ready(function(){$.goup({trigger:100,bottomOffset:100,locationOffset:5,title:'',titleAsText:true});});</script><script>(function(b,o,i,l,e,r){b.GoogleAnalyticsObject=l;b[l]||(b[l]=function(){(b[l].q=b[l].q||[]).push(arguments)});b[l].l=+new Date;e=o.createElement(i);r=o.getElementsByTagName(i)[0];e.src='//www.google-analytics.com/analytics.js';r.parentNode.insertBefore(e,r)}(window,document,'script','ga'));ga('create',"UA-3538047-6",'auto');ga('send','pageview');</script></div></body></html>

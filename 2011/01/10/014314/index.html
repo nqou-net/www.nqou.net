@@ -1,0 +1,160 @@
+<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><meta name="X-UA-Compatible" content="IE=edge"><title> Mojolicious::LiteとData::ModelとjQueryでAJAXなチャットを作ってみた | nqou.net</title><meta name="description" content="Mojolicious::LiteとData::ModelとjQueryでAJAXなチャットを作ってみた - nqounet"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="short icon" href="/favicon.png"><link rel="stylesheet" href="/css/casual.css"><link rel="stylesheet" href="/css/semantic.min.css"><link rel="search" type="application/opensearchdescription+xml" href="http://nqou.net/atom.xml" title="nqou.net"></head><body><div class="sidebar"><div class="ui vertical inverted menu"><div class="h100"></div><h3 class="ui inverted aligned icon header"><div class="content"><a href="/" class="title-link">nqou.net</a></div></h3><div class="h50"></div><div class="side-nav"><a href="/" target="_self" class="item">HOME<i class="icon home"></i></a><a href="/archives" target="_self" class="item">ARCHIVE<i class="icon archive"></i></a><a href="/tags" target="_self" class="item">TAGS<i class="icon tags"></i></a><a href="/about" target="_self" class="item">INFO<i class="icon info"></i></a><a href="/atom.xml" target="_self" class="item">RSS<i class="icon rss"></i></a></div><div class="h50"></div></div><div class="h50 mq"><a class="ui teal big label"><i class="content icon"></i></a></div><div class="author-info"><a href="/" class="img-link"><img src="/avatar.png" class="author-photo ui tiny circular image"></a><h4 class="ui aligned icon header"><div class="content">nqounet</div></h4><p class="author-desc">Beer, Perl, Kansai.pm</p><div class="social-outer"><div class="social-inner"><a href="http://github.com/nqounet" target="_blank" class="social-link"><i class="icon github"></i></a><a href="http://twitter.com/nqounet" target="_blank" class="social-link"><i class="icon twitter"></i></a><a href="https://www.facebook.com/nobutaka.wakabayashi" target="_blank" class="social-link"><i class="icon facebook"></i></a></div></div></div></div><div class="main"><div class="wrap"><section class="container"><div class="post"><article class="post-block"><h1 class="post-title">Mojolicious::LiteとData::ModelとjQueryでAJAXなチャットを作ってみた</h1><div class="post-info"><div class="post-date"><h6 class="ui header"><i class="calendar icon"></i><div class="content">2011年1月10日</div></h6></div></div><div class="post-content"><p>Mojoliciousが1.01になりましたね。<br>まあ、それとは関係ないですが、jQueryを使ってAJAXなチャットを作ってみたので晒してみようかと思います。<br>AJAX自体、やった事が無いので、もっと良いやり方があるとは思います。<br>値の受け渡しはJSONを使ったのですが、Mojolicious側の受け取り方法がよく分からなくて$self-&gt;req-&gt;jsonとか、Mojo::JSON-&gt;newとかやっていたのですが、結果的に普通に$self-&gt;paramで受け取れるのがわかって、凄いと思いました。<br>JavaScript側では、Perlからのtime値をどうやって渡すのかが、調べていてもよく分からなかったので、正解に行き着くのが大変でした。<br>ミリセカンドで渡す、というのは気づきませんでした。<br>常識すぎてあまり書かれないんでしょうか&#133;。</p>
+
+<div><br><p>SEE ALSO</p><br><ul><br><li>JavaScript Reference</li><br><li><a href="http://semooh.jp/jquery/" target="_blank">jQuery 日本語リファレンス</a></li><br><li><a href="http://stacktrace.jp/jquery/api/" target="_blank">jQuery API 1.4.4 日本語リファレンス - StackTrace</a></li><br></ul><br></div>
+
+
+
+<pre><code>#!/usr/bin/env perl
+#ｕｔｆ８
+# use Acme::PerlTidy;
+use utf8;
+package DataModel;
+use base &#39;Data::Model&#39;;
+use Data::Model::Schema;
+use Data::Model::Driver::DBI;
+my &#36;dbfile = qq{&#36;0.db};
+my &#36;dsn    = qq{dbi:SQLite:dbname=&#36;dbfile};
+my &#36;driver = Data::Model::Driver::DBI-&gt;new(
+dsn             =&gt; &#36;dsn,
+connect_options =&gt; {sqlite_unicode =&gt; 1},
+);
+base_driver(&#36;driver);
+install_model messages =&gt; schema {
+key &#39;id&#39;;
+column id  =&gt; int  =&gt; {auto_increment =&gt; 1};
+column msg =&gt; char =&gt; {required       =&gt; 1};
+column ts  =&gt; char =&gt; {required       =&gt; 1};
+};
+unless (-f &#36;dbfile) {
+my &#36;dbh = DBI-&gt;connect(&#36;dsn, &#39;&#39;, &#39;&#39;, {RaiseError =&gt; 1, PrintError =&gt; 0})
+or DBI-&gt;errstr;
+for my &#36;sql (__PACKAGE__-&gt;as_sqls) {
+&#36;dbh-&gt;do(&#36;sql) or die &#36;dbh-&gt;errstr;
+}
+&#36;dbh-&gt;disconnect;
+}
+package main;
+use Mojolicious::Lite;
+use Mojo::Util qw/md5_sum/;
+app-&gt;secret(md5_sum &#36;0 )-&gt;log-&gt;level(&#39;debug&#39;)-&gt;path(qq{&#36;0.log})
+-&gt;debug(app-&gt;secret);
+app-&gt;helper(model =&gt; sub { my &#36;dbh = DataModel-&gt;new });
+get &#39;/&#39; =&gt; &#39;index&#39;;
+get &#39;/json&#39; =&gt; sub {
+my &#36;self     = shift;
+my &#36;model    = &#36;self-&gt;model;
+my &#36;messages = [
+&#36;model-&gt;get(
+&#39;messages&#39; =&gt; {
+where =&gt; [id  =&gt; {&#39;&gt;&#39; =&gt; &#36;self-&gt;param(&#39;from_id&#39;)}],
+order =&gt; [{id =&gt; &#39;ASC&#39;}],
+}
+)
+];
+my @json;
+for my &#36;msg (@{&#36;messages}) {
+push @json,
+{ id  =&gt; &#36;msg-&gt;id,
+msg =&gt; &#36;msg-&gt;msg,
+ts  =&gt; &#36;msg-&gt;ts,
+};
+}
+&#36;self-&gt;render(json =&gt; [@json]);
+} =&gt; &#39;json&#39;;
+post &#39;/json&#39; =&gt; sub {
+my &#36;self  = shift;
+my &#36;time  = time;
+my &#36;model = &#36;self-&gt;model;
+&#36;model-&gt;set(
+&#39;messages&#39; =&gt; {
+msg =&gt; &#36;self-&gt;param(&#39;msg&#39;),    # jsonもparamで取れる
+ts  =&gt; &#36;time,
+}
+);
+};
+app-&gt;start;
+__DATA__
+@@ index.html.ep
+% layout &#39;main&#39;;
+%= javascript begin
+jQuery(function(&#36;) {
+&#36;(&quot;#message&quot;).focus();
+var params = &#36;.extend({
+refresh:5,
+timer:0,
+latest:0
+},params);
+var add_log = function(text){
+&#36;(&#39;#for_ajax&#39;).prepend(&quot;&lt;p&gt;&quot; + text + &quot;&lt;/p&gt;&quot;);
+};
+var format_date = function(d){
+var yyyy = d.getFullYear();
+var mm = &#39;0&#39; + (d.getMonth() + 1);
+var dd = &#39;0&#39; + d.getDate();
+var hh = &#39;0&#39; + d.getHours();
+var nn = &#39;0&#39; + d.getMinutes();
+var ss = &#39;0&#39; + d.getSeconds();
+return yyyy
++ &#39;/&#39; + mm.slice(-2)
++ &#39;/&#39; + dd.slice(-2)
++ &#39; &#39; + hh.slice(-2)
++ &#39;:&#39; + nn.slice(-2)
++ &#39;:&#39; + ss.slice(-2);
+};
+var reload_json = function(){
+&#36;.getJSON(
+&quot;&lt;%= url_for &#39;json&#39; %&gt;&quot;,
+{ &#39;from_id&#39;:params.latest },
+function(json) {
+&#36;.each(json, function(i, val){
+params.latest = val.id;
+var latest = new Date();
+latest.setTime(val.ts * 1000);
+add_log(val.id + &quot;. &quot; + val.msg + &quot; &lt;small&gt;&quot; + format_date(latest) + &quot;&lt;/small&gt;&quot;);
+});
+clearTimeout(params.timer);// 念のためタイマーをリセット
+params.timer = setTimeout(reload_json,params.refresh*1000);// 次回の実行はparams.refresh秒後
+}
+);
+};
+params.timer = setTimeout(reload_json,0);// 一回目実行
+&#36;(&quot;#msg_form&quot;).submit(function() {
+if ( 0 &lt; &#36;(&quot;#message&quot;).val().length ) {
+&#36;.post(&quot;&lt;%= url_for &#39;json&#39; %&gt;&quot;, {
+&#39;msg&#39;:&#36;(&quot;#message&quot;).val(),
+},
+function(json) {
+}, &#39;json&#39;);
+&#36;(&quot;#message&quot;).val(&#39;&#39;);
+}
+return false;
+})
+});
+% end
+&lt;div&gt;
+&lt;%= form_for &#39;/&#39; =&gt; (method =&gt; &#39;post&#39;, id =&gt; &#39;msg_form&#39;) =&gt; begin %&gt;
+&lt;%= text_field &#39;msg&#39; =&gt; (id =&gt; &#39;message&#39;) %&gt;
+&lt;%= submit_button &#39;発言する&#39; %&gt;
+&lt;% end %&gt;
+&lt;/div&gt;
+&lt;div id=&quot;for_ajax&quot;&gt;&lt;/div&gt;
+@@ layouts/main.html.ep
+&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+&lt;meta charset=&quot;&lt;%= app-&gt;renderer-&gt;encoding %&gt;&quot;&gt;
+&lt;title&gt;Mojolicious&lt;/title&gt;
+%= javascript &#39;https://ajax.googleapis.com/ajax/libs/jquery/1.4/jquery.min.js&#39;
+&lt;/head&gt;
+&lt;body&gt;&lt;%= content %&gt;&lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
+</div></article></div></section><footer><div class="paginator"><a href="/2011/01/11/204258/" class="prev"><button class="ui button teal">前の記事</button></a><a href="/2011/01/04/232046/" class="next"><button class="ui button teal">次の記事</button></a></div><div id="disqus_thread"></div><script>var disqus_shortname = 'nqounet';
+var disqus_identifier = '2011/01/10/014314/';
+var disqus_title = 'Mojolicious::LiteとData::ModelとjQueryでAJAXなチャットを作ってみた';
+var disqus_url = 'http://nqou.net/2011/01/10/014314/';
+(function() {
+    var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+})();</script><script id="dsq-count-scr" src="//nqounet.disqus.com/count.js" async></script><div class="copyright"><p>© 2016 - 2017 <a href="http://nqou.net">nqounet</a>, powered by <a href="https://hexo.io/" target="_blank">Hexo</a> and theme by <a href="https://github.com/littlewin-wang/hexo-theme-casual" target="_blank">casual</a></p></div></footer></div><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script><script src="/js/jquery.goup.min.js"></script><script src="/js/semantic.min.js"></script><script src="/js/casual.js"></script><script async src="//cdn.bootcss.com/mathjax/2.6.1/MathJax.js?config=TeX-MML-AM_CHTML"></script><script>$(document).ready(function(){$.goup({trigger:100,bottomOffset:100,locationOffset:5,title:'',titleAsText:true});});</script><script>(function(b,o,i,l,e,r){b.GoogleAnalyticsObject=l;b[l]||(b[l]=function(){(b[l].q=b[l].q||[]).push(arguments)});b[l].l=+new Date;e=o.createElement(i);r=o.getElementsByTagName(i)[0];e.src='//www.google-analytics.com/analytics.js';r.parentNode.insertBefore(e,r)}(window,document,'script','ga'));ga('create',"UA-3538047-6",'auto');ga('send','pageview');</script></div></body></html>

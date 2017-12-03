@@ -1,0 +1,496 @@
+<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><meta name="X-UA-Compatible" content="IE=edge"><title> 今日のMENTA、2回目 | nqou.net</title><meta name="description" content="今日のMENTA、2回目 - nqounet"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="short icon" href="/favicon.png"><link rel="stylesheet" href="/css/casual.css"><link rel="stylesheet" href="/css/semantic.min.css"><link rel="search" type="application/opensearchdescription+xml" href="http://nqou.net/atom.xml" title="nqou.net"></head><body><div class="sidebar"><div class="ui vertical inverted menu"><div class="h100"></div><h3 class="ui inverted aligned icon header"><div class="content"><a href="/" class="title-link">nqou.net</a></div></h3><div class="h50"></div><div class="side-nav"><a href="/" target="_self" class="item">HOME<i class="icon home"></i></a><a href="/archives" target="_self" class="item">ARCHIVE<i class="icon archive"></i></a><a href="/tags" target="_self" class="item">TAGS<i class="icon tags"></i></a><a href="/about" target="_self" class="item">INFO<i class="icon info"></i></a><a href="/atom.xml" target="_self" class="item">RSS<i class="icon rss"></i></a></div><div class="h50"></div></div><div class="h50 mq"><a class="ui teal big label"><i class="content icon"></i></a></div><div class="author-info"><a href="/" class="img-link"><img src="/avatar.png" class="author-photo ui tiny circular image"></a><h4 class="ui aligned icon header"><div class="content">nqounet</div></h4><p class="author-desc">Beer, Perl, Kansai.pm</p><div class="social-outer"><div class="social-inner"><a href="http://github.com/nqounet" target="_blank" class="social-link"><i class="icon github"></i></a><a href="http://twitter.com/nqounet" target="_blank" class="social-link"><i class="icon twitter"></i></a><a href="https://www.facebook.com/nobutaka.wakabayashi" target="_blank" class="social-link"><i class="icon facebook"></i></a></div></div></div></div><div class="main"><div class="wrap"><section class="container"><div class="post"><article class="post-block"><h1 class="post-title">今日のMENTA、2回目</h1><div class="post-info"><div class="post-date"><h6 class="ui header"><i class="calendar icon"></i><div class="content">2008年12月4日</div></h6></div></div><div class="post-content"><p>zipファイルは、lang_perl_MENTA_tags_release-0.09-r25814.zipになっていました。<br>マニュアルとデモとが分かれています。<br>マニュアルのほうには、実際のサーバーで使うためのアップロード方法だけでなく、ディレクトリ構造も紹介されています。<br>デモのほうは、（個人的に必須な）Session管理のデモもありました。<br>そろそろ何か作りたくなってきました。<br>今見るととても恥ずかしいですが、Perlを覚えたての頃に作った、HTMLの出力にこだわったチャットがあります。<br>今となっては、スタイルシートでレイアウトするのは当たり前ですが、この当時はスタイルシートもブラウザの実装が中途半端で使う人も少なかったんじゃないかと思います。<br>まあ、そんな遺物をMENTAを使って書き直してみようかなと、ふと思いました。<br>使い道があるのかと訊かれれば、まずないでしょうが。<br>そんな昔に書いたソースコードを、恥ずかしげもなく「続き」に書いてみました。<br>perltidyで味付けはしましたが。<br>コメントが痛々しいですが、当時はこういうテーマも面白いなという思い付きだったので大目に見ましょう。</p>
+<p>ファイル構成<br>nanochat.cgi     (705) : メインスクリプト<br>main.log         (606) : 会話記録用ファイル<br>member.log       (606) : メンバー記録用ファイル<br>nanochat.css     (604) : スタイルシート<br>main.logとmember.logは空ファイルでOK（のはず）。<br><a href="http://www.nishimiyahara.net" target="_blank">サンプル</a><br>nanochat.cgi</p>
+<pre><code>#!/usr/bin/perl
+# ↑は「#!/usr/local/bin/perl」が一般的みたいなの。
+# 動かないときはプロバイダに訊くの。
+#BEGIN{
+#    print &#34;Content-type: text/plain\n\n&#34;;
+#    open(STDERR, &#34;&#62;&#38;STDOUT&#34;);
+#    &#36;|=1;
+#}
+# ↑はエラーが出て困った時にコメントを外すの。
+require 5.005;
+use strict;
+# ↑はさわったらだめなの。
+# いくつか設定することがあるの。
+my @max_list = qw(10 20 30 40 50);
+# 入口では表示する件数を選べるの。
+# ここに書いたのがドロップダウンに表示されるの。
+# でも、あんまり大きい数はいやなの。
+# 数字以外も書けるけど、書いたらいやなの。
+my &#36;return_uri = '../nanochat.htm';
+# 「戻るの。」でリンクする場所を決める事ができるの。
+my &#36;ss_uri = './nanochat.css';
+# スタイルシートの場所なの。
+# このファイルはスクリプトと同じ場所だと効かない事があるらしいの。
+# そういう人はスタイルシートを他の場所において、ここを変えるの。
+# その時は「http://」から書いたほうが確実なの。
+my &#36;timeout = 1800;
+# 書込みしてない人はクッキーの期限が切れるの。
+# その時間を決める事ができるの。単位は秒なの。
+my &#36;main_log = './main.log';
+# 会話の中身を記録するファイルの名前なの。
+# 最初はこの名前だから、そのまま使うときは変えなくてもいいの。
+my &#36;member_log = './member.log';
+# 誰が居るかを記録するファイルの名前なの。
+# 最初はこの名前だから、そのまま使うときは変えなくてもいいの。
+my &#36;nano = 'なの';
+# これを変えたらなのじゃなくなるの。でもべつにいいの。
+my &#36;script_uri = &#36;ENV{SCRIPT_NAME} || './nanochat.cgi';
+# このファイルの名前を変えたら、右側の方にその名前を書くの。
+# ここから・・・
+my &#36;msg_max = ( sort { &#36;b &#60;=&#62; &#36;a } @max_list )[0];
+my &#36;msg_min = ( sort { &#36;a &#60;=&#62; &#36;b } @max_list )[0];
+my &#36;script_name  = 'NANOChat';
+my &#36;print_str    = '';
+my &#36;print_header = '';
+my %members      = ();
+my %ip           = ();
+my @logs         = ();
+my @logs_now     = ();
+# ここまでは変えたらいやなの。
+# お仕事できなくなるの。
+check_env();
+# ↑はうまく動くか試してるの。ちゃんと動いたら消してもいいの。
+# 心配な人は消さなくてもいいの。
+# ここから最後までは細かい事をやってるの。
+# わからない人はさわったらダメなの。
+main();
+print_exit();
+sub main {
+my &#36;cookie = get_cookie();
+# HTMLのチェック用なの。
+#    &#36;cookie = ',10';
+#    &#36;cookie = '61,10';
+#    &#36;ENV{QUERY_STRING} = 'logout=1';
+# ここまでなの。でも、下のほうにもう少しあるの。
+if ( defined &#36;cookie ) {
+my ( &#36;name, &#36;tmp ) = split /,/, &#36;cookie, 3;
+if (&#36;name) {
+&#36;name = pack( &#34;H*&#34;, &#36;name );
+check_max(&#36;tmp);
+}
+my %form = ();    # (ua =&#62; &#36;ENV{HTTP_USER_AGENT});
+foreach ( split /[&#38;;]/, &#36;ENV{QUERY_STRING} ) {
+my ( &#36;key, &#36;value ) = split /=/, &#36;_, 2;
+if ( &#36;value =~ /[%\+]/ ) {
+my &#36;space = &#34;(?:\xA1\xA1)&#34;;
+&#36;value =~ tr/+/ /;
+&#36;value =~ s/%([0-9a-fA-F][0-9a-fA-F])/pack(&#34;H2&#34;, &#36;1)/eg;
+&#36;value =~ s/&#38;/&#38;amp;/g;
+&#36;value =~ s/&#60;/&#38;lt;/g;
+&#36;value =~ s/&#62;/&#38;gt;/g;
+&#36;value =~ s/\t/  /g;
+&#36;value =~ s/^(\s|&#36;space)+//o;
+&#36;value =~ s/(\s|&#36;space)+&#36;//o;
+&#36;value =~ s/  / &#38;nbsp;/g;
+&#36;value =~ tr/\x0D\x0A//d;
+}
+&#36;form{&#36;key} = &#36;value;
+}
+member_read();
+# HTMLチェック用なの。
+#        &#36;members{'a'} = time; &#36;ip{'a'} = '127.0.0.1';
+# これだけなの。
+if ( exists &#36;form{logout} ) {
+ref_logout( \%form, &#36;name );
+print_exit();
+}
+elsif ( exists &#36;form{login} and &#36;name eq '' ) {
+ref_login( \%form );
+&#36;name = &#36;form{n};
+check_max( &#36;form{max} );
+}
+log_read();
+if (&#36;name) {
+&#36;form{msg} ne '' and ref_make_log( \%form, &#36;name );
+my &#36;cname = unpack( &#34;H*&#34;, &#36;name );
+&#36;print_header = &#34;Set-Cookie: &#36;script_name=&#36;cname,&#36;msg_max; expires=&#34;
+. gmtime( time + &#36;timeout ) . &#34;\n&#34;;
+reload(&#36;name);
+}
+else {
+stock_header('名前を教えてほしいの。');
+stock_member();
+my &#36;sel = qq(&#60;select name=&#34;max&#34;&#62;);
+my &#36;sd  = qq( selected);
+foreach (@max_list) {
+&#36;sel .= qq(&#60;option value=&#34;&#36;_&#34;&#36;sd&#62;&#36;_ 件&#60;/option&#62;);
+&#36;sd = '';
+}
+&#36;sel .= '&#60;/select&#62;';
+&#36;print_str .= &#60;&#60;EOM;
+&#60;div class=&#34;nano&#34;&#62;
+&#60;form method=&#34;get&#34; action=&#34;&#36;script_uri&#34;&#62;
+&#60;p&#62;&#60;input type=&#34;text&#34; name=&#34;n&#34; size=&#34;20&#34; maxlength=&#34;20&#34; tabindex=&#34;1&#34;&#62; ←ここに名前を書いてほしいの。&#60;/p&#62;
+&#60;p&#62;書いたら、表示するメッセージ数を &#36;sel にして &#60;input type=&#34;submit&#34; value=&#34;部屋に入るの。&#34; tabindex=&#34;2&#34;&#62;&#60;input type=&#34;hidden&#34; name=&#34;login&#34; value=&#34;1&#34;&#62;&#60;/p&#62;
+&#60;p&#62;&#60;input type=&#34;submit&#34; name=&#34;logout&#34; value=&#34;やっぱり帰るの。&#34; tabindex=&#34;3&#34;&#62;&#60;/p&#62;
+&#60;/form&#62;&#60;/div&#62;&#60;hr&#62;
+EOM
+stock_log(&#36;msg_min);
+stock_footer();
+}
+}
+else {
+&#36;print_header = &#34;Set-Cookie: &#36;script_name=,10; expires=&#34;
+. gmtime( time + &#36;timeout ) . &#34;\n&#34;;
+stock_header('いらっしゃいなの。');
+my &#36;limit = int( &#36;timeout / 60 );
+&#36;print_str .= &#60;&#60;EOM;
+&#60;div class=&#34;nano&#34;&#62;
+&#60;p&#62;ここの入退室管理を任されてる &#60;strong class=&#34;name&#34;&#62;&#36;nano&#60;/strong&#62; なの。よろしくなの。&#60;/p&#62;
+&#60;p&#62;この部屋へ入るにはクッキーが必要なの。退室するときにちゃんと消してあげるから、名札だと思ってつけてほしいの。今つけた人は、ついてるかどうかわからないから１回読みなおしてほしいの。&#60;/p&#62;
+&#60;p&#62;JavaScriptが使えると、マウスを使わなくてもチャットできるの。とってもおすすめなの。&#60;/p&#62;
+&#60;p&#62;あと、&#36;limit分くらい何も発言しないと部屋から追い出されちゃうの。気をつけてほしいの。&#60;/p&#62;
+&#60;p&#62;あ、ホームページ（http://から書くの）とかメールアドレス（mailto:から書くの）とかを書くと、リンクしてあげるの。よくわからないから発言を全部リンクしちゃうけど、そのくらいは許してほしいの。&#60;/p&#62;
+&#60;p&#62;準備ができたら&#60;a href=&#34;&#36;script_uri&#34;&#62;入口&#60;/a&#62;で名前を教えてほしいの。&#60;/p&#62;
+&#60;/div&#62;
+EOM
+stock_footer();
+}
+}
+sub member_read {
+open IN, &#36;member_log or die;
+my &#36;member = &#60;IN&#62;;
+my &#36;ip     = &#60;IN&#62;;
+close IN;
+chomp &#36;member;
+chomp &#36;ip;
+%members = split /\t/, &#36;member;
+%ip      = split /\t/, &#36;ip;
+foreach ( keys %members ) {
+if ( &#36;timeout &#60; time - &#36;members{&#36;_} ) {
+delete &#36;members{&#36;_};
+delete &#36;ip{&#36;_};
+}
+}
+}
+sub member_write {
+my &#36;member = join( &#34;\t&#34;, %members );
+my &#36;ip     = join( &#34;\t&#34;, %ip );
+open OUT, &#34;&#62; &#36;member_log&#34; or die;
+print OUT &#36;member . &#34;\n&#34;;
+print OUT &#36;ip . &#34;\n&#34;;
+close OUT;
+}
+# ファイルを最後の方から読むの。
+# Perlメモ（http://www.din.or.jp/~ohzaki/perl.htm）を参考にしたの。
+# でも、ほとんどそのままなの。
+sub log_read {
+my &#36;bufsize = 1024;
+my &#36;pos     = 0;
+open IN, &#36;main_log or die;
+binmode(IN);
+my &#36;size = ( -s IN ) / &#36;bufsize;
+&#36;pos += &#36;size &#60;=&#62; ( &#36;pos = int(&#36;size) );
+my &#36;buf_tmp = '';
+while ( &#36;pos-- ) {
+my &#36;buf   = '';
+my @lines = ();
+seek( IN, &#36;bufsize * &#36;pos, 0 );
+read( IN, &#36;buf, &#36;bufsize );
+&#36;buf .= &#36;buf_tmp;
+( &#36;buf_tmp, @lines ) = &#36;buf =~ /[^\x0D\x0A]*\x0D?\x0A?/g;
+pop(@lines);
+unshift( @logs, @lines );
+next if @logs &#60; &#36;msg_max;
+last;
+}
+close IN;
+unshift( @logs, &#36;buf_tmp ) if &#36;buf_tmp;
+# 最後まで読んでる事も多いから必要なの。
+#    @logs = @logs[-&#36;msg_max .. -1] if @logs &#62; &#36;msg_max;
+# 本当は余ったら切らないといけないの。
+# でも、表示する時に切るから放っておくの。
+}
+sub log_write {
+open OUT, &#34;&#62;&#62; &#36;main_log&#34; or die;
+seek OUT, 0, 2;
+print OUT &#34;&#36;_\n&#34; foreach reverse @logs_now;
+close OUT;
+return if %members;
+&#36;msg_max = ( sort { &#36;b &#60;=&#62; &#36;a } @max_list )[0];
+@logs = ();
+log_read();
+open OUT, &#34;&#62; &#36;main_log&#34; or die;
+foreach (@logs) {
+tr/\x0D\x0A//d;
+&#36;_ or next;
+print OUT &#34;&#36;_\n&#34;;
+}
+close OUT;
+}
+sub ref_login {
+my (&#36;f) = @_;
+&#36;f-&#62;{n}
+or error_exit(&#34;名前を教えてほしいって言ってるの。名無しさんはいやなの。&#34;);
+&#36;f-&#62;{n} eq &#36;nano
+and error_exit(
+qq(&#60;strong class=&#34;name&#34;&#62;&#36;f-&#62;{n}&#60;/strong&#62; はわたしなの。同じ名前はいやなの。)
+);
+exists &#36;members{ &#36;f-&#62;{n} }
+and &#36;ip{ &#36;f-&#62;{n} } ne &#36;ENV{REMOTE_ADDR}
+and error_exit(
+qq(&#60;strong class=&#34;name&#34;&#62;&#36;f-&#62;{n}&#60;/strong&#62; さんはもういるの。名前を変えてほしいの。)
+);
+&#36;members{ &#36;f-&#62;{n} } = time;
+exists &#36;ip{ &#36;f-&#62;{n} } and return;
+&#36;ip{ &#36;f-&#62;{n} } = &#36;ENV{REMOTE_ADDR};
+ref_make_log(
+{
+msg =&#62;
+qq(&#60;strong class=&#34;name&#34;&#62;&#36;f-&#62;{n}&#60;/strong&#62; さんが入室したの。仲良くしてなの。),
+},
+&#36;nano
+);
+}
+sub ref_logout {
+my ( &#36;f, &#36;name ) = @_;
+&#36;print_header =
+&#34;Set-Cookie: &#36;script_name=,0; expires=Sat Jan 1 00:00:00 2000\n&#34;;
+if ( delete &#36;members{&#36;name} and delete &#36;ip{&#36;name} ) {
+ref_make_log(
+{
+msg =&#62;
+qq(&#60;strong class=&#34;name&#34;&#62;&#36;name&#60;/strong&#62; さんが退室したの。ちょっと淋しいの。),
+},
+&#36;nano
+);
+%members
+or
+ref_make_log( { msg =&#62; '誰もいなくなったの。淋しいの。', }, &#36;nano );
+stock_header('ばいばいなの。');
+&#36;print_str .= &#60;&#60;EOM;
+&#60;div class=&#34;nano&#34;&#62;
+&#60;p&#62;&#60;strong class=&#34;name&#34;&#62;&#36;name&#60;/strong&#62; さん、ありがとうなの。また来てほしいの。&#60;/p&#62;
+&#60;p&#62;そういえば、ブラウザに履歴がいっぱいあると思うの。ごめんねなの。&#60;/p&#62;
+&#60;p&#62;&#60;a href=&#34;&#36;return_uri&#34;&#62;戻るの。&#60;/a&#62;&#60;/p&#62;
+&#60;/div&#62;
+EOM
+log_write();
+member_write();
+stock_footer();
+}
+else {
+stock_header('残念なの。');
+&#36;print_str .= &#60;&#60;EOM;
+&#60;div class=&#34;nano&#34;&#62;
+&#60;p&#62;今度はちゃんと入ってほしいの。また来てなの。&#60;/p&#62;
+&#60;p&#62;&#60;a href=&#34;&#36;return_uri&#34;&#62;戻るの。&#60;/a&#62;&#60;/p&#62;
+&#60;/div&#62;
+EOM
+stock_footer();
+}
+}
+sub get_cookie {
+return undef unless my &#36;http_cookie = &#36;ENV{HTTP_COOKIE};
+&#36;http_cookie =~ tr/ //d;
+foreach ( split( /;/, &#36;http_cookie ) ) {
+my ( &#36;key, &#36;value ) = split( /=/, &#36;_, 2 );
+next if &#36;key ne &#36;script_name;
+return &#36;value;
+}
+return undef;
+}
+sub ref_make_log {
+my ( &#36;f, &#36;name ) = @_;
+my &#36;str  = '';
+my @date = localtime;
+if (   index( &#36;f-&#62;{msg}, &#34;http://&#34; ) == 0
+or index( &#36;f-&#62;{msg}, &#34;mailto:&#34; ) == 0 )
+{
+&#36;f-&#62;{msg} = qq(&#60;a href=&#34;&#36;f-&#62;{msg}&#34;&#62;&#36;f-&#62;{msg}&#60;/a&#62;);
+}
+&#36;f-&#62;{msg} .= sprintf &#34; &#60;small&#62;(%ld/%02d/%02d %02d:%02d:%02d)&#60;/small&#62;&#34;,
+&#36;date[5] + 1900, &#36;date[4] + 1, @date[ 3, 2, 1, 0 ];
+if ( &#36;name eq &#36;nano ) {
+&#36;str = qq(&#60;p class=&#34;nano&#34;&#62;);
+}
+else {
+&#36;str = &#34;&#60;p&#62;&#34;;
+&#36;members{&#36;name} = time;
+}
+unshift @logs_now,
+qq(&#36;str&#60;strong class=&#34;name&#34;&#62;&#36;name&#60;/strong&#62; ： &#36;f-&#62;{msg}&#60;/p&#62;);
+}
+sub reload {
+stock_header( &#36;nano . 'チャットなの。' );
+stock_member();
+&#36;print_str .= &#60;&#60;EOM;
+&#60;div class=&#34;nano&#34;&#62;
+&#60;form method=&#34;get&#34; action=&#34;&#36;script_uri&#34;&#62;
+&#60;p&#62;あなたは &#60;strong class=&#34;name&#34;&#62;&#36;_[0]&#60;/strong&#62; さんなの。改行するとたぶん送信するの。何も書いてない時は再読込になるの。&#60;/p&#62;
+&#60;p&#62;&#60;input type=&#34;text&#34; name=&#34;msg&#34; size=&#34;80&#34; value=&#34;&#34; tabindex=&#34;1&#34;&#62;&#60;br&#62;&#60;input type=&#34;submit&#34; value=&#34;送信するの。&#34; tabindex=&#34;2&#34;&#62; &#60;input type=&#34;submit&#34; name=&#34;logout&#34; value=&#34;退室するの。&#34; tabindex=&#34;3&#34;&#62;&#60;/p&#62;
+&#60;/form&#62;&#60;/div&#62;&#60;hr&#62;
+EOM
+stock_log(&#36;msg_max);
+stock_footer();
+if (@logs_now) {
+log_write();
+member_write();
+}
+}
+sub stock_member {
+my &#36;cnt = 0;
+&#36;print_str .= qq(&#60;p class=&#34;nano&#34;&#62;今は、 );
+foreach ( sort { &#36;members{&#36;b} &#60;=&#62; &#36;members{&#36;a} } keys %members ) {
+&#36;print_str .= qq(&#60;strong class=&#34;name&#34;&#62;&#36;_&#60;/strong&#62; さんと );
+++&#36;cnt;
+}
+my &#36;only = &#36;cnt ? &#34; &#34; : &#34; だけ&#34;;
+&#36;print_str .= qq(&#60;strong class=&#34;name&#34;&#62;&#36;nano&#60;/strong&#62;&#36;onlyがいるの。&#60;/p&#62;\n);
+}
+sub stock_log {
+my &#36;cnt = 0;
+@logs_now or @logs or return;
+&#36;print_str .= qq(&#60;div class=&#34;logs&#34;&#62;);
+foreach ( @logs_now, reverse @logs ) {
+&#36;_[0] &#60; ++&#36;cnt and last;
+tr/\x0D\x0A//d;
+&#36;print_str .= &#36;_;
+}
+&#36;print_str .= '&#60;/div&#62;';
+}
+sub stock_header {
+&#36;print_str .= &#60;&#60;EOM;
+&#60;!DOCTYPE html PUBLIC &#34;-//W3C//DTD HTML 4.01//EN&#34;
+&#34;http://www.w3.org/TR/html4/strict.dtd&#34;&#62;
+&#60;html lang=&#34;ja&#34;&#62;
+&#60;head&#62;
+&#60;link rel=&#34;stylesheet&#34; type=&#34;text/css&#34; href=&#34;&#36;ss_uri&#34; title=&#34;Default&#34; media=&#34;screen&#34;&#62;
+&#60;meta name=&#34;ROBOTS&#34; content=&#34;NOINDEX&#34;&#62;
+&#60;title&#62;&#36;_[0]&#60;/title&#62;
+&#60;/head&#62;
+&#60;body onload=&#34;obj = document.forms[0];if(obj)obj.elements[0].focus();&#34;&#62;
+&#60;h2 class=&#34;nano&#34;&#62;&#36;_[0]&#60;/h2&#62;&#60;hr&#62;
+EOM
+}
+sub stock_footer {
+my &#36;cost = sprintf &#34;このお仕事に %.2f 秒くらいかかったの。&#34;, times;
+my &#36;copy =
+qq(&#60;a href=&#34;http://www.age.ne.jp/x/nobu3/perl/nanochat.htm&#34; title=&#34;このスクリプトの最新版はこのリンク先にあるの。&#34;&#62;&#36;script_name Ver0.12&#60;/a&#62;);
+&#36;print_str .= &#60;&#60;EOM;
+&#60;hr&#62;
+&#60;p class=&#34;nano&#34;&#62;&#36;cost&#60;/p&#62;
+&#60;address&#62;&#36;copy&#60;/address&#62;
+&#60;/body&#62;
+&#60;/html&#62;
+EOM
+}
+sub error_exit {
+&#36;print_str = '';
+stock_header('そんな事したらダメなの。');
+&#36;print_str .= &#60;&#60;EOM;
+&#60;div class=&#34;nano&#34;&#62;
+&#60;p&#62;&#36;_[0]&#60;/p&#62;
+&#60;p&#62;お仕事の邪魔しないでほしいの。&#60;a href=&#34;&#36;script_uri&#34;&#62;入口まで戻るの。&#60;/a&#62;&#60;/p&#62;
+&#60;/div&#62;
+EOM
+stock_footer();
+print_exit();
+}
+sub print_exit {
+&#36;print_str =~ tr/\x0D\x0A//d;
+print &#34;Content-Type: text/html; charset=euc-jp\n&#34;;
+print &#34;Content-Language: ja\n&#34;;
+print &#34;Content-Script-Type: text/javascript\n&#34;;
+print &#34;Content-Style-Type: text/css\n&#34;;
+print &#34;Pragma: no-cache\n&#34;;
+print &#34;Cache-Control: no-cache\n&#34;;
+&#36;print_header and print &#36;print_header;
+printf &#34;Content-Length: %ld\n&#34;, length &#36;print_str;
+print &#34;\n&#34;;
+print &#36;print_str;
+exit;
+}
+sub check_max {
+my (&#36;num) = @_;
+&#36;num = &#36;msg_min if &#36;num =~ /\D/;
+&#36;msg_max = &#36;msg_max &#60; &#36;num ? &#36;msg_max : &#36;num &#60; &#36;msg_min ? &#36;msg_min : &#36;num;
+}
+sub check_env {
+my &#36;str = '';
+-r &#36;main_log   or &#36;str .= &#36;main_log . 'が読めないの。&#60;br&#62;';
+-w &#36;main_log   or &#36;str .= &#36;main_log . 'に書けないの。&#60;br&#62;';
+-r &#36;member_log or &#36;str .= &#36;member_log . 'が読めないの。&#60;br&#62;';
+-w &#36;member_log or &#36;str .= &#36;member_log . 'に書けないの。&#60;br&#62;';
+ord('漢') == 0xb4
+or &#36;str .=
+qq(&#60;strong class=&#34;name&#34;&#62;&#36;nano&#60;/strong&#62; は、eucが好きなの。変えてほしいの。&#60;br&#62;);
+&#36;str and error_exit(&#36;str);
+}
+__END__
+Ver 0.10 (2000/12/27)
+公開版。
+Ver 0.11 (2001/04/19)
+入室時の２重投稿チェックをして入室ミスをなるべく防ぐようにした。
+ログの表示件数を正確にした。
+URIとMailに自動リンク。ただしとっても手抜き。
+出力するHTMLをHTML4.01Strict相当にした。
+Ver 0.12 (2001/04/26)
+名前の変更ができてしまうのを修正。
+最大表示件数のチェックを強化。
+ロボット対策をつけた。
+スタイルシートを若干変更。
+</code></pre>
+nanochat.css
+<pre><code>/***********************/
+/*    for  NANOChat    */
+/* Designed by NANO(?) */
+/***********************/
+body{
+color: #642;
+background-color: #fed;
+}
+a:link{
+color: #c36;
+}
+a:visited{
+color: #63c;
+}
+a:active, a:hover{
+color: #f63;
+text-decoration: none;
+}
+.nano{
+color: #862;
+}
+.name{
+color: #621;
+}
+h2, form{
+margin: 1px 5px;
+}
+p{
+margin: 1px 5px;
+text-indent: 0.6em;
+}
+input{
+margin: 0;
+text-indent: 0;
+}
+div.logs p{
+padding: 1px 5px;
+border-width: 0px 0px 1px 0px;
+border-style: solid;
+border-color: #9cf;
+}
+small{
+font-size: 80%;
+color: #ac8;
+}
+address{
+text-align: right;
+font-size: 80%;
+font-family: &#34;Times New Roman&#34;, Times, serif;
+}
+</code></pre>
+</div></article></div></section><footer><div class="paginator"><a href="/2008/12/12/221128/" class="prev"><button class="ui button teal">前の記事</button></a><a href="/2008/11/21/030015/" class="next"><button class="ui button teal">次の記事</button></a></div><div id="disqus_thread"></div><script>var disqus_shortname = 'nqounet';
+var disqus_identifier = '2008/12/04/031935/';
+var disqus_title = '今日のMENTA、2回目';
+var disqus_url = 'http://nqou.net/2008/12/04/031935/';
+(function() {
+    var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+})();</script><script id="dsq-count-scr" src="//nqounet.disqus.com/count.js" async></script><div class="copyright"><p>© 2016 - 2017 <a href="http://nqou.net">nqounet</a>, powered by <a href="https://hexo.io/" target="_blank">Hexo</a> and theme by <a href="https://github.com/littlewin-wang/hexo-theme-casual" target="_blank">casual</a></p></div></footer></div><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script><script src="/js/jquery.goup.min.js"></script><script src="/js/semantic.min.js"></script><script src="/js/casual.js"></script><script async src="//cdn.bootcss.com/mathjax/2.6.1/MathJax.js?config=TeX-MML-AM_CHTML"></script><script>$(document).ready(function(){$.goup({trigger:100,bottomOffset:100,locationOffset:5,title:'',titleAsText:true});});</script><script>(function(b,o,i,l,e,r){b.GoogleAnalyticsObject=l;b[l]||(b[l]=function(){(b[l].q=b[l].q||[]).push(arguments)});b[l].l=+new Date;e=o.createElement(i);r=o.getElementsByTagName(i)[0];e.src='//www.google-analytics.com/analytics.js';r.parentNode.insertBefore(e,r)}(window,document,'script','ga'));ga('create',"UA-3538047-6",'auto');ga('send','pageview');</script></div></body></html>
