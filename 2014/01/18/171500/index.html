@@ -1,29 +1,54 @@
 <!DOCTYPE html><html lang="ja"><head><meta name="generator" content="Hexo 3.8.0"><meta charset="utf-8"><meta name="X-UA-Compatible" content="IE=edge"><title> Mojolicious::Plugin::JSON_XSを書いた - nqou.net</title><meta name="description" content="Mojolicious::Plugin::JSON_XSを書いた - nqounet"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="short icon" href="/favicon.png"><link rel="stylesheet" href="/css/casual.css"><link rel="stylesheet" href="/css/semantic.min.css"><link rel="search" type="application/opensearchdescription+xml" href="https://www.nqou.net/atom.xml" title="nqou.net"></head><body><div class="sidebar"><div class="ui vertical inverted menu"><div class="h100"></div><h3 class="ui inverted aligned icon header"><div class="content"><a href="/" class="title-link">nqou.net</a></div></h3><div class="h50"></div><div class="side-nav"><a href="/" target="_self" class="item">HOME<i class="icon home"></i></a><a href="/archives" target="_self" class="item">ARCHIVES<i class="icon archive"></i></a><a href="/tags" target="_self" class="item">TAGS<i class="icon tags"></i></a><a href="/about" target="_self" class="item">INFO<i class="icon info"></i></a><a href="/atom.xml" target="_self" class="item">FEED<i class="icon rss"></i></a></div><div class="h50"></div></div><div class="h50 mq"><a class="ui teal big label"><i class="content icon"></i></a></div><div class="author-info"><a href="/" class="img-link"><img src="/avatar.png" class="author-photo ui tiny circular image"></a><h4 class="ui aligned icon header"><div class="content">nqounet</div></h4><p class="author-desc">Whisky, Perl, Kansai.pm</p><div class="social-outer"><div class="social-inner"><a href="https://github.com/nqounet" target="_blank" class="social-link"><i class="icon github"></i></a><a href="https://twitter.com/nqounet" target="_blank" class="social-link"><i class="icon twitter"></i></a></div></div></div></div><div class="main"><div class="wrap"><section class="container"><div class="post"><article class="post-block"><h1 class="post-title">Mojolicious::Plugin::JSON_XSを書いた</h1><div class="post-info"><div class="post-date"><h6 class="ui header"><i class="calendar icon"></i><div class="content">2014年1月18日</div></h6></div></div><div class="post-content"><p><a href="https://twitter.com/nqounet" target="_blank" rel="noopener">@nqounet</a>です．</p>
-<p>MojoliciousでJSONを使う時は，renderメソッドにjsonを指定してやると変数をそのままJSONにして渡せるので簡単です．<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">my $args = &#123; a =&gt; [1,2], b =&gt; &apos;c&apos; &#125;;</span><br><span class="line">$self-&gt;render(json =&gt; $args);</span><br></pre></td></tr></table></figure></p>
+<p>MojoliciousでJSONを使う時は，renderメソッドにjsonを指定してやると変数をそのままJSONにして渡せるので簡単です．</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">my $args = &#123; a =&gt; [1,2], b =&gt; &apos;c&apos; &#125;;</span><br><span class="line">$self-&gt;render(json =&gt; $args);</span><br></pre></td></tr></table></figure>
+
 <p>しかし，この時に使用されるMojo::JSONはPurePerlなので，できればXSのモジュール（JSON::XS）を使って高速化したいですよね．</p>
-<p></p><h2>計測</h2><br>その前に，Mojo::JSONとJSON::XSではどのくらい速度が違うのかを調べてみます．<p></p>
+<h2>計測</h2>
+その前に，Mojo::JSONとJSON::XSではどのくらい速度が違うのかを調べてみます．
+
 <p>ついでなので，便利に使えるJSONも一緒に測ってみます．</p>
-<p>ソースコードは最後に載せていますので適当にお使いください．<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"># Benchmark: running json, mojo, xs for at least 3 CPU seconds...</span><br><span class="line">#       json: 3.03104 wallclock secs ( 3.02 usr +  0.00 sys =  3.02 CPU) @ 173870.86/s (n=525090)</span><br><span class="line">#       mojo: 3.19469 wallclock secs ( 3.17 usr +  0.00 sys =  3.17 CPU) @ 14308.83/s (n=45359)</span><br><span class="line">#         xs: 3.16628 wallclock secs ( 3.15 usr +  0.00 sys =  3.15 CPU) @ 195861.27/s (n=616963)</span><br><span class="line">#          Rate  mojo  json    xs</span><br><span class="line"># mojo  14309/s    --  -92%  -93%</span><br><span class="line"># json 173871/s 1115%    --  -11%</span><br><span class="line"># xs   195861/s 1269%   13%    --</span><br></pre></td></tr></table></figure></p>
+<p>ソースコードは最後に載せていますので適当にお使いください．</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"># Benchmark: running json, mojo, xs for at least 3 CPU seconds...</span><br><span class="line">#       json: 3.03104 wallclock secs ( 3.02 usr +  0.00 sys =  3.02 CPU) @ 173870.86/s (n=525090)</span><br><span class="line">#       mojo: 3.19469 wallclock secs ( 3.17 usr +  0.00 sys =  3.17 CPU) @ 14308.83/s (n=45359)</span><br><span class="line">#         xs: 3.16628 wallclock secs ( 3.15 usr +  0.00 sys =  3.15 CPU) @ 195861.27/s (n=616963)</span><br><span class="line">#          Rate  mojo  json    xs</span><br><span class="line"># mojo  14309/s    --  -92%  -93%</span><br><span class="line"># json 173871/s 1115%    --  -11%</span><br><span class="line"># xs   195861/s 1269%   13%    --</span><br></pre></td></tr></table></figure>
+
 <p>mojoはMojo::JSON，xsはJSON::XS，jsonは，JSONです．</p>
 <p>JSON::XSの方がMojo::JSONよりも10倍以上速いですね．</p>
 <p>JSONモジュールは，JSON::XSがあるとこれを使うのですが，若干差がありますね．</p>
 <p>インスタンスを作るときなどに多少のオーバーヘッドがあるのかもしれません．</p>
-<p>ちなみに，インスタンスを再利用するとこんな感じの結果になりました．<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"># Benchmark: running json, mojo, xs for at least 3 CPU seconds...</span><br><span class="line">#       json: 3.18115 wallclock secs ( 3.16 usr +  0.00 sys =  3.16 CPU) @ 285812.66/s (n=903168)</span><br><span class="line">#       mojo: 3.26202 wallclock secs ( 3.22 usr +  0.00 sys =  3.22 CPU) @ 14538.20/s (n=46813)</span><br><span class="line">#         xs: 3.19833 wallclock secs ( 3.18 usr +  0.00 sys =  3.18 CPU) @ 309832.39/s (n=985267)</span><br><span class="line">#          Rate  mojo  json    xs</span><br><span class="line"># mojo  14538/s    --  -95%  -95%</span><br><span class="line"># json 285813/s 1866%    --   -8%</span><br><span class="line"># xs   309832/s 2031%    8%    --</span><br></pre></td></tr></table></figure></p>
+<p>ちなみに，インスタンスを再利用するとこんな感じの結果になりました．</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"># Benchmark: running json, mojo, xs for at least 3 CPU seconds...</span><br><span class="line">#       json: 3.18115 wallclock secs ( 3.16 usr +  0.00 sys =  3.16 CPU) @ 285812.66/s (n=903168)</span><br><span class="line">#       mojo: 3.26202 wallclock secs ( 3.22 usr +  0.00 sys =  3.22 CPU) @ 14538.20/s (n=46813)</span><br><span class="line">#         xs: 3.19833 wallclock secs ( 3.18 usr +  0.00 sys =  3.18 CPU) @ 309832.39/s (n=985267)</span><br><span class="line">#          Rate  mojo  json    xs</span><br><span class="line"># mojo  14538/s    --  -95%  -95%</span><br><span class="line"># json 285813/s 1866%    --   -8%</span><br><span class="line"># xs   309832/s 2031%    8%    --</span><br></pre></td></tr></table></figure>
+
 <p>…さらに差がつきましたね．</p>
 <p>ここまで速いのであれば，使える環境なら使いたいですね．</p>
-<p></p><h2>MojoliciousでJSON::XSを使う</h2><br>MojoliciousでJSON::XSを使う場合は，<code>Mojo::JSON::XS</code>が便利です．<p></p>
-<p><ul><br>    <li><a href="http://search.cpan.org/dist/Mojo-JSON-Any/lib/Mojo/JSON/XS.pm" target="_blank" rel="noopener">Mojo::JSON::XS - search.cpan.org</a></li><br></ul><br>Mojo::JSONとメソッドの互換性があり，JSON::XSでは使えないtrueやfalseも使えます．</p>
+<h2>MojoliciousでJSON::XSを使う</h2>
+MojoliciousでJSON::XSを使う場合は，<code>Mojo::JSON::XS</code>が便利です．
+<ul>
+    <li><a href="http://search.cpan.org/dist/Mojo-JSON-Any/lib/Mojo/JSON/XS.pm" target="_blank" rel="noopener">Mojo::JSON::XS - search.cpan.org</a></li>
+</ul>
+Mojo::JSONとメソッドの互換性があり，JSON::XSでは使えないtrueやfalseも使えます．
+
 <p>最近は更新がないのでどこまで互換性があるか心配ではありますが，少し使ってみた感じでは問題ありませんでした．</p>
-<p></p><h2>プラグインを書いた</h2><br>使い方としては，rendererのadd_handlerでjsonのハンドラを上書きする方法が安全ですが，render以外でもMojo::JSONを利用している部分があるので，大胆にMojo::JSON::newを（再）定義してやります．<p></p>
-<p>使う時はいつもと同じようにpluginメソッドで呼び出すだけです．<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"># Mojolicious::Lite</span><br><span class="line">plugin &apos;JSON_XS&apos;;</span><br><span class="line"></span><br><span class="line"># Mojolicious</span><br><span class="line">$app-&gt;plugin(&apos;JSON_XS&apos;);</span><br></pre></td></tr></table></figure></p>
+<h2>プラグインを書いた</h2>
+使い方としては，rendererのadd_handlerでjsonのハンドラを上書きする方法が安全ですが，render以外でもMojo::JSONを利用している部分があるので，大胆にMojo::JSON::newを（再）定義してやります．
+
+<p>使う時はいつもと同じようにpluginメソッドで呼び出すだけです．</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"># Mojolicious::Lite</span><br><span class="line">plugin &apos;JSON_XS&apos;;</span><br><span class="line"></span><br><span class="line"># Mojolicious</span><br><span class="line">$app-&gt;plugin(&apos;JSON_XS&apos;);</span><br></pre></td></tr></table></figure>
+
 <p>正直なところ，JSON部分だけが速くなってもあまり効果はない気がします．</p>
 <p>ただし，とてつもなく大きなJSONをやりとりする機会があるなら使えると思います．</p>
 <p>ハンドラーを書き換える方法はこちらをどうぞ．</p>
-<p><ul><br>    <li><a href="http://d.hatena.ne.jp/perlcodesample/20121205/1354863719" target="_blank" rel="noopener">JSONの描画にJSON::XSを利用する方法 / Mojoliciousリファレンス - サンプルコードによるPerl入門</a></li><br></ul></p>
-<p></p><h2>余談</h2><br>こんなことを考えたのは，この記事がきっかけでした．<p></p>
-<p><ul><br>    <li><a href="https://qiita.com/otaka/items/d1ea0321fef039f01691" target="_blank" rel="noopener">Perl - Mojolicious＋jQueryで、getJSONでハマった - Qiita [キータ]</a></li><br></ul><br>JSON::XSを使いたい気持ちはわかるので．</p>
-<p></p><h2>ベンチマークのソース</h2><br>ということで，忘れかけていたベンチマークのソースです．<p></p>
-<pre><code class="default">#!/usr/bin/env perl
+<ul>
+    <li><a href="http://d.hatena.ne.jp/perlcodesample/20121205/1354863719" target="_blank" rel="noopener">JSONの描画にJSON::XSを利用する方法 / Mojoliciousリファレンス - サンプルコードによるPerl入門</a></li>
+</ul>
+<h2>余談</h2>
+こんなことを考えたのは，この記事がきっかけでした．
+<ul>
+    <li><a href="https://qiita.com/otaka/items/d1ea0321fef039f01691" target="_blank" rel="noopener">Perl - Mojolicious＋jQueryで、getJSONでハマった - Qiita [キータ]</a></li>
+</ul>
+JSON::XSを使いたい気持ちはわかるので．
+<h2>ベンチマークのソース</h2>
+ということで，忘れかけていたベンチマークのソースです．
+```default
+#!/usr/bin/env perl
 use utf8;
 use v5.12;
 use App::Benchmark;
@@ -31,21 +56,20 @@ use Mojo::JSON;
 use JSON::XS;
 use JSON;
 my $args = {
-  hoge =&gt; &apos;hoge&apos;,
-  geho =&gt; {geho =&gt; &apos;gehoge&apos;, hoge =&gt; 1, hum =&gt; [1, undef, &apos;hoge&apos;]},
-  foo =&gt; [&apos;bar&apos;, &apos;baz&apos;, 2],
+  hoge => 'hoge',
+  geho => {geho => 'gehoge', hoge => 1, hum => [1, undef, 'hoge']},
+  foo => ['bar', 'baz', 2],
 };
 benchmark_diag(
   -3,
   {
-    mojo =&gt;
-      sub { my $json = Mojo::JSON-&gt;new; my $ret = $json-&gt;encode($args); },
-    xs   =&gt; sub { my $json = JSON::XS-&gt;new; my $ret = $json-&gt;encode($args); },
-    json =&gt; sub { my $json = JSON-&gt;new;     my $ret = $json-&gt;encode($args); },
+    mojo =>
+      sub { my $json = Mojo::JSON->new; my $ret = $json->encode($args); },
+    xs   => sub { my $json = JSON::XS->new; my $ret = $json->encode($args); },
+    json => sub { my $json = JSON->new;     my $ret = $json->encode($args); },
   }
 );
-</code></pre>
-</div></article></div></section><footer><div class="paginator"><a href="/2014/01/18/231900/" class="prev"><button class="ui button teal">前の記事</button></a><a href="/2013/12/30/194200/" class="next"><button class="ui button teal">次の記事</button></a></div><div id="disqus_thread"></div><script>var disqus_shortname = 'nqounet';
+```        </div></article></div></section><footer><div class="paginator"><a href="/2014/01/18/231900/" class="prev"><button class="ui button teal">前の記事</button></a><a href="/2013/12/30/194200/" class="next"><button class="ui button teal">次の記事</button></a></div><div id="disqus_thread"></div><script>var disqus_shortname = 'nqounet';
 var disqus_identifier = '2014/01/18/171500/';
 var disqus_title = 'Mojolicious::Plugin::JSON_XSを書いた';
 var disqus_url = 'https://www.nqou.net/2014/01/18/171500/';
