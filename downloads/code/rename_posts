@@ -30,7 +30,14 @@ while (my $post = $iterator->()) {
 
         # 存在しなければ今書いたことにする
         if (!exists $info->{date}) {
-            $info->{iso8601} = Time::Moment->now->with_precision(0)->to_string;
+            my $tm;
+            while (1) {
+                $tm = Time::Moment->now->with_precision(0);
+                my $new_path = new_path_by_iso8601($tm->to_string);
+                last unless $new_path->exists;
+                sleep 1;
+            }
+            $info->{iso8601} = $tm->to_string;
         }
 
         # すでに変換済みであればそのまま渡す
@@ -76,9 +83,15 @@ while (my $post = $iterator->()) {
     }
 
     # 時間でファイル名を変更
-    my $tm       = Time::Moment->from_string($info->{iso8601})->with_offset_same_instant($jp_offset);
+    my $new_path = new_path_by_iso8601($info->{iso8601});
+    $new_path->parent->mkpath;
+    $post->move($new_path->stringify);
+}
+
+sub new_path_by_iso8601 {
+    my $iso8601  = shift;
+    my $tm       = Time::Moment->from_string($iso8601)->with_offset_same_instant($jp_offset);
     my $path     = $tm->strftime('%Y/%m/%d/%H%M%S');
-    my $new_post = path($posts_dir, qq{$path.md})->absolute;
-    $new_post->parent->mkpath;
-    $post->move($new_post->stringify);
+    my $new_path = path($posts_dir, qq{$path.md})->absolute;
+    return $new_path;
 }
