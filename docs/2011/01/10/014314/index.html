@@ -1,22 +1,19 @@
 <!DOCTYPE html>
 <html lang="ja" dir="ltr">
     <head><meta charset='utf-8'>
-<meta name='viewport' content='width=device-width, initial-scale=1'><meta name='description' content='1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70'>
+<meta name='viewport' content='width=device-width, initial-scale=1'><meta name='description' content=" 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78 79 80 81 82 83 84 85 86 87 88 89 90 91 92 93 94 95 96 97 98 99 100 101 102 103 104 105 106 107 108 109 110 111 112 113 114 115 116 117 118 119 120 121 122 123 124 125 126 127 128 129 130 131 132 133 134 135 136 137 138 139 140 141 142 143 144 #!/usr/bin/env perl #ｕｔｆ８ # use Acme::PerlTidy; use utf8; package DataModel; use base &#39;Data::Model&#39;; use Data::Model::Schema; use Data::Model::Driver::DBI; my $dbfile = qq{$0.db}; my $dsn = qq{dbi:SQLite:dbname=$dbfile}; my $driver = Data::Model::Driver::DBI-&gt;new( dsn =&gt; $dsn, connect_options =&gt; {sqlite_unicode =&gt; 1}, ); base_driver($driver); install_model messages =&gt; schema { key &#39;id&#39;; column id =&gt; int =&gt; {auto_increment =&gt; 1}; column msg =&gt; char =&gt; {required =&gt; 1}; column ts =&gt; char =&gt; {required =&gt; 1}; }; unless (-f $dbfile) { my $dbh = DBI-&gt;connect($dsn, &#39;&#39;, &#39;&#39;, {RaiseError =&gt; 1, PrintError =&gt; 0}) or DBI-&gt;errstr; for my $sql (__PACKAGE__-&gt;as_sqls) { $dbh-&gt;do($sql) or die $dbh-&gt;errstr; } $dbh-&gt;disconnect; } package main; use Mojolicious::Lite; use Mojo::Util qw/md5_sum/; app-&gt;secret(md5_sum $0 )-&gt;log-&gt;level(&#39;debug&#39;)-&gt;path(qq{$0.log}) -&gt;debug(app-&gt;secret); app-&gt;helper(model =&gt; sub { my $dbh = DataModel-&gt;new }); get &#39;/&#39; =&gt; &#39;index&#39;; get &#39;/json&#39; =&gt; sub { my $self = shift; my $model = $self-&gt;model; my $messages = [ $model-&gt;get( &#39;messages&#39; =&gt; { where =&gt; [id =&gt; {&#39;&gt;&#39; =&gt; $self-&gt;param(&#39;from_id&#39;)}], order =&gt; [{id =&gt; &#39;ASC&#39;}], } ) ]; my @json; for my $msg (@{$messages}) { push @json, { id =&gt; $msg-&gt;id, msg =&gt; $msg-&gt;msg, ts =&gt; $msg-&gt;ts, }; } $self-&gt;render(json =&gt; [@json]); } =&gt; &#39;json&#39;; post &#39;/json&#39; =&gt; sub { my $self = shift; my $time = time; my $model = $self-&gt;model; $model-&gt;set( &#39;messages&#39; =&gt; { msg =&gt; $self-&gt;param(&#39;msg&#39;), # jsonもparamで取れる ts =&gt; $time, } ); }; app-&gt;start; __DATA__ @@ index.html.ep % layout &#39;main&#39;; %= javascript begin jQuery(function($) { $(&#34;#message&#34;).focus(); var params = $.extend({ refresh:5, timer:0, latest:0 },params); var add_log = function(text){ $(&#39;#for_ajax&#39;).prepend(&#34;&lt;p&gt;&#34; + text + &#34;&lt;/p&gt;&#34;); }; var format_date = function(d){ var yyyy = d.getFullYear(); var mm = &#39;0&#39; + (d.getMonth() + 1); var dd = &#39;0&#39; + d.getDate(); var hh = &#39;0&#39; + d.getHours(); var nn = &#39;0&#39; + d.getMinutes(); var ss = &#39;0&#39; + d.getSeconds(); return yyyy + &#39;/&#39; + mm.slice(-2) + &#39;/&#39; + dd.slice(-2) + &#39; &#39; + hh.slice(-2) + &#39;:&#39; + nn.slice(-2) + &#39;:&#39; + ss.slice(-2); }; var reload_json = function(){ $.getJSON( &#34;&lt;%= url_for &#39;json&#39; %&gt;&#34;, { &#39;from_id&#39;:params.latest }, function(json) { $.each(json, function(i, val){ params.latest = val.id; var latest = new Date(); latest.setTime(val.ts * 1000); add_log(val.id + &#34;. &#34; + val.msg + &#34; &lt;small&gt;&#34; + format_date(latest) + &#34;&lt;/small&gt;&#34;); }); clearTimeout(params.timer);// 念のためタイマーをリセット params.timer = setTimeout(reload_json,params.refresh*1000);// 次回の実行はparams.refresh秒後 } ); }; params.timer = setTimeout(reload_json,0);// 一回目実行 $(&#34;#msg_form&#34;).submit(function() { if ( 0 &lt; $(&#34;#message&#34;).val().length ) { $.post(&#34;&lt;%= url_for &#39;json&#39; %&gt;&#34;, { &#39;msg&#39;:$(&#34;#message&#34;).val(), }, function(json) { }, &#39;json&#39;); $(&#34;#message&#34;).val(&#39;&#39;); } return false; }) }); % end &lt;div&gt; &lt;%= form_for &#39;/&#39; =&gt; (method =&gt; &#39;post&#39;, id =&gt; &#39;msg_form&#39;) =&gt; begin %&gt; &lt;%= text_field &#39;msg&#39; =&gt; (id =&gt; &#39;message&#39;) %&gt; &lt;%= submit_button &#39;発言する&#39; %&gt; &lt;% end %&gt; &lt;/div&gt; &lt;div id=&#34;for_ajax&#34;&gt;&lt;/div&gt; @@ layouts/main.html.ep &lt;!DOCTYPE html&gt; &lt;html&gt; &lt;head&gt; &lt;meta charset=&#34;&lt;%= app-&gt;renderer-&gt;encoding %&gt;&#34;&gt; &lt;title&gt;Mojolicious&lt;/title&gt; %= javascript &#39;https://ajax.googleapis.com/ajax/libs/jquery/1.4/jquery.min.js&#39; &lt;/head&gt; &lt;body&gt;&lt;%= content %&gt;&lt;/body&gt; &lt;/html&gt; ">
 <title>Mojolicious::LiteとData::ModelとjQueryでAJAXなチャットを作ってみた</title>
 
 <link rel='canonical' href='https://www.nqou.net/2011/01/10/014314/'>
 
-<link rel="stylesheet" href="/scss/style.min.8191399262444ab68b72a18c97392f5349be20a1615d77445be51e974c144cff.css"><meta property='og:title' content='Mojolicious::LiteとData::ModelとjQueryでAJAXなチャットを作ってみた'>
-<meta property='og:description' content='1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70'>
+<link rel="stylesheet" href="/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css"><meta property='og:title' content="Mojolicious::LiteとData::ModelとjQueryでAJAXなチャットを作ってみた">
+<meta property='og:description' content=" 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78 79 80 81 82 83 84 85 86 87 88 89 90 91 92 93 94 95 96 97 98 99 100 101 102 103 104 105 106 107 108 109 110 111 112 113 114 115 116 117 118 119 120 121 122 123 124 125 126 127 128 129 130 131 132 133 134 135 136 137 138 139 140 141 142 143 144 #!/usr/bin/env perl #ｕｔｆ８ # use Acme::PerlTidy; use utf8; package DataModel; use base &#39;Data::Model&#39;; use Data::Model::Schema; use Data::Model::Driver::DBI; my $dbfile = qq{$0.db}; my $dsn = qq{dbi:SQLite:dbname=$dbfile}; my $driver = Data::Model::Driver::DBI-&gt;new( dsn =&gt; $dsn, connect_options =&gt; {sqlite_unicode =&gt; 1}, ); base_driver($driver); install_model messages =&gt; schema { key &#39;id&#39;; column id =&gt; int =&gt; {auto_increment =&gt; 1}; column msg =&gt; char =&gt; {required =&gt; 1}; column ts =&gt; char =&gt; {required =&gt; 1}; }; unless (-f $dbfile) { my $dbh = DBI-&gt;connect($dsn, &#39;&#39;, &#39;&#39;, {RaiseError =&gt; 1, PrintError =&gt; 0}) or DBI-&gt;errstr; for my $sql (__PACKAGE__-&gt;as_sqls) { $dbh-&gt;do($sql) or die $dbh-&gt;errstr; } $dbh-&gt;disconnect; } package main; use Mojolicious::Lite; use Mojo::Util qw/md5_sum/; app-&gt;secret(md5_sum $0 )-&gt;log-&gt;level(&#39;debug&#39;)-&gt;path(qq{$0.log}) -&gt;debug(app-&gt;secret); app-&gt;helper(model =&gt; sub { my $dbh = DataModel-&gt;new }); get &#39;/&#39; =&gt; &#39;index&#39;; get &#39;/json&#39; =&gt; sub { my $self = shift; my $model = $self-&gt;model; my $messages = [ $model-&gt;get( &#39;messages&#39; =&gt; { where =&gt; [id =&gt; {&#39;&gt;&#39; =&gt; $self-&gt;param(&#39;from_id&#39;)}], order =&gt; [{id =&gt; &#39;ASC&#39;}], } ) ]; my @json; for my $msg (@{$messages}) { push @json, { id =&gt; $msg-&gt;id, msg =&gt; $msg-&gt;msg, ts =&gt; $msg-&gt;ts, }; } $self-&gt;render(json =&gt; [@json]); } =&gt; &#39;json&#39;; post &#39;/json&#39; =&gt; sub { my $self = shift; my $time = time; my $model = $self-&gt;model; $model-&gt;set( &#39;messages&#39; =&gt; { msg =&gt; $self-&gt;param(&#39;msg&#39;), # jsonもparamで取れる ts =&gt; $time, } ); }; app-&gt;start; __DATA__ @@ index.html.ep % layout &#39;main&#39;; %= javascript begin jQuery(function($) { $(&#34;#message&#34;).focus(); var params = $.extend({ refresh:5, timer:0, latest:0 },params); var add_log = function(text){ $(&#39;#for_ajax&#39;).prepend(&#34;&lt;p&gt;&#34; + text + &#34;&lt;/p&gt;&#34;); }; var format_date = function(d){ var yyyy = d.getFullYear(); var mm = &#39;0&#39; + (d.getMonth() + 1); var dd = &#39;0&#39; + d.getDate(); var hh = &#39;0&#39; + d.getHours(); var nn = &#39;0&#39; + d.getMinutes(); var ss = &#39;0&#39; + d.getSeconds(); return yyyy + &#39;/&#39; + mm.slice(-2) + &#39;/&#39; + dd.slice(-2) + &#39; &#39; + hh.slice(-2) + &#39;:&#39; + nn.slice(-2) + &#39;:&#39; + ss.slice(-2); }; var reload_json = function(){ $.getJSON( &#34;&lt;%= url_for &#39;json&#39; %&gt;&#34;, { &#39;from_id&#39;:params.latest }, function(json) { $.each(json, function(i, val){ params.latest = val.id; var latest = new Date(); latest.setTime(val.ts * 1000); add_log(val.id + &#34;. &#34; + val.msg + &#34; &lt;small&gt;&#34; + format_date(latest) + &#34;&lt;/small&gt;&#34;); }); clearTimeout(params.timer);// 念のためタイマーをリセット params.timer = setTimeout(reload_json,params.refresh*1000);// 次回の実行はparams.refresh秒後 } ); }; params.timer = setTimeout(reload_json,0);// 一回目実行 $(&#34;#msg_form&#34;).submit(function() { if ( 0 &lt; $(&#34;#message&#34;).val().length ) { $.post(&#34;&lt;%= url_for &#39;json&#39; %&gt;&#34;, { &#39;msg&#39;:$(&#34;#message&#34;).val(), }, function(json) { }, &#39;json&#39;); $(&#34;#message&#34;).val(&#39;&#39;); } return false; }) }); % end &lt;div&gt; &lt;%= form_for &#39;/&#39; =&gt; (method =&gt; &#39;post&#39;, id =&gt; &#39;msg_form&#39;) =&gt; begin %&gt; &lt;%= text_field &#39;msg&#39; =&gt; (id =&gt; &#39;message&#39;) %&gt; &lt;%= submit_button &#39;発言する&#39; %&gt; &lt;% end %&gt; &lt;/div&gt; &lt;div id=&#34;for_ajax&#34;&gt;&lt;/div&gt; @@ layouts/main.html.ep &lt;!DOCTYPE html&gt; &lt;html&gt; &lt;head&gt; &lt;meta charset=&#34;&lt;%= app-&gt;renderer-&gt;encoding %&gt;&#34;&gt; &lt;title&gt;Mojolicious&lt;/title&gt; %= javascript &#39;https://ajax.googleapis.com/ajax/libs/jquery/1.4/jquery.min.js&#39; &lt;/head&gt; &lt;body&gt;&lt;%= content %&gt;&lt;/body&gt; &lt;/html&gt; ">
 <meta property='og:url' content='https://www.nqou.net/2011/01/10/014314/'>
 <meta property='og:site_name' content='nqou.net'>
 <meta property='og:type' content='article'><meta property='article:section' content='Post' /><meta property='article:tag' content='jquery' /><meta property='article:tag' content='mojolicious' /><meta property='article:tag' content='perl' /><meta property='article:published_time' content='2011-01-10T01:43:14&#43;09:00'/><meta property='article:modified_time' content='2011-01-10T01:43:14&#43;09:00'/>
 <meta name="twitter:title" content="Mojolicious::LiteとData::ModelとjQueryでAJAXなチャットを作ってみた">
-<meta name="twitter:description" content="1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70">
+<meta name="twitter:description" content=" 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78 79 80 81 82 83 84 85 86 87 88 89 90 91 92 93 94 95 96 97 98 99 100 101 102 103 104 105 106 107 108 109 110 111 112 113 114 115 116 117 118 119 120 121 122 123 124 125 126 127 128 129 130 131 132 133 134 135 136 137 138 139 140 141 142 143 144 #!/usr/bin/env perl #ｕｔｆ８ # use Acme::PerlTidy; use utf8; package DataModel; use base &#39;Data::Model&#39;; use Data::Model::Schema; use Data::Model::Driver::DBI; my $dbfile = qq{$0.db}; my $dsn = qq{dbi:SQLite:dbname=$dbfile}; my $driver = Data::Model::Driver::DBI-&gt;new( dsn =&gt; $dsn, connect_options =&gt; {sqlite_unicode =&gt; 1}, ); base_driver($driver); install_model messages =&gt; schema { key &#39;id&#39;; column id =&gt; int =&gt; {auto_increment =&gt; 1}; column msg =&gt; char =&gt; {required =&gt; 1}; column ts =&gt; char =&gt; {required =&gt; 1}; }; unless (-f $dbfile) { my $dbh = DBI-&gt;connect($dsn, &#39;&#39;, &#39;&#39;, {RaiseError =&gt; 1, PrintError =&gt; 0}) or DBI-&gt;errstr; for my $sql (__PACKAGE__-&gt;as_sqls) { $dbh-&gt;do($sql) or die $dbh-&gt;errstr; } $dbh-&gt;disconnect; } package main; use Mojolicious::Lite; use Mojo::Util qw/md5_sum/; app-&gt;secret(md5_sum $0 )-&gt;log-&gt;level(&#39;debug&#39;)-&gt;path(qq{$0.log}) -&gt;debug(app-&gt;secret); app-&gt;helper(model =&gt; sub { my $dbh = DataModel-&gt;new }); get &#39;/&#39; =&gt; &#39;index&#39;; get &#39;/json&#39; =&gt; sub { my $self = shift; my $model = $self-&gt;model; my $messages = [ $model-&gt;get( &#39;messages&#39; =&gt; { where =&gt; [id =&gt; {&#39;&gt;&#39; =&gt; $self-&gt;param(&#39;from_id&#39;)}], order =&gt; [{id =&gt; &#39;ASC&#39;}], } ) ]; my @json; for my $msg (@{$messages}) { push @json, { id =&gt; $msg-&gt;id, msg =&gt; $msg-&gt;msg, ts =&gt; $msg-&gt;ts, }; } $self-&gt;render(json =&gt; [@json]); } =&gt; &#39;json&#39;; post &#39;/json&#39; =&gt; sub { my $self = shift; my $time = time; my $model = $self-&gt;model; $model-&gt;set( &#39;messages&#39; =&gt; { msg =&gt; $self-&gt;param(&#39;msg&#39;), # jsonもparamで取れる ts =&gt; $time, } ); }; app-&gt;start; __DATA__ @@ index.html.ep % layout &#39;main&#39;; %= javascript begin jQuery(function($) { $(&#34;#message&#34;).focus(); var params = $.extend({ refresh:5, timer:0, latest:0 },params); var add_log = function(text){ $(&#39;#for_ajax&#39;).prepend(&#34;&lt;p&gt;&#34; + text + &#34;&lt;/p&gt;&#34;); }; var format_date = function(d){ var yyyy = d.getFullYear(); var mm = &#39;0&#39; + (d.getMonth() + 1); var dd = &#39;0&#39; + d.getDate(); var hh = &#39;0&#39; + d.getHours(); var nn = &#39;0&#39; + d.getMinutes(); var ss = &#39;0&#39; + d.getSeconds(); return yyyy + &#39;/&#39; + mm.slice(-2) + &#39;/&#39; + dd.slice(-2) + &#39; &#39; + hh.slice(-2) + &#39;:&#39; + nn.slice(-2) + &#39;:&#39; + ss.slice(-2); }; var reload_json = function(){ $.getJSON( &#34;&lt;%= url_for &#39;json&#39; %&gt;&#34;, { &#39;from_id&#39;:params.latest }, function(json) { $.each(json, function(i, val){ params.latest = val.id; var latest = new Date(); latest.setTime(val.ts * 1000); add_log(val.id + &#34;. &#34; + val.msg + &#34; &lt;small&gt;&#34; + format_date(latest) + &#34;&lt;/small&gt;&#34;); }); clearTimeout(params.timer);// 念のためタイマーをリセット params.timer = setTimeout(reload_json,params.refresh*1000);// 次回の実行はparams.refresh秒後 } ); }; params.timer = setTimeout(reload_json,0);// 一回目実行 $(&#34;#msg_form&#34;).submit(function() { if ( 0 &lt; $(&#34;#message&#34;).val().length ) { $.post(&#34;&lt;%= url_for &#39;json&#39; %&gt;&#34;, { &#39;msg&#39;:$(&#34;#message&#34;).val(), }, function(json) { }, &#39;json&#39;); $(&#34;#message&#34;).val(&#39;&#39;); } return false; }) }); % end &lt;div&gt; &lt;%= form_for &#39;/&#39; =&gt; (method =&gt; &#39;post&#39;, id =&gt; &#39;msg_form&#39;) =&gt; begin %&gt; &lt;%= text_field &#39;msg&#39; =&gt; (id =&gt; &#39;message&#39;) %&gt; &lt;%= submit_button &#39;発言する&#39; %&gt; &lt;% end %&gt; &lt;/div&gt; &lt;div id=&#34;for_ajax&#34;&gt;&lt;/div&gt; @@ layouts/main.html.ep &lt;!DOCTYPE html&gt; &lt;html&gt; &lt;head&gt; &lt;meta charset=&#34;&lt;%= app-&gt;renderer-&gt;encoding %&gt;&#34;&gt; &lt;title&gt;Mojolicious&lt;/title&gt; %= javascript &#39;https://ajax.googleapis.com/ajax/libs/jquery/1.4/jquery.min.js&#39; &lt;/head&gt; &lt;body&gt;&lt;%= content %&gt;&lt;/body&gt; &lt;/html&gt; ">
     <link rel="shortcut icon" href="/favicon.png" />
-
-  
-
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap');
 
@@ -84,7 +81,7 @@
             <h1 class="site-name"><a href="/">nqou.net</a></h1>
             <h2 class="site-description">Whisky, Perl, Kansai.pm</h2>
         </div>
-    </header><ol class="social-menu">
+    </header><ol class="menu-social">
             
                 <li>
                     <a 
@@ -130,7 +127,6 @@
         
         
         
-
         <li >
             <a href='/' >
                 
@@ -151,7 +147,6 @@
         </li>
         
         
-
         <li >
             <a href='/about/' >
                 
@@ -169,7 +164,6 @@
         </li>
         
         
-
         <li >
             <a href='/archives/' >
                 
@@ -190,7 +184,6 @@
         </li>
         
         
-
         <li >
             <a href='/search/' >
                 
@@ -210,7 +203,6 @@
         </li>
         
         
-
         <li >
             <a href='/links/' >
                 
@@ -229,31 +221,12 @@
             </a>
         </li>
         
+        <li class="menu-bottom-section">
+            <ol class="menu">
 
-        <div class="menu-bottom-section">
-                <li id="i18n-switch">  
-                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-language" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
-  <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-  <path d="M4 5h7" />
-  <path d="M9 3v2c0 4.418 -2.239 8 -5 8" />
-  <path d="M5 9c-.003 2.144 2.952 3.908 6.7 4" />
-  <path d="M12 20l4 -9l4 9" />
-  <path d="M19.1 18h-6.2" />
-</svg>
-
-
-
-                    <select name="language" onchange="window.location.href = this.selectedOptions[0].value">
-                        
-                            <option value="https://www.nqou.net/" selected>日本語</option>
-                        
-                    </select>
-                </li>
-            
-            
-            
-                <li id="dark-mode-toggle">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                
+                    <li id="dark-mode-toggle">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
   <path stroke="none" d="M0 0h24v24H0z"/>
   <circle cx="8" cy="12" r="2" />
   <rect x="2" y="6" width="20" height="12" rx="6" />
@@ -261,7 +234,7 @@
 
 
 
-                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
   <path stroke="none" d="M0 0h24v24H0z"/>
   <circle cx="16" cy="12" r="2" />
   <rect x="2" y="6" width="20" height="12" rx="6" />
@@ -269,10 +242,11 @@
 
 
 
-                    <span>ダークモード</span>
-                </li>
-            
-        </div>
+                        <span>ダークモード</span>
+                    </li>
+                
+            </ol>
+        </li>
     </ol>
 </aside>
 
@@ -309,7 +283,7 @@
   <path d="M3 11h16" />
   <path d="M18 16.496v1.504l1 1" />
 </svg>
-                <time class="article-time--published">Jan 10, 2011</time>
+                <time class="article-time--published">1月 10, 2011</time>
             </div>
         
 
@@ -789,12 +763,12 @@
         
             2000 - 
         
-        2024 nqou.net
+        2025 nqou.net
     </section>
     
     <section class="powerby">
-        Built with <a href="https://gohugo.io/" target="_blank" rel="noopener">Hugo</a> <br />
-        テーマ <b><a href="https://github.com/CaiJimmy/hugo-theme-stack" target="_blank" rel="noopener" data-version="3.16.0">Stack</a></b> は <a href="https://jimmycai.com" target="_blank" rel="noopener">Jimmy</a> によって設計されています。
+        <a href="https://gohugo.io/" target="_blank" rel="noopener">Hugo</a> で構築されています。 <br />
+        テーマ <b><a href="https://github.com/CaiJimmy/hugo-theme-stack" target="_blank" rel="noopener" data-version="3.29.0">Stack</a></b> は <a href="https://jimmycai.com" target="_blank" rel="noopener">Jimmy</a> によって設計されています。
     </section>
 </footer>
 
@@ -883,7 +857,7 @@
                 src="https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js"integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z&#43;KMkF24hUW8WePSA9HM="crossorigin="anonymous"
                 
                 >
-            </script><script type="text/javascript" src="/ts/main.js" defer></script>
+            </script><script type="text/javascript" src="/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js" defer></script>
 <script>
     (function () {
         const customFont = document.createElement('link');
