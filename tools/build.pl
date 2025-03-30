@@ -8,6 +8,10 @@ use Time::Moment ();
 
 my $root = path(__FILE__)->absolute->parent(2);
 
+# 出力先をクリーニングする
+my $output_dir = path($root, 'docs');# config.tomlを変更したらここも変更すること
+$output_dir->remove_tree if $output_dir->exists;
+
 # 記事を取得
 my $posts_dir = path($root, 'content', 'post');
 my $iterator = $posts_dir->iterator(+{ recurse => 1 });
