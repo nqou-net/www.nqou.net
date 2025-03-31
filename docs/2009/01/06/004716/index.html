@@ -1,18 +1,18 @@
 <!DOCTYPE html>
 <html lang="ja" dir="ltr">
     <head><meta charset='utf-8'>
-<meta name='viewport' content='width=device-width, initial-scale=1'><meta name='description' content=" 1 2 3 package main; my $fetcher = FlickrFetcher-&gt;new_with_options(); $fetcher-&gt;run(); 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78 79 80 81 82 83 84 85 86 87 88 89 90 91 92 93 94 95 96 97 98 99 100 101 102 103 104 105 106 107 108 109 110 111 112 113 114 115 116 117 118 119 120 121 122 123 124 125 126 127 128 129 130 package FlickrFetcher; use Moose; use Moose::Util::TypeConstraints; use Params::Coerce (); use Digest::MD5 qw(md5_hex); use Encode; use LWP::UserAgent; use Path::Class; use POSIX qw(ceil); use WebService::Simple; use WebService::Simple::Parser::XML::Simple; use XML::Simple; use Perl6::Say; our $VERSION = &#39;0.01&#39;; with &#39;MooseX::Getopt&#39;; subtype &#39;Dir&#39; =&gt; as &#39;Object&#39; =&gt; where { $_-&gt;isa(&#39;Path::Class::Dir&#39;) }; coerce &#39;Dir&#39; =&gt; from &#39;Str&#39; =&gt; via { Path::Class::Dir-&gt;new($_) }; MooseX::Getopt::OptionTypeMap-&gt;add_option_type_to_map( &#39;Dir&#39; =&gt; &#39;=s&#39; ); has &#39;keyword&#39; =&gt; ( is =&gt; &#39;rw&#39;, isa =&gt; &#39;Str&#39;, required =&gt; 1 ); has &#39;dir&#39; =&gt; ( is =&gt; &#39;rw&#39;, isa =&gt; &#39;Dir&#39;, required =&gt; 1, coerce =&gt; 1 ); has &#39;api_key&#39; =&gt; ( is =&gt; &#39;rw&#39;, isa =&gt; &#39;Str&#39; ); has &#39;license&#39; =&gt; ( is =&gt; &#39;rw&#39;, isa =&gt; &#39;Int&#39; ); has &#39;_perpage&#39; =&gt; ( is =&gt; &#39;ro&#39;, isa =&gt; &#39;Int&#39;, default =&gt; 500 ); has &#39;_flickr&#39; =&gt; ( is =&gt; &#39;rw&#39;, isa =&gt; &#39;WebService::Simple&#39; ); has &#39;_ua&#39; =&gt; ( is =&gt; &#39;ro&#39;, isa =&gt; &#39;LWP::UserAgent&#39;, default =&gt; sub { LWP::UserAgent-&gt;new( keep_alive =&gt; 1 ) } ); sub BUILD { my ( $self, $args ) = @_; unless ( $self-&gt;api_key ) { if ( my $api_key = $ENV{FLICKR_API_KEY} ) { $self-&gt;api_key($api_key); } else { die &#34;api_key is required\\n&#34;; } } my $xs = XML::Simple-&gt;new( KeepRoot =&gt; 1, keyattr =&gt; [] ); my $parser = WebService::Simple::Parser::XML::Simple-&gt;new( xs =&gt; $xs ); my $flickr = WebService::Simple-&gt;new( base_url =&gt; &#34;http://api.flickr.com/services/rest/&#34;, param =&gt; { api_key =&gt; $self-&gt;api_key }, response_parser =&gt; $parser, ); $self-&gt;_flickr($flickr); } __PACKAGE__-&gt;meta-&gt;make_immutable; no Moose; sub run { my $self = shift; mkdir $self-&gt;dir-&gt;relative if !-d $self-&gt;dir-&gt;is_absolute; say &#34;search keyword : &#34; . $self-&gt;keyword; my $photo_total = $self-&gt;photo_total( $self-&gt;keyword ); say &#34;total count : &#34; . $photo_total; my $pages = ceil( $photo_total / $self-&gt;_perpage ); for my $current_page ( 1 .. $pages ) { say &#34;search page : $current_page&#34;; $self-&gt;search( $self-&gt;keyword, $current_page, $self-&gt;_perpage ); } } sub search { my ( $self, $keyword, $page , $perpage) = @_; my $response = $self-&gt;_flickr-&gt;get( { method =&gt; &#34;flickr.photos.search&#34;, text =&gt; $keyword, per_page =&gt; $perpage, sort =&gt; &#39;date-posted-desc&#39;, extras =&gt; &#39;date_upload&#39;, page =&gt; $page, license =&gt; $self-&gt;license || &#34;&#34;, } ); my $xml = $response-&gt;parse_response; $self-&gt;fetch($xml-&gt;{rsp}-&gt;{photos}-&gt;{photo}); } sub fetch { my ( $self, $photo_ref ) = @_; $photo_ref = ref $photo_ref eq &#39;ARRAY&#39; ? $photo_ref : [$photo_ref];# 要素が一つのとき対策 for my $photo ( @$photo_ref ){ my $url = $self-&gt;photo_url( $photo-&gt;{id} ); my $file = $self-&gt;dir-&gt;file( md5_hex($url) . &#34;.jpg&#34; ); my $res; eval { $res = $self-&gt;_ua-&gt;mirror( $url, $file ); };# 「Transfer truncated」対策。ここから if ($@) { say $@; } else { say &#34;try to fetch : &#34; . $res-&gt;status_line . &#34; : $url&#34;; }# ここまで } } sub photo_url { my ( $self, $photo_id ) = @_; my $response = $self-&gt;_flickr-&gt;get( { method =&gt; &#34;flickr.photos.getSizes&#34;, photo_id =&gt; $photo_id } ); my $xml = $response-&gt;parse_response; my $largest_ref = pop @{ $xml-&gt;{rsp}-&gt;{sizes}-&gt;{size} }; return $largest_ref-&gt;{source}; } sub photo_total { my ( $self, $keyword ) = @_; my $response = $self-&gt;_flickr-&gt;get( { method =&gt; &#34;flickr.photos.search&#34;, text =&gt; $keyword, per_page =&gt; 1, license =&gt; $self-&gt;license || &#34;&#34;, } ); my $xml = $response-&gt;parse_response; return $xml-&gt;{rsp}-&gt;{photos}-&gt;{total}; } 1; __END__ =head1 NAME flickr_fetcher.pl - Fetch Flickr photos by keyword =head1 SYNOPSIS ./flickr_fetcher.pl --keyword hoge --dir hoge --api_key yourflickrapikey =head1 AUTHOR Yusuke Wada E&lt;lt&gt;yusuke (at) kamawada.comE&lt;gt&gt; =head1 LICENSE This library is free software; you can redistribute it and/or modify it under the same terms as Perl itself. =cut 1 2 3 4 5 6 7 8 9 10 11 12 13 14 #!/usr/bin/perl # ｕｔｆ８ use strict; use warnings; use FlickrFetcher; fetch({ keyword =&gt; &#39;石原さとみ&#39;, dir =&gt; &#39;satomi_ishihara&#39;, }); sub fetch { my $rh_arg = shift; my $fetcher = FlickrFetcher-&gt;new_with_options( %{$rh_arg} ); $fetcher-&gt;run(); } ">
+<meta name='viewport' content='width=device-width, initial-scale=1'><meta name='description' content="flickr_fetcher.plは、元々は引数でキーワードを入れるという、とてもフレキシブルなスクリプトです。\n元ネタ\nゆーすけべー日記: Flickr からキーワードにマッチした写真を一括ダウンロードする Perl スクリプト「flickr_fetcher.pl」\nが、前エントリーでは、プログラムの中に直接書き込む事を選んだので、別のキーワードで画像を探すときにはその部分を変更してやる必要が出てきます。\nローマ字や英語でキーワードを入れる場合はかまいませんが、日本語の検索は標準のコマンドプロンプトでは無理なのです。\n本来なら配布されているプログラムの中身を変えるのは、配布元で更新があったときに、それに対応するのが面倒なので、できれば変えたくない。\n実際、このスクリプトの場合はページの最大値を求める計算方法が変わった。\n勝手に改造した部分には変更はなかったが、こういうのは精神衛生上良くない。\n&hellip;と思いながらソースを見ていると、モジュールとスクリプトを分けて記述してあることに気づいた。\n実際の実行部（スクリプト部分）はたったの2行（宣言と空白を入れて4行）だった。\n">
 <title>flickr_fetcher.plをモジュールにしてみました。</title>
 
 <link rel='canonical' href='https://www.nqou.net/2009/01/06/004716/'>
 
 <link rel="stylesheet" href="/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css"><meta property='og:title' content="flickr_fetcher.plをモジュールにしてみました。">
-<meta property='og:description' content=" 1 2 3 package main; my $fetcher = FlickrFetcher-&gt;new_with_options(); $fetcher-&gt;run(); 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78 79 80 81 82 83 84 85 86 87 88 89 90 91 92 93 94 95 96 97 98 99 100 101 102 103 104 105 106 107 108 109 110 111 112 113 114 115 116 117 118 119 120 121 122 123 124 125 126 127 128 129 130 package FlickrFetcher; use Moose; use Moose::Util::TypeConstraints; use Params::Coerce (); use Digest::MD5 qw(md5_hex); use Encode; use LWP::UserAgent; use Path::Class; use POSIX qw(ceil); use WebService::Simple; use WebService::Simple::Parser::XML::Simple; use XML::Simple; use Perl6::Say; our $VERSION = &#39;0.01&#39;; with &#39;MooseX::Getopt&#39;; subtype &#39;Dir&#39; =&gt; as &#39;Object&#39; =&gt; where { $_-&gt;isa(&#39;Path::Class::Dir&#39;) }; coerce &#39;Dir&#39; =&gt; from &#39;Str&#39; =&gt; via { Path::Class::Dir-&gt;new($_) }; MooseX::Getopt::OptionTypeMap-&gt;add_option_type_to_map( &#39;Dir&#39; =&gt; &#39;=s&#39; ); has &#39;keyword&#39; =&gt; ( is =&gt; &#39;rw&#39;, isa =&gt; &#39;Str&#39;, required =&gt; 1 ); has &#39;dir&#39; =&gt; ( is =&gt; &#39;rw&#39;, isa =&gt; &#39;Dir&#39;, required =&gt; 1, coerce =&gt; 1 ); has &#39;api_key&#39; =&gt; ( is =&gt; &#39;rw&#39;, isa =&gt; &#39;Str&#39; ); has &#39;license&#39; =&gt; ( is =&gt; &#39;rw&#39;, isa =&gt; &#39;Int&#39; ); has &#39;_perpage&#39; =&gt; ( is =&gt; &#39;ro&#39;, isa =&gt; &#39;Int&#39;, default =&gt; 500 ); has &#39;_flickr&#39; =&gt; ( is =&gt; &#39;rw&#39;, isa =&gt; &#39;WebService::Simple&#39; ); has &#39;_ua&#39; =&gt; ( is =&gt; &#39;ro&#39;, isa =&gt; &#39;LWP::UserAgent&#39;, default =&gt; sub { LWP::UserAgent-&gt;new( keep_alive =&gt; 1 ) } ); sub BUILD { my ( $self, $args ) = @_; unless ( $self-&gt;api_key ) { if ( my $api_key = $ENV{FLICKR_API_KEY} ) { $self-&gt;api_key($api_key); } else { die &#34;api_key is required\\n&#34;; } } my $xs = XML::Simple-&gt;new( KeepRoot =&gt; 1, keyattr =&gt; [] ); my $parser = WebService::Simple::Parser::XML::Simple-&gt;new( xs =&gt; $xs ); my $flickr = WebService::Simple-&gt;new( base_url =&gt; &#34;http://api.flickr.com/services/rest/&#34;, param =&gt; { api_key =&gt; $self-&gt;api_key }, response_parser =&gt; $parser, ); $self-&gt;_flickr($flickr); } __PACKAGE__-&gt;meta-&gt;make_immutable; no Moose; sub run { my $self = shift; mkdir $self-&gt;dir-&gt;relative if !-d $self-&gt;dir-&gt;is_absolute; say &#34;search keyword : &#34; . $self-&gt;keyword; my $photo_total = $self-&gt;photo_total( $self-&gt;keyword ); say &#34;total count : &#34; . $photo_total; my $pages = ceil( $photo_total / $self-&gt;_perpage ); for my $current_page ( 1 .. $pages ) { say &#34;search page : $current_page&#34;; $self-&gt;search( $self-&gt;keyword, $current_page, $self-&gt;_perpage ); } } sub search { my ( $self, $keyword, $page , $perpage) = @_; my $response = $self-&gt;_flickr-&gt;get( { method =&gt; &#34;flickr.photos.search&#34;, text =&gt; $keyword, per_page =&gt; $perpage, sort =&gt; &#39;date-posted-desc&#39;, extras =&gt; &#39;date_upload&#39;, page =&gt; $page, license =&gt; $self-&gt;license || &#34;&#34;, } ); my $xml = $response-&gt;parse_response; $self-&gt;fetch($xml-&gt;{rsp}-&gt;{photos}-&gt;{photo}); } sub fetch { my ( $self, $photo_ref ) = @_; $photo_ref = ref $photo_ref eq &#39;ARRAY&#39; ? $photo_ref : [$photo_ref];# 要素が一つのとき対策 for my $photo ( @$photo_ref ){ my $url = $self-&gt;photo_url( $photo-&gt;{id} ); my $file = $self-&gt;dir-&gt;file( md5_hex($url) . &#34;.jpg&#34; ); my $res; eval { $res = $self-&gt;_ua-&gt;mirror( $url, $file ); };# 「Transfer truncated」対策。ここから if ($@) { say $@; } else { say &#34;try to fetch : &#34; . $res-&gt;status_line . &#34; : $url&#34;; }# ここまで } } sub photo_url { my ( $self, $photo_id ) = @_; my $response = $self-&gt;_flickr-&gt;get( { method =&gt; &#34;flickr.photos.getSizes&#34;, photo_id =&gt; $photo_id } ); my $xml = $response-&gt;parse_response; my $largest_ref = pop @{ $xml-&gt;{rsp}-&gt;{sizes}-&gt;{size} }; return $largest_ref-&gt;{source}; } sub photo_total { my ( $self, $keyword ) = @_; my $response = $self-&gt;_flickr-&gt;get( { method =&gt; &#34;flickr.photos.search&#34;, text =&gt; $keyword, per_page =&gt; 1, license =&gt; $self-&gt;license || &#34;&#34;, } ); my $xml = $response-&gt;parse_response; return $xml-&gt;{rsp}-&gt;{photos}-&gt;{total}; } 1; __END__ =head1 NAME flickr_fetcher.pl - Fetch Flickr photos by keyword =head1 SYNOPSIS ./flickr_fetcher.pl --keyword hoge --dir hoge --api_key yourflickrapikey =head1 AUTHOR Yusuke Wada E&lt;lt&gt;yusuke (at) kamawada.comE&lt;gt&gt; =head1 LICENSE This library is free software; you can redistribute it and/or modify it under the same terms as Perl itself. =cut 1 2 3 4 5 6 7 8 9 10 11 12 13 14 #!/usr/bin/perl # ｕｔｆ８ use strict; use warnings; use FlickrFetcher; fetch({ keyword =&gt; &#39;石原さとみ&#39;, dir =&gt; &#39;satomi_ishihara&#39;, }); sub fetch { my $rh_arg = shift; my $fetcher = FlickrFetcher-&gt;new_with_options( %{$rh_arg} ); $fetcher-&gt;run(); } ">
+<meta property='og:description' content="flickr_fetcher.plは、元々は引数でキーワードを入れるという、とてもフレキシブルなスクリプトです。\n元ネタ\nゆーすけべー日記: Flickr からキーワードにマッチした写真を一括ダウンロードする Perl スクリプト「flickr_fetcher.pl」\nが、前エントリーでは、プログラムの中に直接書き込む事を選んだので、別のキーワードで画像を探すときにはその部分を変更してやる必要が出てきます。\nローマ字や英語でキーワードを入れる場合はかまいませんが、日本語の検索は標準のコマンドプロンプトでは無理なのです。\n本来なら配布されているプログラムの中身を変えるのは、配布元で更新があったときに、それに対応するのが面倒なので、できれば変えたくない。\n実際、このスクリプトの場合はページの最大値を求める計算方法が変わった。\n勝手に改造した部分には変更はなかったが、こういうのは精神衛生上良くない。\n&hellip;と思いながらソースを見ていると、モジュールとスクリプトを分けて記述してあることに気づいた。\n実際の実行部（スクリプト部分）はたったの2行（宣言と空白を入れて4行）だった。\n">
 <meta property='og:url' content='https://www.nqou.net/2009/01/06/004716/'>
 <meta property='og:site_name' content='nqou.net'>
 <meta property='og:type' content='article'><meta property='article:section' content='Post' /><meta property='article:tag' content='perl' /><meta property='article:published_time' content='2009-01-06T00:47:16&#43;09:00'/><meta property='article:modified_time' content='2009-01-06T00:47:16&#43;09:00'/>
 <meta name="twitter:title" content="flickr_fetcher.plをモジュールにしてみました。">
-<meta name="twitter:description" content=" 1 2 3 package main; my $fetcher = FlickrFetcher-&gt;new_with_options(); $fetcher-&gt;run(); 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78 79 80 81 82 83 84 85 86 87 88 89 90 91 92 93 94 95 96 97 98 99 100 101 102 103 104 105 106 107 108 109 110 111 112 113 114 115 116 117 118 119 120 121 122 123 124 125 126 127 128 129 130 package FlickrFetcher; use Moose; use Moose::Util::TypeConstraints; use Params::Coerce (); use Digest::MD5 qw(md5_hex); use Encode; use LWP::UserAgent; use Path::Class; use POSIX qw(ceil); use WebService::Simple; use WebService::Simple::Parser::XML::Simple; use XML::Simple; use Perl6::Say; our $VERSION = &#39;0.01&#39;; with &#39;MooseX::Getopt&#39;; subtype &#39;Dir&#39; =&gt; as &#39;Object&#39; =&gt; where { $_-&gt;isa(&#39;Path::Class::Dir&#39;) }; coerce &#39;Dir&#39; =&gt; from &#39;Str&#39; =&gt; via { Path::Class::Dir-&gt;new($_) }; MooseX::Getopt::OptionTypeMap-&gt;add_option_type_to_map( &#39;Dir&#39; =&gt; &#39;=s&#39; ); has &#39;keyword&#39; =&gt; ( is =&gt; &#39;rw&#39;, isa =&gt; &#39;Str&#39;, required =&gt; 1 ); has &#39;dir&#39; =&gt; ( is =&gt; &#39;rw&#39;, isa =&gt; &#39;Dir&#39;, required =&gt; 1, coerce =&gt; 1 ); has &#39;api_key&#39; =&gt; ( is =&gt; &#39;rw&#39;, isa =&gt; &#39;Str&#39; ); has &#39;license&#39; =&gt; ( is =&gt; &#39;rw&#39;, isa =&gt; &#39;Int&#39; ); has &#39;_perpage&#39; =&gt; ( is =&gt; &#39;ro&#39;, isa =&gt; &#39;Int&#39;, default =&gt; 500 ); has &#39;_flickr&#39; =&gt; ( is =&gt; &#39;rw&#39;, isa =&gt; &#39;WebService::Simple&#39; ); has &#39;_ua&#39; =&gt; ( is =&gt; &#39;ro&#39;, isa =&gt; &#39;LWP::UserAgent&#39;, default =&gt; sub { LWP::UserAgent-&gt;new( keep_alive =&gt; 1 ) } ); sub BUILD { my ( $self, $args ) = @_; unless ( $self-&gt;api_key ) { if ( my $api_key = $ENV{FLICKR_API_KEY} ) { $self-&gt;api_key($api_key); } else { die &#34;api_key is required\\n&#34;; } } my $xs = XML::Simple-&gt;new( KeepRoot =&gt; 1, keyattr =&gt; [] ); my $parser = WebService::Simple::Parser::XML::Simple-&gt;new( xs =&gt; $xs ); my $flickr = WebService::Simple-&gt;new( base_url =&gt; &#34;http://api.flickr.com/services/rest/&#34;, param =&gt; { api_key =&gt; $self-&gt;api_key }, response_parser =&gt; $parser, ); $self-&gt;_flickr($flickr); } __PACKAGE__-&gt;meta-&gt;make_immutable; no Moose; sub run { my $self = shift; mkdir $self-&gt;dir-&gt;relative if !-d $self-&gt;dir-&gt;is_absolute; say &#34;search keyword : &#34; . $self-&gt;keyword; my $photo_total = $self-&gt;photo_total( $self-&gt;keyword ); say &#34;total count : &#34; . $photo_total; my $pages = ceil( $photo_total / $self-&gt;_perpage ); for my $current_page ( 1 .. $pages ) { say &#34;search page : $current_page&#34;; $self-&gt;search( $self-&gt;keyword, $current_page, $self-&gt;_perpage ); } } sub search { my ( $self, $keyword, $page , $perpage) = @_; my $response = $self-&gt;_flickr-&gt;get( { method =&gt; &#34;flickr.photos.search&#34;, text =&gt; $keyword, per_page =&gt; $perpage, sort =&gt; &#39;date-posted-desc&#39;, extras =&gt; &#39;date_upload&#39;, page =&gt; $page, license =&gt; $self-&gt;license || &#34;&#34;, } ); my $xml = $response-&gt;parse_response; $self-&gt;fetch($xml-&gt;{rsp}-&gt;{photos}-&gt;{photo}); } sub fetch { my ( $self, $photo_ref ) = @_; $photo_ref = ref $photo_ref eq &#39;ARRAY&#39; ? $photo_ref : [$photo_ref];# 要素が一つのとき対策 for my $photo ( @$photo_ref ){ my $url = $self-&gt;photo_url( $photo-&gt;{id} ); my $file = $self-&gt;dir-&gt;file( md5_hex($url) . &#34;.jpg&#34; ); my $res; eval { $res = $self-&gt;_ua-&gt;mirror( $url, $file ); };# 「Transfer truncated」対策。ここから if ($@) { say $@; } else { say &#34;try to fetch : &#34; . $res-&gt;status_line . &#34; : $url&#34;; }# ここまで } } sub photo_url { my ( $self, $photo_id ) = @_; my $response = $self-&gt;_flickr-&gt;get( { method =&gt; &#34;flickr.photos.getSizes&#34;, photo_id =&gt; $photo_id } ); my $xml = $response-&gt;parse_response; my $largest_ref = pop @{ $xml-&gt;{rsp}-&gt;{sizes}-&gt;{size} }; return $largest_ref-&gt;{source}; } sub photo_total { my ( $self, $keyword ) = @_; my $response = $self-&gt;_flickr-&gt;get( { method =&gt; &#34;flickr.photos.search&#34;, text =&gt; $keyword, per_page =&gt; 1, license =&gt; $self-&gt;license || &#34;&#34;, } ); my $xml = $response-&gt;parse_response; return $xml-&gt;{rsp}-&gt;{photos}-&gt;{total}; } 1; __END__ =head1 NAME flickr_fetcher.pl - Fetch Flickr photos by keyword =head1 SYNOPSIS ./flickr_fetcher.pl --keyword hoge --dir hoge --api_key yourflickrapikey =head1 AUTHOR Yusuke Wada E&lt;lt&gt;yusuke (at) kamawada.comE&lt;gt&gt; =head1 LICENSE This library is free software; you can redistribute it and/or modify it under the same terms as Perl itself. =cut 1 2 3 4 5 6 7 8 9 10 11 12 13 14 #!/usr/bin/perl # ｕｔｆ８ use strict; use warnings; use FlickrFetcher; fetch({ keyword =&gt; &#39;石原さとみ&#39;, dir =&gt; &#39;satomi_ishihara&#39;, }); sub fetch { my $rh_arg = shift; my $fetcher = FlickrFetcher-&gt;new_with_options( %{$rh_arg} ); $fetcher-&gt;run(); } ">
+<meta name="twitter:description" content="flickr_fetcher.plは、元々は引数でキーワードを入れるという、とてもフレキシブルなスクリプトです。\n元ネタ\nゆーすけべー日記: Flickr からキーワードにマッチした写真を一括ダウンロードする Perl スクリプト「flickr_fetcher.pl」\nが、前エントリーでは、プログラムの中に直接書き込む事を選んだので、別のキーワードで画像を探すときにはその部分を変更してやる必要が出てきます。\nローマ字や英語でキーワードを入れる場合はかまいませんが、日本語の検索は標準のコマンドプロンプトでは無理なのです。\n本来なら配布されているプログラムの中身を変えるのは、配布元で更新があったときに、それに対応するのが面倒なので、できれば変えたくない。\n実際、このスクリプトの場合はページの最大値を求める計算方法が変わった。\n勝手に改造した部分には変更はなかったが、こういうのは精神衛生上良くない。\n&hellip;と思いながらソースを見ていると、モジュールとスクリプトを分けて記述してあることに気づいた。\n実際の実行部（スクリプト部分）はたったの2行（宣言と空白を入れて4行）だった。\n">
     <link rel="shortcut icon" href="/favicon.png" />
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap');
@@ -250,7 +250,43 @@
     </ol>
 </aside>
 
-    
+    <aside class="sidebar right-sidebar sticky">
+        
+            
+                
+    <section class="widget archives">
+        <div class="widget-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <line x1="5" y1="9" x2="19" y2="9" />
+  <line x1="5" y1="15" x2="19" y2="15" />
+  <line x1="11" y1="4" x2="7" y2="20" />
+  <line x1="17" y1="4" x2="13" y2="20" />
+</svg>
+
+
+
+        </div>
+        <h2 class="widget-title section-title">目次</h2>
+        
+        <div class="widget--toc">
+            <nav id="TableOfContents">
+  <ol>
+    <li>
+      <ol>
+        <li><a href="#flickrfetcherpm">FlickrFetcher.pm</a></li>
+        <li><a href="#flickr_fetcherpl">flickr_fetcher.pl</a></li>
+      </ol>
+    </li>
+  </ol>
+</nav>
+        </div>
+    </section>
+
+            
+        
+    </aside>
+
 
             <main class="main full-width">
     <article class="main-article">
@@ -298,7 +334,7 @@
 
 
                 <time class="article-time--reading">
-                    読了時間: 2分
+                    読了時間: 4分
                 </time>
             </div>
         
@@ -313,7 +349,16 @@
     <section class="article-content">
     
     
-    <!-- raw HTML omitted -->
+    <p>flickr_fetcher.plは、元々は引数でキーワードを入れるという、とてもフレキシブルなスクリプトです。<br>
+元ネタ<br>
+ゆーすけべー日記: Flickr からキーワードにマッチした写真を一括ダウンロードする Perl スクリプト「flickr_fetcher.pl」<br>
+が、<a class="link" href="/2009/01/05/223856" >前エントリー</a>では、プログラムの中に直接書き込む事を選んだので、別のキーワードで画像を探すときにはその部分を変更してやる必要が出てきます。<br>
+ローマ字や英語でキーワードを入れる場合はかまいませんが、日本語の検索は標準のコマンドプロンプトでは無理なのです。<br>
+本来なら配布されているプログラムの中身を変えるのは、配布元で更新があったときに、それに対応するのが面倒なので、できれば変えたくない。<br>
+実際、このスクリプトの場合はページの最大値を求める計算方法が変わった。<br>
+勝手に改造した部分には変更はなかったが、こういうのは精神衛生上良くない。<br>
+&hellip;と思いながらソースを見ていると、モジュールとスクリプトを分けて記述してあることに気づいた。<br>
+実際の実行部（スクリプト部分）はたったの2行（宣言と空白を入れて4行）だった。</p>
 <div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
 <pre tabindex="0" class="chroma"><code><span class="lnt">1
@@ -321,14 +366,24 @@
 </span><span class="lnt">3
 </span></code></pre></td>
 <td class="lntd">
-<pre tabindex="0" class="chroma"><code class="language-text" data-lang="text"><span class="line"><span class="cl">package main;
-</span></span><span class="line"><span class="cl">my $fetcher = FlickrFetcher-&gt;new_with_options();
-</span></span><span class="line"><span class="cl">$fetcher-&gt;run();
+<pre tabindex="0" class="chroma"><code class="language-perl" data-lang="perl"><span class="line"><span class="cl"><span class="k">package</span> <span class="nn">main</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="k">my</span> <span class="nv">$fetcher</span> <span class="o">=</span> <span class="nn">FlickrFetcher</span><span class="o">-&gt;</span><span class="n">new_with_options</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl"><span class="nv">$fetcher</span><span class="o">-&gt;</span><span class="n">run</span><span class="p">();</span>
 </span></span></code></pre></td></tr></table>
 </div>
-</div><!-- raw HTML omitted -->
-<!-- raw HTML omitted -->
-<div class="highlight"><div class="chroma">
+</div><p>ここだけを別のファイルに切り分けて、FlickrFetcherモジュールを使うようにすれば、スクリプトファイルを別で用意すればいいので、それほどややこしくない。<br>
+今回は、スクリプトファイルの中身は簡単でしたが、keywordとdirのデータを沢山揃えてfor文でfetchに流してやれば、かなり収集が便利になるでしょう。<br>
+というところで、モジュール化したFlickrFetcherですが、現時点で二つほど改善点があります。<br>
+どちらも、fetchルーチン内です。<br>
+一つは「Transfer truncated」で止まってしまう事がある問題です。<br>
+細かく調べてはいませんが、止まらなければ良いので、evalで括ってしまいました。<br>
+本来ならリトライを頑張るところでしょうが、そのあたりは誰かにおまかせです。<br>
+もう一つは、検索結果が1枚だけの時にループで「Not an ARRAY reference」と言われてしまいます。<br>
+parse_responseメソッドの親切心（？）が仇になっているのでしょうか？<br>
+ともあれ、ARRAY referenceでない場合はARRAY referenceに変換するようにしました。<br>
+あと、モジュールにはしましたが、podは変更してません。</p>
+<h3 id="flickrfetcherpm">FlickrFetcher.pm
+</h3><div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
 <pre tabindex="0" class="chroma"><code><span class="lnt">  1
 </span><span class="lnt">  2
@@ -460,142 +515,174 @@
 </span><span class="lnt">128
 </span><span class="lnt">129
 </span><span class="lnt">130
+</span><span class="lnt">131
+</span><span class="lnt">132
+</span><span class="lnt">133
+</span><span class="lnt">134
+</span><span class="lnt">135
+</span><span class="lnt">136
+</span><span class="lnt">137
+</span><span class="lnt">138
+</span><span class="lnt">139
+</span><span class="lnt">140
+</span><span class="lnt">141
+</span><span class="lnt">142
+</span><span class="lnt">143
+</span><span class="lnt">144
+</span><span class="lnt">145
+</span><span class="lnt">146
 </span></code></pre></td>
 <td class="lntd">
-<pre tabindex="0" class="chroma"><code class="language-text" data-lang="text"><span class="line"><span class="cl">package FlickrFetcher;
-</span></span><span class="line"><span class="cl">use Moose;
-</span></span><span class="line"><span class="cl">use Moose::Util::TypeConstraints;
-</span></span><span class="line"><span class="cl">use Params::Coerce ();
-</span></span><span class="line"><span class="cl">use Digest::MD5 qw(md5_hex);
-</span></span><span class="line"><span class="cl">use Encode;
-</span></span><span class="line"><span class="cl">use LWP::UserAgent;
-</span></span><span class="line"><span class="cl">use Path::Class;
-</span></span><span class="line"><span class="cl">use POSIX qw(ceil);
-</span></span><span class="line"><span class="cl">use WebService::Simple;
-</span></span><span class="line"><span class="cl">use WebService::Simple::Parser::XML::Simple;
-</span></span><span class="line"><span class="cl">use XML::Simple;
-</span></span><span class="line"><span class="cl">use Perl6::Say;
-</span></span><span class="line"><span class="cl">our $VERSION = &#39;0.01&#39;;
-</span></span><span class="line"><span class="cl">with &#39;MooseX::Getopt&#39;;
-</span></span><span class="line"><span class="cl">subtype &#39;Dir&#39; =&gt; as &#39;Object&#39; =&gt; where { $_-&gt;isa(&#39;Path::Class::Dir&#39;) };
-</span></span><span class="line"><span class="cl">coerce &#39;Dir&#39;  =&gt; from &#39;Str&#39;  =&gt; via   { Path::Class::Dir-&gt;new($_) };
-</span></span><span class="line"><span class="cl">MooseX::Getopt::OptionTypeMap-&gt;add_option_type_to_map( &#39;Dir&#39; =&gt; &#39;=s&#39; );
-</span></span><span class="line"><span class="cl">has &#39;keyword&#39; =&gt; ( is =&gt; &#39;rw&#39;, isa =&gt; &#39;Str&#39;, required =&gt; 1 );
-</span></span><span class="line"><span class="cl">has &#39;dir&#39; =&gt; ( is =&gt; &#39;rw&#39;, isa =&gt; &#39;Dir&#39;, required =&gt; 1, coerce =&gt; 1 );
-</span></span><span class="line"><span class="cl">has &#39;api_key&#39;  =&gt; ( is =&gt; &#39;rw&#39;, isa =&gt; &#39;Str&#39; );
-</span></span><span class="line"><span class="cl">has &#39;license&#39;  =&gt; ( is =&gt; &#39;rw&#39;, isa =&gt; &#39;Int&#39; );
-</span></span><span class="line"><span class="cl">has &#39;_perpage&#39; =&gt; ( is =&gt; &#39;ro&#39;, isa =&gt; &#39;Int&#39;, default =&gt; 500 );
-</span></span><span class="line"><span class="cl">has &#39;_flickr&#39;  =&gt; ( is =&gt; &#39;rw&#39;, isa =&gt; &#39;WebService::Simple&#39; );
-</span></span><span class="line"><span class="cl">has &#39;_ua&#39; =&gt; (
-</span></span><span class="line"><span class="cl">is      =&gt; &#39;ro&#39;,
-</span></span><span class="line"><span class="cl">isa     =&gt; &#39;LWP::UserAgent&#39;,
-</span></span><span class="line"><span class="cl">default =&gt; sub { LWP::UserAgent-&gt;new( keep_alive =&gt; 1 ) }
-</span></span><span class="line"><span class="cl">);
-</span></span><span class="line"><span class="cl">sub BUILD {
-</span></span><span class="line"><span class="cl">my ( $self, $args ) = @_;
-</span></span><span class="line"><span class="cl">unless ( $self-&gt;api_key ) {
-</span></span><span class="line"><span class="cl">if ( my $api_key = $ENV{FLICKR_API_KEY} ) {
-</span></span><span class="line"><span class="cl">$self-&gt;api_key($api_key);
-</span></span><span class="line"><span class="cl">}
-</span></span><span class="line"><span class="cl">else {
-</span></span><span class="line"><span class="cl">die &#34;api_key is required\n&#34;;
-</span></span><span class="line"><span class="cl">}
-</span></span><span class="line"><span class="cl">}
-</span></span><span class="line"><span class="cl">my $xs = XML::Simple-&gt;new( KeepRoot =&gt; 1, keyattr =&gt; [] );
-</span></span><span class="line"><span class="cl">my $parser = WebService::Simple::Parser::XML::Simple-&gt;new( xs =&gt; $xs );
-</span></span><span class="line"><span class="cl">my $flickr = WebService::Simple-&gt;new(
-</span></span><span class="line"><span class="cl">base_url        =&gt; &#34;http://api.flickr.com/services/rest/&#34;,
-</span></span><span class="line"><span class="cl">param           =&gt; { api_key =&gt; $self-&gt;api_key },
-</span></span><span class="line"><span class="cl">response_parser =&gt; $parser,
-</span></span><span class="line"><span class="cl">);
-</span></span><span class="line"><span class="cl">$self-&gt;_flickr($flickr);
-</span></span><span class="line"><span class="cl">}
-</span></span><span class="line"><span class="cl">__PACKAGE__-&gt;meta-&gt;make_immutable;
-</span></span><span class="line"><span class="cl">no Moose;
-</span></span><span class="line"><span class="cl">sub run {
-</span></span><span class="line"><span class="cl">my $self = shift;
-</span></span><span class="line"><span class="cl">mkdir $self-&gt;dir-&gt;relative if !-d $self-&gt;dir-&gt;is_absolute;
-</span></span><span class="line"><span class="cl">say &#34;search keyword : &#34; . $self-&gt;keyword;
-</span></span><span class="line"><span class="cl">my $photo_total = $self-&gt;photo_total( $self-&gt;keyword );
-</span></span><span class="line"><span class="cl">say &#34;total count : &#34; . $photo_total;
-</span></span><span class="line"><span class="cl">my $pages = ceil( $photo_total / $self-&gt;_perpage );
-</span></span><span class="line"><span class="cl">for my $current_page ( 1 .. $pages ) {
-</span></span><span class="line"><span class="cl">say &#34;search page : $current_page&#34;;
-</span></span><span class="line"><span class="cl">$self-&gt;search( $self-&gt;keyword, $current_page, $self-&gt;_perpage );
-</span></span><span class="line"><span class="cl">}
-</span></span><span class="line"><span class="cl">}
-</span></span><span class="line"><span class="cl">sub search {
-</span></span><span class="line"><span class="cl">my ( $self, $keyword, $page , $perpage) = @_;
-</span></span><span class="line"><span class="cl">my $response = $self-&gt;_flickr-&gt;get(
-</span></span><span class="line"><span class="cl">{
-</span></span><span class="line"><span class="cl">method   =&gt; &#34;flickr.photos.search&#34;,
-</span></span><span class="line"><span class="cl">text     =&gt; $keyword,
-</span></span><span class="line"><span class="cl">per_page =&gt; $perpage,
-</span></span><span class="line"><span class="cl">sort     =&gt; &#39;date-posted-desc&#39;,
-</span></span><span class="line"><span class="cl">extras   =&gt; &#39;date_upload&#39;,
-</span></span><span class="line"><span class="cl">page  =&gt; $page,
-</span></span><span class="line"><span class="cl">license =&gt; $self-&gt;license || &#34;&#34;,
-</span></span><span class="line"><span class="cl">}
-</span></span><span class="line"><span class="cl">);
-</span></span><span class="line"><span class="cl">my $xml = $response-&gt;parse_response;
-</span></span><span class="line"><span class="cl">$self-&gt;fetch($xml-&gt;{rsp}-&gt;{photos}-&gt;{photo});
-</span></span><span class="line"><span class="cl">}
-</span></span><span class="line"><span class="cl">sub fetch {
-</span></span><span class="line"><span class="cl">my ( $self, $photo_ref ) = @_;
-</span></span><span class="line"><span class="cl">$photo_ref = ref $photo_ref eq &#39;ARRAY&#39; ? $photo_ref : [$photo_ref];# 要素が一つのとき対策
-</span></span><span class="line"><span class="cl">for my $photo ( @$photo_ref ){
-</span></span><span class="line"><span class="cl">my $url  = $self-&gt;photo_url( $photo-&gt;{id} );
-</span></span><span class="line"><span class="cl">my $file = $self-&gt;dir-&gt;file( md5_hex($url) . &#34;.jpg&#34; );
-</span></span><span class="line"><span class="cl">my $res;
-</span></span><span class="line"><span class="cl">eval { $res  = $self-&gt;_ua-&gt;mirror( $url, $file ); };# 「Transfer truncated」対策。ここから
-</span></span><span class="line"><span class="cl">if ($@) {
-</span></span><span class="line"><span class="cl">say $@;
-</span></span><span class="line"><span class="cl">} else {
-</span></span><span class="line"><span class="cl">say &#34;try to fetch : &#34; . $res-&gt;status_line . &#34; : $url&#34;;
-</span></span><span class="line"><span class="cl">}# ここまで
-</span></span><span class="line"><span class="cl">}
-</span></span><span class="line"><span class="cl">}
-</span></span><span class="line"><span class="cl">sub photo_url {
-</span></span><span class="line"><span class="cl">my ( $self, $photo_id ) = @_;
-</span></span><span class="line"><span class="cl">my $response = $self-&gt;_flickr-&gt;get(
-</span></span><span class="line"><span class="cl">{
-</span></span><span class="line"><span class="cl">method   =&gt; &#34;flickr.photos.getSizes&#34;,
-</span></span><span class="line"><span class="cl">photo_id =&gt; $photo_id
-</span></span><span class="line"><span class="cl">}
-</span></span><span class="line"><span class="cl">);
-</span></span><span class="line"><span class="cl">my $xml         = $response-&gt;parse_response;
-</span></span><span class="line"><span class="cl">my $largest_ref = pop @{ $xml-&gt;{rsp}-&gt;{sizes}-&gt;{size} };
-</span></span><span class="line"><span class="cl">return $largest_ref-&gt;{source};
-</span></span><span class="line"><span class="cl">}
-</span></span><span class="line"><span class="cl">sub photo_total {
-</span></span><span class="line"><span class="cl">my ( $self, $keyword ) = @_;
-</span></span><span class="line"><span class="cl">my $response = $self-&gt;_flickr-&gt;get(
-</span></span><span class="line"><span class="cl">{
-</span></span><span class="line"><span class="cl">method   =&gt; &#34;flickr.photos.search&#34;,
-</span></span><span class="line"><span class="cl">text     =&gt; $keyword,
-</span></span><span class="line"><span class="cl">per_page =&gt; 1,
-</span></span><span class="line"><span class="cl">license =&gt; $self-&gt;license || &#34;&#34;,
-</span></span><span class="line"><span class="cl">}
-</span></span><span class="line"><span class="cl">);
-</span></span><span class="line"><span class="cl">my $xml = $response-&gt;parse_response;
-</span></span><span class="line"><span class="cl">return $xml-&gt;{rsp}-&gt;{photos}-&gt;{total};
-</span></span><span class="line"><span class="cl">}
-</span></span><span class="line"><span class="cl">1;
-</span></span><span class="line"><span class="cl">__END__
-</span></span><span class="line"><span class="cl">=head1 NAME
-</span></span><span class="line"><span class="cl">flickr_fetcher.pl - Fetch Flickr photos by keyword
-</span></span><span class="line"><span class="cl">=head1 SYNOPSIS
-</span></span><span class="line"><span class="cl">./flickr_fetcher.pl --keyword hoge --dir hoge --api_key yourflickrapikey
-</span></span><span class="line"><span class="cl">=head1 AUTHOR
-</span></span><span class="line"><span class="cl">Yusuke Wada E&lt;lt&gt;yusuke (at) kamawada.comE&lt;gt&gt;
-</span></span><span class="line"><span class="cl">=head1 LICENSE
-</span></span><span class="line"><span class="cl">This library is free software; you can redistribute it and/or modify
-</span></span><span class="line"><span class="cl">it under the same terms as Perl itself.
-</span></span><span class="line"><span class="cl">=cut
-</span></span></code></pre></td></tr></table>
+<pre tabindex="0" class="chroma"><code class="language-perl" data-lang="perl"><span class="line"><span class="cl"><span class="k">package</span> <span class="nn">FlickrFetcher</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="k">use</span> <span class="nn">Moose</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="k">use</span> <span class="nn">Moose::Util::TypeConstraints</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="k">use</span> <span class="nn">Params::Coerce</span> <span class="p">();</span>
+</span></span><span class="line"><span class="cl"><span class="k">use</span> <span class="nn">Digest::MD5</span> <span class="sx">qw(md5_hex)</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="k">use</span> <span class="nn">Encode</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="k">use</span> <span class="nn">LWP::UserAgent</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="k">use</span> <span class="nn">Path::Class</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="k">use</span> <span class="nn">POSIX</span> <span class="sx">qw(ceil)</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="k">use</span> <span class="nn">WebService::Simple</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="k">use</span> <span class="nn">WebService::Simple::Parser::XML::Simple</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="k">use</span> <span class="nn">XML::Simple</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="k">use</span> <span class="nn">Perl6::Say</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">our</span> <span class="nv">$VERSION</span> <span class="o">=</span> <span class="s">&#39;0.01&#39;</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="n">with</span> <span class="s">&#39;MooseX::Getopt&#39;</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">subtype</span> <span class="s">&#39;Dir&#39;</span> <span class="o">=&gt;</span> <span class="n">as</span> <span class="s">&#39;Object&#39;</span> <span class="o">=&gt;</span> <span class="n">where</span> <span class="p">{</span> <span class="nv">$_</span><span class="o">-&gt;</span><span class="n">isa</span><span class="p">(</span><span class="s">&#39;Path::Class::Dir&#39;</span><span class="p">)</span> <span class="p">};</span>
+</span></span><span class="line"><span class="cl"><span class="n">coerce</span> <span class="s">&#39;Dir&#39;</span>  <span class="o">=&gt;</span> <span class="n">from</span> <span class="s">&#39;Str&#39;</span>  <span class="o">=&gt;</span> <span class="n">via</span>   <span class="p">{</span> <span class="nn">Path::Class::Dir</span><span class="o">-&gt;</span><span class="k">new</span><span class="p">(</span><span class="nv">$_</span><span class="p">)</span> <span class="p">};</span>
+</span></span><span class="line"><span class="cl"><span class="nn">MooseX::Getopt::OptionTypeMap</span><span class="o">-&gt;</span><span class="n">add_option_type_to_map</span><span class="p">(</span><span class="s">&#39;Dir&#39;</span> <span class="o">=&gt;</span> <span class="s">&#39;=s&#39;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">has</span> <span class="s">&#39;keyword&#39;</span>  <span class="o">=&gt;</span> <span class="p">(</span><span class="n">is</span> <span class="o">=&gt;</span> <span class="s">&#39;rw&#39;</span><span class="p">,</span> <span class="n">isa</span> <span class="o">=&gt;</span> <span class="s">&#39;Str&#39;</span><span class="p">,</span> <span class="n">required</span> <span class="o">=&gt;</span> <span class="mi">1</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="n">has</span> <span class="s">&#39;dir&#39;</span>      <span class="o">=&gt;</span> <span class="p">(</span><span class="n">is</span> <span class="o">=&gt;</span> <span class="s">&#39;rw&#39;</span><span class="p">,</span> <span class="n">isa</span> <span class="o">=&gt;</span> <span class="s">&#39;Dir&#39;</span><span class="p">,</span> <span class="n">required</span> <span class="o">=&gt;</span> <span class="mi">1</span><span class="p">,</span> <span class="n">coerce</span> <span class="o">=&gt;</span> <span class="mi">1</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="n">has</span> <span class="s">&#39;api_key&#39;</span>  <span class="o">=&gt;</span> <span class="p">(</span><span class="n">is</span> <span class="o">=&gt;</span> <span class="s">&#39;rw&#39;</span><span class="p">,</span> <span class="n">isa</span> <span class="o">=&gt;</span> <span class="s">&#39;Str&#39;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="n">has</span> <span class="s">&#39;license&#39;</span>  <span class="o">=&gt;</span> <span class="p">(</span><span class="n">is</span> <span class="o">=&gt;</span> <span class="s">&#39;rw&#39;</span><span class="p">,</span> <span class="n">isa</span> <span class="o">=&gt;</span> <span class="s">&#39;Int&#39;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="n">has</span> <span class="s">&#39;_perpage&#39;</span> <span class="o">=&gt;</span> <span class="p">(</span><span class="n">is</span> <span class="o">=&gt;</span> <span class="s">&#39;ro&#39;</span><span class="p">,</span> <span class="n">isa</span> <span class="o">=&gt;</span> <span class="s">&#39;Int&#39;</span><span class="p">,</span> <span class="n">default</span> <span class="o">=&gt;</span> <span class="mi">500</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="n">has</span> <span class="s">&#39;_flickr&#39;</span>  <span class="o">=&gt;</span> <span class="p">(</span><span class="n">is</span> <span class="o">=&gt;</span> <span class="s">&#39;rw&#39;</span><span class="p">,</span> <span class="n">isa</span> <span class="o">=&gt;</span> <span class="s">&#39;WebService::Simple&#39;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="n">has</span> <span class="s">&#39;_ua&#39;</span>      <span class="o">=&gt;</span> <span class="p">(</span>
+</span></span><span class="line"><span class="cl">    <span class="n">is</span>      <span class="o">=&gt;</span> <span class="s">&#39;ro&#39;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="n">isa</span>     <span class="o">=&gt;</span> <span class="s">&#39;LWP::UserAgent&#39;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="n">default</span> <span class="o">=&gt;</span> <span class="k">sub</span> <span class="p">{</span> <span class="nn">LWP::UserAgent</span><span class="o">-&gt;</span><span class="k">new</span><span class="p">(</span><span class="n">keep_alive</span> <span class="o">=&gt;</span> <span class="mi">1</span><span class="p">)</span> <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">sub</span> <span class="nf">BUILD</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">my</span> <span class="p">(</span><span class="nv">$self</span><span class="p">,</span> <span class="nv">$args</span><span class="p">)</span> <span class="o">=</span> <span class="nv">@_</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">unless</span> <span class="p">(</span><span class="nv">$self</span><span class="o">-&gt;</span><span class="n">api_key</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="p">(</span><span class="k">my</span> <span class="nv">$api_key</span> <span class="o">=</span> <span class="nv">$ENV</span><span class="p">{</span><span class="n">FLICKR_API_KEY</span><span class="p">})</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="nv">$self</span><span class="o">-&gt;</span><span class="n">api_key</span><span class="p">(</span><span class="nv">$api_key</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="nb">die</span> <span class="s">&#34;api_key is required\n&#34;</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="k">my</span> <span class="nv">$xs</span> <span class="o">=</span> <span class="nn">XML::Simple</span><span class="o">-&gt;</span><span class="k">new</span><span class="p">(</span><span class="n">KeepRoot</span> <span class="o">=&gt;</span> <span class="mi">1</span><span class="p">,</span> <span class="n">keyattr</span> <span class="o">=&gt;</span> <span class="o">[]</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">my</span> <span class="nv">$parser</span> <span class="o">=</span> <span class="nn">WebService::Simple::Parser::XML::Simple</span><span class="o">-&gt;</span><span class="k">new</span><span class="p">(</span><span class="n">xs</span> <span class="o">=&gt;</span> <span class="nv">$xs</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">my</span> <span class="nv">$flickr</span> <span class="o">=</span> <span class="nn">WebService::Simple</span><span class="o">-&gt;</span><span class="k">new</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl">        <span class="n">base_url</span>        <span class="o">=&gt;</span> <span class="s">&#34;http://api.flickr.com/services/rest/&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">        <span class="n">param</span>           <span class="o">=&gt;</span> <span class="p">{</span> <span class="n">api_key</span> <span class="o">=&gt;</span> <span class="nv">$self</span><span class="o">-&gt;</span><span class="n">api_key</span> <span class="p">},</span>
+</span></span><span class="line"><span class="cl">        <span class="n">response_parser</span> <span class="o">=&gt;</span> <span class="nv">$parser</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nv">$self</span><span class="o">-&gt;</span><span class="n">_flickr</span><span class="p">(</span><span class="nv">$flickr</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="nn">__PACKAGE__</span><span class="o">-&gt;</span><span class="nn">meta</span><span class="o">-&gt;</span><span class="n">make_immutable</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="k">no</span> <span class="nn">Moose</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">sub</span> <span class="nf">run</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">my</span> <span class="nv">$self</span> <span class="o">=</span> <span class="nb">shift</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="nb">mkdir</span> <span class="nv">$self</span><span class="o">-&gt;</span><span class="nn">dir</span><span class="o">-&gt;</span><span class="n">relative</span> <span class="k">if</span> <span class="o">!-</span><span class="n">d</span> <span class="nv">$self</span><span class="o">-&gt;</span><span class="nn">dir</span><span class="o">-&gt;</span><span class="n">is_absolute</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">say</span> <span class="s">&#34;search keyword : &#34;</span> <span class="o">.</span> <span class="nv">$self</span><span class="o">-&gt;</span><span class="n">keyword</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">my</span> <span class="nv">$photo_total</span> <span class="o">=</span> <span class="nv">$self</span><span class="o">-&gt;</span><span class="n">photo_total</span><span class="p">(</span><span class="nv">$self</span><span class="o">-&gt;</span><span class="n">keyword</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">say</span> <span class="s">&#34;total count : &#34;</span> <span class="o">.</span> <span class="nv">$photo_total</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">my</span> <span class="nv">$pages</span> <span class="o">=</span> <span class="n">ceil</span><span class="p">(</span><span class="nv">$photo_total</span> <span class="o">/</span> <span class="nv">$self</span><span class="o">-&gt;</span><span class="n">_perpage</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="k">my</span> <span class="nv">$current_page</span> <span class="p">(</span><span class="mi">1</span> <span class="o">..</span> <span class="nv">$pages</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="n">say</span> <span class="s">&#34;search page : $current_page&#34;</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="nv">$self</span><span class="o">-&gt;</span><span class="n">search</span><span class="p">(</span><span class="nv">$self</span><span class="o">-&gt;</span><span class="n">keyword</span><span class="p">,</span> <span class="nv">$current_page</span><span class="p">,</span> <span class="nv">$self</span><span class="o">-&gt;</span><span class="n">_perpage</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">sub</span> <span class="nf">search</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">my</span> <span class="p">(</span><span class="nv">$self</span><span class="p">,</span> <span class="nv">$keyword</span><span class="p">,</span> <span class="nv">$page</span><span class="p">,</span> <span class="nv">$perpage</span><span class="p">)</span> <span class="o">=</span> <span class="nv">@_</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">my</span> <span class="nv">$response</span> <span class="o">=</span> <span class="nv">$self</span><span class="o">-&gt;</span><span class="nn">_flickr</span><span class="o">-&gt;</span><span class="n">get</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl">        <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="n">method</span>   <span class="o">=&gt;</span> <span class="s">&#34;flickr.photos.search&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">            <span class="n">text</span>     <span class="o">=&gt;</span> <span class="nv">$keyword</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">            <span class="n">per_page</span> <span class="o">=&gt;</span> <span class="nv">$perpage</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">            <span class="nb">sort</span>     <span class="o">=&gt;</span> <span class="s">&#39;date-posted-desc&#39;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">            <span class="n">extras</span>   <span class="o">=&gt;</span> <span class="s">&#39;date_upload&#39;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">            <span class="n">page</span>     <span class="o">=&gt;</span> <span class="nv">$page</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">            <span class="n">license</span>  <span class="o">=&gt;</span> <span class="nv">$self</span><span class="o">-&gt;</span><span class="n">license</span> <span class="o">||</span> <span class="s">&#34;&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">my</span> <span class="nv">$xml</span> <span class="o">=</span> <span class="nv">$response</span><span class="o">-&gt;</span><span class="n">parse_response</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="nv">$self</span><span class="o">-&gt;</span><span class="n">fetch</span><span class="p">(</span><span class="nv">$xml</span><span class="o">-&gt;</span><span class="p">{</span><span class="n">rsp</span><span class="p">}</span><span class="o">-&gt;</span><span class="p">{</span><span class="n">photos</span><span class="p">}</span><span class="o">-&gt;</span><span class="p">{</span><span class="n">photo</span><span class="p">});</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">sub</span> <span class="nf">fetch</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">my</span> <span class="p">(</span><span class="nv">$self</span><span class="p">,</span> <span class="nv">$photo_ref</span><span class="p">)</span> <span class="o">=</span> <span class="nv">@_</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="nv">$photo_ref</span> <span class="o">=</span> <span class="nb">ref</span> <span class="nv">$photo_ref</span> <span class="ow">eq</span> <span class="s">&#39;ARRAY&#39;</span> <span class="p">?</span> <span class="nv">$photo_ref</span> <span class="p">:</span> <span class="p">[</span><span class="nv">$photo_ref</span><span class="p">];</span> <span class="c1"># 要素が一つのとき対策</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="k">my</span> <span class="nv">$photo</span> <span class="p">(</span><span class="nv">@$photo_ref</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="k">my</span> <span class="nv">$url</span>  <span class="o">=</span> <span class="nv">$self</span><span class="o">-&gt;</span><span class="n">photo_url</span><span class="p">(</span><span class="nv">$photo</span><span class="o">-&gt;</span><span class="p">{</span><span class="n">id</span><span class="p">});</span>
+</span></span><span class="line"><span class="cl">        <span class="k">my</span> <span class="nv">$file</span> <span class="o">=</span> <span class="nv">$self</span><span class="o">-&gt;</span><span class="nn">dir</span><span class="o">-&gt;</span><span class="n">file</span><span class="p">(</span><span class="n">md5_hex</span><span class="p">(</span><span class="nv">$url</span><span class="p">)</span> <span class="o">.</span> <span class="s">&#34;.jpg&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="k">my</span> <span class="nv">$res</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="nb">eval</span> <span class="p">{</span> <span class="nv">$res</span> <span class="o">=</span> <span class="nv">$self</span><span class="o">-&gt;</span><span class="nn">_ua</span><span class="o">-&gt;</span><span class="n">mirror</span><span class="p">(</span><span class="nv">$url</span><span class="p">,</span> <span class="nv">$file</span><span class="p">);</span> <span class="p">};</span> <span class="c1"># 「Transfer truncated」対策。ここから</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="p">(</span><span class="vg">$@</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="n">say</span> <span class="vg">$@</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="n">say</span> <span class="s">&#34;try to fetch : &#34;</span> <span class="o">.</span> <span class="nv">$res</span><span class="o">-&gt;</span><span class="n">status_line</span> <span class="o">.</span> <span class="s">&#34; : $url&#34;</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span> <span class="c1"># ここまで</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">sub</span> <span class="nf">photo_url</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">my</span> <span class="p">(</span><span class="nv">$self</span><span class="p">,</span> <span class="nv">$photo_id</span><span class="p">)</span> <span class="o">=</span> <span class="nv">@_</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">my</span> <span class="nv">$response</span> <span class="o">=</span> <span class="nv">$self</span><span class="o">-&gt;</span><span class="nn">_flickr</span><span class="o">-&gt;</span><span class="n">get</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl">        <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="n">method</span>   <span class="o">=&gt;</span> <span class="s">&#34;flickr.photos.getSizes&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">            <span class="n">photo_id</span> <span class="o">=&gt;</span> <span class="nv">$photo_id</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">my</span> <span class="nv">$xml</span>         <span class="o">=</span> <span class="nv">$response</span><span class="o">-&gt;</span><span class="n">parse_response</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">my</span> <span class="nv">$largest_ref</span> <span class="o">=</span> <span class="nb">pop</span> <span class="nv">@</span><span class="p">{</span><span class="nv">$xml</span><span class="o">-&gt;</span><span class="p">{</span><span class="n">rsp</span><span class="p">}</span><span class="o">-&gt;</span><span class="p">{</span><span class="n">sizes</span><span class="p">}</span><span class="o">-&gt;</span><span class="p">{</span><span class="n">size</span><span class="p">}};</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="nv">$largest_ref</span><span class="o">-&gt;</span><span class="p">{</span><span class="n">source</span><span class="p">};</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">sub</span> <span class="nf">photo_total</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">my</span> <span class="p">(</span><span class="nv">$self</span><span class="p">,</span> <span class="nv">$keyword</span><span class="p">)</span> <span class="o">=</span> <span class="nv">@_</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">my</span> <span class="nv">$response</span> <span class="o">=</span> <span class="nv">$self</span><span class="o">-&gt;</span><span class="nn">_flickr</span><span class="o">-&gt;</span><span class="n">get</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl">        <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="n">method</span>   <span class="o">=&gt;</span> <span class="s">&#34;flickr.photos.search&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">            <span class="n">text</span>     <span class="o">=&gt;</span> <span class="nv">$keyword</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">            <span class="n">per_page</span> <span class="o">=&gt;</span> <span class="mi">1</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">            <span class="n">license</span>  <span class="o">=&gt;</span> <span class="nv">$self</span><span class="o">-&gt;</span><span class="n">license</span> <span class="o">||</span> <span class="s">&#34;&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">my</span> <span class="nv">$xml</span> <span class="o">=</span> <span class="nv">$response</span><span class="o">-&gt;</span><span class="n">parse_response</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="nv">$xml</span><span class="o">-&gt;</span><span class="p">{</span><span class="n">rsp</span><span class="p">}</span><span class="o">-&gt;</span><span class="p">{</span><span class="n">photos</span><span class="p">}</span><span class="o">-&gt;</span><span class="p">{</span><span class="n">total</span><span class="p">};</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="cp">__END__
+</span></span></span><span class="line"><span class="cl"><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">=head1 NAME
+</span></span></span><span class="line"><span class="cl"><span class="cp">flickr_fetcher.pl - Fetch Flickr photos by keyword
+</span></span></span><span class="line"><span class="cl"><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">=head1 SYNOPSIS
+</span></span></span><span class="line"><span class="cl"><span class="cp">./flickr_fetcher.pl --keyword hoge --dir hoge --api_key yourflickrapikey
+</span></span></span><span class="line"><span class="cl"><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">=head1 AUTHOR
+</span></span></span><span class="line"><span class="cl"><span class="cp">Yusuke Wada E&lt;lt&gt;yusuke (at) kamawada.comE&lt;gt&gt;
+</span></span></span><span class="line"><span class="cl"><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">=head1 LICENSE
+</span></span></span><span class="line"><span class="cl"><span class="cp">This library is free software; you can redistribute it and/or modify
+</span></span></span><span class="line"><span class="cl"><span class="cp">it under the same terms as Perl itself.
+</span></span></span><span class="line"><span class="cl"><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">=cut
+</span></span></span></code></pre></td></tr></table>
 </div>
-</div><!-- raw HTML omitted -->
-<div class="highlight"><div class="chroma">
+</div><h3 id="flickr_fetcherpl">flickr_fetcher.pl
+</h3><div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
 <pre tabindex="0" class="chroma"><code><span class="lnt"> 1
 </span><span class="lnt"> 2
@@ -613,20 +700,20 @@
 </span><span class="lnt">14
 </span></code></pre></td>
 <td class="lntd">
-<pre tabindex="0" class="chroma"><code class="language-text" data-lang="text"><span class="line"><span class="cl">#!/usr/bin/perl
-</span></span><span class="line"><span class="cl"># ｕｔｆ８
-</span></span><span class="line"><span class="cl">use strict;
-</span></span><span class="line"><span class="cl">use warnings;
-</span></span><span class="line"><span class="cl">use FlickrFetcher;
-</span></span><span class="line"><span class="cl">fetch({
-</span></span><span class="line"><span class="cl">keyword =&gt; &#39;石原さとみ&#39;,
-</span></span><span class="line"><span class="cl">dir     =&gt; &#39;satomi_ishihara&#39;,
-</span></span><span class="line"><span class="cl">});
-</span></span><span class="line"><span class="cl">sub fetch {
-</span></span><span class="line"><span class="cl">my $rh_arg = shift;
-</span></span><span class="line"><span class="cl">my $fetcher = FlickrFetcher-&gt;new_with_options( %{$rh_arg} );
-</span></span><span class="line"><span class="cl">$fetcher-&gt;run();
-</span></span><span class="line"><span class="cl">}
+<pre tabindex="0" class="chroma"><code class="language-perl" data-lang="perl"><span class="line"><span class="cl"><span class="ch">#!/usr/bin/perl</span>
+</span></span><span class="line"><span class="cl"><span class="c1"># utf8</span>
+</span></span><span class="line"><span class="cl"><span class="k">use</span> <span class="nn">strict</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="k">use</span> <span class="nn">warnings</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="k">use</span> <span class="nn">FlickrFetcher</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="n">fetch</span><span class="p">({</span>
+</span></span><span class="line"><span class="cl">    <span class="n">keyword</span> <span class="o">=&gt;</span> <span class="s">&#39;石原さとみ&#39;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="n">dir</span>     <span class="o">=&gt;</span> <span class="s">&#39;satomi_ishihara&#39;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl"><span class="p">});</span>
+</span></span><span class="line"><span class="cl"><span class="k">sub</span> <span class="nf">fetch</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">my</span> <span class="nv">$rh_arg</span> <span class="o">=</span> <span class="nb">shift</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">my</span> <span class="nv">$fetcher</span> <span class="o">=</span> <span class="nn">FlickrFetcher</span><span class="o">-&gt;</span><span class="n">new_with_options</span><span class="p">(</span><span class="nv">%</span><span class="p">{</span><span class="nv">$rh_arg</span><span class="p">});</span>
+</span></span><span class="line"><span class="cl">    <span class="nv">$fetcher</span><span class="o">-&gt;</span><span class="n">run</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></td></tr></table>
 </div>
 </div>
