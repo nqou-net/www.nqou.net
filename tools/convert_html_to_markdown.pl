@@ -58,7 +58,20 @@ sub convert_html_to_markdown {
         return $text;
     }
     
-    # Convert HTML tags to Markdown (only in body)
+    # Step 1: Extract and protect code blocks
+    my @code_blocks;
+    my $code_block_counter = 0;
+    
+    # Match code blocks (``` or indented code blocks)
+    $body =~ s{(```[^\n]*\n.*?\n```)}
+              {
+                  my $code = $1;
+                  push @code_blocks, $code;
+                  my $idx = $code_block_counter++;
+                  "<<<CODE_BLOCK_$idx>>>";
+              }gse;
+    
+    # Step 2: Convert HTML tags to Markdown (only outside code blocks)
     
     # Convert <h1> to # (heading level 1)
     $body =~ s{<h1>(.*?)</h1>}{# $1}gis;
@@ -138,6 +151,11 @@ sub convert_html_to_markdown {
     # Trim excessive trailing whitespace at end of body
     $body =~ s{\s+$}{\n}s;
     
+    # Step 3: Restore code blocks
+    for (my $i = 0; $i < @code_blocks; $i++) {
+        $body =~ s{<<<CODE_BLOCK_$i>>>}{$code_blocks[$i]}g;
+    }
+    
     # Combine front matter and body
     return $front_matter . $body;
 }
@@ -145,12 +163,36 @@ sub convert_html_to_markdown {
 sub convert_fullwidth_to_halfwidth {
     my $text = shift;
     
-    # Convert full-width alphanumeric to half-width
+    # Split into front matter and body
+    my ($front_matter, $body);
+    if ($text =~ /^(---\n.*?\n---\n)(.*)$/s) {
+        $front_matter = $1;
+        $body = $2;
+    } else {
+        # No front matter, process entire text
+        $front_matter = '';
+        $body = $text;
+    }
+    
+    # Step 1: Extract and protect code blocks
+    my @code_blocks;
+    my $code_block_counter = 0;
+    
+    # Match code blocks (``` or indented code blocks)
+    $body =~ s{(```[^\n]*\n.*?\n```)}
+              {
+                  my $code = $1;
+                  push @code_blocks, $code;
+                  my $idx = $code_block_counter++;
+                  "<<<CODE_BLOCK_$idx>>>";
+              }gse;
+    
+    # Step 2: Convert full-width alphanumeric to half-width (only outside code blocks)
     # Full-width 0-9: ０-９ (U+FF10 - U+FF19)
     # Full-width A-Z: Ａ-Ｚ (U+FF21 - U+FF3A)
     # Full-width a-z: ａ-ｚ (U+FF41 - U+FF5A)
     
-    $text =~ s{([０-９Ａ-Ｚａ-ｚ])}{
+    $body =~ s{([０-９Ａ-Ｚａ-ｚ])}{
         my $char = $1;
         my $code = ord($char);
         # Full-width to half-width conversion
@@ -158,5 +200,10 @@ sub convert_fullwidth_to_halfwidth {
         chr($code - 0xFEE0);
     }ge;
     
-    return $text;
+    # Step 3: Restore code blocks
+    for (my $i = 0; $i < @code_blocks; $i++) {
+        $body =~ s{<<<CODE_BLOCK_$i>>>}{$code_blocks[$i]}g;
+    }
+    
+    return $front_matter . $body;
 }
