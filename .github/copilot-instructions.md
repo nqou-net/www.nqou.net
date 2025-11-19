@@ -26,17 +26,20 @@
 - 脚注セクションを末尾に置き、1行目に「本記事はバイブブロギングで作成しています」を含める
 - 公開用をデフォルトとし `draft: false` とする
 
-YAML front matterに含める最低項目（例）
+YAML front matterに含める項目
 ---
-title: "<記事タイトル（日本語）>"
-description: "<短い説明（概ね100文字以内）>"
-date: <ISO8601日時>
-image:
-math:
-license:
-hidden: false
 comments: true
+description: "<短い説明（概ね100文字以内）>"
 draft: false
+hidden: false
+image:
+license:
+math:
+tags:
+  - <タグ1>
+  - <タグ2>
+  - <タグ3>
+title: "<記事タイトル（日本語）>"
 ---
 
 品質ゲート（生成後に提示すること）
