@@ -52,7 +52,7 @@ title: "<記事タイトル（日本語）>"
   - **ブログ/CMS**: wordpress, movabletype, hexo, hugo, markdown等
   - **ソーシャル**: social (Twitter/Facebook/SNS関連)
   - **日常**: life, meals, game, favorites, lifestyle等
-  - **コミュニティ**: yapc, kansaipm, perl-entrance, perl-nabe等
+  - **コミュニティ**: yapc, kansaipm等
   - **AI関連**: ai, copilot, プロンプト設計, ブログ作成等
 - 技術的な内容の場合は具体的な技術名をタグにする（例: perl, docker, git）
 - 日常的な内容で特定のカテゴリに該当しない場合は `life` を使用する
