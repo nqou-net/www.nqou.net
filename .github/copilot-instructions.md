@@ -42,6 +42,23 @@ tags:
 title: "<記事タイトル（日本語）>"
 ---
 
+タグ付与の方針
+- タグは必ず1〜3個付与する（0個や4個以上は避ける）
+- 既存タグを優先的に使用し、新規タグの作成は最小限にする
+- タグは小文字で統一する（例: `ai` であり `AI` ではない）
+- 本文とタイトルから記事の主題を分析してタグを選定する
+- 以下のカテゴリに基づいてタグを選定する:
+  - **技術系**: perl, programming, web, javascript, git, docker, linux, windows, macos等
+  - **ブログ/CMS**: wordpress, movabletype, hexo, hugo, markdown等
+  - **ソーシャル**: social (Twitter/Facebook/SNS関連)
+  - **日常**: life, meals, game, favorites, lifestyle等
+  - **コミュニティ**: yapc, kansaipm, perl-entrance, perl-nabe等
+  - **AI関連**: ai, copilot, プロンプト設計, ブログ作成等
+- 技術的な内容の場合は具体的な技術名をタグにする（例: perl, docker, git）
+- 日常的な内容で特定のカテゴリに該当しない場合は `life` を使用する
+- `undef` や未定義のタグは使用しない
+- タグの表記ゆれを避ける（例: macos と mac を併用しない）
+
 品質ゲート（生成後に提示すること）
 - 事実確認が必要な箇所の一覧（検索キーワードまたは参考URLを添える）
 - 引用候補の提示（引用元候補を示す）
