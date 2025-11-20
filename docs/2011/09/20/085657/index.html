@@ -560,80 +560,80 @@
 </span><span class="lnt">74
 </span></code></pre></td>
 <td class="lntd">
-<pre tabindex="0" class="chroma"><code class="language-text" data-lang="text"><span class="line"><span class="cl">#!/usr/bin/env perl
-</span></span><span class="line"><span class="cl">#ｕｔｆ８
-</span></span><span class="line"><span class="cl">use utf8;
-</span></span><span class="line"><span class="cl">use 5.12.1;
-</span></span><span class="line"><span class="cl">use WWW::Mixi::Scraper;
-</span></span><span class="line"><span class="cl">use lib &#39;lib&#39;;
-</span></span><span class="line"><span class="cl">use Digest::MD5 qw( md5_hex );
-</span></span><span class="line"><span class="cl">use Encode;
-</span></span><span class="line"><span class="cl">use Config::Pit;
-</span></span><span class="line"><span class="cl">my $config = pit_get(
-</span></span><span class="line"><span class="cl">&#39;nqounet@mixi.jp&#39;,
-</span></span><span class="line"><span class="cl">require =&gt; {
-</span></span><span class="line"><span class="cl">email =&gt; &#39;username@domain.com&#39;,
-</span></span><span class="line"><span class="cl">password =&gt; &#39;password&#39;,
-</span></span><span class="line"><span class="cl">},
-</span></span><span class="line"><span class="cl">);
-</span></span><span class="line"><span class="cl">use Log::Handler;
-</span></span><span class="line"><span class="cl">my $log = Log::Handler-&gt;new(
-</span></span><span class="line"><span class="cl">file =&gt; {
-</span></span><span class="line"><span class="cl">filename =&gt; &#39;log/app.log&#39;,
-</span></span><span class="line"><span class="cl">utf8 =&gt; 1,
-</span></span><span class="line"><span class="cl">maxlevel =&gt; &#39;info&#39;,# &#39;debug&#39;,
-</span></span><span class="line"><span class="cl">timeformat =&gt; &#39;%Y/%m/%d %H:%M:%S&#39;,
-</span></span><span class="line"><span class="cl">message_layout =&gt; &#39;[%T][%L] %m (%C)&#39;,
-</span></span><span class="line"><span class="cl">},
-</span></span><span class="line"><span class="cl">);
-</span></span><span class="line"><span class="cl">my $mixi = WWW::Mixi::Scraper-&gt;new(
-</span></span><span class="line"><span class="cl">mode =&gt; &#39;TEXT&#39;,
-</span></span><span class="line"><span class="cl">%{$config},
-</span></span><span class="line"><span class="cl">);
-</span></span><span class="line"><span class="cl">my $topic = shift(@ARGV);
-</span></span><span class="line"><span class="cl">$log-&gt;die(&#39;Usage: ./get_mixi_photo.pl topicURL&#39;) unless $topic;
-</span></span><span class="line"><span class="cl">my @list = $mixi-&gt;parse( $topic );
-</span></span><span class="line"><span class="cl">$log-&gt;dump( debug =&gt; \@list );
-</span></span><span class="line"><span class="cl"># トピックのタイトル
-</span></span><span class="line"><span class="cl">my $dir = md5_hex( Encode::encode_utf8( $list[0]{subject} ) );
-</span></span><span class="line"><span class="cl">mkdir $dir;
-</span></span><span class="line"><span class="cl">open my $fh, &#39;&gt;:utf8&#39;, qq{$dir/info.txt} or $log-&gt;die( qq{Can not open $dir/info.txt.} );
-</span></span><span class="line"><span class="cl">print $fh $list[0]{subject};
-</span></span><span class="line"><span class="cl">close $fh;
-</span></span><span class="line"><span class="cl"># トピックのトップ画像
-</span></span><span class="line"><span class="cl">for my $item ( @{$list[0]{images}} ) {
-</span></span><span class="line"><span class="cl">$log-&gt;dump( debug =&gt; $item-&gt;{link} );
-</span></span><span class="line"><span class="cl">my @urls = $mixi-&gt;parse( $item-&gt;{link} );
-</span></span><span class="line"><span class="cl">for my $url ( @urls ) {
-</span></span><span class="line"><span class="cl">save_url_image( $url, $dir );
-</span></span><span class="line"><span class="cl">}
-</span></span><span class="line"><span class="cl">}
-</span></span><span class="line"><span class="cl"># 各コメントの画像
-</span></span><span class="line"><span class="cl">for my $comment ( @{$list[0]{comments}} ) {
-</span></span><span class="line"><span class="cl">for my $item ( @{$comment-&gt;{images}} ) {
-</span></span><span class="line"><span class="cl">$log-&gt;dump( debug =&gt; $item-&gt;{link} );
-</span></span><span class="line"><span class="cl">my @urls = $mixi-&gt;parse( $item-&gt;{link} );
-</span></span><span class="line"><span class="cl">for my $url ( @urls ) {
-</span></span><span class="line"><span class="cl">save_url_image( $url, $dir );
-</span></span><span class="line"><span class="cl">}
-</span></span><span class="line"><span class="cl">}
-</span></span><span class="line"><span class="cl">}
-</span></span><span class="line"><span class="cl"># 保存一式
-</span></span><span class="line"><span class="cl">sub save_url_image {
-</span></span><span class="line"><span class="cl">my ($url, $dir) = @_;
-</span></span><span class="line"><span class="cl">my $link = $url-&gt;{link}-&gt;as_string;
-</span></span><span class="line"><span class="cl">$log-&gt;dump( debug =&gt; $url-&gt;{link} );
-</span></span><span class="line"><span class="cl">my ($ext) = $link =~ /(\.[a-zA-Z]+)$/ms;
-</span></span><span class="line"><span class="cl">$log-&gt;dump( debug =&gt; $ext );
-</span></span><span class="line"><span class="cl">$ext = &#39;.jpg&#39; unless $ext;
-</span></span><span class="line"><span class="cl">my $filename = md5_hex( $link ) . $ext;
-</span></span><span class="line"><span class="cl">return if -f qq{$dir/$filename};
-</span></span><span class="line"><span class="cl">my $content = $mixi-&gt;{mech}-&gt;get_content( $url-&gt;{link} );
-</span></span><span class="line"><span class="cl">$log-&gt;dump( debug =&gt; $content );
-</span></span><span class="line"><span class="cl">open my $fh, &#34;&gt;:raw&#34;, qq{$dir/$filename} or $log-&gt;die( qq{Can not open $dir/$filename.} );
-</span></span><span class="line"><span class="cl">print $fh $content;
-</span></span><span class="line"><span class="cl">close $fh;
-</span></span><span class="line"><span class="cl">}
+<pre tabindex="0" class="chroma"><code class="language-perl" data-lang="perl"><span class="line"><span class="cl"><span class="ch">#!/usr/bin/env perl</span>
+</span></span><span class="line"><span class="cl"><span class="c1">#ｕｔｆ８</span>
+</span></span><span class="line"><span class="cl"><span class="k">use</span> <span class="nn">utf8</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="k">use</span> <span class="mf">5.12.1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="k">use</span> <span class="nn">WWW::Mixi::Scraper</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="k">use</span> <span class="nn">lib</span> <span class="s">&#39;lib&#39;</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="k">use</span> <span class="nn">Digest::MD5</span> <span class="sx">qw( md5_hex )</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="k">use</span> <span class="nn">Encode</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="k">use</span> <span class="nn">Config::Pit</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="k">my</span> <span class="nv">$config</span> <span class="o">=</span> <span class="n">pit_get</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl"><span class="s">&#39;nqounet@mixi.jp&#39;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl"><span class="k">require</span> <span class="o">=&gt;</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="n">email</span> <span class="o">=&gt;</span> <span class="s">&#39;username@domain.com&#39;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl"><span class="n">password</span> <span class="o">=&gt;</span> <span class="s">&#39;password&#39;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl"><span class="p">},</span>
+</span></span><span class="line"><span class="cl"><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="k">use</span> <span class="nn">Log::Handler</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="k">my</span> <span class="nv">$log</span> <span class="o">=</span> <span class="nn">Log::Handler</span><span class="o">-&gt;</span><span class="k">new</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl"><span class="n">file</span> <span class="o">=&gt;</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="n">filename</span> <span class="o">=&gt;</span> <span class="s">&#39;log/app.log&#39;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl"><span class="n">utf8</span> <span class="o">=&gt;</span> <span class="mi">1</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl"><span class="n">maxlevel</span> <span class="o">=&gt;</span> <span class="s">&#39;info&#39;</span><span class="p">,</span><span class="c1"># &#39;debug&#39;,</span>
+</span></span><span class="line"><span class="cl"><span class="n">timeformat</span> <span class="o">=&gt;</span> <span class="s">&#39;%Y/%m/%d %H:%M:%S&#39;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl"><span class="n">message_layout</span> <span class="o">=&gt;</span> <span class="s">&#39;[%T][%L] %m (%C)&#39;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl"><span class="p">},</span>
+</span></span><span class="line"><span class="cl"><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="k">my</span> <span class="nv">$mixi</span> <span class="o">=</span> <span class="nn">WWW::Mixi::Scraper</span><span class="o">-&gt;</span><span class="k">new</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl"><span class="n">mode</span> <span class="o">=&gt;</span> <span class="s">&#39;TEXT&#39;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl"><span class="nv">%</span><span class="p">{</span><span class="nv">$config</span><span class="p">},</span>
+</span></span><span class="line"><span class="cl"><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="k">my</span> <span class="nv">$topic</span> <span class="o">=</span> <span class="nb">shift</span><span class="p">(</span><span class="nv">@ARGV</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="nv">$log</span><span class="o">-&gt;</span><span class="nb">die</span><span class="p">(</span><span class="s">&#39;Usage: ./get_mixi_photo.pl topicURL&#39;</span><span class="p">)</span> <span class="k">unless</span> <span class="nv">$topic</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="k">my</span> <span class="nv">@list</span> <span class="o">=</span> <span class="nv">$mixi</span><span class="o">-&gt;</span><span class="n">parse</span><span class="p">(</span> <span class="nv">$topic</span> <span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="nv">$log</span><span class="o">-&gt;</span><span class="nb">dump</span><span class="p">(</span> <span class="n">debug</span> <span class="o">=&gt;</span> <span class="o">\</span><span class="nv">@list</span> <span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="c1"># トピックのタイトル</span>
+</span></span><span class="line"><span class="cl"><span class="k">my</span> <span class="nv">$dir</span> <span class="o">=</span> <span class="n">md5_hex</span><span class="p">(</span> <span class="nn">Encode::</span><span class="n">encode_utf8</span><span class="p">(</span> <span class="nv">$list</span><span class="p">[</span><span class="mi">0</span><span class="p">]{</span><span class="n">subject</span><span class="p">}</span> <span class="p">)</span> <span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="nb">mkdir</span> <span class="nv">$dir</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="nb">open</span> <span class="k">my</span> <span class="nv">$fh</span><span class="p">,</span> <span class="s">&#39;&gt;:utf8&#39;</span><span class="p">,</span> <span class="sx">qq{$dir/info.txt}</span> <span class="ow">or</span> <span class="nv">$log</span><span class="o">-&gt;</span><span class="nb">die</span><span class="p">(</span> <span class="sx">qq{Can not open $dir/info.txt.}</span> <span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="k">print</span> <span class="nv">$fh</span> <span class="nv">$list</span><span class="p">[</span><span class="mi">0</span><span class="p">]{</span><span class="n">subject</span><span class="p">};</span>
+</span></span><span class="line"><span class="cl"><span class="nb">close</span> <span class="nv">$fh</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="c1"># トピックのトップ画像</span>
+</span></span><span class="line"><span class="cl"><span class="k">for</span> <span class="k">my</span> <span class="nv">$item</span> <span class="p">(</span> <span class="nv">@</span><span class="p">{</span><span class="nv">$list</span><span class="p">[</span><span class="mi">0</span><span class="p">]{</span><span class="n">images</span><span class="p">}}</span> <span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="nv">$log</span><span class="o">-&gt;</span><span class="nb">dump</span><span class="p">(</span> <span class="n">debug</span> <span class="o">=&gt;</span> <span class="nv">$item</span><span class="o">-&gt;</span><span class="p">{</span><span class="nb">link</span><span class="p">}</span> <span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="k">my</span> <span class="nv">@urls</span> <span class="o">=</span> <span class="nv">$mixi</span><span class="o">-&gt;</span><span class="n">parse</span><span class="p">(</span> <span class="nv">$item</span><span class="o">-&gt;</span><span class="p">{</span><span class="nb">link</span><span class="p">}</span> <span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="k">for</span> <span class="k">my</span> <span class="nv">$url</span> <span class="p">(</span> <span class="nv">@urls</span> <span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="n">save_url_image</span><span class="p">(</span> <span class="nv">$url</span><span class="p">,</span> <span class="nv">$dir</span> <span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="c1"># 各コメントの画像</span>
+</span></span><span class="line"><span class="cl"><span class="k">for</span> <span class="k">my</span> <span class="nv">$comment</span> <span class="p">(</span> <span class="nv">@</span><span class="p">{</span><span class="nv">$list</span><span class="p">[</span><span class="mi">0</span><span class="p">]{</span><span class="n">comments</span><span class="p">}}</span> <span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="k">for</span> <span class="k">my</span> <span class="nv">$item</span> <span class="p">(</span> <span class="nv">@</span><span class="p">{</span><span class="nv">$comment</span><span class="o">-&gt;</span><span class="p">{</span><span class="n">images</span><span class="p">}}</span> <span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="nv">$log</span><span class="o">-&gt;</span><span class="nb">dump</span><span class="p">(</span> <span class="n">debug</span> <span class="o">=&gt;</span> <span class="nv">$item</span><span class="o">-&gt;</span><span class="p">{</span><span class="nb">link</span><span class="p">}</span> <span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="k">my</span> <span class="nv">@urls</span> <span class="o">=</span> <span class="nv">$mixi</span><span class="o">-&gt;</span><span class="n">parse</span><span class="p">(</span> <span class="nv">$item</span><span class="o">-&gt;</span><span class="p">{</span><span class="nb">link</span><span class="p">}</span> <span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="k">for</span> <span class="k">my</span> <span class="nv">$url</span> <span class="p">(</span> <span class="nv">@urls</span> <span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="n">save_url_image</span><span class="p">(</span> <span class="nv">$url</span><span class="p">,</span> <span class="nv">$dir</span> <span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="c1"># 保存一式</span>
+</span></span><span class="line"><span class="cl"><span class="k">sub</span> <span class="nf">save_url_image</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="k">my</span> <span class="p">(</span><span class="nv">$url</span><span class="p">,</span> <span class="nv">$dir</span><span class="p">)</span> <span class="o">=</span> <span class="nv">@_</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="k">my</span> <span class="nv">$link</span> <span class="o">=</span> <span class="nv">$url</span><span class="o">-&gt;</span><span class="p">{</span><span class="nb">link</span><span class="p">}</span><span class="o">-&gt;</span><span class="n">as_string</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="nv">$log</span><span class="o">-&gt;</span><span class="nb">dump</span><span class="p">(</span> <span class="n">debug</span> <span class="o">=&gt;</span> <span class="nv">$url</span><span class="o">-&gt;</span><span class="p">{</span><span class="nb">link</span><span class="p">}</span> <span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="k">my</span> <span class="p">(</span><span class="nv">$ext</span><span class="p">)</span> <span class="o">=</span> <span class="nv">$link</span> <span class="o">=~</span><span class="sr"> /(\.[a-zA-Z]+)$/ms</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="nv">$log</span><span class="o">-&gt;</span><span class="nb">dump</span><span class="p">(</span> <span class="n">debug</span> <span class="o">=&gt;</span> <span class="nv">$ext</span> <span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="nv">$ext</span> <span class="o">=</span> <span class="s">&#39;.jpg&#39;</span> <span class="k">unless</span> <span class="nv">$ext</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="k">my</span> <span class="nv">$filename</span> <span class="o">=</span> <span class="n">md5_hex</span><span class="p">(</span> <span class="nv">$link</span> <span class="p">)</span> <span class="o">.</span> <span class="nv">$ext</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="k">return</span> <span class="k">if</span> <span class="o">-</span><span class="n">f</span> <span class="sx">qq{$dir/$filename}</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="k">my</span> <span class="nv">$content</span> <span class="o">=</span> <span class="nv">$mixi</span><span class="o">-&gt;</span><span class="p">{</span><span class="n">mech</span><span class="p">}</span><span class="o">-&gt;</span><span class="n">get_content</span><span class="p">(</span> <span class="nv">$url</span><span class="o">-&gt;</span><span class="p">{</span><span class="nb">link</span><span class="p">}</span> <span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="nv">$log</span><span class="o">-&gt;</span><span class="nb">dump</span><span class="p">(</span> <span class="n">debug</span> <span class="o">=&gt;</span> <span class="nv">$content</span> <span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="nb">open</span> <span class="k">my</span> <span class="nv">$fh</span><span class="p">,</span> <span class="s">&#34;&gt;:raw&#34;</span><span class="p">,</span> <span class="sx">qq{$dir/$filename}</span> <span class="ow">or</span> <span class="nv">$log</span><span class="o">-&gt;</span><span class="nb">die</span><span class="p">(</span> <span class="sx">qq{Can not open $dir/$filename.}</span> <span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="k">print</span> <span class="nv">$fh</span> <span class="nv">$content</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="nb">close</span> <span class="nv">$fh</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></td></tr></table>
 </div>
 </div>

@@ -21,26 +21,27 @@
 - ステップE 仕上げ：事実確認・引用チェック・SEO調整を行い公開用のYAMLを付与する
 
 出力フォーマット（必須項目）
+- 記事は、Markdown形式で出力する
+- 新しい記事を作成する場合、ファイルパスは `content/post/<epoch秒の値>.md` とする
 - YAML front matterは必ず含める
 - 本文の基本見出しは導入／定義／手順／利点／注意点／結論とする
 - 脚注セクションを末尾に置き、1行目に「本記事はバイブブロギングで作成しています」を含める
 - 公開用をデフォルトとし `draft: false` とする
 
 YAML front matterに含める項目
----
-comments: true
-description: "<短い説明（概ね100文字以内）>"
-draft: false
-hidden: false
-image:
-license:
-math:
-tags:
-  - <タグ1>
-  - <タグ2>
-  - <タグ3>
-title: "<記事タイトル（日本語）>"
----
+- comments: true
+- description: "<短い説明（概ね100文字以内）>"
+- draft: false
+- hidden: false
+- image:
+- license:
+- math:
+- tags:
+- title: "<記事タイトル（日本語）>"
+
+YAML front matterに含めない項目
+- date
+- iso8601
 
 タグ付与の方針
 - タグは必ず1〜3個付与する（0個や4個以上は避ける）
