@@ -85,7 +85,7 @@ def generate_description(content: str, title: str) -> str:
         if para.startswith('@') or len(para) < 20:
             continue
         
-        # Use this paragraph, but convert to single line
+        # Use this paragraph (will be converted to single line later)
         description = para
         break
     
