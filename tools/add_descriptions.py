@@ -119,9 +119,15 @@ def add_description_to_front_matter(front_matter: str, description: str) -> str:
     # Find where to insert the description (after date or at the beginning)
     inserted = False
     for i, line in enumerate(lines):
+        # Replace existing description: ~ line
+        if line.startswith('description:'):
+            new_lines.append(f'description: "{description}"')
+            inserted = True
+            continue
+        
         new_lines.append(line)
         
-        # Insert after date field
+        # Insert after date field if not already inserted
         if not inserted and line.startswith('date:'):
             new_lines.append(f'description: "{description}"')
             inserted = True
