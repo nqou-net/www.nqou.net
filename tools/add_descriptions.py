@@ -24,13 +24,17 @@ def extract_front_matter_and_content(text: str) -> Tuple[Optional[str], Optional
     if not text.startswith('---\n'):
         return None, None
     
-    # Find the closing ---
-    parts = text.split('\n---\n', 2)
-    if len(parts) < 2:
+    # Find the closing --- (the first occurrence after the opening ---)
+    # Remove the opening ---
+    text_after_opening = text[4:]  # Remove "---\n"
+    
+    # Find the first occurrence of \n---\n which closes the front matter
+    closing_index = text_after_opening.find('\n---\n')
+    if closing_index == -1:
         return None, None
     
-    front_matter = parts[0].replace('---\n', '', 1)  # Remove first ---
-    content = parts[1] if len(parts) > 1 else ''
+    front_matter = text_after_opening[:closing_index]
+    content = text_after_opening[closing_index + 5:]  # Skip the \n---\n
     
     return front_matter, content
 
@@ -81,7 +85,7 @@ def generate_description(content: str, title: str) -> str:
         if para.startswith('@') or len(para) < 20:
             continue
         
-        # Use this paragraph
+        # Use this paragraph, but convert to single line
         description = para
         break
     
@@ -89,6 +93,10 @@ def generate_description(content: str, title: str) -> str:
     if not description:
         lines = [line.strip() for line in clean_content.split('\n') if line.strip()]
         description = lines[0] if lines else title
+    
+    # Convert multi-line text to single line
+    description = re.sub(r'\s*\n\s*', ' ', description)
+    description = re.sub(r'\s+', ' ', description).strip()
     
     # Get first sentence
     sentences = re.split(r'[。\.\!\?]', description)
