@@ -71,11 +71,10 @@ Hugo 0.131以降でいくつかの破壊的変更があります：
 
 1. **permalinks.toml形式の変更**: `[page]`セクションが必要
 2. **permalink属性の変更**: `contentbasename` → `filename`
-3. **ショートコードの非推奨化**: `gist`は将来削除予定
 
 ### ショートコード
 - `amazon`: Amazon商品リンク（asin, title引数）
-- `gist`: GitHub Gist埋め込み（非推奨化予定）
+- `gist`: GitHub Gist埋め込み（Hugo v0.143.0以降は非推奨）
 - `x`: X/Twitter埋め込み（user, id引数）
 
 ### front matter形式
