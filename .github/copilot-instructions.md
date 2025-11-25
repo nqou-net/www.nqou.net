@@ -126,12 +126,12 @@ cpanm --installdeps .
 
 ### 含める項目
 - comments: true
-- description: "&lt;短い説明（100文字以内）&gt;"
+- description: "<短い説明（100文字以内）>"
 - draft: false
 - hidden: false
 - image: / license: / math: （必要に応じて）
 - tags: （1〜3個、小文字で統一）
-- title: "&lt;記事タイトル&gt;"
+- title: "<記事タイトル>"
 
 ### 含めない項目
 - date（build.plが自動設定）
