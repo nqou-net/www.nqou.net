@@ -70,7 +70,7 @@ daiku drafts    # ドラフト一覧
 Hugo 0.131以降でいくつかの破壊的変更があります：
 
 1. **permalinks.toml形式の変更**: `[page]`セクションが必要
-2. **permalink属性の変更**: `contentbasename` → `filename`
+2. **permalinkトークンの変更**: Hugo 0.144.0で`:filename`トークンが非推奨となり、`:contentbasename`を使用する必要がある
 
 ### ショートコード
 - `amazon`: Amazon商品リンク（asin, title引数）
