@@ -132,7 +132,7 @@ cpanm --installdeps .
 ### 含める項目
 - comments: true
 - description: "<短い説明（100文字以内）>"
-- draft: false
+- draft: true
 - hidden: false
 - image: / license: / math: （必要に応じて）
 - tags: （1〜3個、小文字で統一）
