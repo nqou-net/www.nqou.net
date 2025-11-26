@@ -95,8 +95,8 @@ title: "記事タイトル"
 ```
 
 ### ファイル命名規則
-- 新規記事: `content/post/<epoch秒>.md`
-- 公開後: `tools/build.pl`により`YYYY/MM/DD/HHMMSS.md`形式に自動リネーム
+- 新規記事: `content/agent/<epoch秒>.md`
+- 公開後: `tools/build.pl`により`YYYY/MM/DD/HHMMSS.md`形式に自動リネーム（content/post配下へ移動）
 
 ## Perl依存関係のインストール
 
