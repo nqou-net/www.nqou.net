@@ -148,7 +148,7 @@ cpanm --installdeps .
 - **ソーシャル**: social（Twitter/Facebook/SNS関連）
 - **日常**: life, meals, game, favorites, lifestyle
 - **コミュニティ**: yapc, kansaipm
-- **AI関連**: ai, copilot, プロンプト設計, ブログ作成
+- **AI関連**: ai, copilot, prompt, context
 
 ## 品質チェック
 記事生成後は以下を確認：
@@ -159,6 +159,10 @@ cpanm --installdeps .
   - メタ説明は記事導入部に追加する
 - 人間レビューで確認すべき点（倫理・法務・オリジナリティ）
 - 脚注セクションに「本記事はバイブブロギングで作成しています」を含める
+
+### レビュー後の対応
+- SEO改善提案が受け入れられたら、そのセクションを削除する
+- 人間レビューが完了したら、そのセクションを削除する
 
 ## 禁止事項
 - 他者の著作物を無断転載しない
