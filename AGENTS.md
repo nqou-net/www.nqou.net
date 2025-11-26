@@ -116,6 +116,7 @@ cpanm --installdeps .
 ## 用語について
 - 英語名: Vibe Blogging
 - 日本語名: バイブ・ブロギング
+- 参考: https://vibe-blogging.com/
 
 ## 文体と表記ルール
 - 通常文はですます調で書く
