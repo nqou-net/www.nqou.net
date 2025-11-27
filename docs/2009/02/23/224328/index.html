@@ -473,107 +473,107 @@
 </span><span class="lnt">101
 </span></code></pre></td>
 <td class="lntd">
-<pre tabindex="0" class="chroma"><code class="language-text" data-lang="text"><span class="line"><span class="cl">use strict;
-</span></span><span class="line"><span class="cl">use warnings;
-</span></span><span class="line"><span class="cl">use Data::Dumper;
-</span></span><span class="line"><span class="cl">use Benchmark qw(:all);
-</span></span><span class="line"><span class="cl">use FileHandle;
-</span></span><span class="line"><span class="cl">use XML::LibXML;
-</span></span><span class="line"><span class="cl">use XML::RSS;
-</span></span><span class="line"><span class="cl">use XML::Simple;
-</span></span><span class="line"><span class="cl">$XML::Simple::PREFERRED_PARSER = &#39;XML::Parser&#39;;
-</span></span><span class="line"><span class="cl">use XML::RSS::LibXML;
-</span></span><span class="line"><span class="cl">use XML::RSS::Parser;
-</span></span><span class="line"><span class="cl">use XML::FeedPP;
-</span></span><span class="line"><span class="cl">use XML::RSSLite;
-</span></span><span class="line"><span class="cl">my $rss_file = &#34;../satomi.xml&#34;;
-</span></span><span class="line"><span class="cl">my $fh = FileHandle-&gt;new($rss_file)
-</span></span><span class="line"><span class="cl">or die &#34;cannot open $rss_file: $!&#34;;
-</span></span><span class="line"><span class="cl">local $/; # slurp mode
-</span></span><span class="line"><span class="cl">our $content = $fh-&gt;getline;
-</span></span><span class="line"><span class="cl">$fh-&gt;close;
-</span></span><span class="line"><span class="cl">cmpthese(timethese(0,
-</span></span><span class="line"><span class="cl">{
-</span></span><span class="line"><span class="cl">&#39;regexp&#39;           =&gt; \&amp;with_regexp,
-</span></span><span class="line"><span class="cl">&#39;XML::Simple&#39;      =&gt; \&amp;with_xml_simple,
-</span></span><span class="line"><span class="cl">&#39;XML::RSS&#39;         =&gt; \&amp;with_xml_rss,
-</span></span><span class="line"><span class="cl">&#39;XML::LibXML&#39;      =&gt; \&amp;with_xml_libxml,
-</span></span><span class="line"><span class="cl">&#39;XML::RSS::LibXML&#39; =&gt; \&amp;with_xml_rss_libxml,
-</span></span><span class="line"><span class="cl">&#39;XML::RSS::Parser&#39; =&gt; \&amp;with_xml_rss_parser,
-</span></span><span class="line"><span class="cl">&#39;XML::FeedPP&#39;      =&gt; \&amp;with_xml_feedpp,
-</span></span><span class="line"><span class="cl">&#39;XML::RSSLite&#39;     =&gt; \&amp;with_xml_rsslite,
-</span></span><span class="line"><span class="cl">}));
-</span></span><span class="line"><span class="cl">sub with_xml_rsslite {
-</span></span><span class="line"><span class="cl">my @links = ();
-</span></span><span class="line"><span class="cl">my %result;
-</span></span><span class="line"><span class="cl">parseRSS(\%result, \$content);
-</span></span><span class="line"><span class="cl">for my $item (@{$result{item}}) {
-</span></span><span class="line"><span class="cl">push @links, $item-&gt;{link};
-</span></span><span class="line"><span class="cl">}
-</span></span><span class="line"><span class="cl">#    print Dumper \@links;
-</span></span><span class="line"><span class="cl">}
-</span></span><span class="line"><span class="cl">sub with_xml_feedpp {
-</span></span><span class="line"><span class="cl">my @links = ();
-</span></span><span class="line"><span class="cl">my $feed = XML::FeedPP-&gt;new($content);
-</span></span><span class="line"><span class="cl">foreach my $item ( $feed-&gt;get_item() ) {
-</span></span><span class="line"><span class="cl">push @links, $item-&gt;link;
-</span></span><span class="line"><span class="cl">}
-</span></span><span class="line"><span class="cl">#    print Dumper \@links;
-</span></span><span class="line"><span class="cl">}
-</span></span><span class="line"><span class="cl">sub with_xml_rss_parser {
-</span></span><span class="line"><span class="cl">my @links = ();
-</span></span><span class="line"><span class="cl">my $parser = XML::RSS::Parser-&gt;new;
-</span></span><span class="line"><span class="cl">my $feed = $parser-&gt;parse_string($content);
-</span></span><span class="line"><span class="cl">foreach my $item ( $feed-&gt;query(&#39;item&#39;) ) {
-</span></span><span class="line"><span class="cl">push @links, $item-&gt;query(&#39;link&#39;)-&gt;text_content;
-</span></span><span class="line"><span class="cl">}
-</span></span><span class="line"><span class="cl">#    print Dumper \@links;
-</span></span><span class="line"><span class="cl">}
-</span></span><span class="line"><span class="cl">sub with_regexp {
-</span></span><span class="line"><span class="cl">my $pattern = &#34;&lt;item .*?&gt;.*?&lt;link&gt;(.*?)&lt;/link&gt;.*?&lt;/item&gt;&#34;;
-</span></span><span class="line"><span class="cl">my @links =
-</span></span><span class="line"><span class="cl">($content =~ m/$pattern/smg);
-</span></span><span class="line"><span class="cl">#    print Dumper \@links;
-</span></span><span class="line"><span class="cl">}
-</span></span><span class="line"><span class="cl">sub with_xml_simple {
-</span></span><span class="line"><span class="cl">my @links = ();
-</span></span><span class="line"><span class="cl">my $parser = XML::Simple-&gt;new;
-</span></span><span class="line"><span class="cl">my $data = $parser-&gt;XMLin($content, ForceArray =&gt; 1);
-</span></span><span class="line"><span class="cl">for my $item (@{$data-&gt;{item}}) {
-</span></span><span class="line"><span class="cl">push @links, $item-&gt;{link}[0];
-</span></span><span class="line"><span class="cl">}
-</span></span><span class="line"><span class="cl">#    print Dumper \@links;
-</span></span><span class="line"><span class="cl">}
-</span></span><span class="line"><span class="cl">sub with_xml_rss {
-</span></span><span class="line"><span class="cl">my @links = ();
-</span></span><span class="line"><span class="cl">my $rss = XML::RSS-&gt;new;
-</span></span><span class="line"><span class="cl">$rss-&gt;parse($content);
-</span></span><span class="line"><span class="cl">for my $item (@{$rss-&gt;{items}}) {
-</span></span><span class="line"><span class="cl">push  @links, $item-&gt;{link};
-</span></span><span class="line"><span class="cl">}
-</span></span><span class="line"><span class="cl">#    print Dumper \@links;
-</span></span><span class="line"><span class="cl">}
-</span></span><span class="line"><span class="cl">sub with_xml_libxml {
-</span></span><span class="line"><span class="cl">my @links =();
-</span></span><span class="line"><span class="cl">my $parser = XML::LibXML-&gt;new;
-</span></span><span class="line"><span class="cl">my $doc = $parser-&gt;parse_string($content);
-</span></span><span class="line"><span class="cl">my @nodes = $doc-&gt;findnodes(
-</span></span><span class="line"><span class="cl">&#34;//*[local-name()=&#39;item&#39;]/*[local-name()=&#39;link&#39;]/text()&#34;
-</span></span><span class="line"><span class="cl">);
-</span></span><span class="line"><span class="cl">for my $node (@nodes) {
-</span></span><span class="line"><span class="cl">push @links, $node-&gt;nodeValue;
-</span></span><span class="line"><span class="cl">}
-</span></span><span class="line"><span class="cl">#    print Dumper \@links;
-</span></span><span class="line"><span class="cl">}
-</span></span><span class="line"><span class="cl">sub with_xml_rss_libxml {
-</span></span><span class="line"><span class="cl">my @links = ();
-</span></span><span class="line"><span class="cl">my $rss = XML::RSS::LibXML-&gt;new;
-</span></span><span class="line"><span class="cl">$rss-&gt;parse($content);
-</span></span><span class="line"><span class="cl">for my $item (@{$rss-&gt;{items}}) {
-</span></span><span class="line"><span class="cl">push  @links, $item-&gt;{link};
-</span></span><span class="line"><span class="cl">}
-</span></span><span class="line"><span class="cl">#    print Dumper \@links;
-</span></span><span class="line"><span class="cl">}
+<pre tabindex="0" class="chroma"><code class="language-perl" data-lang="perl"><span class="line"><span class="cl"><span class="k">use</span> <span class="nn">strict</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="k">use</span> <span class="nn">warnings</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="k">use</span> <span class="nn">Data::Dumper</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="k">use</span> <span class="nn">Benchmark</span> <span class="sx">qw(:all)</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="k">use</span> <span class="nn">FileHandle</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="k">use</span> <span class="nn">XML::LibXML</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="k">use</span> <span class="nn">XML::RSS</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="k">use</span> <span class="nn">XML::Simple</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="nv">$</span><span class="nn">XML::Simple::</span><span class="nv">PREFERRED_PARSER</span> <span class="o">=</span> <span class="s">&#39;XML::Parser&#39;</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="k">use</span> <span class="nn">XML::RSS::LibXML</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="k">use</span> <span class="nn">XML::RSS::Parser</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="k">use</span> <span class="nn">XML::FeedPP</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="k">use</span> <span class="nn">XML::RSSLite</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="k">my</span> <span class="nv">$rss_file</span> <span class="o">=</span> <span class="s">&#34;../satomi.xml&#34;</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="k">my</span> <span class="nv">$fh</span> <span class="o">=</span> <span class="nn">FileHandle</span><span class="o">-&gt;</span><span class="k">new</span><span class="p">(</span><span class="nv">$rss_file</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="ow">or</span> <span class="nb">die</span> <span class="s">&#34;cannot open $rss_file: $!&#34;</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="nb">local</span> <span class="vg">$/</span><span class="p">;</span> <span class="c1"># slurp mode</span>
+</span></span><span class="line"><span class="cl"><span class="k">our</span> <span class="nv">$content</span> <span class="o">=</span> <span class="nv">$fh</span><span class="o">-&gt;</span><span class="n">getline</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="nv">$fh</span><span class="o">-&gt;</span><span class="nb">close</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="n">cmpthese</span><span class="p">(</span><span class="n">timethese</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="s">&#39;regexp&#39;</span>           <span class="o">=&gt;</span> <span class="o">\&amp;</span><span class="n">with_regexp</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl"><span class="s">&#39;XML::Simple&#39;</span>      <span class="o">=&gt;</span> <span class="o">\&amp;</span><span class="n">with_xml_simple</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl"><span class="s">&#39;XML::RSS&#39;</span>         <span class="o">=&gt;</span> <span class="o">\&amp;</span><span class="n">with_xml_rss</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl"><span class="s">&#39;XML::LibXML&#39;</span>      <span class="o">=&gt;</span> <span class="o">\&amp;</span><span class="n">with_xml_libxml</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl"><span class="s">&#39;XML::RSS::LibXML&#39;</span> <span class="o">=&gt;</span> <span class="o">\&amp;</span><span class="n">with_xml_rss_libxml</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl"><span class="s">&#39;XML::RSS::Parser&#39;</span> <span class="o">=&gt;</span> <span class="o">\&amp;</span><span class="n">with_xml_rss_parser</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl"><span class="s">&#39;XML::FeedPP&#39;</span>      <span class="o">=&gt;</span> <span class="o">\&amp;</span><span class="n">with_xml_feedpp</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl"><span class="s">&#39;XML::RSSLite&#39;</span>     <span class="o">=&gt;</span> <span class="o">\&amp;</span><span class="n">with_xml_rsslite</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl"><span class="p">}));</span>
+</span></span><span class="line"><span class="cl"><span class="k">sub</span> <span class="nf">with_xml_rsslite</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="k">my</span> <span class="nv">@links</span> <span class="o">=</span> <span class="p">();</span>
+</span></span><span class="line"><span class="cl"><span class="k">my</span> <span class="nv">%result</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="n">parseRSS</span><span class="p">(</span><span class="o">\</span><span class="nv">%result</span><span class="p">,</span> <span class="o">\</span><span class="nv">$content</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="k">for</span> <span class="k">my</span> <span class="nv">$item</span> <span class="p">(</span><span class="nv">@</span><span class="p">{</span><span class="nv">$result</span><span class="p">{</span><span class="n">item</span><span class="p">}})</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="nb">push</span> <span class="nv">@links</span><span class="p">,</span> <span class="nv">$item</span><span class="o">-&gt;</span><span class="p">{</span><span class="nb">link</span><span class="p">};</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="c1">#    print Dumper \@links;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="k">sub</span> <span class="nf">with_xml_feedpp</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="k">my</span> <span class="nv">@links</span> <span class="o">=</span> <span class="p">();</span>
+</span></span><span class="line"><span class="cl"><span class="k">my</span> <span class="nv">$feed</span> <span class="o">=</span> <span class="nn">XML::FeedPP</span><span class="o">-&gt;</span><span class="k">new</span><span class="p">(</span><span class="nv">$content</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="k">foreach</span> <span class="k">my</span> <span class="nv">$item</span> <span class="p">(</span> <span class="nv">$feed</span><span class="o">-&gt;</span><span class="n">get_item</span><span class="p">()</span> <span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="nb">push</span> <span class="nv">@links</span><span class="p">,</span> <span class="nv">$item</span><span class="o">-&gt;</span><span class="nb">link</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="c1">#    print Dumper \@links;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="k">sub</span> <span class="nf">with_xml_rss_parser</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="k">my</span> <span class="nv">@links</span> <span class="o">=</span> <span class="p">();</span>
+</span></span><span class="line"><span class="cl"><span class="k">my</span> <span class="nv">$parser</span> <span class="o">=</span> <span class="nn">XML::RSS::Parser</span><span class="o">-&gt;</span><span class="k">new</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="k">my</span> <span class="nv">$feed</span> <span class="o">=</span> <span class="nv">$parser</span><span class="o">-&gt;</span><span class="n">parse_string</span><span class="p">(</span><span class="nv">$content</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="k">foreach</span> <span class="k">my</span> <span class="nv">$item</span> <span class="p">(</span> <span class="nv">$feed</span><span class="o">-&gt;</span><span class="n">query</span><span class="p">(</span><span class="s">&#39;item&#39;</span><span class="p">)</span> <span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="nb">push</span> <span class="nv">@links</span><span class="p">,</span> <span class="nv">$item</span><span class="o">-&gt;</span><span class="n">query</span><span class="p">(</span><span class="s">&#39;link&#39;</span><span class="p">)</span><span class="o">-&gt;</span><span class="n">text_content</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="c1">#    print Dumper \@links;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="k">sub</span> <span class="nf">with_regexp</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="k">my</span> <span class="nv">$pattern</span> <span class="o">=</span> <span class="s">&#34;&lt;item .*?&gt;.*?&lt;link&gt;(.*?)&lt;/link&gt;.*?&lt;/item&gt;&#34;</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="k">my</span> <span class="nv">@links</span> <span class="o">=</span>
+</span></span><span class="line"><span class="cl"><span class="p">(</span><span class="nv">$content</span> <span class="o">=~</span> <span class="sr">m/$pattern/smg</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="c1">#    print Dumper \@links;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="k">sub</span> <span class="nf">with_xml_simple</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="k">my</span> <span class="nv">@links</span> <span class="o">=</span> <span class="p">();</span>
+</span></span><span class="line"><span class="cl"><span class="k">my</span> <span class="nv">$parser</span> <span class="o">=</span> <span class="nn">XML::Simple</span><span class="o">-&gt;</span><span class="k">new</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="k">my</span> <span class="nv">$data</span> <span class="o">=</span> <span class="nv">$parser</span><span class="o">-&gt;</span><span class="n">XMLin</span><span class="p">(</span><span class="nv">$content</span><span class="p">,</span> <span class="n">ForceArray</span> <span class="o">=&gt;</span> <span class="mi">1</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="k">for</span> <span class="k">my</span> <span class="nv">$item</span> <span class="p">(</span><span class="nv">@</span><span class="p">{</span><span class="nv">$data</span><span class="o">-&gt;</span><span class="p">{</span><span class="n">item</span><span class="p">}})</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="nb">push</span> <span class="nv">@links</span><span class="p">,</span> <span class="nv">$item</span><span class="o">-&gt;</span><span class="p">{</span><span class="nb">link</span><span class="p">}[</span><span class="mi">0</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="c1">#    print Dumper \@links;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="k">sub</span> <span class="nf">with_xml_rss</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="k">my</span> <span class="nv">@links</span> <span class="o">=</span> <span class="p">();</span>
+</span></span><span class="line"><span class="cl"><span class="k">my</span> <span class="nv">$rss</span> <span class="o">=</span> <span class="nn">XML::RSS</span><span class="o">-&gt;</span><span class="k">new</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="nv">$rss</span><span class="o">-&gt;</span><span class="n">parse</span><span class="p">(</span><span class="nv">$content</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="k">for</span> <span class="k">my</span> <span class="nv">$item</span> <span class="p">(</span><span class="nv">@</span><span class="p">{</span><span class="nv">$rss</span><span class="o">-&gt;</span><span class="p">{</span><span class="n">items</span><span class="p">}})</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="nb">push</span>  <span class="nv">@links</span><span class="p">,</span> <span class="nv">$item</span><span class="o">-&gt;</span><span class="p">{</span><span class="nb">link</span><span class="p">};</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="c1">#    print Dumper \@links;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="k">sub</span> <span class="nf">with_xml_libxml</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="k">my</span> <span class="nv">@links</span> <span class="o">=</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl"><span class="k">my</span> <span class="nv">$parser</span> <span class="o">=</span> <span class="nn">XML::LibXML</span><span class="o">-&gt;</span><span class="k">new</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="k">my</span> <span class="nv">$doc</span> <span class="o">=</span> <span class="nv">$parser</span><span class="o">-&gt;</span><span class="n">parse_string</span><span class="p">(</span><span class="nv">$content</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="k">my</span> <span class="nv">@nodes</span> <span class="o">=</span> <span class="nv">$doc</span><span class="o">-&gt;</span><span class="n">findnodes</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl"><span class="s">&#34;//*[local-name()=&#39;item&#39;]/*[local-name()=&#39;link&#39;]/text()&#34;</span>
+</span></span><span class="line"><span class="cl"><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="k">for</span> <span class="k">my</span> <span class="nv">$node</span> <span class="p">(</span><span class="nv">@nodes</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="nb">push</span> <span class="nv">@links</span><span class="p">,</span> <span class="nv">$node</span><span class="o">-&gt;</span><span class="n">nodeValue</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="c1">#    print Dumper \@links;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="k">sub</span> <span class="nf">with_xml_rss_libxml</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="k">my</span> <span class="nv">@links</span> <span class="o">=</span> <span class="p">();</span>
+</span></span><span class="line"><span class="cl"><span class="k">my</span> <span class="nv">$rss</span> <span class="o">=</span> <span class="nn">XML::RSS::LibXML</span><span class="o">-&gt;</span><span class="k">new</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="nv">$rss</span><span class="o">-&gt;</span><span class="n">parse</span><span class="p">(</span><span class="nv">$content</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="k">for</span> <span class="k">my</span> <span class="nv">$item</span> <span class="p">(</span><span class="nv">@</span><span class="p">{</span><span class="nv">$rss</span><span class="o">-&gt;</span><span class="p">{</span><span class="n">items</span><span class="p">}})</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="nb">push</span>  <span class="nv">@links</span><span class="p">,</span> <span class="nv">$item</span><span class="o">-&gt;</span><span class="p">{</span><span class="nb">link</span><span class="p">};</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="c1">#    print Dumper \@links;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></td></tr></table>
 </div>
 </div>
