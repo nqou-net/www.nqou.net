@@ -140,7 +140,7 @@ cpanm --installdeps .
 - draft: true（**必須**: 新規記事作成時は必ず`true`に設定。`false`に変更できるのはユーザーのみ）
 - hidden: false
 - image: / license: / math: （必要に応じて）
-- tags: （1〜5個、小文字で統一）
+- tags: （1〜5個、英語・小文字で統一）
 - title: "<記事タイトル>"
 
 ### 含めない項目
