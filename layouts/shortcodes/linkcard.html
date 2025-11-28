@@ -1,0 +1,107 @@
+<link rel="stylesheet" href="/css/linkcard.css">
+{{- $url := .Get "url" | default (.Get 0) -}}
+{{- if not $url -}}
+  {{- errorf "linkcard shortcode requires a 'url' parameter" -}}
+{{- end -}}
+
+{{- $title := "" -}}
+{{- $description := "" -}}
+{{- $image := "" -}}
+{{- $siteName := "" -}}
+{{- $favicon := "" -}}
+
+{{- $parsedURL := urls.Parse $url -}}
+{{- $domain := $parsedURL.Host -}}
+{{- $faviconURL := printf "%s://%s/favicon.ico" $parsedURL.Scheme $domain -}}
+
+{{- with resources.GetRemote $url -}}
+  {{- with .Err -}}
+    {{- warnf "linkcard: failed to fetch %s: %s" $url . -}}
+  {{- else -}}
+    {{- $content := .Content -}}
+
+    {{/* Extract og:title */}}
+    {{- $ogTitleMatch := findRE `<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["'][^>]*>` $content 1 -}}
+    {{- if not $ogTitleMatch -}}
+      {{- $ogTitleMatch = findRE `<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:title["'][^>]*>` $content 1 -}}
+    {{- end -}}
+    {{- range $ogTitleMatch -}}
+      {{- $title = replaceRE `.*content=["']([^"']+)["'].*` "$1" . -}}
+    {{- end -}}
+
+    {{/* Fallback to <title> tag if og:title not found */}}
+    {{- if not $title -}}
+      {{- $titleMatch := findRE `<title[^>]*>([^<]+)</title>` $content 1 -}}
+      {{- range $titleMatch -}}
+        {{- $title = replaceRE `<title[^>]*>([^<]+)</title>` "$1" . -}}
+      {{- end -}}
+    {{- end -}}
+
+    {{/* Extract og:description */}}
+    {{- $ogDescMatch := findRE `<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']+)["'][^>]*>` $content 1 -}}
+    {{- if not $ogDescMatch -}}
+      {{- $ogDescMatch = findRE `<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:description["'][^>]*>` $content 1 -}}
+    {{- end -}}
+    {{- range $ogDescMatch -}}
+      {{- $description = replaceRE `.*content=["']([^"']+)["'].*` "$1" . -}}
+    {{- end -}}
+
+    {{/* Fallback to meta description if og:description not found */}}
+    {{- if not $description -}}
+      {{- $descMatch := findRE `<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["'][^>]*>` $content 1 -}}
+      {{- if not $descMatch -}}
+        {{- $descMatch = findRE `<meta[^>]*content=["']([^"']+)["'][^>]*name=["']description["'][^>]*>` $content 1 -}}
+      {{- end -}}
+      {{- range $descMatch -}}
+        {{- $description = replaceRE `.*content=["']([^"']+)["'].*` "$1" . -}}
+      {{- end -}}
+    {{- end -}}
+
+    {{/* Extract og:image */}}
+    {{- $ogImageMatch := findRE `<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["'][^>]*>` $content 1 -}}
+    {{- if not $ogImageMatch -}}
+      {{- $ogImageMatch = findRE `<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["'][^>]*>` $content 1 -}}
+    {{- end -}}
+    {{- range $ogImageMatch -}}
+      {{- $image = replaceRE `.*content=["']([^"']+)["'].*` "$1" . -}}
+    {{- end -}}
+
+    {{/* Extract og:site_name */}}
+    {{- $ogSiteMatch := findRE `<meta[^>]*property=["']og:site_name["'][^>]*content=["']([^"']+)["'][^>]*>` $content 1 -}}
+    {{- if not $ogSiteMatch -}}
+      {{- $ogSiteMatch = findRE `<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:site_name["'][^>]*>` $content 1 -}}
+    {{- end -}}
+    {{- range $ogSiteMatch -}}
+      {{- $siteName = replaceRE `.*content=["']([^"']+)["'].*` "$1" . -}}
+    {{- end -}}
+
+  {{- end -}}
+{{- end -}}
+
+{{- if not $title -}}
+  {{- $title = $url -}}
+{{- end -}}
+
+{{- if not $siteName -}}
+  {{- $siteName = $domain -}}
+{{- end -}}
+
+<div class="linkcard">
+  <a href="{{ $url }}" target="_blank" rel="noopener noreferrer">
+    {{- if $image }}
+    <div class="linkcard-image">
+      <img src="{{ $image }}" alt="{{ $title }}" loading="lazy" />
+    </div>
+    {{- end }}
+    <div class="linkcard-content">
+      <div class="linkcard-title">{{ $title | htmlUnescape }}</div>
+      {{- if $description }}
+      <div class="linkcard-description">{{ $description | htmlUnescape | truncate 120 }}</div>
+      {{- end }}
+      <div class="linkcard-meta">
+        <img class="linkcard-favicon" src="{{ $faviconURL }}" alt="" onerror="this.style.display='none'" />
+        <span class="linkcard-domain">{{ $siteName | htmlUnescape }}</span>
+      </div>
+    </div>
+  </a>
+</div>
