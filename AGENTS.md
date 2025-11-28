@@ -46,8 +46,7 @@ perl tools/build.pl && hugo # Perl前処理付きビルド
 
 - `content/post/`配下にMarkdownファイルを作成する
 - 新規記事のファイル名は`<epoch秒>.md`形式で作成する
-- front matterに必須項目（title, description, tags, draft）を含める
-- `draft: true`を新規記事に必ず設定する（公開判断はユーザーのみ）
+- front matterには必須項目（title, description, tags, draft）をすべて含めること。新規記事の場合、`draft`は必ず`true`に設定すること（公開判断はユーザーのみ）
 - Hugoショートコードを適切に使用する
   - `amazon`: Amazon商品リンク（asin, title引数）
   - `x`: X/Twitter埋め込み（user, id引数）
@@ -69,7 +68,7 @@ perl tools/build.pl && hugo # Perl前処理付きビルド
 ```yaml
 ---
 comments: true
-description: "記事の短い説明（100文字以内）"
+description: "短い説明（100文字以内）"
 draft: true
 hidden: false
 tags:
