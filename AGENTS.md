@@ -57,6 +57,7 @@ Hugoで構築された個人ブログサイト。Perl、ウイスキー、関西
 |---------------|------|------|
 | `amazon` | Amazon商品リンク | asin, title |
 | `gist` | GitHub Gist埋め込み | （Hugo v0.143.0以降は非推奨） |
+| `linkcard` | ウェブサイトへのリンクカード（OGP自動取得） | url |
 | `x` | X/Twitter埋め込み | user, id |
 
 ## Hugo互換性
