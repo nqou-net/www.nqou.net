@@ -37,6 +37,7 @@ Hugoで構築された個人ブログサイト。Perl、ウイスキー、関西
 ## Dos（やるべきこと）
 
 - ブログ記事作成時は `.github/instructions/post.instructions.md` を参照する
+- ウイスキー関連の記事作成時は `.github/instructions/whisky.instructions.md` を参照する
 - `content/post/` 配下にMarkdownファイルを作成する
 - 新規記事のファイル名は `<epoch秒>.md` 形式で作成する
 - front matterには必須項目（title, description, tags, draft）をすべて含める
