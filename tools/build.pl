@@ -9,7 +9,7 @@ use Time::Moment ();
 my $root = path(__FILE__)->absolute->parent(2);
 
 # 出力先をクリーニングする
-my $output_dir = path($root, 'docs');# config.tomlを変更したらここも変更すること
+my $output_dir = path($root, 'docs'); # config.tomlを変更したらここも変更すること
 $output_dir->remove_tree if $output_dir->exists;
 
 # 記事を取得
@@ -30,7 +30,11 @@ while (my $post = $iterator->()) {
 
     my $modified;
     unless (exists $info->{draft}) {
-        $info->{draft} = 'true'
+        $info->{draft} = 'true';
+    }
+    unless ($info->{image}) {
+        $info->{image} = '/favicon.png';
+        $modified = 1;
     }
 
     # ISO8601を持っていない場合はdateからISOを作成
