@@ -1,5 +1,5 @@
 ---
-description: 'Guidelines for whisky/whiskey blog articles focused on tasting notes, history, regions and distillery information.'
+description: 'Guidelines for whisky blog articles focused on tasting notes, history, regions and distillery information.'
 applyTo: 'content/post/*.md'
 ---
 
