@@ -22,6 +22,7 @@ my $offset = $tm->offset;
 my $jp_offset = 540;
 
 # 記事から時間を取得して、名称変更
+my $date = {};
 while (my $post = $iterator->()) {
     next unless $post->is_file;
     print "Processing ", $post->stringify, "\n";
@@ -46,9 +47,10 @@ while (my $post = $iterator->()) {
             while (1) {
                 $tm = Time::Moment->now->with_precision(0);
                 my $new_path = new_path_by_iso8601($tm->to_string);
-                last unless $new_path->exists;
+                last unless $date->{ $tm->to_string };
                 sleep 1;
             }
+            $date->{ $tm->to_string } = 1;
             $info->{iso8601} = $tm->to_string;
         }
 
