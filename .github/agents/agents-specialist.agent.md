@@ -1,5 +1,5 @@
 ---
-name: readme-specialist
+name: agents-specialist
 description: プロジェクトのAGENTS.mdファイルを作成・改善します。
 tools: [ "*" ]
 metadata:
