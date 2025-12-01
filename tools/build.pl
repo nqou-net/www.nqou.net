@@ -23,7 +23,9 @@ my $jp_offset = 540;
 
 # 記事から時間を取得して、名称変更
 my $date = {};
-while (my $post = $iterator->()) {
+my @files;
+while (my $file = $iterator->()) {push @files, $file}
+for my $post (sort @files) {
     next unless $post->is_file;
     print "Processing ", $post->stringify, "\n";
     my ($yaml, $after) = split /\n---/, $post->slurp_utf8, 2;
