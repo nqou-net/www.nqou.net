@@ -16,4 +16,3 @@ metadata:
 
 - 各ディレクトリのAGENTS.md
 - .github/agents/ のmarkdownファイル
-- .github/instructions/ のmarkdownファイル
