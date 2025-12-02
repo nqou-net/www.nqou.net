@@ -1,117 +1,202 @@
-# ブログ記事作成用 AGENTS
+# AGENTS.md — Guidance for AI coding agents
 
-この `AGENTS.md` は、この Hugo サイト（`www.nqou.net`）向けにブログ記事を執筆・編集・公開準備するための AI エージェントの振る舞い、プロンプト、ワークフロー、制約を定義します。詳しくは https://agents.md/ を参照してください。記事作成を効率的かつ安全に再現可能にするために最適化しています。
+This file is an agent-focused companion to `README.md`. It contains concrete, actionable instructions an automated agent needs to work effectively on this repository (a Hugo-based website: `www.nqou.net`). Follow the guidance at https://agents.md/ when updating this document.
 
-## 目的
+---
 
-- 人間が高品質なブログ記事を作るのを補助する：下書き作成、編集、SEO、翻訳/ローカライズ、Hugo 向けの公開準備まで。
+**Project overview**
 
-## 主な対象
+- Purpose: A Hugo-powered personal/technical blog, content in `content/` and built site available in `docs/`.
+- Main technologies: Hugo (static site generator), plain Markdown for content, some helper scripts in `tools/` (Python/Perl), and shell build helpers.
+- Key directories:
+  - `content/` — source content. Posts live under `content/post/` (timestamp or `YYYY/MM/DD` naming is used).
+  - `layouts/`, `partials/`, `shortcodes/` — theme/layout code.
+  - `static/` — static assets copied to the site root.
+  - `resources/` — Hugo resource pipeline outputs.
+  - `docs/` — generated site (already present in repo; often used for GitHub Pages publishing).
 
-- `www.nqou.net` の技術記事やエッセイを書く執筆者・保守者。
+**Quick facts for agents**
 
-## 機能と制約
+- Preview locally: `hugo server -D`
+- Build for production: `hugo --minify`
+- VS Code tasks: `Serve Drafts` (runs `hugo server -D`) and `Build` (runs `hugo --minify`) are defined in workspace tasks.
+- Content location: `content/post/` (new posts should follow existing naming conventions).
+ - Important restrictions: agents MUST NOT run repository setup or system-level install commands in this environment (see "Setup" section). The `docs/` directory is generated and should be treated as read-only — do not modify files under `docs/`.
 
-### 機能
+---
 
-- Hugo 互換の front matter（TOML/YAML）やショートコードを含む Markdown を生成します。
-- タイトル、スラッグ、タグ、カテゴリ、メタ記述を提案します。
-- 画像の alt テキストや簡潔なキャプションを作成します。
-- RSS や SNS 用の要約文を作成します。
+## Setup (commands an agent can run)
 
-### 制約
+- Install Hugo (if not available): follow the platform-specific installer or use Homebrew on macOS:
 
-- 事実を捏造しないこと。不確かな場合は `TODO` を付けて出典を求めること。
-- 長文の著作物を転載せず、要約と出典で対応すること。
-- サイトの文体（簡潔、必要時は技術的、エッセイでは軽い個人トーン）に従うこと。
-- 既存の front matter はユーザーの同意なく上書きしないこと。
+WARNING — agents must NOT execute setup/install commands:
 
-### エージェント
-エージェントについては、 `.github/agents/*.agent.md` を参照してください
+- Do NOT run setup or system-level install commands (for example `brew install`, package manager installs, or other environment provisioning) from an automated agent unless explicitly authorized by a human maintainer. These commands are marked in this file as examples for humans to run locally.
 
-## 推奨ワークフロー
+If you are an agent and need dependencies installed, add a comment or open an issue requesting the human operator run the installation.
 
-1. ブリーフ：人が一段落のブリーフ、対象読者、希望文字数、トーン、参照元を提供します。
-2. 下書き：ライターが front matter の骨格を含む下書きを生成します。
-3. 編集パス：編集者が明確さと構成を改善し、差分またはインライン提案を出します。
-4. SEO パス：SEO アシスタントが最終タイトル、スラッグ、メタ記述、キーワードを提案します。
-5. フォーマット整備：フォーマッターがショートコード、コードフェンス、画像、front matter を整えます。
-6. チェックリスト：パブリッシュチェックが公開準備を検証し、`ready`/`issues` を報告します。
+Example human-only install (run locally):
 
-## Hugo 固有の注意事項
+```zsh
+brew install hugo
+```
 
-- 投稿ファイルは `content/post/` に配置します。既存リポジトリの慣習（タイムスタンプ命名例 `1764687600.md` または `YYYY/MM/DD-title.md`）に従ってください。
-- フロントマターに使用するキーの例：`title`, `date`, `draft`, `tags`, `categories`, `description`, `slug`, `featuredImage`。公開準備ができるまでは `draft: true` を維持してください。
-- front matter の例（TOML）:
+- Start local preview (serves drafts):
 
-~~~toml
-title = "Your Draft Title"
-date = 2025-12-02T12:00:00+09:00
-draft = true
-tags = ["example","notes"]
-categories = ["blog"]
-description = "Short summary for RSS and social shares."
-slug = "short-slug"
-~~~
-
-- ローカルでドラフトをプレビューするコマンド:
-
-~~~zsh
+```zsh
 hugo server -D
-~~~
+```
 
-## プロンプトテンプレート
+- Build the site (production/minified):
 
-エージェントに指示を出す際は以下テンプレートを置き換えて使用してください。
+```zsh
+hugo --minify
+```
 
-### 下書き生成（短いブリーフ → 完全下書き）
+- Helper scripts:
+  - `tools/add_descriptions.py` — adds captions/descriptions to images (inspect before running).
+  - `build.pl`, `convert_html_to_markdown.pl` — legacy/perl build helpers (use with caution).
 
-"あなたは熟練した技術系ライターです。以下のブリーフから `www.nqou.net` 向けに約 {word_count} 語の日本語のブログ記事を作成してください：{brief}。対象読者：{audience}。トーン：{tone}。リードを2–3文、見出しを3–6個、関連する場合は少なくとも1つのコードブロックを含め、短い結論で締めてください。出力は有効な Markdown とし、`draft: true` を含む Hugo 互換の front matter と 120 文字以内の `description` を含めてください。事実確認が必要なら出典を求めてください。"
+---
 
-### 編集パス（簡潔化・語調修正）
+## Development workflow for agents
 
-"あなたは編集者です。以下の Markdown の明快さ、流れ、文法を改善してください。意味と技術的正確性は保持してください。コードブロックはそのままにし、修正点の要約を付けてください。"
+- Writing content:
+  - Place posts in `content/post/`.
+  - Use Hugo-compatible front matter (TOML recommended here). Keep `draft: true` until ready to publish.
+  - Common front matter keys: `title`, `date`, `draft`, `tags`, `categories`, `description`, `slug`, `featuredImage`, `sources`.
 
-### SEO パス（タイトル/説明/スラッグ/タグ）
+- Previewing and editing:
+  - Run `hugo server -D` and open `http://localhost:1313` to check rendering and shortcodes.
+  - Verify images and shortcodes in `layouts/shortcodes/` behave as expected.
 
-"クリック率の高そうな代替タイトルを最大5件、推奨タイトル1件を順位付けして提案してください。120 文字以内のメタ記述、URL 用のスラッグ、関連するタグを5つ（カンマ区切り）提示してください。結果は JSON で `title_candidates`, `recommended_title`, `meta_description`, `slug`, `tags` のキーを持つ形式にしてください。"
+- Building and verifying:
+  - Run `hugo --minify` and inspect output in `public/` or `docs/` depending on workflow.
+  - Optionally run `tools/add_descriptions.py` or `build.pl` only after reviewing their code and arguments.
 
-### 翻訳/ローカライズ
+---
 
-"以下の Markdown を {target_language} に翻訳してください。コードブロック、ショートコード、front matter のキーは変更せず、翻訳品質の要約と文化的注意事項を付けてください。"
+## Testing instructions
 
-### 公開チェックリスト
+- This repository does not include an automated unit test suite for site content. Agents should:
+  - Validate generated HTML by running `hugo --minify` and spot-check pages.
+  - Check links with a link checker (example):
 
-"この Markdown に対して公開チェックを実行してください：front matter（title, date, description, tags, draft フラグ）の有無、画像の alt テキスト、コードフェンスの言語指定、内部リンクが相対パスであること、`TODO` が残っていないことを確認してください。結果は JSON で `ready`: true/false と `issues`: list を返してください。"
+```zsh
+# install a link checker then run it against the local server
+# e.g. npm: 'npx broken-link-checker' or 'linkinator'
+linkinator http://localhost:1313
+```
 
-## 例
+- For CI: inspect `.github/workflows` for site build steps and replicate the same commands when validating locally.
 
-- 最小ブリーフ → 下書きの例（人間 → エージェント）:
+---
 
-  ブリーフ："Hugo サイトの画像最適化について 800 語の日本語ガイドを書いてください。`resources` の処理例と `image` ショートコードの使用例を含めてください。"
+## Code style & content conventions
 
-  エージェントの出力：front matter、段落、コード例、SEO 候補リストを含む完全な Markdown。
+- Markdown: use CommonMark-friendly Markdown; prefer fenced code blocks with language tags.
+- Front matter: follow existing site conventions (TOML). Do not overwrite existing front matter without explicit permission.
+- Images: include meaningful `alt` text and small captions where appropriate. Use Hugo image processing via `resources` when resizing/optimizing.
+- Shortcodes: prefer site-provided shortcodes in `layouts/shortcodes/` rather than ad-hoc HTML.
 
-## 評価基準
+---
 
-- 可読性：平均文長や段落構成。
-- 技術的正確性：コード例はコピーして動くこと（架空のコマンドを含めない）。
-- SEO 適合：推奨タイトル、説明、スラッグ、メタキーワードが存在すること。
-- アクセシビリティ：画像に alt テキストがあること、見出しが階層化されていること。
+## Build and deployment
 
-## 安全性とコンテンツ規則
+- Build command: `hugo --minify`.
+- Output: by default `public/` (or site configured output). The repo contains `docs/` which may be the published output used for GitHub Pages.
+- Deployment: follow repository's CI or GitHub Pages flow. Check `.github/workflows` for the exact pipeline and replicate its steps for local validation.
 
-- 個人情報や機微なデータを生成しないこと。
-- 引用や研究結果を捏造しないこと。必要なら front matter に `sources` を追加すること。
-- 著作権は尊重すること。長文転載は避け、要約と出典で対応すること。
+Note about `docs/` (read-only):
 
-## 運用担当者向けの実務メモ
+- The `docs/` directory is generated output (site build) and is treated as write-protected in normal workflows. Do not edit files under `docs/` from an agent — changes should be made in source content under `content/`, `layouts/`, `static/`, etc., then the site rebuilt by CI or a human-run build.
 
-- 公開前は `draft: true` を維持してください。公開時に `draft: false` にしてプレビューで確認した上でマージしてください。
-- 公開ワークフローに CI を導入する場合、パブリッシュチェックを CI ステップに組み込んで `ready` が false の場合は失敗させると確実です。
-- エージェントが生成したメタデータは提案扱いとし、最終的なスラッグやタグは人間が確認してください。
+---
 
-## 保守と拡張
+## Pull request & contribution guidelines
 
-- このファイルは定期的にレビューしてください。繰り返し発生する作業（例：ニュースレター文案、ツイート文）用のテンプレートを追加すると効率化できます。
-- 自動画像生成やリンクチェッカーなどの統合を追加する場合は、どのエージェントがどの API を呼ぶか、必要な鍵の管理方法を明記してください（秘密はリポジトリに含めないこと）。
+- Branch naming: use descriptive branch names, e.g. `feature/write-hugo-article`, `fix/images-optimization`.
+- PR title format: `[post] Short description` or `[site] Short description` for infra changes.
+- Required checks before PR:
+  - Run `hugo server -D` to visually validate changes.
+  - Run `hugo --minify` to ensure a successful build.
+  - Ensure `draft` is `true` for drafts; set to `false` only when ready to publish.
+
+---
+
+## Security & secrets
+
+- This repo does not store secrets in code. If secrets are needed for CI or deployment, use GitHub Secrets or an external secret manager.
+- Avoid embedding credentials into front matter or content files.
+
+---
+
+## Troubleshooting & common gotchas
+
+- If `hugo server` fails:
+  - Ensure Hugo version matches site's required version (see `config/_default/config.toml` or module docs).
+  - Look for errors from shortcodes or partials — missing params often cause build errors.
+
+- If images are missing or broken:
+  - Verify files under `assets/` and `static/images/` and the `featuredImage` paths in front matter.
+
+- If content doesn't appear:
+  - Ensure `draft` is `false` (or run `hugo server -D` to include drafts).
+
+---
+
+## Templates & prompts for agents (copyable)
+
+- Draft generation (English/Japanese):
+
+```
+You are a skilled technical writer. From the brief: {brief}
+Target reader: {audience}
+Tone: {tone}
+Output: Hugo-compatible Markdown with TOML front matter including `draft: true` and a 120-character `description`.
+```
+
+- SEO checklist (automated): ensure `title`, `description` (<= 120 chars), `slug`, and `tags` exist in front matter.
+
+---
+
+## Where to add more agent docs
+
+- For subproject-specific behavior (e.g., tooling in `tools/`), add `AGENTS.md` under that directory. The closest `AGENTS.md` to a file path takes precedence for agents operating in that folder.
+
+---
+
+## Custom agents (`.github/agents`)
+
+This repository contains repository-specific agent definitions under `.github/agents/`. These are human-authored agent role/prompts intended to be referenced by humans or tooling that knows how to load them. Agents should read these files for custom behavior and not overwrite them.
+
+Available agent files (informational):
+
+- `.github/agents/task-planner.agent.md`
+- `.github/agents/search-ai-optimization-expert.agent.md`
+- `.github/agents/postgresql-dba.agent.md`
+- `.github/agents/plan.agent.md`
+- `.github/agents/implementation-plan.agent.md`
+- `.github/agents/adr-generator.agent.md`
+- `.github/agents/accessibility.agent.md`
+- `.github/agents/specification.agent.md`
+- `.github/agents/software-engineer-agent-v1.agent.md`
+- `.github/agents/simple-app-idea-generator.agent.md`
+- `.github/agents/prompt-engineer.agent.md`
+- `.github/agents/hlbpa.agent.md`
+- `.github/agents/lingodotdev-i18n.agent.md`
+- `.github/agents/planner.agent.md`
+- `.github/agents/microsoft_learn_contributor.agent.md`
+- `.github/agents/playwright-tester.agent.md`
+- `.github/agents/prompt-builder.agent.md`
+- `.github/agents/technical-content-evaluator.agent.md`
+- `.github/agents/meta-agentic-project-scaffold.agent.md`
+- `.github/agents/task-researcher.agent.md`
+- `.github/agents/monday-bug-fixer.agent.md`
+- `.github/agents/mentor.agent.md`
+
+If you want me to summarize or extract the instructions from any of these files, tell me which one(s) and I'll open them and add a short summary to this `AGENTS.md` or a separate helper file.
+
+## Appendix: original site-specific guidance
+
+The previous `AGENTS.md` focused on blog-article generation and included Japanese templates and editorial workflows. That content has been preserved where relevant — if you need the original Japanese templates or a dedicated article authoring guide, ask and I will append them as a separate section.
