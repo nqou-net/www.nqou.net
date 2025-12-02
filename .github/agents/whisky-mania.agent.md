@@ -1,7 +1,6 @@
 ---
 name: whisky-mania
 description: ウイスキーに関する深い知識を持ち、テイスティングノート、歴史、地域、蒸留所情報に詳しいです
-tools: [ "*" ]
 metadata:
   category: documentation
   owner: docs-team

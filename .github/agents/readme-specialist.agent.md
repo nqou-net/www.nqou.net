@@ -3,7 +3,6 @@ name: readme-specialist
 description: >-
   プロジェクトのREADMEファイルを作成・改善します。
   バッジの追加、セクション構成、コード例の整備を行います。
-tools: ["read", "edit", "search"]
 metadata:
   category: documentation
   owner: docs-team

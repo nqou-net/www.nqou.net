@@ -1,7 +1,6 @@
 ---
 name: blog-writer
 description: プロの編集者として、特にブログ記事の構成、編集、読みやすさの向上を専門とします
-tools: ["*"]
 metadata:
   category: content-editing
   owner: docs-team

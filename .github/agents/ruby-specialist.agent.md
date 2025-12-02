@@ -1,7 +1,6 @@
 ---
 name: ruby-specialist
 description: Rubyの専門家として、コードの作成、デバッグ、最適化、ベストプラクティスの提供を行います
-tools: ["*"]
 metadata:
   category: technical-writing
   owner: docs-team
