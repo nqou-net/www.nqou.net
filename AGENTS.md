@@ -7,7 +7,7 @@ This file is an agent-focused companion to `README.md`. It contains concrete, ac
 **Project overview**
 
 - Purpose: A Hugo-powered personal/technical blog, content in `content/` and built site available in `docs/`.
-- Main technologies: Hugo (static site generator), plain Markdown for content, some helper scripts in `tools/` (Python/Perl), and shell build helpers.
+- Main technologies: Hugo (static site generator), plain Markdown for content, some helper scripts in `tools/` (Perl), and shell build helpers.
 - Key directories:
   - `content/` — source content. Posts live under `content/post/` (timestamp or `YYYY/MM/DD` naming is used).
   - `layouts/`, `partials/`, `shortcodes/` — theme/layout code.
@@ -54,8 +54,7 @@ hugo --minify
 ```
 
 - Helper scripts:
-  - `tools/add_descriptions.py` — adds captions/descriptions to images (inspect before running).
-  - `build.pl`, `convert_html_to_markdown.pl` — legacy/perl build helpers (use with caution).
+  - `build.pl` — legacy/perl build helpers (use with caution).
 
 ---
 
@@ -64,7 +63,11 @@ hugo --minify
 - Writing content:
   - Place posts in `content/post/`.
   - Use YAML front matter delimited with `---` (do not use TOML `+++`). Keep `draft: true` until ready to publish.
+<<<<<<< HEAD
   - Filename convention: prefer using an epoch-second filename under `content/post/` (for example `1764720000.md`) to match the repository's existing posts and ensure predictable ordering. Alternatively the `YYYY/MM/DD/slug.md` structure is acceptable when appropriate.
+=======
+  - Filename convention: prefer using an epoch-second filename under `content/post/` (for example `1764720000.md`) to match the repository's existing posts and ensure predictable ordering.
+>>>>>>> 62a401931 (update 作成される記事の調整(main))
   - Tags: use English, lowercase only (multi-word tags may use hyphens, e.g. `object-oriented`).
   - Headings: use ATX-style headings. H1 is the page title (from front matter); use `##` (H2) for top-level sections and `###`/`####`/`#####`/`######` for subsections.
   - For simple external reference links, prefer the site's `linkcard` shortcode: `{{< linkcard "https://example.com" >}}`.
@@ -202,6 +205,57 @@ Available agent files (informational):
 - `.github/agents/mentor.agent.md`
 
 If you want me to summarize or extract the instructions from any of these files, tell me which one(s) and I'll open them and add a short summary to this `AGENTS.md` or a separate helper file.
+
+## Module / Package Announcement Posts (モジュール紹介記事)
+
+When writing posts that introduce a library, module, or package (for example a CPAN/MetaCPAN module such as `JSON::RPC::Spec`), follow these additional guidelines to make the post useful for readers and reproducible:
+
+- **Front matter:** include `title`, `draft: true`, `description` (<= 120 chars), and `tags` such as `perl`, `cpan`, and `module`.
+- **Canonical links:** include the authoritative package page (MetaCPAN/CPAN) and the source repo. Use the `linkcard` shortcode for these references: `{{< linkcard "https://metacpan.org/pod/Your::Module" >}}`.
+- **Install instructions:** show common install commands (`cpanm JSON::RPC::Spec`) and mention any non-obvious dependencies or platform notes.
+- **Minimal example(s):** include a short, copy-pasteable example demonstrating the most common usage (synopsis). Prefer small, self-contained code snippets with language tag (e.g., ````perl```).
+- **API caveats and compatibility:** briefly note supported versions (Perl version, any notable incompatibilities), debugging flags, and recommended runtime settings.
+- **Testing & links:** point readers to test instructions, the module's test suite (if available), and CI status or badges when appropriate.
+- **License & author:** show where to find license and author/contact info (link to MetaCPAN or repository).
+
+Template (copyable):
+
+```
+---
+title: "<ModuleName> — short summary"
+draft: true
+description: "<=120 chars: short summary of the module"
+tags:
+  - perl
+  - cpan
+  - module
+---
+
+## 概要
+
+{{< linkcard "https://metacpan.org/pod/Your::Module" >}}
+
+## インストール
+
+```sh
+cpanm Your::Module
+```
+
+## 使い方（最小例）
+
+```perl
+use Your::Module;
+# ... example ...
+```
+
+## 参考・リンク
+
+- ソースリポジトリ
+- ドキュメント
+
+```
+
+Follow-up: when a module post is added, keep it `draft: true` until you (or the author) confirm accuracy of API examples and links.
 
 ## Appendix: original site-specific guidance
 
