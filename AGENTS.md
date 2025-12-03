@@ -63,8 +63,13 @@ hugo --minify
 
 - Writing content:
   - Place posts in `content/post/`.
-  - Use Hugo-compatible front matter (TOML recommended here). Keep `draft: true` until ready to publish.
-  - Common front matter keys: `title`, `date`, `draft`, `tags`, `categories`, `description`, `slug`, `featuredImage`, `sources`.
+  - Use YAML front matter delimited with `---` (do not use TOML `+++`). Keep `draft: true` until ready to publish.
+  - Filename convention: prefer using an epoch-second filename under `content/post/` (for example `1764720000.md`) to match the repository's existing posts and ensure predictable ordering. Alternatively the `YYYY/MM/DD/slug.md` structure is acceptable when appropriate.
+  - Tags: use English, lowercase only (multi-word tags may use hyphens, e.g. `object-oriented`).
+  - Headings: use ATX-style headings. H1 is the page title (from front matter); use `##` (H2) for top-level sections and `###`/`####`/`#####`/`######` for subsections.
+  - For simple external reference links, prefer the site's `linkcard` shortcode: `{{< linkcard "https://example.com" >}}`.
+  - Common front matter keys: `title`, `draft`, `tags`, `description`.
+  - Do not include keys: `date`, `iso8601`.
 
 - Previewing and editing:
   - Run `hugo server -D` and open `http://localhost:1313` to check rendering and shortcodes.
@@ -72,7 +77,7 @@ hugo --minify
 
 - Building and verifying:
   - Run `hugo --minify` and inspect output in `public/` or `docs/` depending on workflow.
-  - Optionally run `tools/add_descriptions.py` or `build.pl` only after reviewing their code and arguments.
+  - Optionally run `build.pl` only after reviewing their code and arguments.
 
 ---
 
@@ -96,6 +101,7 @@ linkinator http://localhost:1313
 
 - Markdown: use CommonMark-friendly Markdown; prefer fenced code blocks with language tags.
 - Front matter: follow existing site conventions (TOML). Do not overwrite existing front matter without explicit permission.
+ - Front matter: use YAML front matter (delimited with `---`). Do not overwrite existing front matter without explicit permission.
 - Images: include meaningful `alt` text and small captions where appropriate. Use Hugo image processing via `resources` when resizing/optimizing.
 - Shortcodes: prefer site-provided shortcodes in `layouts/shortcodes/` rather than ad-hoc HTML.
 
@@ -153,7 +159,7 @@ Note about `docs/` (read-only):
 You are a skilled technical writer. From the brief: {brief}
 Target reader: {audience}
 Tone: {tone}
-Output: Hugo-compatible Markdown with TOML front matter including `draft: true` and a 120-character `description`.
+Output: Hugo-compatible Markdown using YAML front matter (delimited with `---`), include `draft: true` and a short `description` (<=120 chars). Do not include a `date` field. Use ATX headings (H2 for top-level sections). Use `linkcard` shortcode for simple external links.
 ```
 
 - SEO checklist (automated): ensure `title`, `description` (<= 120 chars), `slug`, and `tags` exist in front matter.
