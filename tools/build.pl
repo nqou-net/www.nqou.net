@@ -43,15 +43,13 @@ for my $post (sort @files) {
     # ISO8601を持っていない場合はdateからISOを作成
     unless (exists $info->{iso8601}) {
 
-        # 存在しなければファイルから取得する（暫定）
+        # 存在しなければ今書いたことにする
         if (!exists $info->{date}) {
             my $tm;
             while (1) {
-                my $epoch = $post->stringify =~ /(\d{10})/;
-                $tm = Time::Moment->from_epoch($epoch)->with_precision(0);
-                # $tm = Time::Moment->now->with_precision(0);
+                $tm = Time::Moment->now->with_precision(0);
                 my $new_path = new_path_by_iso8601($tm->to_string);
-                last unless $date->{ $tm->to_string };
+                last unless $date->{ $tm->to_string } && $new_path->exists;
                 sleep 1;
             }
             $date->{ $tm->to_string } = 1;
@@ -76,6 +74,15 @@ for my $post (sort @files) {
         my $url_date = $tm->with_offset_same_instant($jp_offset);
         $info->{date} = $url_date->to_string;
         $modified = 1;
+    }
+    else {
+        unless (exists $info->{date}) {
+            # date はURLのために日本時間へ統一
+            my $tm = Time::Moment->from_string($info->{iso8601});
+            my $url_date = $tm->with_offset_same_instant($jp_offset);
+            $info->{date} = $url_date->to_string;
+            $modified = 1;
+        }
     }
 
     # # comment は消す
