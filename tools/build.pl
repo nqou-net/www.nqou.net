@@ -27,6 +27,7 @@ my @files;
 while (my $file = $iterator->()) {push @files, $file}
 for my $post (sort @files) {
     next unless $post->is_file;
+    next if $post->basename =~ /^\./;
     print "Processing ", $post->stringify, "\n";
     my ($yaml, $after) = split /\n---/, $post->slurp_utf8, 2;
     my $info = YAML::Load($yaml);
