@@ -43,11 +43,13 @@ for my $post (sort @files) {
     # ISO8601を持っていない場合はdateからISOを作成
     unless (exists $info->{iso8601}) {
 
-        # 存在しなければ今書いたことにする
+        # 存在しなければファイルから取得する（暫定）
         if (!exists $info->{date}) {
             my $tm;
             while (1) {
-                $tm = Time::Moment->now->with_precision(0);
+                my $epoch = $post->stringify =~ /(\d{10})/;
+                $tm = Time::Moment->from_epoch($epoch)->with_precision(0);
+                # $tm = Time::Moment->now->with_precision(0);
                 my $new_path = new_path_by_iso8601($tm->to_string);
                 last unless $date->{ $tm->to_string };
                 sleep 1;
