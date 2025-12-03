@@ -202,57 +202,6 @@ Available agent files (informational):
 
 If you want me to summarize or extract the instructions from any of these files, tell me which one(s) and I'll open them and add a short summary to this `AGENTS.md` or a separate helper file.
 
-## Module / Package Announcement Posts (モジュール紹介記事)
-
-When writing posts that introduce a library, module, or package (for example a CPAN/MetaCPAN module such as `JSON::RPC::Spec`), follow these additional guidelines to make the post useful for readers and reproducible:
-
-- **Front matter:** include `title`, `draft: true`, `description` (<= 120 chars), and `tags` such as `perl`, `cpan`, and `module`.
-- **Canonical links:** include the authoritative package page (MetaCPAN/CPAN) and the source repo. Use the `linkcard` shortcode for these references: `{{< linkcard "https://metacpan.org/pod/Your::Module" >}}`.
-- **Install instructions:** show common install commands (`cpanm JSON::RPC::Spec`) and mention any non-obvious dependencies or platform notes.
-- **Minimal example(s):** include a short, copy-pasteable example demonstrating the most common usage (synopsis). Prefer small, self-contained code snippets with language tag (e.g., ````perl```).
-- **API caveats and compatibility:** briefly note supported versions (Perl version, any notable incompatibilities), debugging flags, and recommended runtime settings.
-- **Testing & links:** point readers to test instructions, the module's test suite (if available), and CI status or badges when appropriate.
-- **License & author:** show where to find license and author/contact info (link to MetaCPAN or repository).
-
-Template (copyable):
-
-```
----
-title: "<ModuleName> — short summary"
-draft: true
-description: "<=120 chars: short summary of the module"
-tags:
-  - perl
-  - cpan
-  - module
----
-
-## 概要
-
-{{< linkcard "https://metacpan.org/pod/Your::Module" >}}
-
-## インストール
-
-```sh
-cpanm Your::Module
-```
-
-## 使い方（最小例）
-
-```perl
-use Your::Module;
-# ... example ...
-```
-
-## 参考・リンク
-
-- ソースリポジトリ
-- ドキュメント
-
-```
-
-Follow-up: when a module post is added, keep it `draft: true` until you (or the author) confirm accuracy of API examples and links.
-
 ## Appendix: original site-specific guidance
 
 The previous `AGENTS.md` focused on blog-article generation and included Japanese templates and editorial workflows. That content has been preserved where relevant — if you need the original Japanese templates or a dedicated article authoring guide, ask and I will append them as a separate section.
