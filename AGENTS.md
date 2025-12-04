@@ -1,158 +1,149 @@
-# AGENTS.md — Guidance for AI coding agents
+# AGENTS.md — リポジトリ用エージェント向けガイダンス
 
-This file is an agent-focused companion to `README.md`. It contains concrete, actionable instructions an automated agent needs to work effectively on this repository (a Hugo-based website: `www.nqou.net`). Follow the guidance at https://agents.md/ when updating this document.
-
----
-
-**Project overview**
-
-- Purpose: A Hugo-powered personal/technical blog, content in `content/` and built site available in `docs/`.
-- Main technologies: Hugo (static site generator), plain Markdown for content, some helper scripts in `tools/` (Perl), and shell build helpers.
-- Key directories:
-  - `content/` — source content. Posts live under `content/post/` (timestamp or `YYYY/MM/DD` naming is used).
-  - `layouts/`, `partials/`, `shortcodes/` — theme/layout code.
-  - `static/` — static assets copied to the site root.
-  - `resources/` — Hugo resource pipeline outputs.
-  - `docs/` — generated site (already present in repo; often used for GitHub Pages publishing).
-
-**Quick facts for agents**
-
-- Preview locally: `hugo server -D`
-- Build for production: `hugo --minify`
-- VS Code tasks: `Serve Drafts` (runs `hugo server -D`) and `Build` (runs `hugo --minify`) are defined in workspace tasks.
-- Content location: `content/post/` (new posts should follow existing naming conventions).
- - Important restrictions: agents MUST NOT run repository setup or system-level install commands in this environment (see "Setup" section). The `docs/` directory is generated and should be treated as read-only — do not modify files under `docs/`.
+このファイルは `README.md` の補助文書である。リポジトリ `www.nqou.net`（Hugoベースのウェブサイト）に関して、エージェントが効果的に作業するための具体的かつ実行可能な指示をまとめたものである。
 
 ---
 
-## Setup (commands an agent can run)
 
-- Install Hugo (if not available): follow the platform-specific installer or use Homebrew on macOS:
+**プロジェクト概要**
 
-WARNING — agents must NOT execute setup/install commands:
+- **目的**: Hugoで構築された個人の技術ブログを管理するためのリポジトリである。コンテンツは `content/` に置き、ビルド成果物は `docs/` に配置する運用である。
+- **主要技術**: Hugo（静的サイト生成器）、Markdown、及び必要に応じて `tools/` に格納された小規模な補助スクリプト（Perlなど）を用いる。
+- **重要なディレクトリ**:
+  - `content/` — ソースコンテンツを配置する。投稿は `content/post/` に配置する（ファイル名はタイムスタンプまたは `YYYY/MM/DD` 形式を採用する）。
+  - `layouts/`, `partials/`, `shortcodes/` — テーマとレイアウトのコードを格納する。
+  - `static/` — サイトルートにコピーされる静的アセットを格納する。
+  - `resources/` — Hugo のリソースパイプラインの出力を配置する。
+  - `docs/` — 生成済みサイトの出力を配置する。通常は読み取り専用として扱う。
 
-- Do NOT run setup or system-level install commands (for example `brew install`, package manager installs, or other environment provisioning) from an automated agent unless explicitly authorized by a human maintainer. These commands are marked in this file as examples for humans to run locally.
 
-If you are an agent and need dependencies installed, add a comment or open an issue requesting the human operator run the installation.
+**エージェント向けの簡潔な事実（クイックスタート）**
 
-Example human-only install (run locally):
+- ローカルプレビューは `hugo server -D` で行うこと。
+- 本番ビルドは `hugo --minify` で行うこと。
+- VS Code に `Serve Drafts`（`hugo server -D`）と `Build`（`hugo --minify`）のタスクが定義されていることを確認すること。
+- コンテンツは `content/post/` に追加すること。既存の命名規則（エポック秒形式など）に従うこと。
+- **重要制約**: エージェントは環境セットアップやシステムレベルのインストールコマンドを自動で実行してはならない。`docs/` は生成出力であるため直接編集してはならない。
+
+---
+
+
+## セットアップ（人間が実行するコマンド）
+
+- 必要に応じて Hugo を人間がインストールすること（プラットフォーム固有の方法を用いる）。
+- **警告** — エージェントはセットアップやシステムインストール操作を実行してはならない。これらは人間が手動で行う前提である。
+- ローカルプレビュー（ドラフトを含めて表示）を開始するための例（人間が実行する）:
 
 ```zsh
-brew install hugo
-```
-
-- Start local preview (serves drafts):
-
-```zsh
+brew install hugo   # macOS で Homebrew を使用する場合の例
 hugo server -D
 ```
 
-- Build the site (production/minified):
+- 本番向けビルドを行う場合のコマンド（人間が実行する）:
 
 ```zsh
 hugo --minify
 ```
 
-- Helper scripts:
-  - `build.pl` — legacy/perl build helpers (use with caution).
+- ヘルパースクリプト（例: `build.pl`）を使用する場合は、スクリプトの内容と引数を事前に精査すること。
 
 ---
 
-## Development workflow for agents
 
-- Writing content:
-  - Place posts in `content/post/`.
-  - Use YAML front matter delimited with `---` (do not use TOML `+++`). Keep `draft: true` until ready to publish.
-  - Filename convention: prefer using an epoch-second filename under `content/post/` (for example `1764720000.md`) to match the repository's existing posts and ensure predictable ordering.
-  - Tags: use English, lowercase only (multi-word tags may use hyphens, e.g. `object-oriented`).
-  - Headings: use ATX-style headings. H1 is the page title (from front matter); use `##` (H2) for top-level sections and `###`/`####`/`#####`/`######` for subsections.
-  - For simple external reference links, prefer the site's `linkcard` shortcode: `{{< linkcard "https://example.com" >}}`.
-  - Common front matter keys: `title`, `draft`, `tags`, `description`.
-  - Do not include keys: `date`, `iso8601`.
+## エージェントの作業フロー
 
-- Previewing and editing:
-  - Run `hugo server -D` and open `http://localhost:1313` to check rendering and shortcodes.
-  - Verify images and shortcodes in `layouts/shortcodes/` behave as expected.
+以下の手順に従うこと。各項目は実行可能かつ検証可能な操作として定義してある。
 
-- Building and verifying:
-  - Run `hugo --minify` and inspect output in `public/` or `docs/` depending on workflow.
-  - Optionally run `build.pl` only after reviewing their code and arguments.
+- **コンテンツ作成**:
+  - 新しい投稿は `content/post/` の直下に配置すること。
+  - フロントマターは YAML（`---`）で記述すること。TOML（`+++`）は使用しないこと。
+  - 投稿は下書き状態の間は `draft: true` にしておくこと（公開準備が整ったときに `draft: false` に変更する）。
+  - タグは英語の小文字で統一すること。複合語はハイフンでつなげる（例: `object-oriented`）。
+  - 見出しは ATX スタイルを採用すること。H1 はページタイトル（フロントマター由来）とし、トップレベルのセクションは `##` とすること。
+  - シンプルな外部参照リンク（前後に空白以外がない場合）にはサイトの `linkcard` ショートコードを使用すること: `{{< linkcard "https://example.com" >}}`。
+  - よく使うフロントマターキーは `title`, `draft`, `tags`, `description` とする。`date` や `iso8601` は含めないこと。
 
----
+- **プレビューと編集**:
+  - `hugo server -D` を起動して `http://localhost:1313` でレンダリングを確認すること。
+  - レイアウトやショートコードの挙動（画像やショートコードの表示）を検証すること。
 
-## Testing instructions
-
-- This repository does not include an automated unit test suite for site content. Agents should:
-  - Validate generated HTML by running `hugo --minify` and spot-check pages.
-  - Check links with a link checker (example):
-
-```zsh
-# install a link checker then run it against the local server
-# e.g. npm: 'npx broken-link-checker' or 'linkinator'
-linkinator http://localhost:1313
-```
-
-- For CI: inspect `.github/workflows` for site build steps and replicate the same commands when validating locally.
+- **ビルドと検証**:
+  - `hugo --minify` を実行し、生成物を検査すること（`public/` または `docs/` を確認する）。
+  - `build.pl` を使用する場合は、事前にスクリプトの内容と引数を精査してから実行すること。
 
 ---
 
-## Code style & content conventions
 
-- Markdown: use CommonMark-friendly Markdown; prefer fenced code blocks with language tags.
-- Front matter: follow existing site conventions (TOML). Do not overwrite existing front matter without explicit permission.
- - Front matter: use YAML front matter (delimited with `---`). Do not overwrite existing front matter without explicit permission.
-- Images: include meaningful `alt` text and small captions where appropriate. Use Hugo image processing via `resources` when resizing/optimizing.
-- Shortcodes: prefer site-provided shortcodes in `layouts/shortcodes/` rather than ad-hoc HTML.
+## テスト手順
 
----
+- 本リポジトリには自動化されたユニットテストは含まれていない。検証手順は以下の通りである:
+  - `hugo --minify` を実行し、生成された HTML を目視で検査すること。
+  - リンクチェッカー（例: `linkinator` や `broken-link-checker`）を用い、サイト内のリンク整合性を検査すること。
 
-## Build and deployment
-
-- Build command: `hugo --minify`.
-- Output: by default `public/` (or site configured output). The repo contains `docs/` which may be the published output used for GitHub Pages.
-- Deployment: follow repository's CI or GitHub Pages flow. Check `.github/workflows` for the exact pipeline and replicate its steps for local validation.
-
-Note about `docs/` (read-only):
-
-- The `docs/` directory is generated output (site build) and is treated as write-protected in normal workflows. Do not edit files under `docs/` from an agent — changes should be made in source content under `content/`, `layouts/`, `static/`, etc., then the site rebuilt by CI or a human-run build.
+- CI による検証は `.github/workflows` を参照し、同等のコマンドをローカルで実行して確認すること。
 
 ---
 
-## Pull request & contribution guidelines
 
-- Branch naming: use descriptive branch names, e.g. `feature/write-hugo-article`, `fix/images-optimization`.
-- PR title format: `[post] Short description` or `[site] Short description` for infra changes.
-- Required checks before PR:
-  - Run `hugo server -D` to visually validate changes.
-  - Run `hugo --minify` to ensure a successful build.
-  - Ensure `draft` is `true` for drafts; set to `false` only when ready to publish.
+## コードスタイル & コンテンツ規約
 
----
-
-## Security & secrets
-
-- This repo does not store secrets in code. If secrets are needed for CI or deployment, use GitHub Secrets or an external secret manager.
-- Avoid embedding credentials into front matter or content files.
+- Markdown は CommonMark と互換性を保つこと。フェンスコードブロックと適切な言語タグを使用すること。
+- フロントマターは YAML（`---`）で統一すること。既存のフロントマターを無断で上書きしてはならない。
+- 画像には意味のある `alt` テキストを付与すること。必要に応じて短いキャプションを付けること。
+- 画像処理が必要な場合は Hugo の `resources` パイプラインを利用すること。
+- 既存のショートコード（`layouts/shortcodes/`）を優先して使用すること。正当な理由がない限り生の HTML を直接埋め込まないこと。
 
 ---
 
-## Troubleshooting & common gotchas
 
-- If `hugo server` fails:
-  - Ensure Hugo version matches site's required version (see `config/_default/config.toml` or module docs).
-  - Look for errors from shortcodes or partials — missing params often cause build errors.
+## ビルドとデプロイ
 
-- If images are missing or broken:
-  - Verify files under `assets/` and `static/images/` and the `featuredImage` paths in front matter.
-
-- If content doesn't appear:
-  - Ensure `draft` is `false` (or run `hugo server -D` to include drafts).
+- ビルドコマンドは `hugo --minify` である。
+- 生成物の出力先を確認し、CI の設定に合わせて検証すること（多くのワークフローでは `docs/` を公開用として使用する）。
+- `docs/` は通常読み取り専用とし、エージェントは直接編集してはならない。編集は必ずソース（`content/`, `layouts/`, `static/` など）に対して行い、その後ビルドして反映させること。
 
 ---
 
-## Templates & prompts for agents (copyable)
 
-- Draft generation (English/Japanese):
+## プルリクエストとコントリビューション規約
+
+- ブランチ命名規則を遵守すること（例: `feature/write-hugo-article`, `fix/images-optimization`）。
+- PR タイトルのフォーマットは `[post] 短い説明` または `[site] 短い説明` に統一すること。
+- PR 提出前に以下を必ず実行して確認すること:
+  - `hugo server -D` を起動して表示を目視確認すること。
+  - `hugo --minify` を実行してビルドが成功することを確認すること。
+  - 下書きは `draft: true` のままにすること。公開時にのみ `draft: false` に変更すること。
+
+---
+
+
+## セキュリティとシークレット管理
+
+- リポジトリ内にシークレットを格納してはならない。CI やデプロイ用のシークレットは GitHub Secrets や外部のシークレットマネージャーを利用すること。
+- フロントマターやコンテンツに資格情報を埋め込んではならない。
+
+---
+
+
+## トラブルシューティング（よくある問題と対応手順）
+
+- `hugo server` が失敗する場合の確認事項:
+  - 必要な Hugo のバージョンが適合しているかを `config/_default/config.toml` 等で確認すること。
+  - ショートコードやパーシャルが原因でエラーが発生していないかを確認すること（パラメータ不足が原因となる場合が多い）。
+
+- 画像が表示されない場合の確認事項:
+  - `assets/` や `static/images/` に該当ファイルが存在するかを確認すること。
+  - フロントマターの `featuredImage` パスが正しいかを確認すること。
+
+- コンテンツが表示されない場合の確認事項:
+  - `draft` が `false` になっているか、または `hugo server -D` を使用してドラフトを含めて表示しているかを確認すること。
+
+---
+
+
+## エージェント用テンプレートとプロンプト（コピペ可）
+
+- ドラフト生成（英語/日本語）用テンプレート例:
 
 ```
 You are a skilled technical writer. From the brief: {brief}
@@ -161,47 +152,25 @@ Tone: {tone}
 Output: Hugo-compatible Markdown using YAML front matter (delimited with `---`), include `draft: true` and a short `description` (<=120 chars). Do not include a `date` field. Use ATX headings (H2 for top-level sections). Use `linkcard` shortcode for simple external links.
 ```
 
-- SEO checklist (automated): ensure `title`, `description` (<= 120 chars), `slug`, and `tags` exist in front matter.
+- SEO チェックリスト（自動化）: フロントマターに `title`, `description` (<= 120 文字), `slug`, `tags` が存在することを検査すること。
 
 ---
 
-## Where to add more agent docs
 
-- For subproject-specific behavior (e.g., tooling in `tools/`), add `AGENTS.md` under that directory. The closest `AGENTS.md` to a file path takes precedence for agents operating in that folder.
+## 追加のドキュメントをどこに置くか
+
+- サブプロジェクト固有の動作（例: `tools/` にあるツール）については、該当ディレクトリに `AGENTS.md` を追加すること。エージェントは最も近いディレクトリの `AGENTS.md` を優先して参照すること。
 
 ---
 
-## Custom agents (`.github/agents`)
 
-This repository contains repository-specific agent definitions under `.github/agents/`. These are human-authored agent role/prompts intended to be referenced by humans or tooling that knows how to load them. Agents should read these files for custom behavior and not overwrite them.
+## カスタムエージェント（`.github/agents`）
 
-Available agent files (informational):
+- リポジトリ内に `.github/agents/` が存在する場合、そのファイルは人間が用意したエージェント定義である。エージェントはそれらを読み取り、上書きしてはならない。
+- 利用可能なエージェントファイルの一覧を確認し、必要に応じて要約を作成して `AGENTS.md` に追加することを推奨する。
 
-- `.github/agents/task-planner.agent.md`
-- `.github/agents/search-ai-optimization-expert.agent.md`
-- `.github/agents/postgresql-dba.agent.md`
-- `.github/agents/plan.agent.md`
-- `.github/agents/implementation-plan.agent.md`
-- `.github/agents/adr-generator.agent.md`
-- `.github/agents/accessibility.agent.md`
-- `.github/agents/specification.agent.md`
-- `.github/agents/software-engineer-agent-v1.agent.md`
-- `.github/agents/simple-app-idea-generator.agent.md`
-- `.github/agents/prompt-engineer.agent.md`
-- `.github/agents/hlbpa.agent.md`
-- `.github/agents/lingodotdev-i18n.agent.md`
-- `.github/agents/planner.agent.md`
-- `.github/agents/microsoft_learn_contributor.agent.md`
-- `.github/agents/playwright-tester.agent.md`
-- `.github/agents/prompt-builder.agent.md`
-- `.github/agents/technical-content-evaluator.agent.md`
-- `.github/agents/meta-agentic-project-scaffold.agent.md`
-- `.github/agents/task-researcher.agent.md`
-- `.github/agents/monday-bug-fixer.agent.md`
-- `.github/agents/mentor.agent.md`
 
-If you want me to summarize or extract the instructions from any of these files, tell me which one(s) and I'll open them and add a short summary to this `AGENTS.md` or a separate helper file.
+---
 
-## Appendix: original site-specific guidance
 
-The previous `AGENTS.md` focused on blog-article generation and included Japanese templates and editorial workflows. That content has been preserved where relevant — if you need the original Japanese templates or a dedicated article authoring guide, ask and I will append them as a separate section.
+このファイルはエージェントがリポジトリ内で行動するための明確な手順とチェックリストを提供するものである。変更を加える場合はこの方針に従い、手順を逸脱しないこと。
