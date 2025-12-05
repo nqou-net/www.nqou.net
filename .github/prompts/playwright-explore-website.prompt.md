@@ -1,5 +1,5 @@
 ---
-agent: agent
+agent: 'agent'
 description: 'Website exploration for testing using Playwright MCP'
  
 ---
