@@ -86,11 +86,22 @@ for my $post (sort @files) {
         }
     }
 
-    # # comment は消す
-    # if (exists $info->{comment}) {
-    #     delete $info->{comment};
-    #     $modified = 1;
-    # }
+    # epoch を持っていない場合はiso8601から作成
+    unless (exists $info->{epoch}) {
+        my $tm = Time::Moment->from_string($info->{iso8601});
+        $info->{epoch} = $tm->epoch;
+        $modified = 1;
+    }
+
+    # comment(s) は消す
+    if (exists $info->{comment}) {
+        delete $info->{comment};
+        $modified = 1;
+    }
+    if (exists $info->{comments}) {
+        delete $info->{comments};
+        $modified = 1;
+    }
 
     # # 本文に文字列が含まれていたらタグを追加
     # my $target = 'heroku';
