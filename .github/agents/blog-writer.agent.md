@@ -3,17 +3,14 @@ name: blog-writer
 description: 'イケてるブログ記事を作成する専門エージェント。アイデア生成から下書き作成、編集、校正、SEO最適化まで、Hugo用の高品質な技術ブログ記事を段階的に生成します。'
 tools:
   - 'changes'
-  - 'codebase'
+  - 'search/codebase'
   - 'edit'
   - 'fetch'
   - 'githubRepo'
   - 'openSimpleBrowser'
   - 'search'
-  - 'searchResults'
+  - 'search/searchResults'
   - 'usages'
-  - 'websearch'
-  - 'view'
-  - 'create'
 ---
 
 # ブログライター エージェント
