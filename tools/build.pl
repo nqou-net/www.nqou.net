@@ -121,7 +121,7 @@ for my $post (sort @files) {
 
         # 結合して出力
         my $dump_yaml = YAML::Dump($info);
-        my $body = join qq{\n---}, $dump_yaml, $after;
+        my $body = join q{---}, $dump_yaml, $after;
         $post->spew_utf8($body);
     }
 
