@@ -165,11 +165,11 @@ hugo --minify
    - 制約：技術用語や命名は既存スタイルに揃えること。
 
 2. investigative-research（調査・情報収集）
-   - 目的：IdeaAgent の選択案に基づき、最新情報や引用可能ソースを集める（要出典）。
+   - 目的：creative-brainstorming の選択案に基づき、最新情報や引用可能ソースを集める（要出典）。
    - 出力：参考リンク一覧、重要ポイントの箇条書き、簡単な引用メモ。
    - 注意：外部リンクは linkcard ショートコードで使用可能な形式で出力する例を付す。
 
-3. DraftAgent（下書き生成）
+3. darft（下書き生成）
    - 目的：フロントマター付きの Markdown 下書きを生成する。
    - 出力フォーマット例（必須遵守）:
      ~~~markdown
@@ -212,7 +212,7 @@ hugo --minify
 具体的な実行シーケンス（推奨）
 1. creative-brainstorming エージェントに「最高にクールな技術記事の案を3つ」と指示。出力から1案を選定。
 2. investigative-research エージェントに選定案を与え、引用可能なソースと主要ポイントを収集。
-3. darft エージェントにフロントマター情報（title, tags, description）と ResearchAgent の要点を渡して Markdown 下書きを生成。
+3. darft エージェントにフロントマター情報（title, tags, description）と investigative-research の要点を渡して Markdown 下書きを生成。
 4. layout-and-content-harmonization エージェントに下書きを渡し、スタイル調整とタグ正規化を行ってもらう。差分を取得。
 5. proofreader エージェントで文法と事実関係の最終チェックを行い、修正リストを反映。
 6. search-engine-optimization エージェントに公開に向けた description と SNS 文を生成してもらう。
@@ -229,7 +229,7 @@ hugo --minify
   - `docs/` の直接編集。
 - エージェントは変更案を必ず「差分（パッチ）または新しいファイルの完全な本文」として提示し、人間がレビュー・適用するワークフローを守ること。
 
-テンプレート：記事作成チェックリスト（PreviewAgent が出力する想定）
+テンプレート：記事作成チェックリスト（reviewer が出力する想定）
 - [ ] フロントマター: title, draft, tags, description がある
 - [ ] draft: true で下書き状態
 - [ ] 見出し階層が正しい（H1は自動、トップは##）
