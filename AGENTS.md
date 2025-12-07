@@ -159,12 +159,12 @@ hugo --minify
 - 生成済みサイト（`docs/`）は直接編集しない。
 
 ワークフロー概要（エージェント役割）
-1. IdeaAgent（アイデア生成）
+1. creative-brainstorming（アイデア生成）
    - 目的：記事のテーマ候補、ターゲット読者、主な見出し構成を複数案生成する。
    - 出力：短い要約、ターゲット読者、想定タグ、推奨見出し（H2/H3 の目次）。
    - 制約：技術用語や命名は既存スタイルに揃えること。
 
-2. ResearchAgent（調査・情報収集）
+2. investigative-research（調査・情報収集）
    - 目的：IdeaAgent の選択案に基づき、最新情報や引用可能ソースを集める（要出典）。
    - 出力：参考リンク一覧、重要ポイントの箇条書き、簡単な引用メモ。
    - 注意：外部リンクは linkcard ショートコードで使用可能な形式で出力する例を付す。
@@ -172,7 +172,7 @@ hugo --minify
 3. DraftAgent（下書き生成）
    - 目的：フロントマター付きの Markdown 下書きを生成する。
    - 出力フォーマット例（必須遵守）:
-     ~~~
+     ~~~markdown
      ---
      title: "記事タイトル"
      draft: true
@@ -180,16 +180,14 @@ hugo --minify
      - "example-tag"
      description: "記事の短い説明（2行程度）"
      ---
-     
-     # （H1はタイトルから自動的に決定）
-     
+          
      ## セクション例
      コンテンツ...
      ~~~
    - 見出しは ATX スタイルを採用し、トップレベルのセクションは `##` とする。
-   - 外部参照リンクのみをカード化する箇所は `{{< linkcard "https://example.com" >}}` を用いる。
+   - 独立した外部参照リンクはショートコードの linkcard（ `{{< linkcard "https://example.com" >}}` ）を用いる。
 
-4. EditorAgent（スタイルと構成の整形）
+4. layout-and-content-harmonization（スタイルと構成の整形）
    - 目的：サイト固有のスタイル、読みやすさ、見出し階層、タグ整合性をチェック・修正。
    - 主なチェック項目：
      - フロントマターキーの存在（title, draft, tags, description）
@@ -198,29 +196,27 @@ hugo --minify
      - 画像やショートコードの想定出力が正しいか確認
    - 出力：修正差分案（パッチ形式で提示）。実際のファイル変更は人間が行う。
 
-5. SEOAgent（メタ情報と公開準備）
+5. search-engine-optimization（メタ情報と公開準備）
    - 目的：description の最適化、推奨キーワード、OG（Open Graph）向け簡易説明の提案。
    - 出力：description の候補、SNS向け短文（140字以内）、推奨公開タグ。
 
-6. QAAgent（校正）
+6. proofreader（校正）
    - 目的：日本語の文法チェック、簡易事実確認、リンク切れの疑い検出（外部ツール実行は不可）。
    - 出力：修正提案リスト（文法、語彙、参照整合性）。
 
-7. PreviewAgent（ビルド手順案とチェックリストの提示）
-   - 目的：人間がローカルで行うプレビューとビルド手順を生成、最終チェックリストを提示。
+7. reviewer（公開前の最終チェック）
+   - 目的：公開前の最終チェックリストを提示。
    - 出力例：
-     - ローカルプレビューコマンド：`hugo server -D`
-     - 本番ビルドコマンド：`hugo --minify`
      - チェックポイント：画像表示、ショートコード、モバイル表示、metaタグ確認
 
 具体的な実行シーケンス（推奨）
-1. IdeaAgent に「最高にクールな技術記事の案を3つ」と指示。出力から1案を選定。
-2. ResearchAgent に選定案を与え、引用可能なソースと主要ポイントを収集。
+1. creative-brainstormingエージェントに「最高にクールな技術記事の案を3つ」と指示。出力から1案を選定。
+2. investigative-researchエージェントに選定案を与え、引用可能なソースと主要ポイントを収集。
 3. DraftAgent にフロントマター情報（title, tags, description）と ResearchAgent の要点を渡して Markdown 下書きを生成。
-4. EditorAgent に下書きを渡し、スタイル調整とタグ正規化を行ってもらう。差分を取得。
-5. QAAgent で文法と事実関係の最終チェックを行い、修正リストを反映。
-6. SEOAgent に公開に向けた description と SNS 文を生成してもらう。
-7. PreviewAgent が手順とチェックリストを出力。人間が `hugo server -D` で確認。
+4. layout-and-content-harmonization に下書きを渡し、スタイル調整とタグ正規化を行ってもらう。差分を取得。
+5. proofreader で文法と事実関係の最終チェックを行い、修正リストを反映。
+6. search-engine-optimization に公開に向けた description と SNS 文を生成してもらう。
+7. reviewer が手順とチェックリストを出力。人間が `hugo server -D` で確認。
 8. 人間が最終確認後、`draft: false` に変更し、ファイルをコミットして PR を作成する（PRテンプレートに「agent-assisted draft」と明記）。
 
 エージェントへの具体的なプロンプトテンプレート（DraftAgent への例）

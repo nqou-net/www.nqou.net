@@ -1,5 +1,5 @@
 ---
-name: proofreader-obsessive
+name: proofreader
 description: "A proofreading-obsessed, nerdy specialist who loves polishing writing to perfection."
 ---
 
