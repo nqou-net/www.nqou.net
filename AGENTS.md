@@ -210,16 +210,16 @@ hugo --minify
      - チェックポイント：画像表示、ショートコード、モバイル表示、metaタグ確認
 
 具体的な実行シーケンス（推奨）
-1. creative-brainstormingエージェントに「最高にクールな技術記事の案を3つ」と指示。出力から1案を選定。
-2. investigative-researchエージェントに選定案を与え、引用可能なソースと主要ポイントを収集。
-3. DraftAgent にフロントマター情報（title, tags, description）と ResearchAgent の要点を渡して Markdown 下書きを生成。
-4. layout-and-content-harmonization に下書きを渡し、スタイル調整とタグ正規化を行ってもらう。差分を取得。
-5. proofreader で文法と事実関係の最終チェックを行い、修正リストを反映。
-6. search-engine-optimization に公開に向けた description と SNS 文を生成してもらう。
-7. reviewer が手順とチェックリストを出力。人間が `hugo server -D` で確認。
+1. creative-brainstorming エージェントに「最高にクールな技術記事の案を3つ」と指示。出力から1案を選定。
+2. investigative-research エージェントに選定案を与え、引用可能なソースと主要ポイントを収集。
+3. darft エージェントにフロントマター情報（title, tags, description）と ResearchAgent の要点を渡して Markdown 下書きを生成。
+4. layout-and-content-harmonization エージェントに下書きを渡し、スタイル調整とタグ正規化を行ってもらう。差分を取得。
+5. proofreader エージェントで文法と事実関係の最終チェックを行い、修正リストを反映。
+6. search-engine-optimization エージェントに公開に向けた description と SNS 文を生成してもらう。
+7. reviewer エージェントが手順とチェックリストを出力。人間が `hugo server -D` で確認。
 8. 人間が最終確認後、`draft: false` に変更し、ファイルをコミットして PR を作成する（PRテンプレートに「agent-assisted draft」と明記）。
 
-エージェントへの具体的なプロンプトテンプレート（DraftAgent への例）
+エージェントへの具体的なプロンプトテンプレート（draft への例）
 - 「次のフロントマターで、Hugo 用 Markdown 下書きを作ってください。タイトル: <TITLE>、tags: <comma-separated-tags>、description: <SHORT_DESC>。Research メモ: <RESEARCH_POINTS>。出力は YAML フロントマターと本文のみで、コードブロックは ~~~ を使ってください。」
 
 安全上の注意
@@ -239,7 +239,7 @@ hugo --minify
 - [ ] SEO description と SNS 文が用意されている
 
 最後に（実務的な運用メモ）
-- 1つの記事作成につき Idea→Draft→Editor→QA→SEO→Preview の流れを1セットとする。
+- 1つの記事作成につき creative-brainstorming → investigative-research → darft → layout-and-content-harmonization → proofreader → search-engine-optimization → reviewer の流れを1セットとする。
 - 生成された草案は必ず人間がレビューし、スタイルや事実確認を通してからコミットする。
 - PR の説明には「agent-assisted: <agent-names>」を必ず残して透明性を確保する。
 
