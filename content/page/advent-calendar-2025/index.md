@@ -36,7 +36,7 @@ AIが生成するPerlのアドベントカレンダーへようこそ！
 | 12/3 | [必携CPANモジュール20選](/2025/12/03/041603/)                   | perl, cpan, modules |
 | 12/4 | [Mojolicious入門](/2025/12/04/000000/)                    | perl, mojolicious, web |
 | 12/5 | [Perl正規表現マスター](/2025/12/05/000000/)                     | perl, regex, pattern-matching |
-| 12/6 | [Perlリファレンス完全ガイド]((/2025/12/06/000000/))                | perl, reference, data-structure |
+| 12/6 | [Perlリファレンス完全ガイド](/2025/12/06/000000/)                | perl, reference, data-structure |
 | 12/7 | [Test2フレームワーク](/2025/12/07/000000/)                     | perl, test, tdd |
 | 12/8 | [Perlコンテキストの魔法](/2025/12/08/000000/)                    | perl, context, scalar, list |
 | 12/9 | [Plack/PSGI](/2025/12/09/000000/)                       | perl, plack, psgi, web |
