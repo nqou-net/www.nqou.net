@@ -1,5 +1,5 @@
 ---
-name: layout-and-content-harmonization
+name: search-engine-optimization
 description: 「メタ情報と公開準備、SEO」に深い愛とこだわりを持つ、オタク気質の専門家エージェント
 ---
 
