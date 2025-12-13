@@ -372,7 +372,11 @@ my @clients = ();
 
 # メッセージをすべてのクライアントに送信
 sub broadcast ($message) {
-  $_->send($message) for @clients;
+  for my $client (@clients) {
+    # 接続が有効な場合のみ送信
+    eval { $client->send($message) };
+    warn "Failed to send message: $@" if $@;
+  }
 }
 
 websocket '/chat' => sub ($c) {
@@ -396,11 +400,14 @@ websocket '/chat' => sub ($c) {
   $c->on(finish => sub ($c, $code, $reason) {
     $c->app->log->info("[$id] 切断");
     
+    # 退室通知（削除前にブロードキャスト）
+    broadcast("System: $id が退室しました");
+    
     # クライアントリストから削除
     @clients = grep { $_ ne $c } @clients;
     
-    # 退室通知
-    broadcast("System: $id が退室しました（現在 " . scalar(@clients) . " 人）");
+    # 現在の人数を通知
+    broadcast("System: 現在 " . scalar(@clients) . " 人が接続中") if @clients;
   });
 };
 
@@ -622,6 +629,17 @@ $c->on(message => sub ($c, $msg) {
     $c->send({json => {error => 'メッセージ処理に失敗しました'}});
   }
 });
+```
+
+また、`broadcast` 関数では接続が切れたクライアントへの送信時にエラーが発生する可能性があります。`eval` でエラーを捕捉することで、一部のクライアントで問題が起きても他のクライアントへのブロードキャストは続行できます：
+
+```perl
+sub broadcast ($message) {
+  for my $client (@clients) {
+    eval { $client->send($message) };
+    warn "Failed to send to client: $@" if $@;
+  }
+}
 ```
 
 ### セキュリティ考慮事項
