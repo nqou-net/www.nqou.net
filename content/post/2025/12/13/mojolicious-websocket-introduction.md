@@ -1,0 +1,1061 @@
+---
+title: "Perl WebSocket入門：Mojoliciousで作る3つの実践アプリ"
+draft: true
+tags:
+  - perl
+  - mojolicious
+  - websocket
+  - real-time
+  - web-development
+  - tutorial
+description: "PerlのMojoliciousでWebSocketを実装する完全ガイド。エコーサーバー、リアルタイムチャット、ダッシュボードを3ステップで構築。初心者でも数行のコードから始められる実践チュートリアル。"
+---
+
+[@nqounet](https://x.com/nqounet)です。
+
+**WebSocket**って聞いたことはあるけど、実際に触ったことがない方も多いのではないでしょうか？この記事では、**Perl**のWebフレームワーク「**Mojolicious**」を使って、**リアルタイム通信**の基礎を**3つのステップ**で学んでいきます。
+
+初心者の方でも、わずか**10行のコード**からWebSocketサーバーを構築できます。この記事を読み終える頃には、チャットアプリやリアルタイムダッシュボードが作れるようになっているはずです。
+
+## WebSocketとは？なぜ必要なのか
+
+WebSocketは、WebブラウザとWebサーバーの間で**双方向通信**を実現するプロトコルです。従来のHTTPでは、クライアント（ブラウザ）からリクエストを送らない限り、サーバーからデータを受け取ることができませんでした。
+
+しかし、WebSocketを使えば：
+
+- サーバーから任意のタイミングでデータをプッシュできる
+- 1つのコネクションで継続的にデータをやり取りできる
+- リアルタイムなアプリケーションが実装しやすい
+
+チャットアプリ、株価ボード、リアルタイムゲーム、IoTダッシュボードなど、WebSocketの活躍の場は広がっています。
+
+## なぜMojoliciousなのか
+
+**Mojolicious**は、**WebSocket**をとてもシンプルに扱える**Perl**のフレームワークです。他の言語やフレームワークと比較しても、学習コストが低く、すぐに実践できるのが特徴です。
+
+**Mojoliciousを選ぶ理由：**
+
+- **設定不要**: 追加のモジュールやミドルウェアなしでWebSocketが使える
+- **シンプルなAPI**: わずか数行でWebSocketサーバーが書ける
+- **UTF-8自動対応**: 日本語などの多言語テキストも自動的に正しく処理される
+- **非同期I/O**: Mojo::IOLoopによる効率的な並行処理
+- **豊富なドキュメント**: 公式ドキュメントが充実しており、初心者にも優しい
+
+それでは、実際にコードを書きながら学んでいきましょう！
+
+## 準備：Mojoliciousのインストール
+
+まだMojoliciousをインストールしていない場合は、cpanmを使って簡単にインストールできます：
+
+```bash
+cpanm Mojolicious
+```
+
+インストール後、以下のコマンドでバージョンを確認してみましょう：
+
+```bash
+mojo version
+```
+
+これで準備完了です！
+
+## ステップ1：エコーサーバーを作る
+
+まずは、WebSocketの基本である「エコーサーバー」を作ってみましょう。クライアントから送られたメッセージをそのまま返すシンプルなサーバーです。
+
+最もシンプルなWebSocketサーバーは、わずか10行程度で書けます：
+
+```perl
+#!/usr/bin/env perl
+use Mojolicious::Lite -signatures;
+
+# WebSocketルートを定義
+websocket '/echo' => sub ($c) {
+  # メッセージを受信したときの処理
+  $c->on(message => sub ($c, $msg) {
+    $c->send("Echo: $msg");
+  });
+};
+
+app->start;
+```
+
+このコードを `echo_server.pl` として保存し、実行してみましょう：
+
+```bash
+perl echo_server.pl daemon
+```
+
+サーバーが起動したら、次のHTMLファイルをブラウザで開いてテストできます：
+
+```html
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>WebSocket Echo Test</title>
+</head>
+<body>
+  <h1>WebSocket Echo Test</h1>
+  <input type="text" id="input" placeholder="メッセージを入力">
+  <button onclick="sendMessage()">送信</button>
+  <div id="output"></div>
+
+  <script>
+    const ws = new WebSocket('ws://localhost:3000/echo');
+    
+    ws.onmessage = function(event) {
+      const output = document.getElementById('output');
+      output.innerHTML += '<p>受信: ' + event.data + '</p>';
+    };
+    
+    function sendMessage() {
+      const input = document.getElementById('input');
+      ws.send(input.value);
+      input.value = '';
+    }
+  </script>
+</body>
+</html>
+```
+
+ブラウザで開いて、テキストを入力して送信ボタンを押すと、サーバーから「Echo: 」付きでメッセージが返ってくるのが確認できます。
+
+### 日本語対応とロギング機能の追加
+
+WebSocketで日本語を扱う場合、文字コードの扱いに注意が必要です。Mojoliciousは**自動的にUTF-8のエンコード/デコードを行う**ため、特別な設定は不要ですが、Perlスクリプト内で日本語を使う場合は `use utf8;` を忘れずに。
+
+また、実用的なアプリケーションでは、接続・切断・メッセージのログを取ることが重要です。以下は、ロギング機能を追加した改良版です：
+
+```perl
+#!/usr/bin/env perl
+use utf8;
+use Mojolicious::Lite -signatures;
+
+# WebSocketルートを定義
+websocket '/echo' => sub ($c) {
+  # 接続時のログ
+  $c->app->log->info('WebSocket接続が確立されました');
+  
+  # メッセージ受信時の処理
+  $c->on(message => sub ($c, $msg) {
+    $c->app->log->info("受信: $msg");
+    $c->send("エコー: $msg");  # 日本語のプレフィックス
+  });
+  
+  # 切断時の処理
+  $c->on(finish => sub ($c, $code, $reason) {
+    $c->app->log->info("WebSocket切断: code=$code");
+  });
+};
+
+app->start;
+```
+
+**ポイント解説：**
+
+- `use utf8;`: Perlスクリプト内の日本語文字列を正しく扱うために必須
+- `$c->on(message => ...)`: メッセージ受信時のコールバック
+- `$c->send(...)`: クライアントへメッセージを送信（Mojoliciousが自動的にUTF-8エンコード）
+- `$c->on(finish => ...)`: WebSocket切断時の処理
+- `$c->app->log->info(...)`: サーバーログへの記録
+
+Mojoliciousの素晴らしい点は、**送受信されるテキストメッセージが自動的にUTF-8として扱われる**ことです。開発者が明示的にエンコード/デコードを書く必要はありません。
+
+## ステップ2：複数人チャットを作る
+
+エコーサーバーでWebSocketの基本を理解できたら、次は複数のクライアントが同時に接続する**チャットアプリケーション**を作ってみましょう。
+
+まずは、シンプルなテキストチャットを実装します：
+
+```perl
+#!/usr/bin/env perl
+use utf8;
+use Mojolicious::Lite -signatures;
+
+# 接続中のクライアントを保持するハッシュ
+my $clients = {};
+
+# 静的ファイル配信（HTMLファイル用）
+get '/' => sub ($c) {
+  $c->render(template => 'chat');
+};
+
+# WebSocketエンドポイント
+websocket '/chat' => sub ($c) {
+  my $id = sprintf "%s", $c->tx;  # 接続ごとのユニークID
+  
+  # 新しいクライアントを登録
+  $clients->{$id} = $c->tx;
+  $c->app->log->info("クライアント接続: $id (total: " . scalar(keys %$clients) . ")");
+  
+  # 全員に参加通知を送信
+  broadcast("新しいユーザーが参加しました (total: " . scalar(keys %$clients) . ")");
+  
+  # メッセージ受信時の処理
+  $c->on(message => sub ($c, $msg) {
+    $c->app->log->info("[$id] $msg");
+    broadcast("[$id] $msg");
+  });
+  
+  # 切断時の処理
+  $c->on(finish => sub ($c, $code, $reason) {
+    delete $clients->{$id};
+    $c->app->log->info("クライアント切断: $id (total: " . scalar(keys %$clients) . ")");
+    broadcast("ユーザーが退出しました (total: " . scalar(keys %$clients) . ")");
+  });
+};
+
+# 全クライアントにメッセージを送信する関数
+sub broadcast {
+  my $msg = shift;
+  for my $tx (values %$clients) {
+    $tx->send($msg);
+  }
+}
+
+app->start;
+
+__DATA__
+
+@@ chat.html.ep
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>WebSocket チャット</title>
+  <style>
+    #messages { 
+      height: 400px; 
+      overflow-y: scroll; 
+      border: 1px solid #ccc; 
+      padding: 10px; 
+      margin-bottom: 10px;
+    }
+    #input { width: 80%; padding: 5px; }
+    button { padding: 5px 15px; }
+  </style>
+</head>
+<body>
+  <h1>WebSocket チャットルーム</h1>
+  <div id="messages"></div>
+  <input type="text" id="input" placeholder="メッセージを入力">
+  <button onclick="sendMessage()">送信</button>
+
+  <script>
+    const ws = new WebSocket('ws://' + location.host + '/chat');
+    const messages = document.getElementById('messages');
+    const input = document.getElementById('input');
+    
+    ws.onopen = function() {
+      addMessage('--- 接続しました ---');
+    };
+    
+    ws.onmessage = function(event) {
+      addMessage(event.data);
+    };
+    
+    ws.onclose = function() {
+      addMessage('--- 切断されました ---');
+    };
+    
+    function addMessage(msg) {
+      messages.innerHTML += '<p>' + escapeHtml(msg) + '</p>';
+      messages.scrollTop = messages.scrollHeight;
+    }
+    
+    function sendMessage() {
+      if (input.value.trim()) {
+        ws.send(input.value);
+        input.value = '';
+      }
+    }
+    
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+    
+    input.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') sendMessage();
+    });
+  </script>
+</body>
+</html>
+```
+
+**ポイント解説：**
+
+- `my $clients = {}`: 接続中のクライアントをハッシュで管理
+- `$c->tx`: トランザクションオブジェクト（接続ごとにユニーク）
+- `broadcast()`: 全クライアントにメッセージを送る関数
+- `__DATA__` セクション: テンプレートを埋め込み（別ファイルにしなくてOK）
+- `escapeHtml()`: XSS対策のためのHTMLエスケープ
+
+このコードを `chat_server.pl` として保存し、実行してみましょう：
+
+```bash
+perl chat_server.pl daemon
+```
+
+ブラウザで `http://localhost:3000/` を開くと、チャット画面が表示されます。複数のブラウザウィンドウ（またはタブ）で開いて、メッセージをやり取りしてみてください！
+
+### JSON形式での構造化データ送信
+
+実際のアプリケーションでは、メッセージだけでなく、ユーザー名やタイムスタンプなどのメタデータも一緒に送りたいことがあります。JSON形式を使うと、構造化されたデータを簡単にやり取りでき、将来的な拡張（絵文字リアクション、既読表示、ファイル送信など）も容易になります。
+
+以下は、JSON形式で通信するチャットアプリケーションの実装例です：
+
+```perl
+#!/usr/bin/env perl
+use utf8;
+use Mojolicious::Lite -signatures;
+use Mojo::JSON qw(decode_json encode_json);
+use Mojo::Util qw(decode encode);
+
+my $clients = {};
+
+get '/' => sub($c) {
+  $c->render(template => 'chat_json');
+};
+
+websocket '/chat' => sub($c) {
+  my $id = sprintf "%s", $c->tx;
+  my $username = "User-" . substr($id, 0, 8); # デフォルトユーザー名
+
+  $clients->{$id} = {
+    tx       => $c->tx,
+    username => $username,
+  };
+
+  # 参加通知をJSON形式で送信
+  broadcast({
+    type      => 'system',
+    message   => "$username が参加しました",
+    timestamp => time,
+    users     => scalar(keys %$clients),
+  });
+
+  $c->on(message => sub($c, $msg) {
+    my $data = eval {decode_json(encode('UTF-8', $msg))};
+
+    if ($@) {
+      # JSONパースエラー
+      $c->send(encode_json({
+        type    => 'error',
+        message => 'Invalid JSON format',
+      }));
+      return;
+    }
+
+    # ユーザー名変更リクエスト
+    if ($data->{type} eq 'setname') {
+      my $old_name = $clients->{$id}{username};
+      $clients->{$id}{username} = $data->{username};
+      broadcast({
+        type      => 'system',
+        message   => "$old_name が $data->{username} に名前を変更しました",
+        timestamp => time,
+        users     => scalar(keys %$clients),
+      });
+    }
+    # 通常のメッセージ
+    elsif ($data->{type} eq 'message') {
+      broadcast({
+        type      => 'message',
+        username  => $clients->{$id}{username},
+        message   => $data->{message},
+        timestamp => time,
+      });
+    }
+  });
+
+  $c->on(finish => sub($c, $code, $reason) {
+    my $username = $clients->{$id}{username};
+    delete $clients->{$id};
+    broadcast({
+      type      => 'system',
+      message   => "$username が退出しました",
+      timestamp => time,
+      users     => scalar(keys %$clients),
+    });
+  });
+};
+
+sub broadcast {
+  my $data = shift;
+  my $json = encode_json($data);
+  for my $client (values %$clients) {
+    $client->{tx}->send(decode('UTF-8', $json));
+  }
+}
+
+app->start;
+
+__DATA__
+
+@@ chat_json.html.ep
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>WebSocket チャット (JSON版)</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 800px; margin: 20px auto; }
+    #messages { 
+      height: 400px; 
+      overflow-y: scroll; 
+      border: 1px solid #ccc; 
+      padding: 10px; 
+      margin-bottom: 10px;
+      background: #f9f9f9;
+    }
+    .message { margin: 5px 0; }
+    .system { color: #666; font-style: italic; }
+    .username { font-weight: bold; color: #0066cc; }
+    .timestamp { font-size: 0.8em; color: #999; }
+    #input { width: 70%; padding: 8px; }
+    button { padding: 8px 15px; }
+    #username-input { width: 150px; padding: 5px; }
+  </style>
+</head>
+<body>
+  <h1>WebSocket チャットルーム (JSON版)</h1>
+  <div>
+    ユーザー名: 
+    <input type="text" id="username-input" placeholder="名前を入力">
+    <button onclick="setUsername()">変更</button>
+  </div>
+  <div id="messages"></div>
+  <input type="text" id="input" placeholder="メッセージを入力">
+  <button onclick="sendMessage()">送信</button>
+
+  <script>
+    const ws = new WebSocket('ws://' + location.host + '/chat');
+    const messages = document.getElementById('messages');
+    const input = document.getElementById('input');
+    
+    ws.onopen = function() {
+      addSystemMessage('接続しました');
+    };
+    
+    ws.onmessage = function(event) {
+      const data = JSON.parse(event.data);
+      
+      if (data.type === 'system') {
+        addSystemMessage(data.message + ' (参加者: ' + (data.users || '?') + '人)');
+      } else if (data.type === 'message') {
+        addChatMessage(data.username, data.message, data.timestamp);
+      } else if (data.type === 'error') {
+        addSystemMessage('エラー: ' + data.message);
+      }
+    };
+    
+    ws.onclose = function() {
+      addSystemMessage('切断されました');
+    };
+    
+    function addChatMessage(username, msg, timestamp) {
+      const time = new Date(timestamp * 1000).toLocaleTimeString('ja-JP');
+      messages.innerHTML += 
+        '<div class="message">' +
+        '<span class="timestamp">[' + time + ']</span> ' +
+        '<span class="username">' + escapeHtml(username) + ':</span> ' +
+        escapeHtml(msg) +
+        '</div>';
+      messages.scrollTop = messages.scrollHeight;
+    }
+    
+    function addSystemMessage(msg) {
+      messages.innerHTML += '<div class="message system">--- ' + escapeHtml(msg) + ' ---</div>';
+      messages.scrollTop = messages.scrollHeight;
+    }
+    
+    function sendMessage() {
+      if (input.value.trim()) {
+        ws.send(JSON.stringify({
+          type: 'message',
+          message: input.value
+        }));
+        input.value = '';
+      }
+    }
+    
+    function setUsername() {
+      const username = document.getElementById('username-input').value.trim();
+      if (username) {
+        ws.send(JSON.stringify({
+          type: 'setname',
+          username: username
+        }));
+      }
+    }
+    
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+    
+    input.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') sendMessage();
+    });
+  </script>
+</body>
+</html>
+```
+
+**ポイント解説：**
+
+- `use Mojo::JSON qw(decode_json encode_json)`: JSON処理のためのユーティリティ
+- `decode_json()`: JSON文字列をPerlのデータ構造に変換
+- `encode_json()`: Perlのデータ構造をJSON文字列に変換
+- メッセージに `type` フィールドを持たせて、種類を区別（system/message/setname/error）
+- タイムスタンプを付けることで、メッセージの送信時刻を記録
+- ユーザー名変更機能を追加して、よりリアルなチャット体験を実現
+- エラーハンドリング：不正なJSON形式のメッセージを適切に処理
+
+## ステップ3：リアルタイムダッシュボードを作る
+
+最後のステップとして、サーバーのメトリクス（CPU使用率、メモリ使用量など）を**リアルタイムで可視化するダッシュボード**を作ってみましょう。WebSocketの真骨頂である「サーバープッシュ」を活用します。
+
+以下の実装では、`Mojo::IOLoop->recurring`を使って1秒ごとにシステムメトリクスを収集し、接続中の全クライアントにプッシュ配信します：
+
+```perl
+#!/usr/bin/env perl
+use utf8;
+use Mojolicious::Lite -signatures;
+use Mojo::JSON qw(encode_json);
+
+my $clients = {};
+
+get '/' => sub ($c) {
+  $c->render(template => 'dashboard');
+};
+
+websocket '/metrics' => sub ($c) {
+  my $id = sprintf "%s", $c->tx;
+  $clients->{$id} = $c->tx;
+  
+  $c->app->log->info("ダッシュボード接続: $id");
+  
+  $c->on(finish => sub ($c, $code, $reason) {
+    delete $clients->{$id};
+    $c->app->log->info("ダッシュボード切断: $id");
+  });
+};
+
+# 定期的にメトリクスを収集して送信（1秒ごと）
+Mojo::IOLoop->recurring(1 => sub {
+  return unless keys %$clients;
+  
+  my $metrics = collect_metrics();
+  my $json = encode_json($metrics);
+  
+  for my $tx (values %$clients) {
+    $tx->send($json);
+  }
+});
+
+# システムメトリクスを収集する関数
+sub collect_metrics {
+  # Load Average取得（Linux/macOS/Unix系で動作）
+  # Linux: "load average: 0.00, 0.01, 0.05"
+  # macOS: "load averages: 0.00 0.01 0.05"
+  my $uptime = `uptime`;
+  my ($load1, $load5, $load15) = $uptime =~ /load averages?: ([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/;
+  
+  # メモリ情報（Linux環境のみ対応）
+  # 注: macOSやWindowsでは /proc/meminfo が存在しないため、0を返します
+  my $mem_total = 0;
+  my $mem_free = 0;
+  my $mem_available = 0;
+  
+  if (-e '/proc/meminfo') {
+    open my $fh, '<', '/proc/meminfo';
+    while (my $line = <$fh>) {
+      $mem_total = $1 if $line =~ /^MemTotal:\s+(\d+)/;
+      $mem_free = $1 if $line =~ /^MemFree:\s+(\d+)/;
+      $mem_available = $1 if $line =~ /^MemAvailable:\s+(\d+)/;
+    }
+    close $fh;
+  }
+  
+  my $mem_used = $mem_total - $mem_available;
+  my $mem_percent = $mem_total > 0 ? ($mem_used / $mem_total * 100) : 0;
+  
+  # 接続数などのアプリケーションメトリクス
+  my $connections = scalar(keys %$clients);
+  
+  return {
+    timestamp => time,
+    load => {
+      load1 => $load1 || 0,
+      load5 => $load5 || 0,
+      load15 => $load15 || 0,
+    },
+    memory => {
+      total => int($mem_total / 1024),      # MB単位
+      used => int($mem_used / 1024),        # MB単位
+      percent => sprintf("%.1f", $mem_percent),
+    },
+    connections => $connections,
+    random => int(rand(100)),  # デモ用のランダム値
+  };
+}
+
+app->start;
+
+__DATA__
+
+@@ dashboard.html.ep
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>リアルタイムダッシュボード</title>
+  <style>
+    body { 
+      font-family: Arial, sans-serif; 
+      max-width: 1200px; 
+      margin: 20px auto;
+      background: #f0f0f0;
+    }
+    h1 { text-align: center; }
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+      margin: 20px 0;
+    }
+    .metric-card {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .metric-card h3 {
+      margin: 0 0 10px 0;
+      color: #333;
+      font-size: 1em;
+    }
+    .metric-value {
+      font-size: 2.5em;
+      font-weight: bold;
+      color: #0066cc;
+    }
+    .metric-unit {
+      font-size: 0.5em;
+      color: #666;
+    }
+    .chart-container {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      margin: 20px 0;
+    }
+    #load-chart {
+      width: 100%;
+      height: 200px;
+      border: 1px solid #ddd;
+    }
+    .status {
+      text-align: center;
+      padding: 10px;
+      background: #d4edda;
+      color: #155724;
+      border-radius: 4px;
+      margin-bottom: 20px;
+    }
+    .status.disconnected {
+      background: #f8d7da;
+      color: #721c24;
+    }
+  </style>
+</head>
+<body>
+  <h1>📊 リアルタイムダッシュボード</h1>
+  
+  <div id="status" class="status">接続中...</div>
+  
+  <div class="metrics-grid">
+    <div class="metric-card">
+      <h3>CPU Load (1min)</h3>
+      <div class="metric-value">
+        <span id="load1">-</span>
+      </div>
+    </div>
+    
+    <div class="metric-card">
+      <h3>メモリ使用率</h3>
+      <div class="metric-value">
+        <span id="mem-percent">-</span><span class="metric-unit">%</span>
+      </div>
+    </div>
+    
+    <div class="metric-card">
+      <h3>メモリ使用量</h3>
+      <div class="metric-value">
+        <span id="mem-used">-</span><span class="metric-unit">MB</span>
+      </div>
+    </div>
+    
+    <div class="metric-card">
+      <h3>アクティブ接続数</h3>
+      <div class="metric-value">
+        <span id="connections">-</span>
+      </div>
+    </div>
+  </div>
+  
+  <div class="chart-container">
+    <h3>負荷推移グラフ</h3>
+    <canvas id="load-chart"></canvas>
+  </div>
+
+  <script>
+    const ws = new WebSocket('ws://' + location.host + '/metrics');
+    const status = document.getElementById('status');
+    
+    // グラフデータ用の配列（最大60ポイント = 1分間）
+    const chartData = {
+      labels: [],
+      load1: [],
+      load5: [],
+      load15: [],
+    };
+    const maxDataPoints = 60;
+    
+    ws.onopen = function() {
+      status.textContent = '✅ 接続中 - リアルタイムで更新されています';
+      status.className = 'status';
+    };
+    
+    ws.onmessage = function(event) {
+      const metrics = JSON.parse(event.data);
+      updateMetrics(metrics);
+      updateChart(metrics);
+    };
+    
+    ws.onclose = function() {
+      status.textContent = '❌ 切断されました';
+      status.className = 'status disconnected';
+    };
+    
+    function updateMetrics(metrics) {
+      document.getElementById('load1').textContent = metrics.load.load1.toFixed(2);
+      document.getElementById('mem-percent').textContent = metrics.memory.percent;
+      document.getElementById('mem-used').textContent = metrics.memory.used.toLocaleString();
+      document.getElementById('connections').textContent = metrics.connections;
+    }
+    
+    function updateChart(metrics) {
+      const time = new Date(metrics.timestamp * 1000).toLocaleTimeString('ja-JP');
+      
+      // データを追加
+      chartData.labels.push(time);
+      chartData.load1.push(metrics.load.load1);
+      chartData.load5.push(metrics.load.load5);
+      chartData.load15.push(metrics.load.load15);
+      
+      // 古いデータを削除（最大60ポイント保持）
+      if (chartData.labels.length > maxDataPoints) {
+        chartData.labels.shift();
+        chartData.load1.shift();
+        chartData.load5.shift();
+        chartData.load15.shift();
+      }
+      
+      drawChart();
+    }
+    
+    function drawChart() {
+      const canvas = document.getElementById('load-chart');
+      const ctx = canvas.getContext('2d');
+      const width = canvas.width = canvas.offsetWidth;
+      const height = canvas.height = 200;
+      
+      // キャンバスをクリア
+      ctx.clearRect(0, 0, width, height);
+      
+      // グラフの描画領域
+      const padding = 40;
+      const chartWidth = width - padding * 2;
+      const chartHeight = height - padding * 2;
+      
+      // 最大値を計算（グラフのスケール用）
+      const maxLoad = Math.max(
+        ...chartData.load1,
+        ...chartData.load5,
+        ...chartData.load15,
+        1  // 最小値1を保証
+      );
+      const yScale = chartHeight / (maxLoad * 1.2);  // 20%マージン
+      
+      // 背景グリッド
+      ctx.strokeStyle = '#e0e0e0';
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= 5; i++) {
+        const y = padding + (chartHeight / 5) * i;
+        ctx.beginPath();
+        ctx.moveTo(padding, y);
+        ctx.lineTo(width - padding, y);
+        ctx.stroke();
+      }
+      
+      // ラインを描画する関数
+      function drawLine(data, color) {
+        if (data.length === 0) return;
+        
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        
+        const xStep = chartWidth / (maxDataPoints - 1);
+        data.forEach((value, index) => {
+          const x = padding + (xStep * index);
+          const y = padding + chartHeight - (value * yScale);
+          
+          if (index === 0) {
+            ctx.moveTo(x, y);
+          } else {
+            ctx.lineTo(x, y);
+          }
+        });
+        
+        ctx.stroke();
+      }
+      
+      // 各負荷データをプロット
+      drawLine(chartData.load1, '#ff6b6b');   // 1分平均（赤）
+      drawLine(chartData.load5, '#4ecdc4');   // 5分平均（青緑）
+      drawLine(chartData.load15, '#45b7d1');  // 15分平均（青）
+      
+      // 凡例
+      ctx.font = '12px Arial';
+      ctx.fillStyle = '#ff6b6b';
+      ctx.fillText('1min', width - padding - 100, 20);
+      ctx.fillStyle = '#4ecdc4';
+      ctx.fillText('5min', width - padding - 60, 20);
+      ctx.fillStyle = '#45b7d1';
+      ctx.fillText('15min', width - padding - 20, 20);
+      
+      // Y軸ラベル
+      ctx.fillStyle = '#666';
+      ctx.textAlign = 'right';
+      for (let i = 0; i <= 5; i++) {
+        const value = (maxLoad * 1.2 / 5 * (5 - i)).toFixed(1);
+        const y = padding + (chartHeight / 5) * i;
+        ctx.fillText(value, padding - 10, y + 5);
+      }
+    }
+  </script>
+</body>
+</html>
+```
+
+**ポイント解説：**
+
+- `Mojo::IOLoop->recurring(1 => sub {...})`: 1秒ごとに定期実行されるタイマー
+- `collect_metrics()`: システム情報を収集する関数（`/proc/meminfo`や`uptime`コマンドを利用）
+- Canvas APIを使った簡易グラフ描画
+- サーバーから定期的にプッシュされるデータをクライアント側で受信して表示
+- グラフデータは最大60ポイント（1分間分）を保持し、古いデータは自動的に削除
+
+このダッシュボードを実行すると：
+
+```bash
+perl dashboard_server.pl daemon
+```
+
+ブラウザで `http://localhost:3000/` を開くと、リアルタイムでメトリクスが更新されるダッシュボードが表示されます。複数のブラウザで開いても、それぞれが独立してメトリクスを受信します。
+
+### WebSocketとHTTPポーリングの比較
+
+従来のHTTPポーリング（定期的にリクエストを送る方式）と比較して、WebSocketには以下のメリットがあります：
+
+- **低レイテンシ**: 接続が確立されているため、データがすぐに届く
+- **低オーバーヘッド**: 毎回HTTPヘッダーを送る必要がなく、通信量が大幅に削減される
+- **サーバーリソース削減**: リクエスト処理が不要なため、サーバー負荷が低い
+- **リアルタイム性**: サーバー側のイベントを即座にクライアントに通知できる
+
+## WebSocketのベストプラクティス
+
+実際のプロダクション環境でWebSocketを使う際のポイントをまとめておきます。
+
+### セキュリティ対策
+
+WebSocketアプリケーションのセキュリティは、通常のWebアプリケーション以上に注意が必要です。
+
+**XSS（クロスサイトスクリプティング）対策**
+
+ユーザーから受け取ったメッセージをそのままHTMLに表示する場合、必ずエスケープ処理を行いましょう：
+
+```javascript
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+```
+
+**WSS（WebSocket Secure）の使用**
+
+本番環境では、必ず暗号化された `wss://` プロトコルを使用しましょう。HTTPSと同様に、通信内容の盗聴や改ざんを防ぎます。Mojoliciousでは、以下のように簡単にTLS対応できます：
+
+```bash
+# 証明書を用意して起動
+perl myapp.pl daemon -l 'https://*:3000?cert=/path/to/cert.pem&key=/path/to/key.pem'
+```
+
+**入力検証とサニタイゼーション**
+
+受信したメッセージは必ず検証し、想定外のデータを拒否しましょう：
+
+```perl
+$c->on(message => sub ($c, $msg) {
+  # 長すぎるメッセージを拒否
+  if (length($msg) > 1000) {
+    $c->send({json => {error => 'Message too long'}});
+    return;
+  }
+  
+  # JSONとして妥当かチェック
+  my $data = eval { decode_json($msg) };
+  if ($@) {
+    $c->send({json => {error => 'Invalid JSON'}});
+    return;
+  }
+  
+  # 処理を続ける...
+});
+```
+
+### パフォーマンス最適化
+
+WebSocketアプリケーションを本番環境で運用する際は、パフォーマンスとリソース管理に注意を払う必要があります。
+
+**メッセージサイズの管理**
+
+大量のデータを送信する場合は、テキストではなくバイナリメッセージ（`$c->send({binary => $data})`）の使用を検討しましょう。画像やファイルなどのバイナリデータに適しています。
+
+**接続数の制限**
+
+サーバーリソースを守るため、最大接続数を制限することも重要です：
+
+```perl
+my $max_clients = 1000;
+
+websocket '/chat' => sub ($c) {
+  if (scalar(keys %$clients) >= $max_clients) {
+    $c->send('Server is full');
+    $c->finish;
+    return;
+  }
+  # 通常の処理...
+};
+```
+
+**ハートビート（Ping/Pong）**
+
+長時間接続を維持する場合、定期的なPingで接続の生存確認を行いましょう。これにより、無効な接続を早期に検出し、リソースを解放できます：
+
+```perl
+websocket '/chat' => sub ($c) {
+  # 30秒ごとにPingを送信（接続の生存確認）
+  my $ping_timer = Mojo::IOLoop->recurring(30 => sub {
+    $c->send({ping => ''});  # Pingフレームを送信
+  });
+  
+  $c->on(finish => sub {
+    Mojo::IOLoop->remove($ping_timer);
+  });
+};
+```
+
+### エラーハンドリングと再接続
+
+WebSocket接続は、ネットワーク障害、サーバー再起動、タイムアウトなど様々な理由で切断される可能性があります。クライアント側で自動再接続ロジックを実装することで、ユーザー体験を大幅に向上できます。
+
+以下は、指数バックオフを使った再接続の実装例です：
+
+```javascript
+let ws;
+let reconnectInterval = 1000;  // 初期値1秒
+const maxReconnectInterval = 30000;  // 最大30秒
+
+function connect() {
+  ws = new WebSocket('ws://localhost:3000/chat');
+  
+  ws.onopen = function() {
+    console.log('接続しました');
+    reconnectInterval = 1000;  // リセット
+  };
+  
+  ws.onclose = function() {
+    console.log('切断されました。再接続します...');
+    setTimeout(function() {
+      reconnectInterval = Math.min(reconnectInterval * 2, maxReconnectInterval);
+      connect();
+    }, reconnectInterval);
+  };
+  
+  ws.onerror = function(error) {
+    console.error('WebSocketエラー:', error);
+  };
+}
+
+connect();
+```
+
+## まとめ
+
+この記事では、**Perl**の**Mojolicious**フレームワークを使って、**WebSocket**の基礎を3つのステップで学びました：
+
+1. **エコーサーバー**: WebSocketの基本的な送受信の仕組みを理解
+2. **リアルタイムチャット**: 複数クライアント間のメッセージング、JSON形式でのデータ構造化
+3. **ダッシュボード**: サーバープッシュによるリアルタイム可視化
+
+**Mojoliciousの強み：**
+
+- 追加モジュール不要でWebSocketが使える
+- UTF-8の自動処理で日本語も安心
+- シンプルなAPIで学習コストが低い
+- 非同期I/Oによる高いパフォーマンス
+
+**WebSocketが活きる場面：**
+
+- チャットアプリケーション
+- リアルタイムゲーム
+- 株価・スポーツスコアボード
+- IoTデバイスからのデータストリーミング
+- コラボレーションツール（共同編集など）
+
+**WebSocket**は一見難しそうに思えますが、**Mojolicious**を使えばわずか数行から始められます。まずは今回のサンプルコードを動かしてみて、**リアルタイム通信**の面白さを体験してみてください！
+
+## 次のステップ
+
+WebSocketの基礎を学んだら、以下のような応用にもチャレンジしてみましょう：
+
+- **認証機能の追加**: ユーザーログインとセッション管理
+- **データベース連携**: チャット履歴の永続化
+- **負荷分散**: 複数サーバーでのWebSocket運用
+- **モバイル対応**: スマートフォンアプリとの連携
+
+## 参考リンク
+
+**Mojolicious**の基本的な使い方については、こちらの記事も参考にしてください：
+
+{{< linkcard "https://www.nqou.net/2025/12/04/000000/" >}}
+
+公式ドキュメント：
+
+{{< linkcard "https://docs.mojolicious.org/" >}}
+
+WebSocketプロトコルの詳細（RFC 6455）：
+
+{{< linkcard "https://datatracker.ietf.org/doc/html/rfc6455" >}}
+
+Happy WebSocket coding! 🚀
