@@ -312,71 +312,73 @@ perl chat_server.pl daemon
 use utf8;
 use Mojolicious::Lite -signatures;
 use Mojo::JSON qw(decode_json encode_json);
+use Mojo::Util qw(decode encode);
 
 my $clients = {};
 
-get '/' => sub ($c) {
+get '/' => sub($c) {
   $c->render(template => 'chat_json');
 };
 
-websocket '/chat' => sub ($c) {
+websocket '/chat' => sub($c) {
   my $id = sprintf "%s", $c->tx;
-  my $username = "User-" . substr($id, 0, 8);  # デフォルトユーザー名
-  
+  my $username = "User-" . substr($id, 0, 8); # デフォルトユーザー名
+
   $clients->{$id} = {
-    tx => $c->tx,
+    tx       => $c->tx,
     username => $username,
   };
-  
+
   # 参加通知をJSON形式で送信
   broadcast({
-    type => 'system',
-    message => "$username が参加しました",
+    type      => 'system',
+    message   => "$username が参加しました",
     timestamp => time,
-    users => scalar(keys %$clients),
+    users     => scalar(keys %$clients),
   });
-  
-  $c->on(message => sub ($c, $msg) {
-    my $data = eval { decode_json($msg) };
-    
+
+  $c->on(message => sub($c, $msg) {
+    my $data = eval {decode_json(encode('UTF-8', $msg))};
+
     if ($@) {
       # JSONパースエラー
       $c->send(encode_json({
-        type => 'error',
+        type    => 'error',
         message => 'Invalid JSON format',
       }));
       return;
     }
-    
+
     # ユーザー名変更リクエスト
     if ($data->{type} eq 'setname') {
       my $old_name = $clients->{$id}{username};
       $clients->{$id}{username} = $data->{username};
       broadcast({
-        type => 'system',
-        message => "$old_name が $data->{username} に名前を変更しました",
+        type      => 'system',
+        message   => "$old_name が $data->{username} に名前を変更しました",
         timestamp => time,
+        users     => scalar(keys %$clients),
       });
     }
     # 通常のメッセージ
     elsif ($data->{type} eq 'message') {
       broadcast({
-        type => 'message',
-        username => $clients->{$id}{username},
-        message => $data->{message},
+        type      => 'message',
+        username  => $clients->{$id}{username},
+        message   => $data->{message},
         timestamp => time,
       });
     }
   });
-  
-  $c->on(finish => sub ($c, $code, $reason) {
+
+  $c->on(finish => sub($c, $code, $reason) {
     my $username = $clients->{$id}{username};
     delete $clients->{$id};
     broadcast({
-      type => 'system',
-      message => "$username が退出しました",
+      type      => 'system',
+      message   => "$username が退出しました",
       timestamp => time,
-      users => scalar(keys %$clients),
+      users     => scalar(keys %$clients),
     });
   });
 };
@@ -385,7 +387,7 @@ sub broadcast {
   my $data = shift;
   my $json = encode_json($data);
   for my $client (values %$clients) {
-    $client->{tx}->send($json);
+    $client->{tx}->send(decode('UTF-8', $json));
   }
 }
 
