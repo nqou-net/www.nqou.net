@@ -745,7 +745,7 @@ __DATA__
     };
     
     function updateMetrics(metrics) {
-      document.getElementById('load1').textContent = metrics.load.load1.toFixed(2);
+      document.getElementById('load1').textContent = Number(metrics.load.load1).toFixed(2);
       document.getElementById('mem-percent').textContent = metrics.memory.percent;
       document.getElementById('mem-used').textContent = metrics.memory.used.toLocaleString();
       document.getElementById('connections').textContent = metrics.connections;
