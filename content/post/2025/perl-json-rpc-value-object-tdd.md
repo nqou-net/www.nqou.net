@@ -57,7 +57,8 @@ my $email = Email->new(address => 'user@example.com');  # 構築時に検証
 本チュートリアルでは、以下の環境を使用します：
 
 - **Perl**: 5.20以降（5.38推奨）
-- **必須モジュール**: Moo、Test2::Suite、Type::Tiny
+- **必須モジュール**: Moo、Test2::Suite、Type::Tiny、namespace::clean
+- **推奨モジュール**: JSON::MaybeXS（JSON変換時に使用）
 
 ### インストール手順
 
@@ -67,8 +68,11 @@ cpanmを使ってモジュールをインストールします：
 # cpanm がない場合はインストール
 curl -L https://cpanmin.us | perl - --sudo App::cpanminus
 
-# 必要なモジュールをインストール
-cpanm Moo Type::Tiny Test2::Suite
+# 必須モジュールをインストール
+cpanm Moo Type::Tiny Test2::Suite namespace::clean
+
+# 推奨モジュール（JSONシリアライズに使用）
+cpanm JSON::MaybeXS
 ```
 
 インストールが完了したら、動作確認してみましょう：
@@ -87,9 +91,15 @@ say $@ ? "❌ Type::Tiny not found" : "✅ Type::Tiny OK";
 
 eval { require Test2::V0; };
 say $@ ? "❌ Test2::Suite not found" : "✅ Test2::Suite OK";
+
+eval { require namespace::clean; };
+say $@ ? "❌ namespace::clean not found" : "✅ namespace::clean OK";
+
+eval { require JSON::MaybeXS; };
+say $@ ? "⚠️  JSON::MaybeXS not found (optional)" : "✅ JSON::MaybeXS OK";
 ```
 
-すべて✅が表示されれば準備完了です！
+すべて✅が表示されれば準備完了です（⚠️は推奨モジュールなので無視しても構いません）！
 
 ## 値オブジェクトの基本概念
 
