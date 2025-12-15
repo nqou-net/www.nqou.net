@@ -1,5 +1,5 @@
 ---
-title: "【アウトライン案】JSON-RPC 2.0のリクエストとエラーを値オブジェクトで堅牢に実装する"
+title: "JSON-RPC 2.0のリクエストとエラーを値オブジェクトで堅牢に実装する"
 draft: true
 tags:
 - perl
@@ -7,469 +7,1081 @@ tags:
 - value-object
 - test-driven-development
 - design-pattern
-description: "第2回記事のアウトライン案3パターン（案A/B/C）- JSON-RPC 2.0のRequestとErrorオブジェクトを値オブジェクトで実装する方法を、異なる切り口で提案します。"
+- api-design
+- validation
+description: "JSON-RPC 2.0仕様のRequestとErrorオブジェクトを値オブジェクトで実装する方法を、仕様駆動アプローチで解説。仕様書の制約をテストケースに変換し、堅牢なAPI実装を実現します。"
 ---
 
-# JSON-RPC 2.0のリクエストとエラーを値オブジェクトで堅牢に実装する - アウトライン案
-
-## 背景情報
-
-- **シリーズ**: 全3回の第2回
-- **前提読者**: 第1回で値オブジェクトの基礎を学んだ人
-- **目的**: JSON-RPC 2.0仕様のRequest/Errorオブジェクトを値オブジェクトとして実装し、仕様への理解を深める
-- **文字数**: 約5,500〜6,500文字（コード例含む）
-- **参考資料**: 
-  - https://www.jsonrpc.org/specification
-  - 最新のJSON-RPC 2.0エラーコードのベストプラクティス（2024-2025）
-
----
-
-## 案A：仕様駆動アプローチ - 仕様書から値オブジェクトを導き出す
-
-### 要約
-
-JSON-RPC 2.0の公式仕様書を丁寧に読み解きながら、仕様上の制約条件を一つずつ値オブジェクトのバリデーションロジックに変換していく、仕様駆動の実装アプローチ。テスト駆動開発で「仕様書の各文をテストケースに変換する」プロセスを体験し、仕様理解と実装が同時に深まる構成。
-
-### 見出し構造
-
-#### ## はじめに - 仕様書を読むことの大切さ
-- JSON-RPC 2.0仕様書の構成と特徴の紹介
-- 「仕様を読む → テストを書く → 実装する」というサイクルの提案
-- 第1回の復習：値オブジェクトの基本的な3つの特性（不変性、等価性、自己バリデーション）
-
-#### ## JSON-RPC 2.0の全体像を把握する
-- Request、Response、Errorの関係性を図解で理解する
-- JSON-RPC 2.0の設計哲学：シンプルさと拡張性の両立
-- 今回のスコープ：RequestとErrorに焦点を当てる理由
-
-#### ## Request objectの仕様を読み解く
-- 仕様書の該当セクションの引用と解説
-- 4つの必須/オプションフィールド（jsonrpc、method、params、id）の詳細
-- 仕様上の制約条件のリストアップ（MUSTとSHOULD）
-
-#### ## Request objectを小さな値オブジェクトに分解する
-- **JsonRpcVersion 値オブジェクト**: "2.0"という固定値をどう表現するか
-  - テストケース：正常系（"2.0"）、異常系（"1.0"、null、数値）
-  - 実装：コンストラクタバリデーションとシングルトンパターンの検討
-- **MethodName 値オブジェクト**: メソッド名の制約とバリデーション
-  - テストケース：有効な文字列、空文字列、"rpc."で始まる予約語
-  - 実装：正規表現によるバリデーションと明確なエラーメッセージ
-- **RequestId 値オブジェクト**: 文字列・数値・nullの3種類に対応
-  - テストケース：各型の正常系、配列やオブジェクトの異常系
-  - 実装：型チェックと等価性比較のオーバーロード
-- **RequestParams 値オブジェクト**: 構造化データまたは配列
-  - テストケース：ハッシュリファレンス、配列リファレンス、省略（undefined）
-  - 実装：柔軟性と型安全性のバランス
-
-#### ## JsonRpcRequest 値オブジェクトで全体を組み立てる
-- 4つの値オブジェクトを組み合わせたコンポジション設計
-- コンストラクタでの依存性注入とバリデーション順序
-- テストケース：正常なRequestオブジェクトの生成と、各フィールド不正時のエラー
-- JSONシリアライゼーション（to_json メソッド）の実装
-
-#### ## Error objectの仕様を読み解く
-- 仕様書の該当セクションの引用と解説
-- 3つのフィールド（code、message、data）の詳細
-- 標準エラーコード（-32700〜-32603）と予約済み範囲（-32099〜-32000）の理解
-- 2024-2025年の最新ベストプラクティス：実装定義エラーとカスタムエラーの使い分け
-
-#### ## Error objectを値オブジェクトで実装する
-- **ErrorCode 値オブジェクト**: 整数型とコード範囲のバリデーション
-  - テストケース：標準コード、実装定義範囲、カスタムコード、浮動小数点の異常系
-  - 実装：名前付き定数（PARSE_ERROR, INVALID_REQUEST等）の提供
-  - 2024年のトレンド：エラーコードレジストリの導入例
-- **ErrorMessage 値オブジェクト**: 簡潔で明確な説明文字列
-  - テストケース：有効な文字列、空文字列、多言語対応
-  - 実装：文字列長の推奨制限と国際化の考慮
-- **ErrorData 値オブジェクト**: オプショナルな追加情報
-  - テストケース：省略可能、任意のJSON値、デバッグ情報の構造化
-  - 実装：セキュリティ考慮（スタックトレースの扱い）と適切な抽象化
-
-#### ## JsonRpcError 値オブジェクトで全体を組み立てる
-- 3つの値オブジェクトを組み合わせた設計
-- ファクトリメソッド：標準エラーを簡単に生成するヘルパー
-- テストケース：標準エラー、カスタムエラー、dataフィールドありなしのパターン
-
-#### ## 実装を通して得られる学び
-- 仕様書の「MUST」「SHOULD」がテストケースに直接変換できる体験
-- 小さな値オブジェクトの組み合わせで複雑さを管理する設計手法
-- バリデーションの一元化による保守性の向上
-
-#### ## まとめと次回予告
-- 今回実装したRequest/Errorオブジェクトの振り返り
-- 次回予告：Responseオブジェクトと排他性の実装
-- 読者への課題：他のJSON-RPC拡張仕様への応用
-
-### 推奨タグ
-
-1. **perl** - 実装言語
-2. **json-rpc** - 題材となる仕様
-3. **value-object** - 設計パターン
-4. **test-driven-development** - 開発手法
-5. **specification-driven** - この案特有のアプローチ
-
-### コード例の構成
-
-1. **仕様書抜粋**: JSON-RPC 2.0 Request/Errorセクションの要約（コメント形式）
-2. **JsonRpcVersion.pm**: 最小限の値オブジェクト実装例
-3. **MethodName.pm**: バリデーション付き値オブジェクト
-4. **RequestId.pm**: 複数型対応の値オブジェクト
-5. **RequestParams.pm**: 柔軟な構造対応
-6. **JsonRpcRequest.pm**: コンポジション設計の実例
-7. **ErrorCode.pm**: 定数定義とバリデーション
-8. **ErrorMessage.pm**: 文字列制約の実装
-9. **ErrorData.pm**: オプショナルフィールドの扱い
-10. **JsonRpcError.pm**: ファクトリメソッド付き実装
-11. **t/jsonrpc_request.t**: Requestのテストスイート
-12. **t/jsonrpc_error.t**: Errorのテストスイート
-
----
-
-## 案B：TDD実践アプローチ - レッド→グリーン→リファクタリングを体験する
-
-### 要約
-
-テスト駆動開発（TDD）の実践プロセスを最重視し、「失敗するテストを書く → 最小限の実装で通す → リファクタリング」のサイクルを繰り返しながら、JSON-RPC 2.0のRequest/Errorオブジェクトを段階的に完成させるハンズオン形式。読者が実際に手を動かしながら学べる、実践的な構成。
-
-### 見出し構造
-
-#### ## TDDで値オブジェクトを作る旅に出よう
-- なぜTDDなのか：設計の不確実性を減らす手法
-- JSON-RPC 2.0を題材に選んだ理由：適度な複雑さと明確な仕様
-- 今回のゴール：Request/Errorオブジェクトの完成
-
-#### ## 準備：開発環境とテストの基礎
-- Test::Moreの基本的な使い方の復習
-- テストファイルの構成とディレクトリ構造
-- テストの実行方法（prove コマンド）
-
-#### ## 第1サイクル：JsonRpcVersion - 固定値を表現する
-- **Red**: まず失敗するテストを書く
-  - `is $version->value, "2.0"` から始める
-  - 異常系テスト：不正な値での生成を拒否
-- **Green**: 最小限の実装で通す
-  - コンストラクタとバリデーションの実装
-  - die による例外送出
-- **Refactor**: コードを整理する
-  - エラーメッセージの明確化
-  - 定数の外出し
-
-#### ## 第2サイクル：MethodName - 文字列のバリデーション
-- **Red**: 境界値テストから書く
-  - 空文字列、"rpc."プレフィックス、長すぎる文字列
-  - 特殊文字を含む名前
-- **Green**: 正規表現による実装
-  - 仕様書の制約を正規表現に変換
-  - エラーメッセージのカスタマイズ
-- **Refactor**: 可読性の改善
-  - 正規表現の分解と命名
-  - バリデーションロジックの抽出
-
-#### ## 第3サイクル：RequestId - 複数型への対応
-- **Red**: 型ごとのテストケース
-  - 文字列ID、数値ID、null、省略
-  - 等価性比較のテスト
-- **Green**: 型チェックの実装
-  - Scalar::Utilを使った型判定
-  - オーバーロードによる等価性実装
-- **Refactor**: 型判定ロジックの共通化
-  - ヘルパーメソッドの抽出
-
-#### ## 第4サイクル：RequestParams - 柔軟な構造の扱い
-- **Red**: データ構造のパターン網羅
-  - ハッシュリファレンス、配列リファレンス
-  - 空のパラメータ、省略
-- **Green**: 参照型チェックの実装
-  - ref() を使った判定
-- **Refactor**: 深いコピーとイミュータビリティ
-  - Storable::dclone の活用
-
-#### ## 第5サイクル：JsonRpcRequest - 全体の組み立て
-- **Red**: 統合テストを先に書く
-  - 正常なRequestの生成
-  - 各フィールドのアクセサ
-  - JSONシリアライゼーション
-- **Green**: コンポジション実装
-  - 4つの値オブジェクトを受け取るコンストラクタ
-  - JSON::PP によるシリアライゼーション
-- **Refactor**: ファクトリメソッドの追加
-  - from_hashref による簡易生成
-
-#### ## 第6サイクル：ErrorCode - エラーコードの表現
-- **Red**: 標準コードと範囲のテスト
-  - -32700（Parse error）、-32600（Invalid Request）等
-  - カスタムコード範囲（-32099〜-32000、正の整数）
-- **Green**: 定数と範囲チェック
-  - use constant による標準コード定義
-  - 範囲バリデーション
-- **Refactor**: 名前付きアクセサ
-  - is_parse_error などの判定メソッド
-  - 2024-2025年のベストプラクティス反映
-
-#### ## 第7サイクル：ErrorMessage と ErrorData
-- **Red**: 文字列とオプショナルフィールドのテスト
-- **Green**: シンプルな実装
-- **Refactor**: セキュリティ考慮
-  - スタックトレースの扱い（開発環境のみ含める）
-
-#### ## 第8サイクル：JsonRpcError - エラーオブジェクトの完成
-- **Red**: 統合テストとファクトリメソッドのテスト
-- **Green**: 組み立てと標準エラー生成ヘルパー
-- **Refactor**: エラーレジストリパターンの導入
-
-#### ## TDDを通して学んだこと
-- レッド→グリーン→リファクタリングのリズム
-- テストが仕様書の役割を果たす
-- 小さなステップで進める安心感
-
-#### ## まとめと次回予告
-- 完成したRequest/Errorオブジェクトの全体像
-- GitHubリポジトリへの公開推奨
-- 次回：Responseオブジェクトと型安全性の追求
-
-### 推奨タグ
-
-1. **perl** - 実装言語
-2. **json-rpc** - 題材
-3. **value-object** - 設計パターン
-4. **test-driven-development** - 記事の核心
-5. **hands-on** - 実践形式
-
-### コード例の構成
-
-1. **段階的な実装**: 各サイクルごとに「テスト→実装→リファクタリング」の3ステップを示す
-2. **テストコード優先**: 実装コードの前に必ずテストコードを提示
-3. **diffスタイル**: リファクタリング前後の差分を明示
-4. **実行結果**: `prove -lv t/` の出力例を含める
-5. **完成版コード**: 最終的な各値オブジェクトの完全な実装
-6. **統合テスト**: すべての値オブジェクトを使った総合的なテスト例
-
-**コードファイル数**: 12-15個（テストと実装の対になる形で提示）
-
----
-
-## 案C：設計パターンアプローチ - 値オブジェクトの高度な活用法を学ぶ
-
-### 要約
-
-単なる値オブジェクトの実装に留まらず、関連する設計パターン（ファクトリパターン、ストラテジパターン、値オブジェクトの合成）を組み合わせながら、保守性・拡張性・テスタビリティの高いJSON-RPC実装を目指す上級者向けアプローチ。設計の「なぜ」に深く踏み込む構成。
-
-### 見出し構造
-
-#### ## JSON-RPCを設計の教材として捉える
-- なぜJSON-RPC 2.0は設計の学習に適しているか
-- 値オブジェクトだけでは終わらない、設計の深み
-- 本記事で扱う設計パターン一覧
-
-#### ## プリミティブ型の呪縛と値オブジェクトの威力
-- **アンチパターン**: 文字列と数値だけでJSON-RPCを実装する問題点
-  - バリデーションの分散と重複
-  - 型安全性の欠如
-  - テストの困難さ
-- **値オブジェクトパターンの適用**: 小さく、焦点の絞れた責務
-  - 例：JsonRpcVersion は "2.0" という値の表現に特化
-
-#### ## ファクトリパターンで生成を柔軟にする
-- **課題**: 値オブジェクトのコンストラクタが複雑化する問題
-- **ファクトリメソッドパターン**: from_hashref, from_json の提供
-  - JsonRpcRequest::from_hashref({ jsonrpc => "2.0", ... })
-  - JSON文字列からの直接生成
-- **スマートコンストラクション**: ファクトリ内部でのバリデーション集約
-- **テスト**: ファクトリメソッドの正常系・異常系
-
-#### ## 値オブジェクトの合成（コンポジション）設計
-- **Whole-Part関係**: JsonRpcRequest は4つの値オブジェクトの集約
-  - JsonRpcVersion, MethodName, RequestParams, RequestId
-- **不変性の伝播**: 子となる値オブジェクトも不変であることの重要性
-- **深いコピー vs 参照共有**: Perlにおける実装上の注意点
-- **テスト**: 合成された値オブジェクトの一貫性検証
-
-#### ## エラーハンドリングとストラテジパターン
-- **ErrorCodeの設計**: 標準エラーと拡張エラーの扱い
-  - 標準エラー（-32700〜-32603）: 固定の定数
-  - 実装定義エラー（-32099〜-32000）: アプリケーション固有
-  - カスタムエラー（正の整数）: 2024-2025年のベストプラクティス
-- **エラーレジストリパターン**: ErrorCodeRegistry クラスの導入
-  - カスタムエラーコードの登録と検証
-  - エラーコードから説明文への自動マッピング
-- **ファクトリメソッド**: JsonRpcError::parse_error(), ::invalid_request() 等
-  - 標準エラーを簡潔に生成
-- **テスト**: エラーレジストリの登録と検証
-
-#### ## バリデーション戦略の一元化
-- **バリデーションの責務**: どこでバリデーションするべきか
-  - 値オブジェクトのコンストラクタ（最も内側）
-  - コンポジット値オブジェクト（構造の整合性）
-  - ファクトリメソッド（外部入力の前処理）
-- **多層防御**: 各レイヤーでの適切なバリデーション
-- **明確なエラーメッセージ**: どこで失敗したかを即座に把握できる設計
-- **テスト**: バリデーション失敗時のエラーメッセージ検証
-
-#### ## イミュータビリティ（不変性）の徹底
-- **なぜ不変性が重要か**: 並行処理、キャッシング、予測可能性
-- **Perlでの不変性実装**: Readonly、手動での防御的コピー
-- **値オブジェクトの更新**: 新しいインスタンスを生成する with_* メソッド
-  - $new_request = $request->with_method_name($new_method)
-- **テスト**: 変更不可能性の検証
-
-#### ## 等価性の正しい実装
-- **値による等価性**: 同じ内容なら同じ値オブジェクト
-- **オーバーロードの活用**: == 演算子のオーバーライド
-  - use overload '==' => \&_equals;
-- **深い等価性**: ネストした値オブジェクトの比較
-- **テスト**: 等価性と非等価性の境界値
-
-#### ## JSONシリアライゼーションとデシリアライゼーション
-- **to_json メソッド**: 値オブジェクトからJSON文字列へ
-- **from_json メソッド**: JSON文字列から値オブジェクトへ
-- **JSON::PP との統合**: TO_JSON メソッドのオーバーライド
-- **テスト**: ラウンドトリップ（JSON化→パース→再構築）の一貫性
-
-#### ## 設計の応用範囲と実務への展開
-- **他のAPI仕様への応用**: OpenAPI、GraphQL等
-- **マイクロサービスでの活用**: 2024-2025年のトレンド反映
-  - JSON-RPCのマイクロサービスアーキテクチャでの採用例
-  - Model Context Protocol (MCP) におけるJSON-RPC活用
-- **ドメイン駆動設計との接続**: 値オブジェクトはDDDの基礎
-- **静的解析ツールとの連携**: Perl::Critic でのチェック
-
-#### ## まとめ：設計パターンの組み合わせで堅牢性を高める
-- 値オブジェクト単体ではなく、複数パターンの組み合わせが鍵
-- テスト駆動開発で設計の妥当性を継続的に検証
-- 次回予告：Responseオブジェクトでの排他性とポリモーフィズム
-
-### 推奨タグ
-
-1. **perl** - 実装言語
-2. **json-rpc** - 題材
-3. **value-object** - 核心パターン
-4. **design-pattern** - 複数パターンの組み合わせ
-5. **advanced** - 上級者向け内容
-
-### コード例の構成
-
-1. **アンチパターン実装**: 値オブジェクトを使わない場合の問題コード
-2. **段階的リファクタリング**: アンチパターンから値オブジェクトへの移行
-3. **ファクトリパターン実装**: JsonRpcRequestFactory.pm
-4. **エラーレジストリ実装**: ErrorCodeRegistry.pm
-5. **不変性実装**: with_* メソッドの例
-6. **等価性実装**: オーバーロードの具体例
-7. **JSONシリアライゼーション**: TO_JSON メソッド
-8. **統合サンプル**: すべてのパターンを組み合わせた実用例
-9. **テストスイート**: 設計の各側面を検証するテスト
-10. **ベンチマーク**: 値オブジェクト使用前後のパフォーマンス比較（オプション）
-
-**コードファイル数**: 15-18個（パターンごとに独立したモジュール）
-
----
-
-## 3案の比較と推奨
-
-### 案Aの特徴（仕様駆動アプローチ）
-
-**強み**:
-- 仕様書を読む習慣が身につく
-- 仕様の制約条件を体系的に理解できる
-- 「MUST」「SHOULD」とテストの対応が明確
-- JSON-RPC以外の仕様にも応用しやすい
-
-**読者層**: 仕様書を読むのが苦手な初中級者、API設計に関心がある人
-
-**独自性**: 仕様書の各文をテストケースに変換するプロセスを丁寧に解説
-
----
-
-### 案Bの特徴（TDD実践アプローチ）
-
-**強み**:
-- テスト駆動開発の実践的なリズムを体得できる
-- 段階的な実装で挫折しにくい
-- 実際に手を動かして学べるハンズオン形式
-- レッド→グリーン→リファクタリングのサイクルを8回体験
-
-**読者層**: TDDを実践したい人、手を動かして学びたい人、初中級者
-
-**独自性**: 1つの値オブジェクトにつき3ステップ（テスト→実装→リファクタリング）を明示
-
----
-
-### 案Cの特徴（設計パターンアプローチ）
-
-**強み**:
-- 値オブジェクト以外の設計パターンも学べる
-- 保守性・拡張性の高い設計思想を理解できる
-- 実務で使える高度なテクニックが満載
-- 2024-2025年の最新トレンド（MCPでのJSON-RPC活用等）を反映
-
-**読者層**: 中上級者、設計パターンに興味がある人、実務で使いたい人
-
-**独自性**: 複数の設計パターンの組み合わせと、最新のベストプラクティスの統合
-
----
-
-## 推奨案：案B（TDD実践アプローチ）
-
-### 推奨理由
-
-1. **シリーズの趣旨に最も合致**: 第1回で基礎を学んだ読者が、第2回で実践的なTDDを体験し、第3回で高度な設計に進む、という段階的学習曲線に最適
-
-2. **ハンズオン形式の効果**: 読者が実際に手を動かすことで、値オブジェクトの実装とテスト駆動開発を同時に習得できる
-
-3. **挫折しにくい構成**: 小さなサイクルを8回繰り返すことで、達成感を得やすく、モチベーションを維持しやすい
-
-4. **再現性の高さ**: レッド→グリーン→リファクタリングの各ステップを明示することで、読者が自分のペースで再現できる
-
-5. **第3回への橋渡し**: TDDで基礎を固めた上で、第3回の高度な設計（排他性、型安全性）に無理なく進める
-
-### 代替案の活用
-
-- **案A（仕様駆動）**: 記事の序盤（「JSON-RPC 2.0の全体像を把握する」セクション）に組み込む
-- **案C（設計パターン）**: 記事の終盤（「まとめ」セクション）で軽く触れ、第3回への期待感を高める
-
-### 記事構成の最終調整案（案Bベース + 案A・Cの要素を統合）
-
-1. **導入**: JSON-RPC 2.0仕様の概要（案Aの要素）
-2. **本編**: TDDサイクルでの実装（案Bの核心）
-3. **発展**: 設計パターンへの示唆（案Cの要素）
-4. **まとめ**: 次回への橋渡し
-
----
-
-## 付録：各案で使用する最新情報（2024-2025年トレンド）
-
-### JSON-RPC 2.0仕様の安定性
-
-- 仕様自体は2010年以降変更なし（安定した基盤）
-- 最新トレンドは仕様の「適用」と「拡張」にある
-
-### エラーコードのベストプラクティス（2024-2025）
-
-1. **標準エラーコード（-32700〜-32603）**: 必須実装
-2. **実装定義範囲（-32099〜-32000）**: サーバー固有エラーに使用
-3. **カスタムアプリケーションエラー**: 正の整数を推奨（100, 201, 500等）
-4. **エラーレジストリパターン**: カスタムコードのドキュメント化と一元管理
-5. **`data`フィールドの活用**: 構造化されたエラー情報の提供
-6. **セキュリティ考慮**: スタックトレースは開発環境のみに限定
-
-### JSON-RPCの採用例（2024-2025）
-
-1. **Model Context Protocol (MCP)**: AI/LLM統合でJSON-RPC 2.0をメッセージング基盤として採用
-2. **マイクロサービス**: 軽量なRPCとして再評価、サービス間通信に活用
-3. **OpenRPC**: JSON-RPC APIの機械可読な仕様記述標準（ドキュメント生成、コード生成）
-4. **開発ツール**: json-rpc-2.0 npm パッケージ、JSON-RPC Web Tools等
-
-### 値オブジェクトパターンの最新動向
-
-1. **イミュータビリティの重視**: 関数型プログラミングの影響
-2. **等価性による比較**: 同値性の明確化
-3. **ドメイン駆動設計（DDD）**: エンティティと値オブジェクトの使い分け
-4. **テスタビリティ**: 値オブジェクトによる単体テストの容易化
-
----
-
-## 結論
-
-**推奨案**: 案B（TDD実践アプローチ）をベースに、案Aの仕様駆動要素と案Cの設計パターン要素を部分的に統合した構成が、シリーズ第2回として最適です。
-
-読者は、テスト駆動開発の実践を通じて、JSON-RPC 2.0のRequest/Errorオブジェクトを値オブジェクトとして実装する経験を得ることができ、第3回での高度な設計（Responseオブジェクトと排他性）に向けた確かな土台を築けます。
+## 仕様書から学ぶ値オブジェクト設計
 
+> **📚 シリーズ記事**: この記事は「Perl値オブジェクト実践シリーズ」の第2回です。
+> - 📖 第1回：[Perlで始める値オブジェクト入門](../perl-value-object-intro/)
+> - 📖 第2回：[JSON-RPC 2.0のリクエストとエラーを値オブジェクトで堅牢に実装する](../jsonrpc-value-object-outlines/)（この記事）
+> - 📖 第3回:レスポンスオブジェクトと型安全性(予定)
+
+前回の記事では、`EmailAddress`値オブジェクトを通じて、値オブジェクトの基本的な3つの特性(不変性、等価性、自己バリデーション)を学びました。
+
+今回は、実際のAPI仕様である**JSON-RPC 2.0**を題材に、仕様書の制約条件を値オブジェクトのバリデーションとして表現する実践的な手法を学びます。
+
+「仕様書を読む → テストを書く → 実装する」というサイクルを体験することで、仕様理解と実装品質が同時に向上する設計手法を身につけましょう。
+
+## JSON-RPC 2.0とは？シンプルで強力なRPC仕様
+
+JSON-RPC 2.0は、JSONフォーマットを使った軽量なリモートプロシージャコール(RPC)プロトコルです。
+
+{{< linkcard "https://www.jsonrpc.org/specification" >}}
+
+## なぜJSON-RPC 2.0を題材にするのか
+
+JSON-RPC 2.0は値オブジェクト学習の題材として優れています。
+
+**仕様が明確**  
+MUST/MUST NOT/SHOULD等の制約が明示的に定義されています。
+
+**適度な複雑さ**  
+シンプルすぎず複雑すぎない、学習に最適な規模です。
+
+**実用性**  
+Model Context Protocol (MCP)等、実際のプロジェクトで採用されています。
+
+**設計の学び**  
+排他性、オプション性、型多様性など、設計上の重要概念が詰まっています。
+
+## JSON-RPC 2.0の基本構造
+
+JSON-RPC 2.0には3つの主要オブジェクトがあります。
+
+**Request object**  
+クライアントからサーバーへのメソッド呼び出しを表現します。
+
+**Response object**  
+サーバーからクライアントへの成功応答を表現します。
+
+**Error object**  
+サーバーからクライアントへのエラー応答を表現します。
+
+今回は**Request object**と**Error object**に焦点を当てます。Response objectは次回(第3回)で扱います。
+
+## Request objectの仕様を読み解く
+
+まずJSON-RPC 2.0仕様書のRequest objectセクションを見てみましょう。
+
+## 仕様書の記述
+
+> A rpc call is represented by sending a Request object to a Server. The Request object has the following members:
+>
+> - **jsonrpc**: A String specifying the version of the JSON-RPC protocol. MUST be exactly "2.0".
+> - **method**: A String containing the name of the method to be invoked.
+> - **params**: A Structured value that holds the parameter values to be used during the invocation of the method. This member MAY be omitted.
+> - **id**: An identifier established by the Client. This member is REQUIRED. It MUST contain a String, Number, or NULL value.
+
+この仕様から、以下の制約条件が読み取れます。
+
+| フィールド | 型 | 必須/任意 | 制約 |
+|-----------|-----|----------|------|
+| jsonrpc | String | **MUST** | 正確に "2.0" でなければならない |
+| method | String | **REQUIRED** | メソッド名文字列 |
+| params | Structured/Array | **MAY** | 構造化データまたは配列、省略可能 |
+| id | String/Number/NULL | **REQUIRED** | 文字列、数値、またはnull |
+
+## Request objectを値オブジェクトに分解する
+
+複雑な構造も、小さな値オブジェクトに分解すればシンプルになります。
+
+Request objectを4つの値オブジェクトに分けましょう。
+
+**JsonRpcVersion**  
+"2.0"という固定値を表現します。
+
+**MethodName**  
+メソッド名文字列を表現します。
+
+**RequestParams**  
+パラメータ(構造化データまたは配列)を表現します。
+
+**RequestId**  
+リクエスト識別子(文字列/数値/null)を表現します。
+
+そして、これら4つを組み合わせた**JsonRpcRequest**値オブジェクトを作ります。
+
+## JsonRpcVersion値オブジェクト - 固定値の表現
+
+仕様上の制約は以下の通りです。
+
+- MUST be exactly "2.0"
+- 文字列型でなければならない
+
+テストから始めます(TDD)。
+
+```perl
+use strict;
+use warnings;
+use Test::More;
+
+use_ok('JsonRpcVersion');
+
+subtest 'valid version' => sub {
+    my $version = JsonRpcVersion->new('2.0');
+    isa_ok($version, 'JsonRpcVersion');
+    is($version->value, '2.0');
+};
+
+subtest 'invalid versions are rejected' => sub {
+    eval { JsonRpcVersion->new('1.0') };
+    like($@, qr/must be exactly "2.0"/);
+    
+    eval { JsonRpcVersion->new('2.1') };
+    like($@, qr/must be exactly "2.0"/);
+    
+    eval { JsonRpcVersion->new(2.0) };
+    like($@, qr/must be a string/);
+    
+    eval { JsonRpcVersion->new(undef) };
+    like($@, qr/is required/);
+};
+
+done_testing();
+```
+
+実装は以下の通りです。
+
+```perl
+package JsonRpcVersion;
+use strict;
+use warnings;
+use Class::Tiny qw(value);
+
+use constant VALID_VERSION => '2.0';
+
+sub BUILD {
+    my ($self) = @_;
+    my $value = $self->value;
+    
+    die "JSON-RPC version is required"
+        unless defined $value;
+    
+    die "JSON-RPC version must be a string"
+        if ref($value);
+    
+    die "JSON-RPC version must be exactly \"2.0\", got \"$value\""
+        unless $value eq VALID_VERSION;
+}
+
+sub equals {
+    my ($self, $other) = @_;
+    return 0 unless ref($other) eq ref($self);
+    return $self->value eq $other->value;
+}
+
+use overload '""' => sub { shift->value };
+
+1;
+```
+
+仕様書の「MUST be exactly "2.0"」という制約が、`BUILD`メソッド内のバリデーションとして表現されています。
+
+## MethodName値オブジェクト - メソッド名のバリデーション
+
+仕様上の制約は以下の通りです。
+
+- 文字列でなければならない
+- 空文字列は不正(仕様上明示されていないが、実用上必要)
+- "rpc."で始まるメソッド名は予約済み(仕様書に記載あり)
+
+テストコードは以下の通りです。
+
+```perl
+use strict;
+use warnings;
+use Test::More;
+
+use_ok('MethodName');
+
+subtest 'valid method names' => sub {
+    my @valid = qw(subtract update foobar get_user calculateSum);
+    
+    for my $name (@valid) {
+        my $method = MethodName->new($name);
+        isa_ok($method, 'MethodName');
+        is($method->value, $name);
+    }
+};
+
+subtest 'invalid method names are rejected' => sub {
+    eval { MethodName->new('') };
+    like($@, qr/cannot be empty/);
+    
+    eval { MethodName->new(undef) };
+    like($@, qr/is required/);
+    
+    eval { MethodName->new('rpc.test') };
+    like($@, qr/rpc\. prefix is reserved/);
+    
+    eval { MethodName->new(123) };
+    like($@, qr/must be a string/);
+};
+
+done_testing();
+```
+
+実装は以下の通りです。
+
+```perl
+package MethodName;
+use strict;
+use warnings;
+use Class::Tiny qw(value);
+
+sub BUILD {
+    my ($self) = @_;
+    my $value = $self->value;
+    
+    die "Method name is required"
+        unless defined $value;
+    
+    die "Method name must be a string"
+        if ref($value);
+    
+    die "Method name cannot be empty"
+        if $value eq '';
+    
+    die "Method name with 'rpc.' prefix is reserved for system extensions"
+        if $value =~ /^rpc\./;
+}
+
+sub equals {
+    my ($self, $other) = @_;
+    return 0 unless ref($other) eq ref($self);
+    return $self->value eq $other->value;
+}
+
+use overload '""' => sub { shift->value };
+
+1;
+```
+
+## RequestId値オブジェクト - 複数型への対応
+
+仕様上の制約は以下の通りです。
+
+- MUST contain a String, Number, or NULL value
+- 配列やオブジェクトは不正
+
+テストコードは以下の通りです。
+
+```perl
+use strict;
+use warnings;
+use Test::More;
+
+use_ok('RequestId');
+
+subtest 'valid request IDs' => sub {
+    my $id1 = RequestId->new('abc-123');
+    is($id1->value, 'abc-123');
+    
+    my $id2 = RequestId->new(42);
+    is($id2->value, 42);
+    
+    my $id3 = RequestId->new(undef);
+    is($id3->value, undef);
+};
+
+subtest 'invalid request IDs are rejected' => sub {
+    eval { RequestId->new([1, 2, 3]) };
+    like($@, qr/must be a String, Number, or NULL/);
+    
+    eval { RequestId->new({id => 1}) };
+    like($@, qr/must be a String, Number, or NULL/);
+};
+
+subtest 'equality' => sub {
+    my $id1 = RequestId->new('test');
+    my $id2 = RequestId->new('test');
+    my $id3 = RequestId->new('other');
+    
+    ok($id1->equals($id2));
+    ok(!$id1->equals($id3));
+    
+    my $num1 = RequestId->new(42);
+    my $num2 = RequestId->new(42);
+    ok($num1->equals($num2));
+};
+
+done_testing();
+```
+
+実装は以下の通りです。
+
+```perl
+package RequestId;
+use strict;
+use warnings;
+use Class::Tiny qw(value);
+
+sub BUILD {
+    my ($self) = @_;
+    my $value = $self->value;
+    
+    return if !defined $value;
+    
+    my $ref = ref($value);
+    die "Request ID must be a String, Number, or NULL (not $ref)"
+        if $ref;
+}
+
+sub equals {
+    my ($self, $other) = @_;
+    return 0 unless ref($other) eq ref($self);
+    
+    my $v1 = $self->value;
+    my $v2 = $other->value;
+    
+    return 1 if !defined $v1 && !defined $v2;
+    return 0 if !defined $v1 || !defined $v2;
+    return $v1 eq $v2;
+}
+
+use overload '""' => sub {
+    my $self = shift;
+    my $value = $self->value;
+    return defined $value ? "$value" : 'null';
+};
+
+1;
+```
+
+## RequestParams値オブジェクト - 柔軟な構造の扱い
+
+仕様上の制約は以下の通りです。
+
+- MAY be omitted(省略可能)
+- Structured value(ハッシュリファレンス)または配列リファレンス
+
+テストコードは以下の通りです。
+
+```perl
+use strict;
+use warnings;
+use Test::More;
+
+use_ok('RequestParams');
+
+subtest 'valid params' => sub {
+    my $p1 = RequestParams->new({x => 1, y => 2});
+    is_deeply($p1->value, {x => 1, y => 2});
+    
+    my $p2 = RequestParams->new([42, 23]);
+    is_deeply($p2->value, [42, 23]);
+    
+    my $p3 = RequestParams->new(undef);
+    is($p3->value, undef);
+};
+
+subtest 'invalid params are rejected' => sub {
+    eval { RequestParams->new('string') };
+    like($@, qr/must be a hash or array reference/);
+    
+    eval { RequestParams->new(123) };
+    like($@, qr/must be a hash or array reference/);
+};
+
+done_testing();
+```
+
+実装は以下の通りです。
+
+```perl
+package RequestParams;
+use strict;
+use warnings;
+use Class::Tiny qw(value);
+use Storable qw(dclone);
+
+sub BUILD {
+    my ($self) = @_;
+    my $value = $self->value;
+    
+    return if !defined $value;
+    
+    my $ref = ref($value);
+    die "Request params must be a hash or array reference (not $ref)"
+        unless $ref eq 'HASH' || $ref eq 'ARRAY';
+    
+    $self->{value} = dclone($value);
+}
+
+use overload '""' => sub {
+    my $self = shift;
+    my $value = $self->value;
+    return defined $value ? 'params' : 'null';
+};
+
+1;
+```
+
+`Storable::dclone`を使って深いコピーを作成することで、外部からの変更を防ぎ、不変性を確保しています。
+
+## JsonRpcRequest値オブジェクト - 全体の組み立て
+
+4つの値オブジェクトを組み合わせて、完全なRequest objectを表現します。
+
+テストコードは以下の通りです。
+
+```perl
+use strict;
+use warnings;
+use Test::More;
+use JSON::PP qw(decode_json);
+
+use_ok('JsonRpcRequest');
+use_ok('JsonRpcVersion');
+use_ok('MethodName');
+use_ok('RequestParams');
+use_ok('RequestId');
+
+subtest 'construct valid request' => sub {
+    my $request = JsonRpcRequest->new(
+        version => JsonRpcVersion->new('2.0'),
+        method  => MethodName->new('subtract'),
+        params  => RequestParams->new([42, 23]),
+        id      => RequestId->new(1),
+    );
+    
+    isa_ok($request, 'JsonRpcRequest');
+    is($request->version->value, '2.0');
+    is($request->method->value, 'subtract');
+    is_deeply($request->params->value, [42, 23]);
+    is($request->id->value, 1);
+};
+
+subtest 'to_json serialization' => sub {
+    my $request = JsonRpcRequest->new(
+        version => JsonRpcVersion->new('2.0'),
+        method  => MethodName->new('update'),
+        params  => RequestParams->new({user_id => 123}),
+        id      => RequestId->new('abc'),
+    );
+    
+    my $json = $request->to_json;
+    my $decoded = decode_json($json);
+    
+    is($decoded->{jsonrpc}, '2.0');
+    is($decoded->{method}, 'update');
+    is_deeply($decoded->{params}, {user_id => 123});
+    is($decoded->{id}, 'abc');
+};
+
+subtest 'params can be omitted' => sub {
+    my $request = JsonRpcRequest->new(
+        version => JsonRpcVersion->new('2.0'),
+        method  => MethodName->new('ping'),
+        params  => RequestParams->new(undef),
+        id      => RequestId->new(999),
+    );
+    
+    my $json = $request->to_json;
+    my $decoded = decode_json($json);
+    
+    ok(!exists $decoded->{params});
+};
+
+done_testing();
+```
+
+実装は以下の通りです。
+
+```perl
+package JsonRpcRequest;
+use strict;
+use warnings;
+use Class::Tiny qw(version method params id);
+use JSON::PP qw(encode_json);
+
+sub BUILD {
+    my ($self) = @_;
+    
+    die "version is required and must be a JsonRpcVersion object"
+        unless $self->version && ref($self->version) eq 'JsonRpcVersion';
+    
+    die "method is required and must be a MethodName object"
+        unless $self->method && ref($self->method) eq 'MethodName';
+    
+    die "params must be a RequestParams object"
+        unless $self->params && ref($self->params) eq 'RequestParams';
+    
+    die "id is required and must be a RequestId object"
+        unless defined $self->id && ref($self->id) eq 'RequestId';
+}
+
+sub to_json {
+    my ($self) = @_;
+    
+    my %data = (
+        jsonrpc => $self->version->value,
+        method  => $self->method->value,
+        id      => $self->id->value,
+    );
+    
+    my $params = $self->params->value;
+    $data{params} = $params if defined $params;
+    
+    return encode_json(\%data);
+}
+
+1;
+```
+
+## Error objectの仕様を読み解く
+
+次に、Error objectの仕様を見てみましょう。
+
+## 仕様書の記述
+
+> When a rpc call encounters an error, the Response Object contains the error member with a value that is an Object with the following members:
+>
+> - **code**: A Number that indicates the error type that occurred. This MUST be an integer.
+> - **message**: A String providing a short description of the error.
+> - **data**: A Primitive or Structured value that contains additional information about the error. This may be omitted.
+
+仕様書では、以下の標準エラーコードが定義されています。
+
+| コード | メッセージ | 意味 |
+|-------|----------|------|
+| -32700 | Parse error | 不正なJSONを受信 |
+| -32600 | Invalid Request | JSONは正しいがRequestオブジェクトが不正 |
+| -32601 | Method not found | メソッドが存在しない |
+| -32602 | Invalid params | パラメータが不正 |
+| -32603 | Internal error | サーバー内部エラー |
+| -32000 to -32099 | Server error | サーバー定義のエラー(予約済み) |
+
+**重要**: -32768から-32000までの範囲は予約済みです。カスタムエラーには正の整数を使うことが推奨されます(2024-2025年のベストプラクティス)。
+
+## ErrorCode値オブジェクト - エラーコードの表現
+
+テストコードは以下の通りです。
+
+```perl
+use strict;
+use warnings;
+use Test::More;
+
+use_ok('ErrorCode');
+
+subtest 'standard error codes' => sub {
+    my $parse_error = ErrorCode->new(ErrorCode::PARSE_ERROR);
+    is($parse_error->value, -32700);
+    
+    my $invalid_request = ErrorCode->new(ErrorCode::INVALID_REQUEST);
+    is($invalid_request->value, -32600);
+};
+
+subtest 'custom error codes' => sub {
+    my $custom = ErrorCode->new(100);
+    is($custom->value, 100);
+    
+    my $server_error = ErrorCode->new(-32050);
+    is($server_error->value, -32050);
+};
+
+subtest 'invalid error codes are rejected' => sub {
+    eval { ErrorCode->new(3.14) };
+    like($@, qr/must be an integer/);
+    
+    eval { ErrorCode->new('error') };
+    like($@, qr/must be an integer/);
+    
+    eval { ErrorCode->new(undef) };
+    like($@, qr/is required/);
+};
+
+done_testing();
+```
+
+実装は以下の通りです。
+
+```perl
+package ErrorCode;
+use strict;
+use warnings;
+use Class::Tiny qw(value);
+
+use constant {
+    PARSE_ERROR      => -32700,
+    INVALID_REQUEST  => -32600,
+    METHOD_NOT_FOUND => -32601,
+    INVALID_PARAMS   => -32602,
+    INTERNAL_ERROR   => -32603,
+};
+
+sub BUILD {
+    my ($self) = @_;
+    my $value = $self->value;
+    
+    die "Error code is required"
+        unless defined $value;
+    
+    die "Error code must be an integer"
+        unless $value =~ /^-?\d+$/ && $value == int($value);
+}
+
+sub is_standard_error {
+    my ($self) = @_;
+    my $code = $self->value;
+    return $code >= -32603 && $code <= -32600 || $code == -32700;
+}
+
+sub is_server_error {
+    my ($self) = @_;
+    my $code = $self->value;
+    return $code >= -32099 && $code <= -32000;
+}
+
+sub equals {
+    my ($self, $other) = @_;
+    return 0 unless ref($other) eq ref($self);
+    return $self->value == $other->value;
+}
+
+use overload '""' => sub { shift->value };
+
+1;
+```
+
+## ErrorMessage値オブジェクト - エラーメッセージの制約
+
+テストコードは以下の通りです。
+
+```perl
+use strict;
+use warnings;
+use Test::More;
+
+use_ok('ErrorMessage');
+
+subtest 'valid error messages' => sub {
+    my $msg = ErrorMessage->new('Parse error');
+    is($msg->value, 'Parse error');
+    
+    my $long_msg = ErrorMessage->new('Invalid parameters: expected array of numbers');
+    ok($long_msg->value);
+};
+
+subtest 'invalid error messages are rejected' => sub {
+    eval { ErrorMessage->new('') };
+    like($@, qr/cannot be empty/);
+    
+    eval { ErrorMessage->new(undef) };
+    like($@, qr/is required/);
+};
+
+done_testing();
+```
+
+実装は以下の通りです。
+
+```perl
+package ErrorMessage;
+use strict;
+use warnings;
+use Class::Tiny qw(value);
+
+sub BUILD {
+    my ($self) = @_;
+    my $value = $self->value;
+    
+    die "Error message is required"
+        unless defined $value;
+    
+    die "Error message must be a string"
+        if ref($value);
+    
+    die "Error message cannot be empty"
+        if $value eq '';
+}
+
+sub equals {
+    my ($self, $other) = @_;
+    return 0 unless ref($other) eq ref($self);
+    return $self->value eq $other->value;
+}
+
+use overload '""' => sub { shift->value };
+
+1;
+```
+
+## ErrorData値オブジェクト - オプショナルな追加情報
+
+テストコードは以下の通りです。
+
+```perl
+use strict;
+use warnings;
+use Test::More;
+
+use_ok('ErrorData');
+
+subtest 'valid error data' => sub {
+    my $d1 = ErrorData->new(undef);
+    is($d1->value, undef);
+    
+    my $d2 = ErrorData->new('Additional details');
+    is($d2->value, 'Additional details');
+    
+    my $d3 = ErrorData->new({field => 'username', reason => 'too short'});
+    is_deeply($d3->value, {field => 'username', reason => 'too short'});
+    
+    my $d4 = ErrorData->new(['error1', 'error2']);
+    is_deeply($d4->value, ['error1', 'error2']);
+};
+
+done_testing();
+```
+
+実装は以下の通りです。
+
+```perl
+package ErrorData;
+use strict;
+use warnings;
+use Class::Tiny qw(value);
+use Storable qw(dclone);
+
+sub BUILD {
+    my ($self) = @_;
+    my $value = $self->value;
+    
+    return if !defined $value;
+    
+    my $ref = ref($value);
+    if ($ref eq 'HASH' || $ref eq 'ARRAY') {
+        $self->{value} = dclone($value);
+    }
+}
+
+use overload '""' => sub {
+    my $self = shift;
+    my $value = $self->value;
+    return defined $value ? 'error_data' : 'null';
+};
+
+1;
+```
+
+## JsonRpcError値オブジェクト - エラーの完成形
+
+テストコードは以下の通りです。
+
+```perl
+use strict;
+use warnings;
+use Test::More;
+use JSON::PP qw(decode_json);
+
+use_ok('JsonRpcError');
+use_ok('ErrorCode');
+use_ok('ErrorMessage');
+use_ok('ErrorData');
+
+subtest 'construct valid error' => sub {
+    my $error = JsonRpcError->new(
+        code    => ErrorCode->new(ErrorCode::INVALID_REQUEST),
+        message => ErrorMessage->new('Invalid Request'),
+        data    => ErrorData->new(undef),
+    );
+    
+    isa_ok($error, 'JsonRpcError');
+    is($error->code->value, -32600);
+    is($error->message->value, 'Invalid Request');
+    is($error->data->value, undef);
+};
+
+subtest 'error with additional data' => sub {
+    my $error = JsonRpcError->new(
+        code    => ErrorCode->new(ErrorCode::INVALID_PARAMS),
+        message => ErrorMessage->new('Invalid params'),
+        data    => ErrorData->new({expected => 'array', got => 'string'}),
+    );
+    
+    is_deeply($error->data->value, {expected => 'array', got => 'string'});
+};
+
+subtest 'to_json serialization' => sub {
+    my $error = JsonRpcError->new(
+        code    => ErrorCode->new(ErrorCode::METHOD_NOT_FOUND),
+        message => ErrorMessage->new('Method not found'),
+        data    => ErrorData->new(undef),
+    );
+    
+    my $json = $error->to_json;
+    my $decoded = decode_json($json);
+    
+    is($decoded->{code}, -32601);
+    is($decoded->{message}, 'Method not found');
+    ok(!exists $decoded->{data});
+};
+
+subtest 'factory methods for standard errors' => sub {
+    my $parse_error = JsonRpcError->parse_error();
+    is($parse_error->code->value, -32700);
+    is($parse_error->message->value, 'Parse error');
+    
+    my $invalid_request = JsonRpcError->invalid_request();
+    is($invalid_request->code->value, -32600);
+};
+
+done_testing();
+```
+
+実装は以下の通りです。
+
+```perl
+package JsonRpcError;
+use strict;
+use warnings;
+use Class::Tiny qw(code message data);
+use JSON::PP qw(encode_json);
+
+sub BUILD {
+    my ($self) = @_;
+    
+    die "code is required and must be an ErrorCode object"
+        unless $self->code && ref($self->code) eq 'ErrorCode';
+    
+    die "message is required and must be an ErrorMessage object"
+        unless $self->message && ref($self->message) eq 'ErrorMessage';
+    
+    die "data must be an ErrorData object"
+        unless $self->data && ref($self->data) eq 'ErrorData';
+}
+
+sub to_json {
+    my ($self) = @_;
+    
+    my %error = (
+        code    => $self->code->value,
+        message => $self->message->value,
+    );
+    
+    my $data = $self->data->value;
+    $error{data} = $data if defined $data;
+    
+    return encode_json(\%error);
+}
+
+sub parse_error {
+    my ($class, $data) = @_;
+    return $class->new(
+        code    => ErrorCode->new(ErrorCode::PARSE_ERROR),
+        message => ErrorMessage->new('Parse error'),
+        data    => ErrorData->new($data),
+    );
+}
+
+sub invalid_request {
+    my ($class, $data) = @_;
+    return $class->new(
+        code    => ErrorCode->new(ErrorCode::INVALID_REQUEST),
+        message => ErrorMessage->new('Invalid Request'),
+        data    => ErrorData->new($data),
+    );
+}
+
+sub method_not_found {
+    my ($class, $data) = @_;
+    return $class->new(
+        code    => ErrorCode->new(ErrorCode::METHOD_NOT_FOUND),
+        message => ErrorMessage->new('Method not found'),
+        data    => ErrorData->new($data),
+    );
+}
+
+sub invalid_params {
+    my ($class, $data) = @_;
+    return $class->new(
+        code    => ErrorCode->new(ErrorCode::INVALID_PARAMS),
+        message => ErrorMessage->new('Invalid params'),
+        data    => ErrorData->new($data),
+    );
+}
+
+sub internal_error {
+    my ($class, $data) = @_;
+    return $class->new(
+        code    => ErrorCode->new(ErrorCode::INTERNAL_ERROR),
+        message => ErrorMessage->new('Internal error'),
+        data    => ErrorData->new($data),
+    );
+}
+
+1;
+```
+
+ファクトリメソッドを用意することで、標準エラーを簡潔に生成できます。
+
+## 統合テスト - Request/Errorの連携
+
+すべての値オブジェクトを組み合わせた統合テストを書きましょう。
+
+```perl
+use strict;
+use warnings;
+use Test::More;
+use JSON::PP qw(decode_json);
+
+# Request objects
+use JsonRpcRequest;
+use JsonRpcVersion;
+use MethodName;
+use RequestParams;
+use RequestId;
+
+# Error objects
+use JsonRpcError;
+use ErrorCode;
+use ErrorMessage;
+use ErrorData;
+
+subtest 'complete request lifecycle' => sub {
+    # Create a valid request
+    my $request = JsonRpcRequest->new(
+        version => JsonRpcVersion->new('2.0'),
+        method  => MethodName->new('calculate'),
+        params  => RequestParams->new({x => 10, y => 5}),
+        id      => RequestId->new('req-001'),
+    );
+    
+    my $json = $request->to_json;
+    my $decoded = decode_json($json);
+    
+    is($decoded->{jsonrpc}, '2.0');
+    is($decoded->{method}, 'calculate');
+    is($decoded->{id}, 'req-001');
+};
+
+subtest 'error response for invalid method' => sub {
+    my $error = JsonRpcError->method_not_found({
+        requested_method => 'unknown_method'
+    });
+    
+    my $json = $error->to_json;
+    my $decoded = decode_json($json);
+    
+    is($decoded->{code}, -32601);
+    is($decoded->{message}, 'Method not found');
+    is($decoded->{data}{requested_method}, 'unknown_method');
+};
+
+subtest 'notification request (id is null)' => sub {
+    my $notification = JsonRpcRequest->new(
+        version => JsonRpcVersion->new('2.0'),
+        method  => MethodName->new('notify'),
+        params  => RequestParams->new(['event occurred']),
+        id      => RequestId->new(undef),
+    );
+    
+    my $json = $notification->to_json;
+    my $decoded = decode_json($json);
+    
+    is($decoded->{id}, undef);
+};
+
+done_testing();
+```
+
+## 実装を通して得られた学び
+
+## 仕様書の制約をテストに変換できる
+
+JSON-RPC 2.0仕様書の「MUST」「MUST NOT」「MAY」といった記述は、そのままテストケースに変換できました。
+
+**MUST be exactly "2.0"**  
+`JsonRpcVersion`のバリデーションテストとして実装しました。
+
+**MUST be an integer**  
+`ErrorCode`の型チェックテストとして実装しました。
+
+**MAY be omitted**  
+`RequestParams`と`ErrorData`のundef許容テストとして実装しました。
+
+## 小さな値オブジェクトの組み合わせで複雑さを管理
+
+Request objectを4つの値オブジェクトに分解することで、以下のメリットが得られました。
+
+各値オブジェクトの責務が明確になります。
+
+テストが書きやすくなります。
+
+再利用可能です(例:`RequestId`は他のコンテキストでも使えます)。
+
+変更に強くなります(`MethodName`のバリデーションルール変更は1箇所で完結します)。
+
+## バリデーションの一元化による保守性向上
+
+バリデーションロジックは各値オブジェクトの`BUILD`メソッドに集約されているため、以下のメリットがあります。
+
+- 重複がありません
+- 変更時の影響範囲が明確です
+- テストカバレッジが高くなります
+
+## まとめと次回予告
+
+今回の記事では、JSON-RPC 2.0仕様のRequest objectとError objectを値オブジェクトとして実装しました。
+
+## 今回実装した値オブジェクト
+
+**Request関連**
+
+- `JsonRpcVersion`:固定値"2.0"の表現を実装しました
+- `MethodName`:メソッド名のバリデーションを実装しました
+- `RequestParams`:柔軟なパラメータ構造を実装しました
+- `RequestId`:複数型対応の識別子を実装しました
+- `JsonRpcRequest`:全体の組み立てを実装しました
+
+**Error関連**
+
+- `ErrorCode`:標準/カスタムエラーコードを実装しました
+- `ErrorMessage`:エラーメッセージを実装しました
+- `ErrorData`:オプショナルな追加情報を実装しました
+- `JsonRpcError`:エラーの完成形(ファクトリメソッド付き)を実装しました
+
+## 仕様駆動アプローチの価値
+
+「仕様書を読む → テストを書く → 実装する」というサイクルにより、以下のメリットが得られました。
+
+- 仕様への深い理解が得られました
+- 実装の正しさをテストで保証できました
+- 仕様変更にも柔軟に対応できる設計になりました
+
+## 次回予告
+
+次回(第3回)では、JSON-RPC 2.0の**Response object**を実装します。
+
+Response objectには、成功時とエラー時で排他的な構造(`result`と`error`は同時に存在しない)という制約があります。
+
+この排他性を値オブジェクトで表現する手法を学びます。
+
+- `SuccessResponse`値オブジェクト
+- `ErrorResponse`値オブジェクト
+- 共通インターフェースによるポリモーフィズム
+- 型安全性の確保を実装します
+
+**👉 第3回:JSON-RPC 2.0 Responseの成功とエラーを型で区別する**(近日公開)
+
+## 関連リソース
+
+**外部リンク**
+
+{{< linkcard "https://www.jsonrpc.org/specification" >}}
+
+{{< linkcard "https://metacpan.org/pod/Class::Tiny" >}}
+
+{{< linkcard "https://metacpan.org/pod/Test::More" >}}
+
+**シリーズ記事**
+
+- [第1回：Perlで始める値オブジェクト入門](../perl-value-object-intro/)
+- [企画書：PerlでJSON-RPC 2.0のオブジェクトを値オブジェクトとして定義してみた](../perl-json-rpc-value-object-series-plan/)
+
+今回実装したコードは、実際のJSON-RPCクライアント/サーバー実装の基盤として利用できます。ぜひご自身のプロジェクトで試してみてください！
