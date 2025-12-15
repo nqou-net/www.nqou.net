@@ -17,7 +17,7 @@ description: "JSON-RPC 2.0仕様のRequestとErrorオブジェクトを値オブ
 > **📚 シリーズ記事**: この記事は「Perl値オブジェクト実践シリーズ」の第2回です。
 > - 📖 第1回：[Perlで始める値オブジェクト入門](../perl-value-object-intro/)
 > - 📖 第2回：[JSON-RPC 2.0のリクエストとエラーを値オブジェクトで堅牢に実装する](../jsonrpc-value-object-outlines/)（この記事）
-> - 📖 第3回:レスポンスオブジェクトと型安全性(予定)
+> - 📖 第3回：[JSON-RPC 2.0 Responseの成功とエラーを型で区別する](../jsonrpc-response-value-object/)
 
 前回の記事では、`EmailAddress`値オブジェクトを通じて、値オブジェクトの基本的な3つの特性(不変性、等価性、自己バリデーション)を学びました。
 
@@ -60,7 +60,7 @@ JSON-RPC 2.0には3つの主要オブジェクトがあります。
 **Error object**  
 サーバーからクライアントへのエラー応答を表現します。
 
-今回は**Request object**と**Error object**に焦点を当てます。Response objectは次回(第3回)で扱います。
+今回は**Request object**と**Error object**に焦点を当てます。Response objectは[第3回](../jsonrpc-response-value-object/)で扱います。
 
 ## Request objectの仕様を読み解く
 
@@ -1056,7 +1056,7 @@ Request objectを4つの値オブジェクトに分解することで、以下�
 
 ## 次回予告
 
-次回(第3回)では、JSON-RPC 2.0の**Response object**を実装します。
+次回([第3回](../jsonrpc-response-value-object/))では、JSON-RPC 2.0の**Response object**を実装します。
 
 Response objectには、成功時とエラー時で排他的な構造(`result`と`error`は同時に存在しない)という制約があります。
 
@@ -1067,7 +1067,7 @@ Response objectには、成功時とエラー時で排他的な構造(`result`�
 - 共通インターフェースによるポリモーフィズム
 - 型安全性の確保を実装します
 
-**👉 第3回:JSON-RPC 2.0 Responseの成功とエラーを型で区別する**(近日公開)
+**👉 [第3回:JSON-RPC 2.0 Responseの成功とエラーを型で区別する](../jsonrpc-response-value-object/)**
 
 ## 関連リソース
 
