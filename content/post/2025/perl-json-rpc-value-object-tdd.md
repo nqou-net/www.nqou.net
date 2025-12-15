@@ -1250,19 +1250,24 @@ sub from_json {
 ### 参考資料とコミュニティリソース
 
 **公式ドキュメント**:
-- [JSON-RPC 2.0 Specification](https://www.jsonrpc.org/specification)
-- [Moo - Minimalist Object Orientation](https://metacpan.org/pod/Moo)
-- [Type::Tiny Manual](https://metacpan.org/pod/Type::Tiny::Manual)
-- [Test2::Suite](https://metacpan.org/pod/Test2::Suite)
+
+{{< linkcard "https://www.jsonrpc.org/specification" >}}
+
+{{< linkcard "https://metacpan.org/pod/Moo" >}}
+
+{{< linkcard "https://metacpan.org/pod/Type::Tiny::Manual" >}}
+
+{{< linkcard "https://metacpan.org/pod/Test2::Suite" >}}
 
 **書籍**:
 - "Domain-Driven Design" by Eric Evans（ドメイン駆動設計）
 - "Refactoring" by Martin Fowler（リファクタリング）
 
 **Perlコミュニティ**:
-- [CPAN](https://metacpan.org/) - Perlモジュールの宝庫
-- [PerlMonks](https://www.perlmonks.org/) - Perl Q&Aコミュニティ
-- [blogs.perl.org](http://blogs.perl.org/) - Perl開発者ブログ
+
+{{< linkcard "https://metacpan.org/" >}}
+
+{{< linkcard "https://www.perlmonks.org/" >}}
 
 値オブジェクトとTDDをマスターすれば、保守性と信頼性の高いコードが書けるようになります。ぜひ、実際のプロジェクトで試してみてください！
 
