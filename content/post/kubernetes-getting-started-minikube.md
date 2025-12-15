@@ -1,64 +1,80 @@
 ---
-title: "docker-compose経験者のためのKubernetes入門：Minikubeで10分デプロイ体験"
+title: "【第1回】docker-composeからKubernetes移行入門：Minikubeで始める10分デプロイ"
 draft: true
 tags:
   - kubernetes
   - docker
   - minikube
   - kompose
-  - getting-started
-description: "docker-compose経験者向けのKubernetes超速スタートガイド。Minikubeのインストールから3コマンドでのアプリデプロイ、Komposeによる自動変換まで、10分で体験できる実践チュートリアル。"
+  - docker-compose
+  - kubernetes-tutorial
+  - container-orchestration
+description: "docker-compose経験者向けKubernetes入門。Minikubeでローカル環境構築から3コマンドでNginxデプロイ、Komposeによるdocker-compose.yml自動変換まで10分で体験するステップバイステップチュートリアル。"
 ---
 
-## docker-composeからKubernetesへ：移行の理由と期待値
+[@nqounet](https://x.com/nqounet)です。
+
+## docker-composeからKubernetes移行を考える理由
 
 以前の記事でdocker-composeの魅力をお伝えしました。
 
 {{< linkcard "https://www.nqou.net/2017/12/03/025713/" >}}
 
-docker-composeは今でもローカル開発環境の構築に最適なツールです。YAML一枚でコンテナを管理できる手軽さは、小規模なプロジェクトや個人開発において圧倒的な生産性を提供してくれます。
+docker-composeは今でもローカル開発環境の構築に最適なツールです。YAML1枚でコンテナを管理できる手軽さは、小規模なプロジェクトや個人開発において圧倒的な生産性を提供してくれます。
 
-しかし、アプリケーションが成長し、本番環境への展開を考え始めると、docker-composeには限界が見えてきます。複数のサーバーでコンテナを動かしたい、障害時に自動復旧させたい、無停止でアプリケーションを更新したい——こうした本番運用の要求に応えるのがKubernetesです。
+しかし、アプリケーションが成長し、本番環境への展開を考え始めると、docker-composeには限界が見えてきます。
 
-**docker-compose vs Kubernetesの主要な違い**
+複数のサーバーでコンテナを動かしたい、障害時に自動復旧させたい、無停止でアプリケーションを更新したい——こうした本番運用の要求に応えるのが**Kubernetes（通称：k8s）**です。
 
-| 観点 | docker-compose | Kubernetes |
-|------|---------------|------------|
-| **スケール** | 単一ホスト | 複数ノードのクラスタ |
-| **自己修復** | なし（手動再起動） | Podの自動再作成 |
-| **ローリングアップデート** | なし | あり（無停止更新） |
-| **ロードバランシング** | 手動設定 | 組み込み機能 |
-| **本番運用** | 非推奨 | 業界標準 |
+**この記事で学べること：**
+- Minikubeを使ったローカルKubernetes環境の構築方法
+- 3コマンドでアプリケーションをデプロイする手順
+- Komposeでdocker-compose.ymlを自動変換する方法
+- Pod、Deployment、Serviceの基本概念
 
-Kubernetesは複雑に見えますが、その背後には本番環境での信頼性を担保する設計思想があります。今回はdocker-compose経験者の既存知識を活かしながら、Kubernetesの世界に足を踏み入れてみましょう。
+### docker-composeとKubernetesの比較：どう違う？
 
-## ローカルKubernetes環境のセットアップ
+| 観点                       | docker-compose     | Kubernetes             |
+| -------------------------- | ------------------ | ---------------------- |
+| **スケール**               | 単一ホスト         | 複数ノードのクラスタ   |
+| **自己修復**               | なし（手動再起動） | Podの自動再作成        |
+| **ローリングアップデート** | なし               | あり（無停止更新）     |
+| **ロードバランシング**     | 手動設定           | 組み込み機能           |
+| **本番運用**               | 非推奨             | 業界標準               |
 
-Kubernetesを学ぶには、まずローカル環境が必要です。本番環境ではマルチノードクラスタを構築しますが、学習には**Minikube**が最適です。
+Kubernetesは複雑に見えますが、その背後には本番環境での信頼性を担保する設計思想があります。
 
-**Minikubeを選ぶ理由**
+今回はdocker-compose経験者の既存知識を活かしながら、Kubernetesの世界に足を踏み入れてみましょう。
+
+## Minikubeで始めるローカルKubernetes環境構築
+
+Kubernetesを学ぶには、まずローカル環境が必要です。
+
+本番環境ではマルチノードクラスタを構築しますが、学習には**Minikube**が最適です。
+
+### Minikubeとは？選ぶべき3つの理由
 
 - 本番環境に近いKubernetes APIを完全にサポート
 - 公式ドキュメントが充実している
 - LoadBalancer機能（トンネル経由）も使える
 - macOS、Windows、Linux全てで動作
 
-**必要なツール**
+### 必要なツール3選
 
-1. **Minikube** - ローカルKubernetesクラスタ
-2. **kubectl** - Kubernetes操作用CLI
+1. **Minikube** - ローカルKubernetesクラスタ実行環境
+2. **kubectl** - Kubernetes操作用公式CLI
 3. **Kompose** - docker-compose.yml変換ツール
 
-### インストール手順
+### OS別インストール手順
 
-#### macOS
+#### macOS（Homebrew）
 
 ```bash
 # Homebrewでインストール
 brew install minikube kubectl kompose
 ```
 
-#### Windows
+#### Windows（Chocolatey）
 
 ```powershell
 # Chocolateyでインストール
@@ -76,7 +92,8 @@ sudo install minikube-linux-amd64 /usr/local/bin/minikube
 curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
 sudo install kubectl /usr/local/bin/kubectl
 
-# Kompose
+# Kompose（2025年12月時点: v1.34.0が最新）
+# 最新版の確認: https://github.com/kubernetes/kompose/releases/latest
 curl -L https://github.com/kubernetes/kompose/releases/download/v1.34.0/kompose-linux-amd64 -o kompose
 chmod +x kompose
 sudo mv kompose /usr/local/bin/kompose
@@ -104,15 +121,17 @@ minikube   Ready    control-plane   30s   v1.28.3
 
 ここまでで、あなたのローカルマシンに本物のKubernetesクラスタが動いています！
 
-公式ドキュメント：
+### 公式ドキュメント
 
 {{< linkcard "https://minikube.sigs.k8s.io/" >}}
 
 {{< linkcard "https://kompose.io/" >}}
 
-## 実践1：3コマンドでNginxをデプロイ
+## 実践1：3コマンドでNginxをKubernetesにデプロイ
 
-docker-composeでは`docker-compose up`一発でしたが、Kubernetesでもコマンド3つで同じことができます。まずは最速体験で達成感を味わいましょう。
+docker-composeでは`docker-compose up`一発でしたが、Kubernetesでもコマンド3つで同じことができます。
+
+まずは最速体験で達成感を味わいましょう。
 
 ### Step 1: Deploymentを作成
 
@@ -121,7 +140,9 @@ docker-composeでは`docker-compose up`一発でしたが、Kubernetesでもコ�
 kubectl create deployment nginx --image=nginx:latest
 ```
 
-これでNginxコンテナを管理する「Deployment」が作成されました。docker-composeの`service`定義に相当します。
+これでNginxコンテナを管理する「Deployment」が作成されました。
+
+docker-composeの`service`定義に相当します。
 
 ### Step 2: Serviceで公開
 
@@ -130,7 +151,9 @@ kubectl create deployment nginx --image=nginx:latest
 kubectl expose deployment nginx --type=NodePort --port=80
 ```
 
-Kubernetesでは、Podへのアクセスを管理する「Service」というリソースが必要です。`NodePort`タイプを使うことで、クラスタ外部からアクセスできるようになります。
+Kubernetesでは、Podへのアクセスを管理する「Service」というリソースが必要です。
+
+`NodePort`タイプを使うことで、クラスタ外部からアクセスできるようになります。
 
 ### Step 3: ブラウザでアクセス
 
@@ -141,7 +164,7 @@ minikube service nginx
 
 ブラウザにNginxのデフォルトページが表示されれば成功です！
 
-**確認コマンド**
+### 確認コマンド
 
 ```bash
 # 作成されたリソースを確認
@@ -165,9 +188,13 @@ nginx        NodePort    10.96.123.45    <none>        80:30123/TCP   30s
 
 わずか3コマンドで、Nginxがクラスタにデプロイされ、外部からアクセスできるようになりました。docker-composeと比べても簡潔ではないでしょうか？
 
-## 実践2：Komposeでdocker-compose.ymlを変換する
+## 実践2：Komposeでdocker-compose.ymlをKubernetes形式に変換
 
-次に、既存のdocker-compose.ymlをKubernetesに移行してみましょう。手作業でYAMLを書き直すのは大変ですが、**Kompose**を使えば自動変換できます。
+次に、既存のdocker-compose.ymlをKubernetesに移行してみましょう。
+
+手作業でYAMLを書き直すのは大変ですが、**Kompose**を使えば自動変換できます。
+
+docker-composeでコンテナ管理に慣れている方なら、この移行プロセスがいかに簡単か実感できるはずです。
 
 ### サンプルdocker-compose.yml
 
@@ -188,7 +215,7 @@ services:
       - "6379:6379"
 ```
 
-### Komposeで変換
+### Komposeコマンドで自動変換
 
 ```bash
 # 同じディレクトリでKomposeを実行
@@ -227,14 +254,16 @@ service/cache        ClusterIP   10.96.45.123     <none>        6379/TCP        
 service/web          ClusterIP   10.96.78.234     <none>        80/TCP           10s
 ```
 
-**docker-composeとの違いを体感**
+### docker-composeとKubernetesのデプロイ手順の違いを体感
 
 - docker-compose: `docker-compose up`の1コマンド
 - Kubernetes: `kompose convert` → `kubectl apply`の2ステップ
 
-手順は増えましたが、生成されたYAMLファイルを見ると、Kubernetesがどのようにアプリケーションを管理しているかが理解できます。これこそが「宣言的設定」の真髄です。
+手順は増えましたが、生成されたYAMLファイルを見ると、Kubernetesがどのようにアプリケーションを管理しているかが理解できます。
 
-**注意点：Komposeの限界**
+これこそが「宣言的設定（Infrastructure as Code）」の真髄です。
+
+### Komposeの限界：本番環境への適用時の注意点
 
 Komposeは便利ですが、本番運用には不十分です。以下は手動で追加する必要があります：
 
@@ -247,15 +276,23 @@ Komposeは便利ですが、本番運用には不十分です。以下は手動�
 
 {{< linkcard "https://kubernetes.io/docs/tasks/configure-pod-container/translate-compose-kubernetes/" >}}
 
-## Kubernetesリソースの基本理解
+## Kubernetesの基本リソース解説：Pod、Deployment、Service
 
 ここまでコマンドで色々なリソースを作成してきましたが、それぞれが何をしているのか整理しましょう。
 
-### Pod - コンテナの実行単位
+Kubernetesを理解する上で最も重要な3つの基本リソースを見ていきます。
 
-**Pod**はKubernetesにおける最小のデプロイ単位です。docker-composeの1つの`service`が、Kubernetesでは1つのPodに概ね対応します。
+### Kubernetesにおける3つのコアリソース
 
-Podの特徴：
+Kubernetesでは、**Pod**、**Deployment**、**Service**という3つのリソースが基本となります。
+
+#### Pod - コンテナの実行単位
+
+**Pod**はKubernetesにおける最小のデプロイ単位です。
+
+docker-composeの1つの`service`が、Kubernetesでは1つのPodに概ね対応します。
+
+**Podの特徴：**
 
 - 1つ以上のコンテナをグループ化
 - 同じPod内のコンテナはIPアドレスとストレージを共有
@@ -269,11 +306,11 @@ kubectl get pods
 kubectl describe pod <pod-name>
 ```
 
-### Deployment - Podの管理レイヤー
+#### Deployment - Podの管理レイヤー
 
 **Deployment**は「このアプリケーションをどのように動かすか」を宣言するリソースです。
 
-主な機能：
+**主な機能：**
 
 - レプリカ数の管理（Podを3つ動かす、など）
 - ローリングアップデート（無停止でバージョンアップ）
@@ -293,17 +330,17 @@ kubectl scale deployment nginx --replicas=3
 kubectl get pods
 ```
 
-### Service - ネットワーク公開
+#### Service - ネットワーク公開
 
 **Service**は、Podへの安定したアクセスポイントを提供します。
 
-なぜ必要？Podは再作成のたびにIPアドレスが変わるため、固定のアクセス先が必要だからです。
+なぜ必要？Podは再作成されるたびにIPアドレスが変わるため、固定のアクセス先が必要だからです。
 
-Serviceタイプ：
+**Serviceタイプ：**
 
-- **ClusterIP**（デフォルト）: クラスタ内部からのみアクセス可能
-- **NodePort**: 各ノードのポートを公開（今回使用）
-- **LoadBalancer**: 外部ロードバランサーを作成（クラウド環境で有効）
+- **ClusterIP**（デフォルト）：クラスタ内部からのみアクセス可能
+- **NodePort**：各ノードのポートを公開（今回使用）
+- **LoadBalancer**：外部ロードバランサーを作成（クラウド環境で有効）
 
 ```bash
 # Service一覧を確認
@@ -313,7 +350,7 @@ kubectl get services
 kubectl describe service nginx
 ```
 
-### リソースの関係性
+### リソース間の関係性を理解する
 
 ```
 Deployment（管理者）
@@ -323,13 +360,25 @@ Pod（実行単位）
 Service（公開窓口）
 ```
 
-docker-composeでは1つのYAMLに全て書きましたが、Kubernetesでは役割ごとにリソースを分離します。これにより、より柔軟で堅牢なアプリケーション管理が可能になります。
+docker-composeでは1つのYAMLに全て書きましたが、Kubernetesでは役割ごとにリソースを分離します。
+
+これにより、より柔軟で堅牢なアプリケーション管理が可能になります。
+
+**関連リンク：**
+
+Kubernetesの公式ドキュメントでさらに詳しく学べます。
 
 {{< linkcard "https://kubernetes.io/ja/docs/home/" >}}
 
-## クリーンアップと次回への橋渡し
+**合わせて読みたい：**
 
-### リソースの削除
+docker-composeの基本については、こちらの記事で詳しく解説しています。
+
+{{< linkcard "https://www.nqou.net/2017/12/03/025713/" >}}
+
+## リソースのクリーンアップと次回への準備
+
+### 作成したKubernetesリソースの削除方法
 
 実験が終わったら、作成したリソースを削除しましょう。
 
@@ -344,7 +393,7 @@ kubectl delete service nginx web cache
 kubectl get all
 ```
 
-### Minikubeの停止
+### Minikubeクラスタの停止と削除
 
 ```bash
 # クラスタを停止（次回はminikube startで再開できます）
@@ -354,24 +403,37 @@ minikube stop
 # minikube delete
 ```
 
-### 今回の学び
+### 第1回のまとめ：達成したこと
 
 今回、あなたは以下を達成しました：
 
-✅ ローカルKubernetes環境（Minikube）のセットアップ  
-✅ 3コマンドでのアプリケーションデプロイ体験  
-✅ Komposeを使ったdocker-compose.yml変換  
-✅ Pod、Deployment、Serviceの基本理解
+- ✅ ローカルKubernetes環境（Minikube）のセットアップ
+- ✅ 3コマンドでのアプリケーションデプロイ体験
+- ✅ Komposeを使ったdocker-compose.yml変換
+- ✅ Pod、Deployment、Serviceの基本理解
 
-docker-composeと比べると、確かに手順は増えました。しかし、その裏側では本番環境で必要な「自己修復」「スケーラビリティ」「宣言的管理」といった強力な機能が動いています。
+docker-composeと比べると、確かに手順は増えました。
 
-## 次回予告
+しかし、その裏側では、本番環境で必要な「自己修復」「スケーラビリティ」「宣言的管理」といった強力な機能が動いています。
+
+## 【シリーズ第2回予告】YAMLマニフェスト詳細解説
 
 次回は、今回使った`kubectl create deployment`や`kompose convert`が裏で何をしているのか、YAMLマニフェストの仕組みを詳しく見ていきます。実験的に設定を変更しながら、Kubernetesのコアコンセプトを理解していきましょう。
 
-- Deploymentの仕組みとYAML構造
-- Podのライフサイクルと管理
-- Serviceの種類と使い分け
-- 自分でYAMLを書いてカスタマイズする方法
+**次回のトピック：**
+
+- Deployment YAMLの構造と設定項目
+- Podのライフサイクルと詳細な管理方法
+- Serviceの種類（ClusterIP、NodePort、LoadBalancer）と使い分け
+- YAMLを自分で書いてカスタマイズする実践テクニック
+- リソース制限とヘルスチェックの設定
 
 お楽しみに！
+
+---
+
+**この記事が役に立ったら：**
+
+- 次回の記事も読んでみてください
+- 実際にMinikubeで手を動かしてみましょう
+- わからないことがあれば、[@nqounet](https://x.com/nqounet)までお気軽にどうぞ
