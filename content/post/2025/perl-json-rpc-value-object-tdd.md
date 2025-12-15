@@ -9,7 +9,7 @@ tags:
 - test2
 - json-rpc
 - tutorial
-description: "値オブジェクトパターンを使ってJSON-RPC 2.0をPerlで実装します。TDD（テスト駆動開発）のサイクルを通じて、保守性の高いコードの書き方を実践的に学べるチュートリアルです。"
+description: "Perlで値オブジェクトとTDDを実践！JSON-RPC 2.0の実装を通じて、型安全で保守性の高いコード設計を学べる完全ガイド。Moo、Type::Tiny、Test2を使った実践的チュートリアル。"
 ---
 
 [@nqounet](https://x.com/nqounet)です。
