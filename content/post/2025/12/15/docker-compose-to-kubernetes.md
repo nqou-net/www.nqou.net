@@ -10,7 +10,7 @@ tags:
   - local-development
   - devops
   - infrastructure-as-code
-description: "docker-composeユーザー向けのKubernetes入門ガイド。Minikubeでローカル開発環境を構築し、既存アプリを移行する実践的な手順を解説。kubectl基本操作からトラブルシューティングまで網羅。"
+description: "docker-composeユーザー向けのKubernetes入門ガイド。2025年最新のMinikubeでローカル開発環境を構築し、Web+DB構成の既存アプリを移行する実践的な手順を解説。kubectl基本操作からトラブルシューティングまで網羅。"
 ---
 
 ## はじめに
@@ -641,7 +641,7 @@ minikube service nginx-service --url
 kubectl port-forward service/nginx-service 8080:80
 ```
 
-これで `http://localhost:8080` でアクセスできる。
+これで`http://localhost:8080`でアクセスできる。
 
 ### クラスタ内部での名前解決
 
@@ -652,7 +652,7 @@ Kubernetesでは、ServiceはDNS名でアクセスできる。同じNamespace内
 postgres-service:5432
 ```
 
-これにより、nginx-deployment.yamlで指定した環境変数 `DB_HOST=postgres-service` が機能する。
+これにより、nginx-deployment.yamlで指定した環境変数`DB_HOST=postgres-service`が機能する。
 
 ### Step 4: データの永続化
 
@@ -1074,7 +1074,7 @@ kubectl apply -f ingress.yaml
 - **失敗を恐れない**: ローカル環境なので何度でもやり直せる
 - **コミュニティを活用**: Kubernetes Slackコミュニティ、Stack Overflow等で質問
 
-docker-composeで十分な場面も多いが、Kubernetesを学ぶことで、モダンなクラウドネイティブアプリケーションの世界が広がる。本番環境で使うかどうかに関わらず、コンテナオーケストレーションの概念を理解することは、今後のキャリアにおいて大きな武器になるだろう。
+docker-composeで十分な場面も多いが、Kubernetesを学ぶことで、モダンなクラウドネイティブアプリケーションの世界が広がる。本番環境で使うかどうかに関わらず、コンテナオーケストレーションの概念を理解することは、今後のキャリアにおいて大きな武器になる。
 
 2025年、Kubernetesの学習環境はかつてないほど整っている。この記事が、あなたのKubernetes学習の第一歩となれば幸いである。
 
