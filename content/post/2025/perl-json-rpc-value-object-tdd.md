@@ -14,9 +14,6 @@ description: "Perlで値オブジェクトとTDDを実践！JSON-RPC 2.0の実�
 
 [@nqounet](https://x.com/nqounet)です。
 
-「なぜこのコードは1,000ドルなのに、こっちは10ドルなのか？」  
-そんな疑問を持ったことはありませんか？実は、値オブジェクトという設計パターンを知っているかどうかで、コードの品質は大きく変わります。
-
 本記事では、Perlを使ってJSON-RPC 2.0プロトコルを実装しながら、値オブジェクトとTDD（テスト駆動開発）の実践方法を学びます。プリミティブ型（文字列や数値）をそのまま使うのではなく、意味のある「オブジェクト」として扱うことで、バグを減らし、保守しやすいコードを書く方法を体験できます。
 
 ## はじめに
@@ -197,31 +194,31 @@ use Test2::V0;
 use JsonRpc::Version;
 
 subtest 'バージョン2.0を受け入れる' => sub {
-    my $version = JsonRpc::Version->new('2.0');
-    ok $version, 'オブジェクトが作成できる';
-    is $version->value, '2.0', '値が正しい';
+  my $version = JsonRpc::Version->new('2.0');
+  ok $version, 'オブジェクトが作成できる';
+  is $version->value, '2.0', '値が正しい';
 };
 
 subtest '不正なバージョンを拒否する' => sub {
-    like(
-        dies { JsonRpc::Version->new('1.0') },
-        qr/Invalid version/,
-        '1.0は拒否される'
-    );
-    
-    like(
-        dies { JsonRpc::Version->new('3.0') },
-        qr/Invalid version/,
-        '3.0も拒否される'
-    );
+  like(
+    dies {JsonRpc::Version->new('1.0')},
+      qr/Invalid version/,
+      '1.0は拒否される'
+  );
+
+  like(
+    dies {JsonRpc::Version->new('3.0')},
+      qr/Invalid version/,
+      '3.0も拒否される'
+  );
 };
 
 subtest '等価性の判定' => sub {
-    my $v1 = JsonRpc::Version->new('2.0');
-    my $v2 = JsonRpc::Version->new('2.0');
-    
-    ok $v1->equals($v2), '同じ値なら等しい';
-    isnt $v1, $v2, 'オブジェクトは別物';
+  my $v1 = JsonRpc::Version->new('2.0');
+  my $v2 = JsonRpc::Version->new('2.0');
+
+  ok $v1->equals($v2), '同じ値なら等しい';
+  isnt "$v1", "$v2", 'オブジェクトは別物';
 };
 
 done_testing;
@@ -428,64 +425,64 @@ use Test2::V0;
 use JsonRpc::Request;
 
 subtest '正しいRequestの構築' => sub {
-    my $req = JsonRpc::Request->new(
-        method => 'subtract',
-        params => [42, 23],
-        id     => 1,
-    );
-    
-    ok $req, 'オブジェクトが作成できる';
-    is $req->method, 'subtract', 'メソッド名が正しい';
-    is $req->params, [42, 23], 'パラメータが正しい';
-    is $req->id, 1, 'IDが正しい';
-    isa_ok $req->version, 'JsonRpc::Version', 'バージョンオブジェクト';
+  my $req = JsonRpc::Request->new(
+    method => 'subtract',
+    params => [ 42, 23 ],
+    id     => 1,
+  );
+
+  ok $req, 'オブジェクトが作成できる';
+  is $req->method, 'subtract', 'メソッド名が正しい';
+  is $req->params, [ 42, 23 ], 'パラメータが正しい';
+  is $req->id, 1, 'IDが正しい';
+  isa_ok $req->version, [ 'JsonRpc::Version' ], 'バージョンオブジェクト';
 };
 
 subtest 'パラメータは省略可能' => sub {
-    my $req = JsonRpc::Request->new(
-        method => 'ping',
-        id     => 2,
-    );
-    
-    is $req->params, undef, 'paramsはundef';
+  my $req = JsonRpc::Request->new(
+    method => 'ping',
+    id     => 2,
+  );
+
+  is $req->params, undef, 'paramsはundef';
 };
 
 subtest 'メソッド名は必須' => sub {
-    like(
-        dies { JsonRpc::Request->new(id => 1) },
-        qr/required/i,
-        'methodなしは失敗'
-    );
+  like(
+    dies {JsonRpc::Request->new(id => 1)},
+      qr/required/i,
+      'methodなしは失敗'
+  );
 };
 
 subtest 'IDは必須（Notificationと区別）' => sub {
-    like(
-        dies { JsonRpc::Request->new(method => 'test') },
-        qr/required/i,
-        'idなしは失敗'
-    );
+  like(
+    dies {JsonRpc::Request->new(method => 'test')},
+      qr/required/i,
+      'idなしは失敗'
+  );
 };
 
 subtest 'IDの型（文字列・数値・null）' => sub {
-    ok JsonRpc::Request->new(method => 'test', id => 1), '数値ID';
-    ok JsonRpc::Request->new(method => 'test', id => 'abc'), '文字列ID';
-    ok JsonRpc::Request->new(method => 'test', id => undef), 'null ID';
+  ok scalar JsonRpc::Request->new(method => 'test', id => 1), '数値ID';
+  ok scalar JsonRpc::Request->new(method => 'test', id => 'abc'), '文字列ID';
+  ok scalar JsonRpc::Request->new(method => 'test', id => undef), 'null ID';
 };
 
 subtest 'ハッシュへの変換' => sub {
-    my $req = JsonRpc::Request->new(
-        method => 'add',
-        params => { a => 1, b => 2 },
-        id     => 3,
-    );
-    
-    my $hash = $req->to_hash;
-    is $hash, {
-        jsonrpc => '2.0',
-        method  => 'add',
-        params  => { a => 1, b => 2 },
-        id      => 3,
-    }, 'ハッシュ表現が正しい';
+  my $req = JsonRpc::Request->new(
+    method => 'add',
+    params => { a => 1, b => 2 },
+    id     => 3,
+  );
+
+  my $hash = $req->to_hash;
+  is $hash, {
+    jsonrpc => '2.0',
+    method  => 'add',
+    params  => { a => 1, b => 2 },
+    id      => 3,
+  }, 'ハッシュ表現が正しい';
 };
 
 done_testing;
@@ -499,8 +496,8 @@ package JsonRpc::Request;
 use strict;
 use warnings;
 use Moo;
-use Types::Standard qw(Str ArrayRef HashRef Maybe Int Defined);
-use Type::Utils qw(declare as where union);
+use Types::Standard qw(Str ArrayRef HashRef Maybe Int Defined InstanceOf);
+use Type::Utils qw(declare as where message);
 use JsonRpc::Version;
 use namespace::clean;
 
@@ -625,7 +622,7 @@ subtest 'カスタムエラーコード（-32000〜-32099）' => sub {
 
 subtest '予約範囲外のコードは拒否' => sub {
     like(
-        dies { JsonRpc::Error->new(code => -32768, message => 'test') },
+        dies { JsonRpc::Error->new(code => 32768, message => 'test') },
         qr/Invalid error code/,
         '予約範囲外は拒否'
     );
@@ -680,7 +677,7 @@ my $ErrorCode = declare as Int,
     where {
         # -32768 〜 -32000: 予約済み（標準エラー）
         # -32099 〜 -32000: サーバー定義可能
-        ($_ >= -32768 && $_ <= -32000) || ($_ >= -32099 && $_ <= -32000)
+        ($_ >= -32768 && $_ <= -32000)
     },
     message { "Invalid error code: must be in reserved range, got $_" };
 
@@ -796,7 +793,7 @@ subtest 'Error レスポンス' => sub {
         id    => 1,
     );
     
-    isa_ok $res->error, 'JsonRpc::Error', 'エラーオブジェクト';
+    isa_ok $res->error, ['JsonRpc::Error'], 'エラーオブジェクト';
     is $res->id, 1, 'IDが正しい';
     
     my $hash = $res->to_hash;
@@ -830,7 +827,7 @@ package JsonRpc::Response::Success;
 use strict;
 use warnings;
 use Moo;
-use Types::Standard qw(Any Maybe Str Int);
+use Types::Standard qw(Any Maybe Str Int InstanceOf);
 use Type::Utils qw(union);
 use JsonRpc::Version;
 use namespace::clean;
@@ -875,7 +872,7 @@ package JsonRpc::Response::Error;
 use strict;
 use warnings;
 use Moo;
-use Types::Standard qw(Maybe Str Int);
+use Types::Standard qw(Maybe Str Int InstanceOf);
 use Type::Utils qw(union);
 use JsonRpc::Version;
 use JsonRpc::Error;
@@ -971,7 +968,7 @@ subtest '正しいNotificationの構築' => sub {
     ok $notif, 'オブジェクトが作成できる';
     is $notif->method, 'notify_user', 'メソッド名';
     is $notif->params, { user_id => 123, message => 'Hello' }, 'パラメータ';
-    ok !exists $notif->can('id'), 'IDメソッドは存在しない';
+    ok !$notif->can('id'), 'IDメソッドは存在しない';
 };
 
 subtest 'パラメータは省略可能' => sub {
@@ -1006,7 +1003,7 @@ package JsonRpc::Notification;
 use strict;
 use warnings;
 use Moo;
-use Types::Standard qw(Str ArrayRef HashRef Maybe);
+use Types::Standard qw(Str ArrayRef HashRef Maybe InstanceOf);
 use Type::Utils qw(union declare as where message);
 use JsonRpc::Version;
 use namespace::clean;
@@ -1118,7 +1115,7 @@ subtest 'リクエスト処理' => sub {
     
     my $response = process_request($request);
     
-    isa_ok $response, 'JsonRpc::Response::Success';
+    isa_ok $response, ['JsonRpc::Response::Success'];
     is $response->result, 19;
 };
 ```
@@ -1273,8 +1270,10 @@ sub from_json {
 {{< linkcard "https://metacpan.org/pod/Test2::Suite" >}}
 
 **書籍**:
-- "Domain-Driven Design" by Eric Evans（ドメイン駆動設計）
-- "Refactoring" by Martin Fowler（リファクタリング）
+
+{{< amazon asin="B00GRKD6XU" title="エリック・エヴァンスのドメイン駆動設計 Kindle版" >}}
+
+{{< amazon asin="B0831M1RK5" title="リファクタリング 既存のコードを安全に改善する（第2版） Kindle版" >}}
 
 **Perlコミュニティ**:
 
