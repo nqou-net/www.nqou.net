@@ -1,0 +1,559 @@
+---
+title: "【Perl×DDD】値オブジェクト(Value Object)入門 - Mooで実装する不変オブジェクト"
+draft: true
+tags:
+  - perl
+  - value-object
+  - ddd
+  - moo
+description: "PerlとMooで値オブジェクトを実装する方法を徹底解説。ドメイン駆動設計(DDD)の基礎から、不変性・バリデーション・Test2によるテスト駆動開発まで、実践的なコード例で学べます。"
+---
+
+この記事は「**Perlで値オブジェクトを使ってテスト駆動開発してみよう**」シリーズの第1回である。ドメイン駆動設計（DDD）の重要な概念である値オブジェクト（Value Object）の基本から、Perlでの実践的な実装方法まで、初心者の方にもわかりやすく解説していく。
+
+## 値オブジェクト（Value Object）とは何か
+
+### プリミティブ型を使うコードの問題点
+
+まず、なぜ値オブジェクトが必要なのかを理解するために、プリミティブ型（数値や文字列など）を直接使う場合の問題点を見てみよう。
+
+```perl
+# 金額を扱うコード例
+sub transfer_money {
+    my ($from_account, $to_account, $amount) = @_;
+    
+    # 100って何の100？円？ドル？
+    # マイナス値が来たらどうする？
+    # 通貨が混在したらどうする？
+    $from_account->balance($from_account->balance - $amount);
+    $to_account->balance($to_account->balance + $amount);
+}
+
+# 実際の使用例
+transfer_money($my_account, $your_account, 100);
+transfer_money($usd_account, $jpy_account, 100);  # これは危険！
+```
+
+このコードには以下のような問題がある。
+
+1. **意味が不明確**: `100`が何の100なのかわからない（円？ドル？ユーロ？）
+2. **バリデーション不足**: マイナス値が混入する可能性がある
+3. **型安全性の欠如**: 異なる通貨の金額を足し引きできてしまう
+4. **ビジネスルールの散在**: 金額のチェックロジックがコードのあちこちに散らばる
+
+### 値オブジェクトによる問題解決
+
+値オブジェクト（Value Object）は、DDDにおける重要な設計パターンである。プリミティブ型を独自のクラスでラップすることで、以下のメリットが得られる。
+
+### 型安全性の向上
+
+```perl
+my $jpy = Money->new(amount => 100, currency => 'JPY');
+my $usd = Money->new(amount => 100, currency => 'USD');
+
+# 異なる通貨の計算は型レベルで防げる
+# $jpy->add($usd);  # エラーになるべき
+```
+
+### バリデーションとビジネスルールの集約
+
+```perl
+# Moneyクラス内でバリデーションを一元管理
+package Money;
+use Moo;
+
+has amount => (
+    is => 'ro',
+    isa => sub { 
+        die "Amount must be non-negative" unless $_[0] >= 0;
+    },
+    required => 1,
+);
+```
+
+### ビジネスルールのカプセル化
+
+金額に関するすべてのビジネスルールを`Money`クラスに集約できる。「マイナス値は許可しない」「通貨が一致しないと計算できない」といったドメイン知識を、型として表現できるのである。
+
+## 値オブジェクトの3つの重要な特徴
+
+DDDにおける値オブジェクトには、次の3つの重要な特徴がある。これらを理解し実装することで、保守性の高いコードが実現できる。
+
+### 不変性（イミュータブル）
+
+値オブジェクトは**一度作ったら変更できない**設計にする。これを不変性（Immutability）という。
+
+#### なぜ不変であるべきか
+
+1. **マルチスレッド安全性**: 変更されないため、複数のスレッドから安全に参照できる
+2. **予測可能性**: 関数に渡した値が勝手に変更される心配がない
+3. **デバッグの容易性**: 値が変わらないため、バグの原因を特定しやすい
+
+```perl
+# 良い例: 不変な値オブジェクト
+my $money1 = Money->new(amount => 100, currency => 'JPY');
+my $money2 = $money1->add(Money->new(amount => 50, currency => 'JPY'));
+
+# $money1 は変更されず、新しいオブジェクト $money2 が生成される
+say $money1->amount;  # 100 (変わっていない)
+say $money2->amount;  # 150 (新しいオブジェクト)
+```
+
+### 値による等価性
+
+値オブジェクトは、オブジェクトの**識別子（ID）ではなく、値で等価性を判定**する。
+
+```perl
+my $money1 = Money->new(amount => 100, currency => 'JPY');
+my $money2 = Money->new(amount => 100, currency => 'JPY');
+my $money3 = Money->new(amount => 200, currency => 'JPY');
+
+# リファレンスは異なるが、値が同じなら等価
+say $money1->equals($money2) ? 'same' : 'different';  # same
+say $money1->equals($money3) ? 'same' : 'different';  # different
+```
+
+通常のPerlオブジェクトは参照（リファレンス）で比較されるが、値オブジェクトは**内部の値**で比較する。
+
+### バリデーションのカプセル化
+
+値オブジェクトは、**不正な値を持つインスタンスを作れない**ように設計する。これにより、「値オブジェクトが存在する = 値が正しい」ことが保証される。
+
+```perl
+# 正常なインスタンス生成
+my $valid_money = Money->new(amount => 100, currency => 'JPY');  # OK
+
+# 不正な値では生成できない
+eval {
+    my $invalid_money = Money->new(amount => -100, currency => 'JPY');
+};
+say $@ if $@;  # "Amount must be non-negative" エラーが発生
+```
+
+## Perlで値オブジェクトを実装してみよう
+
+それでは、実際にPerlとMooを使って値オブジェクトを実装してみよう。Mooは軽量で高速なオブジェクトシステムで、値オブジェクトのパターン実装に最適なツールである。
+
+### Mooを使った値オブジェクトの実装
+
+Mooは軽量で高速なPerlのオブジェクトシステムである。値オブジェクトの実装に必要な不変性やバリデーション機能を簡潔に記述できる。
+
+```perl
+package Money;
+use v5.38;
+use Moo;
+use namespace::clean;
+
+# amount: 金額（非負の数値）
+has amount => (
+    is       => 'ro',
+    isa      => sub { 
+        die "Amount must be a number" unless looks_like_number($_[0]);
+        die "Amount must be non-negative" unless $_[0] >= 0;
+    },
+    required => 1,
+);
+
+# currency: 通貨コード（3文字のISO 4217コード）
+has currency => (
+    is       => 'ro',
+    isa      => sub {
+        die "Currency must be a string" unless defined $_[0] && !ref $_[0];
+        die "Currency must be 3 characters" unless length($_[0]) == 3;
+    },
+    required => 1,
+);
+
+# 値による等価性の判定
+sub equals {
+    my ($self, $other) = @_;
+    return 0 unless $other->isa(__PACKAGE__);
+    return $self->amount == $other->amount 
+        && $self->currency eq $other->currency;
+}
+
+# 人間が読みやすい形式で表示
+sub to_string {
+    my $self = shift;
+    return sprintf("%d %s", $self->amount, $self->currency);
+}
+
+use Scalar::Util qw(looks_like_number);
+
+1;
+```
+
+#### コードのポイント
+
+- `use v5.38`: Perl 5.38以降の機能を使用（`say`、`state`など）
+- `use Moo`: 軽量なオブジェクトシステム
+- `use namespace::clean`: メソッド名前空間をクリーンに保つ
+
+### 不変性を実現する `is => 'ro'`
+
+Mooの`is => 'ro'`（read-only）を使うことで、属性を読み取り専用にできる。
+
+```perl
+has amount => (
+    is => 'ro',  # 読み取り専用
+    # ...
+);
+```
+
+これにより、以下のようなコードはエラーになる。
+
+```perl
+my $money = Money->new(amount => 100, currency => 'JPY');
+$money->amount(200);  # エラー: Can't locate object method "amount" via package "Money"
+```
+
+セッター（値を変更するメソッド）が生成されないため、オブジェクトの不変性が保証される。
+
+### コンストラクタでのバリデーション
+
+`isa`サブルーチンを使って、コンストラクタの段階でバリデーションを実行できる。
+
+```perl
+has amount => (
+    is  => 'ro',
+    isa => sub { 
+        die "Amount must be a number" unless looks_like_number($_[0]);
+        die "Amount must be non-negative" unless $_[0] >= 0;
+    },
+    required => 1,
+);
+```
+
+`$_[0]`には、コンストラクタに渡された値が入る。バリデーションに失敗した場合は`die`でエラーを投げる。
+
+より複雑なバリデーションが必要な場合は、`BUILD`フックを使うこともできる。
+
+```perl
+sub BUILD {
+    my $self = shift;
+    
+    # 追加のビジネスルールチェック
+    if ($self->currency eq 'JPY' && $self->amount != int($self->amount)) {
+        die "Japanese Yen cannot have decimal places";
+    }
+}
+```
+
+`BUILD`は、すべての属性が初期化された後に自動的に呼ばれるメソッドである。
+
+## なぜTest2でテスト駆動開発するのか
+
+このシリーズでは、値オブジェクトのテスト駆動開発（TDD）に**Test2**フレームワークを使用する。Test2は従来のTest::Moreを進化させたモダンなテストフレームワークで、値オブジェクトのテストに最適である。
+
+### Test::Moreとの違い
+
+Test2は、従来のTest::Moreを進化させたモダンなテストフレームワークである。
+
+| 観点 | Test::More | Test2 |
+|------|-----------|-------|
+| 歴史 | 2001年頃から | 2015年以降 |
+| 拡張性 | 限定的 | プラグイン機構が充実 |
+| 構造化 | 基本的なTAP出力 | 構造化されたイベントシステム |
+| データ比較 | `is_deeply`が必要 | `is`だけで深い比較が可能 |
+
+Test2の基本的な使い方は以下の通りである。
+
+```perl
+use Test2::V0;
+
+# 基本的なテスト
+ok 1, 'simple test';
+is 'foo', 'foo', 'string comparison';
+
+# オブジェクトのテスト
+my $money = Money->new(amount => 100, currency => 'JPY');
+is $money->amount, 100, 'amount is 100';
+is $money->currency, 'JPY', 'currency is JPY';
+
+done_testing;
+```
+
+### 値オブジェクトのテストに最適な理由
+
+Test2が値オブジェクトのテストに適している理由を見ていきましょう。
+
+#### 構造化されたデータ比較
+
+```perl
+use Test2::V0;
+
+my $money = Money->new(amount => 100, currency => 'JPY');
+
+# ハッシュリファレンスとして比較
+is {
+    amount   => $money->amount,
+    currency => $money->currency,
+}, {
+    amount   => 100,
+    currency => 'JPY',
+}, 'Money object has correct values';
+```
+
+#### 例外テストが簡単
+
+```perl
+use Test2::V0;
+
+# バリデーションエラーのテスト
+like(
+    dies { Money->new(amount => -100, currency => 'JPY') },
+    qr/Amount must be non-negative/,
+    'negative amount throws error'
+);
+```
+
+#### サブテストによる整理
+
+```perl
+use Test2::V0;
+
+subtest 'Money constructor validation' => sub {
+    subtest 'valid values' => sub {
+        ok lives { Money->new(amount => 100, currency => 'JPY') };
+    };
+    
+    subtest 'invalid amount' => sub {
+        like(
+            dies { Money->new(amount => -100, currency => 'JPY') },
+            qr/Amount must be non-negative/
+        );
+    };
+    
+    subtest 'invalid currency' => sub {
+        like(
+            dies { Money->new(amount => 100, currency => 'JP') },
+            qr/Currency must be 3 characters/
+        );
+    };
+};
+
+done_testing;
+```
+
+サブテストを使うと、関連するテストをグループ化でき、テスト結果が読みやすくなる。
+
+詳しいTest2の使い方については、以前の記事「[Test2フレームワーク入門](/2025/12/07/000000/)」もご覧ください。
+
+## 実践：完全なMoneyクラスとテスト駆動開発
+
+これまでの内容を踏まえて、テスト駆動開発（TDD）で完全な`Money`値オブジェクトクラスを実装しよう。
+
+### Moneyクラスの実装
+
+**lib/Money.pm:**
+
+```perl
+package Money;
+use v5.38;
+use Moo;
+use namespace::clean;
+use Scalar::Util qw(looks_like_number);
+
+has amount => (
+    is       => 'ro',
+    isa      => sub { 
+        die "Amount must be a number" unless looks_like_number($_[0]);
+        die "Amount must be non-negative" unless $_[0] >= 0;
+    },
+    required => 1,
+);
+
+has currency => (
+    is       => 'ro',
+    isa      => sub {
+        die "Currency must be a string" unless defined $_[0] && !ref $_[0];
+        die "Currency must be 3 characters" unless length($_[0]) == 3;
+    },
+    required => 1,
+);
+
+sub equals {
+    my ($self, $other) = @_;
+    return 0 unless $other->isa(__PACKAGE__);
+    return $self->amount == $other->amount 
+        && $self->currency eq $other->currency;
+}
+
+sub add {
+    my ($self, $other) = @_;
+    die "Cannot add different currencies" 
+        unless $self->currency eq $other->currency;
+    
+    return Money->new(
+        amount   => $self->amount + $other->amount,
+        currency => $self->currency,
+    );
+}
+
+sub to_string {
+    my $self = shift;
+    return sprintf("%d %s", $self->amount, $self->currency);
+}
+
+1;
+```
+
+### テストコード
+
+**t/money.t:**
+
+```perl
+use Test2::V0;
+use lib 'lib';
+use Money;
+
+subtest 'constructor validation' => sub {
+    subtest 'valid values create object' => sub {
+        my $money = Money->new(amount => 100, currency => 'JPY');
+        ok $money, 'object created';
+        is $money->amount, 100, 'amount is set';
+        is $money->currency, 'JPY', 'currency is set';
+    };
+    
+    subtest 'negative amount is rejected' => sub {
+        like(
+            dies { Money->new(amount => -100, currency => 'JPY') },
+            qr/Amount must be non-negative/,
+            'negative amount throws error'
+        );
+    };
+    
+    subtest 'invalid currency length is rejected' => sub {
+        like(
+            dies { Money->new(amount => 100, currency => 'JP') },
+            qr/Currency must be 3 characters/,
+            'short currency throws error'
+        );
+    };
+    
+    subtest 'non-numeric amount is rejected' => sub {
+        like(
+            dies { Money->new(amount => 'abc', currency => 'JPY') },
+            qr/Amount must be a number/,
+            'non-numeric amount throws error'
+        );
+    };
+};
+
+subtest 'immutability' => sub {
+    my $money = Money->new(amount => 100, currency => 'JPY');
+    
+    # 読み取り専用なので値を変更できない
+    like(
+        dies { $money->amount(200) },
+        qr/Usage:/,
+        'cannot modify amount (read-only)'
+    );
+};
+
+subtest 'equality' => sub {
+    my $money1 = Money->new(amount => 100, currency => 'JPY');
+    my $money2 = Money->new(amount => 100, currency => 'JPY');
+    my $money3 = Money->new(amount => 200, currency => 'JPY');
+    my $money4 = Money->new(amount => 100, currency => 'USD');
+    
+    ok $money1->equals($money2), 'same amount and currency are equal';
+    ok !$money1->equals($money3), 'different amounts are not equal';
+    ok !$money1->equals($money4), 'different currencies are not equal';
+};
+
+subtest 'addition' => sub {
+    my $money1 = Money->new(amount => 100, currency => 'JPY');
+    my $money2 = Money->new(amount => 50, currency => 'JPY');
+    my $result = $money1->add($money2);
+    
+    is $result->amount, 150, 'amounts are added';
+    is $result->currency, 'JPY', 'currency is preserved';
+    
+    # 元のオブジェクトは変更されていない（不変性の確認）
+    is $money1->amount, 100, 'original object is unchanged';
+};
+
+subtest 'addition with different currencies fails' => sub {
+    my $jpy = Money->new(amount => 100, currency => 'JPY');
+    my $usd = Money->new(amount => 100, currency => 'USD');
+    
+    like(
+        dies { $jpy->add($usd) },
+        qr/Cannot add different currencies/,
+        'adding different currencies throws error'
+    );
+};
+
+done_testing;
+```
+
+### テストの実行
+
+テストを実行してみよう。
+
+```bash
+$ perl t/money.t
+# Subtest: constructor validation
+    # Subtest: valid values create object
+    ok 1 - object created
+    ok 2 - amount is set
+    ok 3 - currency is set
+    1..3
+ok 1 - valid values create object
+    # Subtest: negative amount is rejected
+    ok 1 - negative amount throws error
+    1..1
+ok 2 - negative amount is rejected
+    # Subtest: invalid currency length is rejected
+    ok 1 - short currency throws error
+    1..1
+ok 3 - invalid currency length is rejected
+    # Subtest: non-numeric amount is rejected
+    ok 1 - non-numeric amount throws error
+    1..1
+ok 4 - non-numeric amount is rejected
+    1..4
+ok 1 - constructor validation
+# ... (以下略)
+```
+
+#### テストコードのポイント
+
+- サブテストで関連するテストケースをグループ化
+- 正常系と異常系を両方テスト
+- 不変性を明示的に確認
+- 等価性の振る舞いを検証
+
+## まとめ：値オブジェクトで始めるドメイン駆動設計
+
+この記事では、ドメイン駆動設計（DDD）における値オブジェクトの基本概念とPerlでの実装方法について学んだ。
+
+### 重要ポイントのおさらい
+
+1. **プリミティブ型の問題点**: 意味が不明確、バリデーション不足、型安全性の欠如がある
+2. **値オブジェクトの3つの特徴**: 不変性（イミュータブル）、値による等価性、バリデーションのカプセル化がDDDの基本
+3. **Perl + Mooでの実装**: `is => 'ro'`で不変性を実現し、`isa`でバリデーションを集約できる
+4. **Test2によるテスト駆動開発**: 構造化された比較、例外テスト、サブテストによる整理が可能
+
+値オブジェクトは、**ビジネルールをドメインモデルとして型で表現**する強力なパターンである。正しい値しか存在できないようにすることで、バグを未然に防ぎ、コードの意図を明確にできる。
+
+### 次回予告：JSON-RPC 2.0で学ぶ値オブジェクト設計
+
+次回は「**JSON-RPC 2.0で学ぶ値オブジェクト設計 - 仕様から設計へ**」と題して、実際のプロトコル仕様から値オブジェクトを設計する方法を学ぶ。JSON-RPC 2.0の仕様を読み解きながら、どの部分を値オブジェクト化すべきか、どのようなバリデーションルールをドメインモデルとして実装すべきかを考えていく。
+
+お楽しみに！
+
+## 参考リンク
+
+- {{< linkcard "https://www.nqou.net/2025/12/07/000000/" >}}
+- {{< linkcard "https://metacpan.org/pod/Moo" >}}
+- {{< linkcard "https://metacpan.org/pod/Test2::V0" >}}
+
+## シリーズ記事
+
+1. **値オブジェクトって何だろう？ - DDDの基本概念とPerlでの実装入門**（この記事）
+2. JSON-RPC 2.0で学ぶ値オブジェクト設計 - 仕様から設計へ（次回）
+3. Test2でTDDを実践しよう - 値オブジェクトのテスト戦略
+4. JSON-RPC Request/Response値オブジェクトの実装 - 複合的な値オブジェクト
+5. エラー処理と境界値テスト - 堅牢な値オブジェクトを作る
