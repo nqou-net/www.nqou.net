@@ -13,7 +13,7 @@ series: "Perlで値オブジェクトを使ってテスト駆動開発してみ�
 series_order: 4
 ---
 
-この記事は「**Perlで値オブジェクトを使ってテスト駆動開発してみよう**」シリーズの**第4回（全5回）**である。前回は、[Test2によるTDD実践とMethodName値オブジェクト](/2025/12/18/test2-tdd-value-object-testing-strategy/)の実装を通じて、Red-Green-Refactorサイクルを体験した。今回は、**複数の値オブジェクトを組み合わせた複合的な値オブジェクト**として、JSON-RPC 2.0のRequestとResponseを完全実装する。
+この記事は「**Perlで値オブジェクトを使ってテスト駆動開発してみよう**」シリーズの**第4回（全5回）**です。前回は、[Test2によるTDD実践とMethodName値オブジェクト](/2025/12/18/test2-tdd-value-object-testing-strategy/)の実装を通じて、Red-Green-Refactorサイクルを体験した。今回は、**複数の値オブジェクトを組み合わせた複合的な値オブジェクト**として、JSON-RPC 2.0のRequestとResponseを完全実装します。
 
 > **シリーズナビゲーション**  
 > ← 前回: [PerlのTest2でTDD実践 - 値オブジェクトのテスト戦略](/2025/12/18/test2-tdd-value-object-testing-strategy/)  
@@ -31,7 +31,7 @@ series_order: 4
 
 ### 単純な値オブジェクトと複合値オブジェクトの違い
 
-これまで実装してきたのは**単純な値オブジェクト**である。これらは、単一のプリミティブ型（文字列や数値）をラップしたものである。
+これまで実装してきたのは**単純な値オブジェクト**です。これらは、単一のプリミティブ型（文字列や数値）をラップしたものです。
 
 ```perl
 # 単純な値オブジェクト - 文字列をラップ
@@ -44,7 +44,7 @@ has value => (
 );
 ```
 
-一方、**複合値オブジェクト**（Composite Value Object）は、複数のフィールドを持ち、それぞれが独自の値オブジェクトや型制約を持つ。JSON-RPC 2.0のRequest/Responseオブジェクトは、この複合値オブジェクトの典型例である。
+一方、**複合値オブジェクト**（Composite Value Object）は、複数のフィールドを持ち、それぞれが独自の値オブジェクトや型制約を持つ。JSON-RPC 2.0のRequest/Responseオブジェクトは、この複合値オブジェクトの典型例です。
 
 ```perl
 # 複合的な値オブジェクト - 複数フィールドと値オブジェクトを組み合わせ
@@ -78,7 +78,7 @@ JsonRpc::Request
 
 ## Type::Tinyによる型制約の実践 - Perlに型安全性をもたらす
 
-Type::Tinyは、Perlに強力な型システムを導入するモジュールであり、JSON-RPC Request/Responseのような複合値オブジェクトの実装には不可欠なツールである。TDD開発において、Type::Tinyの型制約は「実行可能な仕様書」として機能する。
+Type::Tinyは、Perlに強力な型システムを導入するモジュールであり、JSON-RPC Request/Responseのような複合値オブジェクトの実装には不可欠なツールです。TDD開発において、Type::Tinyの型制約は「実行可能な仕様書」として機能します。
 
 ### Type::Tinyの基本型
 
@@ -120,7 +120,7 @@ cpanm Type::Tiny
 cpan Type::Tiny
 ```
 
-基本的な使い方は以下のとおりである。
+基本的な使い方は以下のとおりです。
 
 ```perl
 use Types::Standard qw(:all);
@@ -137,7 +137,7 @@ Int->assert_valid("string");    # 例外: Value "string" did not pass type const
 
 ### JSON-RPC 2.0仕様に必要な型定義
 
-JSON-RPC 2.0の仕様に基づいて、カスタム型制約を定義していく。これにより、JSON-RPC固有のバリデーションルールを型システムで表現できる。
+JSON-RPC 2.0の仕様に基づいて、カスタム型制約を定義していく。これにより、JSON-RPC固有のバリデーションルールを型システムで表現できます。
 
 ```perl
 package JsonRpc::Types;
@@ -183,11 +183,11 @@ This module provides custom type constraints for JSON-RPC 2.0 implementation.
 =cut
 ```
 
-このように、Type::Libraryを使用して独自の型を定義できる。
+このように、Type::Libraryを使用して独自の型を定義できます。
 
 ### Maybe型でオプショナルフィールドを表現する - JSON-RPC仕様の実装
 
-JSON-RPC 2.0仕様では、`params`と`id`はオプショナルフィールドである。PerlでこれをType::Tinyの`Maybe`型で厳密に表現する。
+JSON-RPC 2.0仕様では、`params`と`id`はオプショナルフィールドです。PerlでこれをType::Tinyの`Maybe`型で厳密に表現します。
 
 ```perl
 use Types::Standard qw(Maybe Str Int ArrayRef HashRef);
@@ -227,11 +227,11 @@ my $req3 = Request->new(
 
 ## JsonRpc::Request値オブジェクトのTDD実装
 
-それでは、TDDでJSON-RPC 2.0のRequest値オブジェクトを実装していく。前回学んだRed-Green-Refactorサイクルを適用し、複合値オブジェクトならではのテスト戦略を実践する。
+それでは、TDDでJSON-RPC 2.0のRequest値オブジェクトを実装していく。前回学んだRed-Green-Refactorサイクルを適用し、複合値オブジェクトならではのテスト戦略を実践します。
 
 ### JSON-RPC 2.0 Request仕様の確認
 
-まず、[JSON-RPC 2.0仕様書](https://www.jsonrpc.org/specification)を確認する。Request objectは以下のフィールドを持つ。
+まず、[JSON-RPC 2.0仕様書](https://www.jsonrpc.org/specification)を確認します。Request objectは以下のフィールドを持つ。
 
 | フィールド | 型 | 必須/オプション | 説明 |
 |-----------|-----|----------------|------|
@@ -461,7 +461,7 @@ All tests successful.
 
 ### Refactor - from_hashファクトリーメソッドの追加
 
-実際のJSON-RPCアプリケーションでは、JSONをデコードした結果（ハッシュリファレンス）から直接Requestオブジェクトを生成する必要がある。ファクトリーメソッドパターンを適用し、`from_hash`メソッドを追加する。
+実際のJSON-RPCアプリケーションでは、JSONをデコードした結果（ハッシュリファレンス）から直接Requestオブジェクトを生成する必要があります。ファクトリーメソッドパターンを適用し、`from_hash`メソッドを追加します。
 
 ```perl
 # lib/JsonRpc/Request.pm
@@ -647,7 +647,7 @@ my $output_json = encode_json($output_hash);
 
 ## JsonRpc::Response値オブジェクトのTDD実装
 
-次に、JSON-RPC 2.0のResponse値オブジェクトを実装する。JSON-RPC仕様では「成功時のResponse」と「エラー時のResponse」の2種類があるが、今回は成功時のResponseのみを実装する（エラーResponseは次回の記事で扱う）。
+次に、JSON-RPC 2.0のResponse値オブジェクトを実装します。JSON-RPC仕様では「成功時のResponse」と「エラー時のResponse」の2種類があるが、今回は成功時のResponseのみを実装する（エラーResponseは次回の記事で扱う）。
 
 ### JSON-RPC 2.0 Response仕様の確認
 
@@ -847,11 +847,11 @@ The C<result> field can be any value (string, number, array, hash, null).
 
 ## 複合値オブジェクトのファクトリーパターン - 生成方法の比較
 
-JSON-RPCのような複合値オブジェクトの生成には、いくつかのデザインパターンが適用できる。それぞれの特徴とユースケースを見ていこう。
+JSON-RPCのような複合値オブジェクトの生成には、いくつかのデザインパターンが適用できます。それぞれの特徴とユースケースを見ていきましょう。
 
 ### コンストラクタによる直接生成
 
-最も基本的な方法は、`new`による直接生成である。
+最も基本的な方法は、`new`による直接生成です。
 
 ```perl
 my $req = JsonRpc::Request->new(
@@ -862,11 +862,11 @@ my $req = JsonRpc::Request->new(
 );
 ```
 
-この方法は明示的だが、冗長になりがちである。
+この方法は明示的だが、冗長になりがちです。
 
 ### ファクトリーメソッドパターン
 
-`from_hash`のようなファクトリーメソッドを提供することで生成を簡潔にできる。
+`from_hash`のようなファクトリーメソッドを提供することで生成を簡潔にできます。
 
 ```perl
 # JSON文字列 → Hash → Request
@@ -879,7 +879,7 @@ my $req = JsonRpc::Request->from_hash($hash);  # 簡潔！
 
 ### ビルダーパターン（応用）
 
-より複雑な生成ロジックが必要な場合はビルダーパターンも検討できる。
+より複雑な生成ロジックが必要な場合はビルダーパターンも検討できます。
 
 ```perl
 package JsonRpc::RequestBuilder;
@@ -942,11 +942,11 @@ my $req = JsonRpc::RequestBuilder->new
     ->build;
 ```
 
-流れるようなインターフェース（Fluent Interface）で読みやすくなる。
+流れるようなインターフェース（Fluent Interface）で読みやすくなります。
 
 ## 実践例 - JSON-RPC 2.0通信の完全シミュレーション
 
-これまで実装したRequest/Response値オブジェクトを使用して、実際のJSON-RPC 2.0通信をエンドツーエンドでシミュレートする。この例では、クライアント→サーバー→クライアントの完全な往復通信を再現する。
+これまで実装したRequest/Response値オブジェクトを使用して、実際のJSON-RPC 2.0通信をエンドツーエンドでシミュレートします。この例では、クライアント→サーバー→クライアントの完全な往復通信を再現します。
 
 ```perl
 #!/usr/bin/env perl
@@ -1114,7 +1114,7 @@ JSON-RPCのような複合値オブジェクトを実装する際は、以下の
 
 ### 次回予告 - エラー処理と境界値テスト（シリーズ完結編）
 
-次回は「**エラー処理と境界値テスト - 堅牢な値オブジェクトを作る**」として、**シリーズの完結編（第5回）**をお届けする。
+次回は「**エラー処理と境界値テスト - 堅牢な値オブジェクトを作る**」として、**シリーズの完結編（第5回）**をお届けします。
 
 **次回の学習内容:**
 - **JSON-RPC Error Responseの実装**: エラーオブジェクトの値オブジェクト化
@@ -1123,7 +1123,7 @@ JSON-RPCのような複合値オブジェクトを実装する際は、以下の
 - **プロパティベーステストの導入**: Test::QuickCheckによるランダムテスト
 - **実践的なエラーハンドリング戦略**: JSON-RPC仕様に準拠したエラー処理
 
-今回実装したRequestとResponseに、JSON-RPC Error Response値オブジェクトとエラー処理を加えることで、**完全なJSON-RPC 2.0実装**が完成する。さらに、境界値テストやproperty-based testingにより、より堅牢で本番環境に耐えうる値オブジェクトの実装技法を学ぶ。
+今回実装したRequestとResponseに、JSON-RPC Error Response値オブジェクトとエラー処理を加えることで、**完全なJSON-RPC 2.0実装**が完成します。さらに、境界値テストやproperty-based testingにより、より堅牢で本番環境に耐えうる値オブジェクトの実装技法を学びます。
 
 > **次回記事**  
 > → エラー処理と境界値テスト - 堅牢な値オブジェクトを作る（公開予定）
