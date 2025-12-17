@@ -10,7 +10,7 @@ tags:
 description: "PerlのTest2::V0で学ぶTDD実践ガイド。Red-Green-Refactorサイクル、dies/lives例外テスト、subtest構造化、境界値分析を実例付きで解説。MethodName値オブジェクトで体験する本格的なテスト駆動開発。"
 ---
 
-この記事は「**Perlで値オブジェクトを使ってテスト駆動開発してみよう**」シリーズの第3回です。前回は、[JSON-RPC 2.0仕様から値オブジェクトを設計するプロセス](/2025/12/17/json-rpc-value-object-design/)を学んだ。今回は、**PerlのTest2::V0を使ったテスト駆動開発（TDD）の実践**に焦点を当て、Red-Green-Refactorサイクルを体験しながらMethodName値オブジェクトを段階的に実装します。
+この記事は「**Perlで値オブジェクトを使ってテスト駆動開発してみよう**」シリーズの第3回です。前回は、[JSON-RPC 2.0仕様から値オブジェクトを設計するプロセス](/2025/12/17/json-rpc-value-object-design/)を学びました。今回は、**PerlのTest2::V0を使ったテスト駆動開発（TDD）の実践**に焦点を当て、Red-Green-Refactorサイクルを体験しながらMethodName値オブジェクトを段階的に実装します。
 
 ## この記事で学べること
 
@@ -27,18 +27,18 @@ description: "PerlのTest2::V0で学ぶTDD実践ガイド。Red-Green-Refactor�
 
 ### なぜテスト駆動開発なのか
 
-従来の開発では「実装 → テスト → バグ発見 → 修正」という流れになりがちです。この場合、以下の問題が起こりやすくなる：
+従来の開発では「実装 → テスト → バグ発見 → 修正」という流れになりがちです。この場合、以下の問題が起こりやすくなります：
 
 - テストが後回しになって書かれない
 - 実装に引きずられて不十分なテストになる
 - 設計の問題に気づくのが遅れる
 
-一方、TDDでは「テスト → 実装 → リファクタリング」のサイクルを繰り返す。テストを先に書くことで、以下のメリットが得られる：
+一方、TDDでは「テスト → 実装 → リファクタリング」のサイクルを繰り返す。テストを先に書くことで、以下のメリットが得られます：
 
 - 必要な機能が明確になる
 - 設計の問題に早く気づける
 - リファクタリングが安心してできる
-- テストカバレッジが自然と100%になる
+- テストカバレッジが自然と100%に（近く）なる
 
 ### Red-Green-Refactorサイクル
 
@@ -75,7 +75,7 @@ has value => (
 
 #### Redステップ - 失敗するテストを書く
 
-まず、まだ存在しない機能のテストを書く。このテストは当然**失敗（Red）**します。
+まず、まだ存在しない機能のテストを書きます。このテストは当然**失敗（Red）**します。
 
 ```bash
 $ prove -lv t/method_name.t
@@ -86,7 +86,7 @@ not ok 1 - MethodName rejects empty string
 
 #### Greenステップ - 最小実装で通す
 
-次に、テストを通すための**最小限のコード**を書く。完璧である必要はない。とにかくテストが**成功（Green）**すればOKです。
+次に、テストを通すための**最小限のコード**を書きます。完璧である必要はありません。とにかくテストが**成功（Green）**すればOKです。
 
 ```bash
 $ prove -lv t/method_name.t
@@ -95,7 +95,7 @@ ok 1 - MethodName rejects empty string
 
 #### Refactorステップ - リファクタリング
 
-テストが通ったら、コードを**整理**します。重複を除去し、可読性を高め、設計を改善します。このとき、テストが常にGreenであることを確認しながら進める。
+テストが通ったら、コードを**整理**します。重複を除去し、可読性を高め、設計を改善します。このとき、テストが常にGreenであることを確認しながら進めます。
 
 テストがあるからこそ、安心してリファクタリングできます。
 
@@ -130,7 +130,7 @@ subtest 'boundary values' => sub {
 
 #### 3. 不変性の確認
 
-値オブジェクトは不変でなければならない。
+値オブジェクトは不変であるべきです。作成後に値が変更できないことをテストします。
 
 ```perl
 subtest 'immutability' => sub {
@@ -158,14 +158,14 @@ ok 1, 'this passes';
 ok 'string', 'non-empty string is true';
 ok [], 'array reference is true';
 
-ok 0, 'this fails';          # 失敗
+ok 0, 'this fails';           # 失敗
 ok '', 'empty string fails';  # 失敗
 ok undef, 'undef fails';      # 失敗
 
 done_testing;
 ```
 
-値オブジェクトでは、オブジェクトが正しく生成されたかを確認するのに使う。
+値オブジェクトでは、オブジェクトが正しく生成されたかを確認するのに使います。
 
 ```perl
 my $method = MethodName->new(value => 'getUser');
@@ -175,16 +175,17 @@ ok $method->isa('MethodName'), 'correct type';
 
 #### is - 等価性テスト
 
-`is`は、2つの値が等しいことをテストします。文字列比較と数値比較を自動判別します。
+`is`は、2つの値が等しいことをテストします。文字列比較（`eq`）と数値比較（`==`）を自動判別します。
 
 ```perl
 is 42, 42, 'numbers equal';
+is 42, 42.0, 'numbers equal'; # 成功（数値で比較）
 is 'hello', 'hello', 'strings equal';
 is $method->value, 'getUser', 'method name is correct';
 
-# 失敗例
 is 42, '42', 'this passes (smart match)';
-is 'hello', 'world', 'this fails';
+is 42, '42.0', 'this fails'; # 失敗（文字列で比較）
+is 'hello', 'world', 'this fails'; # 失敗
 ```
 
 #### isnt - 非等価性テスト
@@ -267,6 +268,8 @@ ok(lives { die "error" }, 'this test fails');  # 失敗
 
 #### 実践的な例外テスト
 
+例外が発生した時に、どのようなメッセージが出力されているかをテストします。
+
 ```perl
 subtest 'constructor validates input' => sub {
     # 空文字列
@@ -283,7 +286,7 @@ subtest 'constructor validates input' => sub {
         'undef rejected'
     );
     
-    # 参照型
+    # 配列のリファレンス
     like(
         dies { MethodName->new(value => []) },
         qr/must be string/,
@@ -297,11 +300,11 @@ subtest 'constructor validates input' => sub {
 
 ## 値オブジェクトのテストパターン - 4つの重要観点
 
-値オブジェクトには共通のテストパターンがあります。これらを押さえておくと、どんな値オブジェクトでも効率的にテストを書ける。
+値オブジェクトには共通のテストパターンがあります。これらを押さえておくと、どんな値オブジェクトでも効率的にテストを書けるようになります。
 
 ### コンストラクタのバリデーションテスト
 
-値オブジェクトのコンストラクタは、正しい値だけを受け入れ、不正な値を確実に拒否しなければならない。
+値オブジェクトのコンストラクタは、正しい値だけを受け入れ、不正な値を確実に拒否しなければなりません。
 
 ```perl
 subtest 'constructor validation' => sub {
@@ -468,18 +471,14 @@ subtest 'min-max-out-of-range test' => sub {
 
 ## MethodName値オブジェクトの実装 - TDD実践チュートリアル
 
-それでは、実際にRed-Green-Refactorサイクルを回しながら、`MethodName`値オブジェクトを作っていこう。これは、前回の記事で設計したJSON-RPC 2.0のメソッド名を表現する値オブジェクトです。
+それでは、実際にRed-Green-Refactorサイクルを回しながら、`MethodName`値オブジェクトを作っていきましょう。これは、前回の記事で設計したJSON-RPC 2.0のメソッド名を表現する値オブジェクトです。
 
 ### Red - 失敗するテストを書く（最初の一歩）
 
 まず、テストファイルを作成します。
 
 ```perl
-use Test2::V0;
-use lib 'lib';
-
-# まだ存在しないモジュール
-use_ok 'JsonRpc::MethodName' or die;
+use Test2::V0 -target => 'JsonRpc::MethodName'; # まだ存在しないモジュール
 
 subtest 'constructor accepts valid method name' => sub {
     my $method = JsonRpc::MethodName->new(value => 'getUser');
@@ -525,17 +524,12 @@ done_testing;
 
 ```bash
 $ prove -lv t/method_name.t
-t/method_name.t .. 
-not ok 1 - use JsonRpc::MethodName;
-# Failed test 'use JsonRpc::MethodName;'
-# at t/method_name.t line 4.
-# Tried to use 'JsonRpc::MethodName'.
-# Error:  Can't locate JsonRpc/MethodName.pm in @INC
+t/method_name.t .. Can't locate JsonRpc/MethodName.pm in @INC (you may need to install the JsonRpc::MethodName module) ...
 ```
 
 ### Green - 最小実装で通す
 
-次に、テストを通すための最小限の実装を書く。
+次に、テストを通すための最小限の実装を書きます。ファイルの場所も重要です。`lib/JsonRpc/MethodName.pm` として保存しましょう。
 
 ```perl
 package JsonRpc::MethodName;
@@ -566,77 +560,64 @@ has value => (
 
 ```bash
 $ prove -lv t/method_name.t
-t/method_name.t .. 
-ok 1 - use JsonRpc::MethodName;
-    # Subtest: constructor accepts valid method name
+t/method_name.t ..
+# Seeded srand with seed '20251217' from local date.
+ok 1 - constructor accepts valid method name {
     ok 1 - object created
     ok 2 - value is correct
     1..2
-ok 2 - constructor accepts valid method name
-    # Subtest: constructor rejects empty string
+}
+ok 2 - constructor rejects empty string {
     ok 1 - empty string is rejected
     1..1
-ok 3 - constructor rejects empty string
-    # Subtest: constructor rejects undef
+}
+ok 3 - constructor rejects undef {
     ok 1 - undef is rejected
     1..1
-ok 4 - constructor rejects undef
-    # Subtest: constructor rejects non-string types
+}
+ok 4 - constructor rejects non-string types {
     ok 1 - array reference is rejected
     ok 2 - hash reference is rejected
     1..2
-ok 5 - constructor rejects non-string types
-1..5
+}
+1..4
 ok
 All tests successful.
 ```
 
 ### Refactor - リファクタリング
 
-テストが通ったので、コードを改善します。バリデーションロジックをメソッドに分離し、より読みやすく保守しやすいコードにします。
+テストが通ったので、コードを改善します。undefと空文字列のチェックを一つの文にまとめます。
 
 ```perl
 package JsonRpc::MethodName;
 use v5.38;
 use Moo;
-use namespace::clean;
 
 has value => (
     is       => 'ro',
     required => 1,
     isa      => sub {
         my $val = shift;
-        _validate_method_name($val);
+        
+        # undef チェック および 空文字列チェック
+        die "method name cannot be empty" unless defined $val && length $val;
+        
+        # 参照型チェック
+        die "method name must be string" if ref $val;
     },
 );
-
-# バリデーションロジックを分離
-sub _validate_method_name {
-    my $val = shift;
-    
-    # 型チェック
-    die "method name must be string, got " . (ref($val) || 'undef')
-        if !defined $val || ref $val;
-    
-    # 空文字列チェック（空白のみも拒否）
-    die "method name cannot be empty"
-        if $val eq '' || $val =~ /^\s*$/;
-    
-    # JSON-RPC 2.0仕様: "rpc." プレフィックスは予約済み
-    die "method names starting with 'rpc.' are reserved"
-        if $val =~ /^rpc\./;
-    
-    return 1;
-}
 
 1;
 ```
 
-リファクタリング後もテストは成功し続ける。これがTDDの安心感である！
+リファクタリング後にテストを実行します。結果がGreenである限りコードは正しい状態です。テストによる保証の中でリファクタリングができるのがTDDの醍醐味です。
 
-#### 追加機能のテスト
+### Red -> Green -> Refactor
 
-予約語チェックを追加したので、テストも追加します。
+では、予約語（`rpc.`で始まる）を使うとエラーになるようにしましょう。
+
+まずは、テストを追加します。
 
 ```perl
 subtest 'reserved method name "rpc." prefix is rejected' => sub {
@@ -652,110 +633,99 @@ subtest 'reserved method name "rpc." prefix is rejected' => sub {
 };
 ```
 
-#### 完全な実装
+追加したらテストを実行し、Redに変わるのを見届けます。
+
+```
+not ok 5 - reserved method name "rpc." prefix is rejected {
+    not ok 1 - "rpc." prefix is reserved
+    ok 2 - "rpc" without dot is ok
+    1..2
+}
+1..5
+    # Failed test '"rpc." prefix is reserved'
+    # at t/method_name.t line 43.
+    # +---------+----+----------------+
+    # | GOT     | OP | CHECK          |
+    # +---------+----+----------------+
+    # | <UNDEF> | =~ | (?^i:reserved) |
+    # +---------+----+----------------+
+    (If this table is too small, you can use the TABLE_TERM_SIZE=### env var to set a larger size, detected size is '74')
+
+
+# Failed test 'reserved method name "rpc." prefix is rejected'
+# at t/method_name.t line 50.
+Dubious, test returned 1 (wstat 256, 0x100)
+Failed 1/5 subtests
+```
+
+Redを見届けたら実装します。
 
 ```perl
 package JsonRpc::MethodName;
 use v5.38;
 use Moo;
-use namespace::clean;
 
 has value => (
     is       => 'ro',
     required => 1,
     isa      => sub {
         my $val = shift;
-        _validate_method_name($val);
+        
+        # undef チェック および 空文字列チェック
+        die "method name cannot be empty" unless defined $val && length $val;
+        
+        # 参照型チェック
+        die "method name must be string" if ref $val;
+
+        # 予約語チェック
+        die "method name is reserved" if $val =~ /\Arpc\./;
     },
 );
 
-sub _validate_method_name {
-    my $val = shift;
-    
-    die "method name must be string, got " . (ref($val) || 'undef')
-        if !defined $val || ref $val;
-    
-    die "method name cannot be empty"
-        if $val eq '' || $val =~ /^\s*$/;
-    
-    die "method names starting with 'rpc.' are reserved"
-        if $val =~ /^rpc\./;
-    
-    return 1;
-}
-
-sub equals {
-    my ($self, $other) = @_;
-    return 0 unless $other && $other->isa(__PACKAGE__);
-    return $self->value eq $other->value;
-}
-
-sub to_string {
-    my $self = shift;
-    return $self->value;
-}
-
 1;
-
-__END__
-
-=head1 NAME
-
-JsonRpc::MethodName - JSON-RPC method name value object
-
-=head1 SYNOPSIS
-
-    use JsonRpc::MethodName;
-    
-    # Create valid method name
-    my $method = JsonRpc::MethodName->new(value => 'getUser');
-    say $method->value;  # "getUser"
-    
-    # Invalid names are rejected
-    eval {
-        my $invalid = JsonRpc::MethodName->new(value => '');
-    };
-    say $@ if $@;  # Error: method name cannot be empty
-
-=head1 DESCRIPTION
-
-This module implements a value object for JSON-RPC 2.0 method names.
-It ensures method names are valid according to the specification.
-
-Validation rules:
-
-=over 4
-
-=item * Must be a string (not undef, not a reference)
-
-=item * Cannot be empty or whitespace-only
-
-=item * Cannot start with "rpc." (reserved prefix)
-
-=item * Is immutable after creation
-
-=back
-
-=head1 METHODS
-
-=head2 value
-
-Returns the method name string.
-
-=head2 equals($other)
-
-Compares this method name with another MethodName object for equality.
-
-=head2 to_string
-
-Returns the string representation of the method name.
-
-=head1 SPECIFICATION
-
-L<https://www.jsonrpc.org/specification>
-
-=cut
 ```
+
+実装したらテストを実行し、Greenになるのを見届けます。
+
+```
+ok 5 - reserved method name "rpc." prefix is rejected {
+    ok 1 - "rpc." prefix is reserved
+    ok 2 - "rpc" without dot is ok
+    1..2
+}
+1..5
+ok
+All tests successful.
+```
+
+Greenを見届けたら、リファクタリングします。
+
+例えば「`rpc.`から始まる」は正規表現ではなく、indexを使って高速にチェック可能です。
+
+```perl
+        # 予約語チェック
+        die "method name is reserved" if index($val, 'rpc.') == 0;
+```
+
+Greenの間は、ソースコードを変更しても、その時点での仕様（テスト）を満たしていることが保証されるので、大胆な変更も可能です。
+
+ただし、新しい機能を追加するのはNGです。
+
+新しい機能を追加する場合は、テストをまず追加しましょう。
+
+### 塵も積もれば山となる
+
+このようにして、テストを書く、実装する、リファクタリングする、という流れを繰り返していくと、テストで書かれたことが全て満たされている実装が完成します。
+
+今回の場合は、`rpc.`から始まる値を指定すると以下のようになる、ということを、**テストを書く時に決めた**ことになります。
+- エラーになる
+- エラーメッセージは「reserved」を含んでいる
+
+つまり、テストを追加する、ということは、仕様を追加することである、と考えることができます。
+
+このように、テスト駆動開発は、テストコードという仕様書を書きながら開発を進めるスタイルです。
+
+テストコードの位置付けがまったく違うのがわかると思います。このようにして書かれたテストコードは、仕様を守る堅牢な城壁になります。
 
 ## サブテストで整理する - テストの可読性と保守性を高める
 
@@ -765,12 +735,10 @@ L<https://www.jsonrpc.org/specification>
 
 テストをsubtestで整理すると、構造が明確になります。
 
-#### 整理後の例
+subtest は subtest を含むことができます。
 
 ```perl
-use Test2::V0;
-use lib 'lib';
-use JsonRpc::MethodName;
+use Test2::V0 -target => 'JsonRpc::MethodName';
 
 subtest 'Constructor validation' => sub {
     subtest 'accepts valid method names' => sub {
@@ -787,8 +755,8 @@ subtest 'Constructor validation' => sub {
              qr/empty/, 'empty string');
         like(dies { JsonRpc::MethodName->new(value => undef) }, 
              qr/empty/, 'undef');
-        like(dies { JsonRpc::MethodName->new(value => '  ') }, 
-             qr/empty/, 'whitespace only');
+        like(dies { JsonRpc::MethodName->new(value => []) }, 
+             qr/must be string/, 'array ref');
     };
     
     subtest 'rejects reserved prefix' => sub {
@@ -931,7 +899,7 @@ subtest 'Method tests' => sub {
 
 ## まとめ - Test2とTDDで学んだこと
 
-この記事では、PerlのTest2::V0を使った値オブジェクトのテスト駆動開発を実践した。MethodName値オブジェクトを題材に、Red-Green-Refactorサイクルを体験しながら、実践的なテスト技法を学んだ。
+この記事では、PerlのTest2::V0を使った値オブジェクトのテスト駆動開発を実践しました。MethodName値オブジェクトを題材に、Red-Green-Refactorサイクルを体験しながら、実践的なテスト技法を学びました。
 
 **TDDの実践で得られたもの**:
 
