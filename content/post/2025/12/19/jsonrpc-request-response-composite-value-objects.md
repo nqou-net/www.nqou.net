@@ -1,6 +1,6 @@
 ---
 title: "JSON-RPC Request/Response実装 - 複合値オブジェクト設計【Perl×TDD】"
-draft: false
+draft: true
 tags:
   - json-rpc
   - perl
@@ -13,7 +13,7 @@ series: "Perlで値オブジェクトを使ってテスト駆動開発してみ�
 series_order: 4
 ---
 
-この記事は「**Perlで値オブジェクトを使ってテスト駆動開発してみよう**」シリーズの**第4回（全5回）**です。前回は、[Test2によるTDD実践とMethodName値オブジェクト](/2025/12/18/test2-tdd-value-object-testing-strategy/)の実装を通じて、Red-Green-Refactorサイクルを体験した。今回は、**複数の値オブジェクトを組み合わせた複合的な値オブジェクト**として、JSON-RPC 2.0のRequestとResponseを完全実装します。
+この記事は「**Perlで値オブジェクトを使ってテスト駆動開発してみよう**」シリーズの**第4回（全5回）**です。前回は、[Test2によるTDD実践とMethodName値オブジェクト](/2025/12/18/test2-tdd-value-object-testing-strategy/)の実装を通じて、Red-Green-Refactorサイクルを体験しました。今回は、**複数の値オブジェクトを組み合わせた複合的な値オブジェクト**として、JSON-RPC 2.0のRequestとResponseを完全実装します。
 
 > **シリーズナビゲーション**  
 > ← 前回: [PerlのTest2でTDD実践 - 値オブジェクトのテスト戦略](/2025/12/18/test2-tdd-value-object-testing-strategy/)  
@@ -44,7 +44,7 @@ has value => (
 );
 ```
 
-一方、**複合値オブジェクト**（Composite Value Object）は、複数のフィールドを持ち、それぞれが独自の値オブジェクトや型制約を持つ。JSON-RPC 2.0のRequest/Responseオブジェクトは、この複合値オブジェクトの典型例です。
+一方、**複合値オブジェクト**（Composite Value Object）は、複数のフィールドを持ち、それぞれが独自の値オブジェクトや型制約を持ちます。JSON-RPC 2.0のRequest/Responseオブジェクトは、この複合値オブジェクトの典型例です。
 
 ```perl
 # 複合的な値オブジェクト - 複数フィールドと値オブジェクトを組み合わせ
@@ -59,7 +59,7 @@ has id      => (is => 'ro', isa => Maybe[Str|Int]);            # オプション
 
 ### 値オブジェクトのネスト構造
 
-JSON-RPC Requestオブジェクトは以下のような階層構造を持つ。
+JSON-RPC Requestオブジェクトは以下のような階層構造を持ちます。
 
 ```text
 JsonRpc::Request
@@ -69,7 +69,7 @@ JsonRpc::Request
 └── id:      Str | Int | undef (オプション)
 ```
 
-このように、**値オブジェクトが他の値オブジェクトを含む**構造を、複合値オブジェクトと呼ぶ。JSON-RPCの実装において、この構造は以下のメリットをもたらす。
+このように、**値オブジェクトが他の値オブジェクトを含む**構造を、複合値オブジェクトと呼びます。JSON-RPCの実装において、この構造は以下のメリットをもたらします。
 
 - **責任の分離**: 各値オブジェクトが独自のバリデーションを担当
 - **再利用性**: JsonRpc::VersionやMethodNameは他のコンテキストでも使える
@@ -78,9 +78,13 @@ JsonRpc::Request
 
 ## Type::Tinyによる型制約の実践 - Perlに型安全性をもたらす
 
-Type::Tinyは、Perlに強力な型システムを導入するモジュールであり、JSON-RPC Request/Responseのような複合値オブジェクトの実装には不可欠なツールです。TDD開発において、Type::Tinyの型制約は「実行可能な仕様書」として機能します。
+Type::Tinyは、Perlに強力な型システムを導入するモジュールであり、JSON-RPCのRequestやResponseのような複合値オブジェクトの実装には不可欠なツールです。TDDにおいて、Type::Tinyの型制約は「実行可能な仕様書」として機能します。
 
 ### Type::Tinyの基本型
+
+Type::Tiny とは言っていますが、実際に使うのはバンドルされている Types::Standard がメインになるでしょう。Type::Tiny をインストールすれば使用できるようになります。
+
+Types::Standard はよく使用される型が定義されています。`isa`にその型を指定することでPerlでも型の制約をつけることができます。
 
 ```perl
 use Types::Standard qw(
@@ -119,71 +123,6 @@ cpanm Type::Tiny
 # または cpan コマンド
 cpan Type::Tiny
 ```
-
-基本的な使い方は以下のとおりです。
-
-```perl
-use Types::Standard qw(:all);
-
-# 基本的な使い方
-my $check_int = Int->check(42);        # true
-my $check_str = Str->check("hello");   # true
-my $check_arr = ArrayRef->check([]);   # true
-
-# バリデーション（例外発生）
-Int->assert_valid(42);          # OK
-Int->assert_valid("string");    # 例外: Value "string" did not pass type constraint "Int"
-```
-
-### JSON-RPC 2.0仕様に必要な型定義
-
-JSON-RPC 2.0の仕様に基づいて、カスタム型制約を定義していく。これにより、JSON-RPC固有のバリデーションルールを型システムで表現できます。
-
-```perl
-package JsonRpc::Types;
-use v5.38;
-use Type::Library -base;
-use Types::Standard qw(:all);
-
-use Type::Utils -all;
-
-# JsonRpcParams型 - ArrayRef または HashRef
-declare "JsonRpcParams",
-    as ArrayRef | HashRef;
-
-# JsonRpcId型 - Str, Int, Null のいずれか（ただしNull以外）
-declare "JsonRpcId",
-    as Str | Int;
-
-# JsonRpcVersion型 - "2.0" という文字列のみ
-declare "JsonRpcVersion",
-    as Str,
-    where { $_ eq '2.0' },
-    message { "JSON-RPC version must be '2.0', got '$_'" };
-
-1;
-
-__END__
-
-=head1 NAME
-
-JsonRpc::Types - Type constraints for JSON-RPC 2.0
-
-=head1 SYNOPSIS
-
-    use JsonRpc::Types qw(JsonRpcParams JsonRpcId JsonRpcVersion);
-    
-    has params => (is => 'ro', isa => Maybe[JsonRpcParams]);
-    has id     => (is => 'ro', isa => Maybe[JsonRpcId]);
-
-=head1 DESCRIPTION
-
-This module provides custom type constraints for JSON-RPC 2.0 implementation.
-
-=cut
-```
-
-このように、Type::Libraryを使用して独自の型を定義できます。
 
 ### Maybe型でオプショナルフィールドを表現する - JSON-RPC仕様の実装
 
@@ -227,11 +166,11 @@ my $req3 = Request->new(
 
 ## JsonRpc::Request値オブジェクトのTDD実装
 
-それでは、TDDでJSON-RPC 2.0のRequest値オブジェクトを実装していく。前回学んだRed-Green-Refactorサイクルを適用し、複合値オブジェクトならではのテスト戦略を実践します。
+それでは、TDDでJSON-RPC 2.0のRequest値オブジェクトを実装していきましょう。前回学んだRed-Green-Refactorサイクルを適用し、複合値オブジェクトならではのテスト戦略を実践します。
 
 ### JSON-RPC 2.0 Request仕様の確認
 
-まず、[JSON-RPC 2.0仕様書](https://www.jsonrpc.org/specification)を確認します。Request objectは以下のフィールドを持つ。
+まず、[JSON-RPC 2.0仕様書](https://www.jsonrpc.org/specification)を確認します。Request objectは以下のフィールドを持ちます。
 
 | フィールド | 型 | 必須/オプション | 説明 |
 |-----------|-----|----------------|------|
@@ -244,15 +183,13 @@ my $req3 = Request->new(
 
 ### Red - 失敗するテストを書く
 
-まず、Requestのテストを書く。
+では、Requestのテストを書きます。
 
 ```perl
 # t/request.t
 use v5.38;
-use Test2::V0;
-use lib 'lib';
+use Test2::V0 -target => 'JsonRpc::Request';
 
-use_ok 'JsonRpc::Request' or die;
 use JsonRpc::Version;
 use JsonRpc::MethodName;
 
@@ -373,16 +310,17 @@ subtest 'id accepts string, int, or undef' => sub {
 done_testing;
 ```
 
-テストを実行すると、当然失敗する（Red）。
+テストを実行すると、当然失敗します（Red）。
 
 ```bash
 $ prove -lv t/request.t
 Can't locate JsonRpc/Request.pm in @INC
+...
 ```
 
 ### Green - 最小実装で通す
 
-次に、テストを通すための実装を書く。
+次に、テストを通すための実装を書きます。
 
 ```perl
 # lib/JsonRpc/Request.pm
@@ -442,33 +380,96 @@ Represents a JSON-RPC 2.0 Request object with validation.
 =cut
 ```
 
-テストを再実行すると、すべて成功する（Green）！
+テストを再実行すると、すべて成功するでしょう（Green）！
 
-```bash
+```
 $ prove -lv t/request.t
-ok 1 - use JsonRpc::Request;
-    # Subtest: constructor with required fields only
+ok 1 - constructor with required fields only {
     ok 1 - Request created with required fields
-    ok 2 - An object of class 'JsonRpc::Version'
-    ok 3 - An object of class 'JsonRpc::MethodName'
+    ok 2 - JsonRpc::Version=HASH->isa('JsonRpc::Version')
+    ok 3 - JsonRpc::MethodName=HASH->isa('JsonRpc::MethodName')
     ok 4 - params is undef by default
     ok 5 - id is undef by default
     1..5
-ok 2 - constructor with required fields only
+}
 ...
 All tests successful.
 ```
 
-### Refactor - from_hashファクトリーメソッドの追加
+### Refactor - しなくても良い
 
-実際のJSON-RPCアプリケーションでは、JSONをデコードした結果（ハッシュリファレンス）から直接Requestオブジェクトを生成する必要があります。ファクトリーメソッドパターンを適用し、`from_hash`メソッドを追加します。
+Red Green Refactorのサイクルですが、リファクタリング不要であればスキップしても問題ありません。
+
+今回はスキップして、次の仕様を書きます。
+
+### Red - from_hash のテスト追加
+
+実際のJSON-RPCアプリケーションでは、JSONをデコードした結果（ハッシュリファレンス）から直接Requestオブジェクトを生成することになります。ハッシュリファレンスからオブジェクトを生成する `from_hash` メソッドを追加することにします。どのような動作になるかを検討しながら書いていきます。
+
+```perl
+# t/request.t に追加
+
+subtest 'from_hash factory method' => sub {
+    subtest 'creates request from hash' => sub {
+        my $req = JsonRpc::Request->from_hash({
+            jsonrpc => '2.0',
+            method  => 'getUser',
+            params  => { user_id => 42 },
+            id      => 'req-001',
+        });
+        
+        isa_ok $req,['JsonRpc::Request'], 'is a JsonRpc::Request';
+        is $req->jsonrpc->value, '2.0', 'jsonrpc is correct';
+        is $req->method->value, 'getUser', 'method is correct';
+        is $req->params, { user_id => 42 }, 'params is correct';
+        is $req->id, 'req-001', 'id is correct';
+    };
+    
+    subtest 'from_hash with minimal fields' => sub {
+        my $req = JsonRpc::Request->from_hash({
+            jsonrpc => '2.0',
+            method  => 'notify',
+        });
+        
+        isa_ok $req,['JsonRpc::Request'], 'is a JsonRpc::Request';
+        is $req->jsonrpc->value, '2.0', 'jsonrpc is correct';
+        is $req->method->value, 'notify', 'method is correct';
+        is $req->params, undef, 'params defaults to undef';
+        is $req->id, undef, 'id defaults to undef';
+    };
+    
+    subtest 'from_hash rejects missing required fields' => sub {
+        like(dies {
+            JsonRpc::Request->from_hash({ method => 'test' });
+        }, qr/missing.*jsonrpc/i, 'missing jsonrpc rejected');
+        
+        like(dies {
+            JsonRpc::Request->from_hash({ jsonrpc => '2.0' });
+        }, qr/missing.*method/i, 'missing method rejected');
+    };
+    
+    subtest 'from_hash rejects non-hash' => sub {
+        like(dies {
+            JsonRpc::Request->from_hash("not a hash");
+        }, qr/hash reference/i, 'string rejected');
+        
+        like(dies {
+            JsonRpc::Request->from_hash([]);
+        }, qr/hash reference/i, 'array rejected');
+    };
+};
+```
+
+### Green - from_hash を実装する
+
+では、Greenにするために`from_hash`メソッドを追加します。
 
 ```perl
 # lib/JsonRpc/Request.pm
 package JsonRpc::Request;
 use v5.38;
 use Moo;
-use Types::Standard qw(InstanceOf Maybe ArrayRef HashRef Str Int Dict);
+use Types::Standard qw(InstanceOf Maybe ArrayRef HashRef Str Int);
 use JsonRpc::Version;
 use JsonRpc::MethodName;
 use namespace::clean;
@@ -516,21 +517,6 @@ sub from_hash {
     );
 }
 
-# JSON文字列への変換
-sub to_hash {
-    my $self = shift;
-    
-    my $hash = {
-        jsonrpc => $self->jsonrpc->value,
-        method  => $self->method->value,
-    };
-    
-    $hash->{params} = $self->params if defined $self->params;
-    $hash->{id}     = $self->id     if defined $self->id;
-    
-    return $hash;
-}
-
 1;
 
 __END__
@@ -548,89 +534,14 @@ Creates a Request object from a hash reference (typically from decoded JSON).
         id      => 'req-123',
     });
 
-=head2 to_hash
-
-Converts the Request object back to a hash reference suitable for JSON encoding.
-
-    my $hash = $req->to_hash;
-    # { jsonrpc => '2.0', method => 'getUser', ... }
-
 =cut
 ```
 
-### from_hashのテスト追加
+テストを実行して、Greenになるのを確認しましょう。
 
-```perl
-# t/request.t に追加
+### 使ってみよう！
 
-subtest 'from_hash factory method' => sub {
-    subtest 'creates request from hash' => sub {
-        my $req = JsonRpc::Request->from_hash({
-            jsonrpc => '2.0',
-            method  => 'getUser',
-            params  => { user_id => 42 },
-            id      => 'req-001',
-        });
-        
-        ok $req, 'Request created from hash';
-        is $req->jsonrpc->value, '2.0', 'jsonrpc is correct';
-        is $req->method->value, 'getUser', 'method is correct';
-        is $req->params, { user_id => 42 }, 'params is correct';
-        is $req->id, 'req-001', 'id is correct';
-    };
-    
-    subtest 'from_hash with minimal fields' => sub {
-        my $req = JsonRpc::Request->from_hash({
-            jsonrpc => '2.0',
-            method  => 'notify',
-        });
-        
-        ok $req, 'Request created with minimal fields';
-        is $req->params, undef, 'params defaults to undef';
-        is $req->id, undef, 'id defaults to undef';
-    };
-    
-    subtest 'from_hash rejects missing required fields' => sub {
-        like(dies {
-            JsonRpc::Request->from_hash({ method => 'test' });
-        }, qr/missing.*jsonrpc/i, 'missing jsonrpc rejected');
-        
-        like(dies {
-            JsonRpc::Request->from_hash({ jsonrpc => '2.0' });
-        }, qr/missing.*method/i, 'missing method rejected');
-    };
-    
-    subtest 'from_hash rejects non-hash' => sub {
-        like(dies {
-            JsonRpc::Request->from_hash("not a hash");
-        }, qr/hash reference/i, 'string rejected');
-        
-        like(dies {
-            JsonRpc::Request->from_hash([]);
-        }, qr/hash reference/i, 'array rejected');
-    };
-};
-
-subtest 'to_hash converts back to hash' => sub {
-    my $req = JsonRpc::Request->from_hash({
-        jsonrpc => '2.0',
-        method  => 'createUser',
-        params  => { name => 'Bob' },
-        id      => 123,
-    });
-    
-    my $hash = $req->to_hash;
-    
-    is $hash, {
-        jsonrpc => '2.0',
-        method  => 'createUser',
-        params  => { name => 'Bob' },
-        id      => 123,
-    }, 'to_hash produces correct hash';
-};
-```
-
-これで、JSON文字列から直接Requestオブジェクトを生成できるようになった！
+これで、JSON文字列からJsonRpc::Requestオブジェクトを生成できるようになりました！
 
 ```perl
 use JSON::MaybeXS qw(decode_json encode_json);
@@ -639,19 +550,15 @@ use JSON::MaybeXS qw(decode_json encode_json);
 my $json = '{"jsonrpc":"2.0","method":"getUser","id":1}';
 my $hash = decode_json($json);
 my $req  = JsonRpc::Request->from_hash($hash);
-
-# Request オブジェクト → JSON文字列
-my $output_hash = $req->to_hash;
-my $output_json = encode_json($output_hash);
 ```
 
 ## JsonRpc::Response値オブジェクトのTDD実装
 
-次に、JSON-RPC 2.0のResponse値オブジェクトを実装します。JSON-RPC仕様では「成功時のResponse」と「エラー時のResponse」の2種類があるが、今回は成功時のResponseのみを実装する（エラーResponseは次回の記事で扱う）。
+次に、JSON-RPC 2.0のResponse値オブジェクトを実装します。第2回で検討したとおり「成功時のResponse」と「エラー時のResponse」を別のオブジェクトとして定義します。今回は成功時のResponseのみを実装します（エラーResponseは次回の記事で扱います）。
 
 ### JSON-RPC 2.0 Response仕様の確認
 
-JSON-RPC 2.0仕様における成功時のResponse objectは以下のフィールドを持つ。
+JSON-RPC 2.0仕様における成功時のResponse objectは以下のフィールドを持ちます。
 
 | フィールド | 型 | 必須/オプション | 説明 |
 |-----------|-----|----------------|------|
@@ -661,30 +568,32 @@ JSON-RPC 2.0仕様における成功時のResponse objectは以下のフィー�
 
 ### Red - Responseのテストを書く
 
+ここでは一度に紹介しますが、例えばsubtest単位で Red -> Green -> Refactor のサイクルを回しながら実装してみてください。テストファイルは `done_testing;` で終わるようにすれば問題ありません。
+
 ```perl
 # t/response.t
 use v5.38;
-use Test2::V0;
-use lib 'lib';
+use Test2::V0 -target => 'JsonRpc::Response';
 
-use_ok 'JsonRpc::Response' or die;
 use JsonRpc::Version;
 
 subtest 'constructor with all required fields' => sub {
     my $res = JsonRpc::Response->new(
-        jsonrpc => JsonRpc::Version->new(value => '2.0'),
+        jsonrpc => JsonRpc::Version->new,
         result  => { name => 'Alice', age => 30 },
         id      => 'req-001',
     );
     
     ok $res, 'Response created';
-    isa_ok $res->jsonrpc, 'JsonRpc::Version';
+    isa_ok $res->jsonrpc, ['JsonRpc::Version'], 'version';
     is $res->result, { name => 'Alice', age => 30 }, 'result is hash';
     is $res->id, 'req-001', 'id is string';
+
+    # ここでは省略していますが id は `Maybe[Str|Int]` なので、数値やundefのテストも必要です。
 };
 
 subtest 'result accepts any type' => sub {
-    my $version = JsonRpc::Version->new(value => '2.0');
+    my $version = JsonRpc::Version->new;
     
     # 文字列
     ok(lives {
@@ -715,7 +624,7 @@ subtest 'result accepts any type' => sub {
 subtest 'id is required' => sub {
     like(dies {
         JsonRpc::Response->new(
-            jsonrpc => JsonRpc::Version->new(value => '2.0'),
+            jsonrpc => JsonRpc::Version->new,
             result  => 'ok',
         );
     }, qr/required|missing/i, 'id is required');
@@ -728,23 +637,9 @@ subtest 'from_hash factory method' => sub {
         id      => 'test-id',
     });
     
-    ok $res, 'Response created from hash';
+    isa_ok $res,['JsonRpc::Response'], 'Response created from hash';
     is $res->result, { status => 'ok' }, 'result is correct';
     is $res->id, 'test-id', 'id is correct';
-};
-
-subtest 'to_hash converts back to hash' => sub {
-    my $res = JsonRpc::Response->from_hash({
-        jsonrpc => '2.0',
-        result  => [1, 2, 3],
-        id      => 999,
-    });
-    
-    is $res->to_hash, {
-        jsonrpc => '2.0',
-        result  => [1, 2, 3],
-        id      => 999,
-    }, 'to_hash produces correct hash';
 };
 
 done_testing;
@@ -775,7 +670,7 @@ has result => (
 
 has id => (
     is       => 'ro',
-    isa      => Str | Int,
+    isa      => Maybe[Str | Int],
     required => 1,
 );
 
@@ -797,16 +692,6 @@ sub from_hash {
         result  => $hash->{result},
         id      => $hash->{id},
     );
-}
-
-sub to_hash {
-    my $self = shift;
-    
-    return {
-        jsonrpc => $self->jsonrpc->value,
-        result  => $self->result,
-        id      => $self->id,
-    };
 }
 
 1;
@@ -862,7 +747,7 @@ my $req = JsonRpc::Request->new(
 );
 ```
 
-この方法は明示的だが、冗長になりがちです。
+この方法は明示的ですが、冗長になりがちです。
 
 ### ファクトリーメソッドパターン
 
@@ -944,87 +829,9 @@ my $req = JsonRpc::RequestBuilder->new
 
 流れるようなインターフェース（Fluent Interface）で読みやすくなります。
 
-## 実践例 - JSON-RPC 2.0通信の完全シミュレーション
-
-これまで実装したRequest/Response値オブジェクトを使用して、実際のJSON-RPC 2.0通信をエンドツーエンドでシミュレートします。この例では、クライアント→サーバー→クライアントの完全な往復通信を再現します。
-
-```perl
-#!/usr/bin/env perl
-use v5.38;
-use JSON::MaybeXS qw(encode_json decode_json);
-use lib 'lib';
-use JsonRpc::Request;
-use JsonRpc::Response;
-
-# クライアント側: リクエスト作成
-my $request = JsonRpc::Request->from_hash({
-    jsonrpc => '2.0',
-    method  => 'createUser',
-    params  => { name => 'Alice', email => 'alice@example.com' },
-    id      => 'req-001',
-});
-
-# JSON文字列にエンコード
-my $request_json = encode_json($request->to_hash);
-say "Request JSON: $request_json";
-
-# サーバー側: リクエスト処理
-my $received_hash = decode_json($request_json);
-my $received_req  = JsonRpc::Request->from_hash($received_hash);
-
-say "\nServer received:";
-say "  Method: " . $received_req->method->value;
-say "  Params: " . encode_json($received_req->params);
-
-# ビジネスロジック実行（ダミー）
-my $user_id = 42;
-my $result = {
-    id    => $user_id,
-    name  => $received_req->params->{name},
-    email => $received_req->params->{email},
-};
-
-# レスポンス作成
-my $response = JsonRpc::Response->new(
-    jsonrpc => $received_req->jsonrpc,
-    result  => $result,
-    id      => $received_req->id,
-);
-
-# JSON文字列にエンコード
-my $response_json = encode_json($response->to_hash);
-say "\nResponse JSON: $response_json";
-
-# クライアント側: レスポンス受信
-my $received_res_hash = decode_json($response_json);
-my $received_res = JsonRpc::Response->from_hash($received_res_hash);
-
-say "\nClient received:";
-say "  User ID: " . $received_res->result->{id};
-say "  Name: " . $received_res->result->{name};
-```
-
-実行結果：
-
-```text
-Request JSON: {"id":"req-001","jsonrpc":"2.0","method":"createUser","params":{"email":"alice@example.com","name":"Alice"}}
-
-Server received:
-  Method: createUser
-  Params: {"email":"alice@example.com","name":"Alice"}
-
-Response JSON: {"id":"req-001","jsonrpc":"2.0","result":{"email":"alice@example.com","id":42,"name":"Alice"}}
-
-Client received:
-  User ID: 42
-  Name: Alice
-```
-
-すべてのデータが値オブジェクトによって検証され、JSON-RPC 2.0仕様に準拠した型安全な通信が実現できている！
-
 ## 複合値オブジェクトのメリット再確認 - JSON-RPC実装から学ぶ
 
-ここまでのJSON-RPC Request/Response実装を通じて、複合値オブジェクトがもたらす具体的なメリットが明確になった。
+ここまでのJSON-RPC Request/Response実装を通じて、複合値オブジェクトがもたらす具体的なメリットが明確になりました。
 
 ### 型安全性
 
@@ -1041,27 +848,49 @@ my $req = JsonRpc::Request->new(
 
 ### 自己文書化
 
+MooとType::Tinyとの組み合わせで、データ構造が明確に見えてきます。
+
 ```perl
-# コードを見れば構造が明確
-has jsonrpc => (is => 'ro', isa => InstanceOf['JsonRpc::Version']);
-has method  => (is => 'ro', isa => InstanceOf['JsonRpc::MethodName']);
-has params  => (is => 'ro', isa => Maybe[ArrayRef | HashRef]);
-has id      => (is => 'ro', isa => Maybe[Str | Int]);
+has jsonrpc => (
+    is       => 'ro',
+    isa      => InstanceOf['JsonRpc::Version'],
+    required => 1,
+);
+
+has method => (
+    is       => 'ro',
+    isa      => InstanceOf['JsonRpc::MethodName'],
+    required => 1,
+);
+
+has params => (
+    is  => 'ro',
+    isa => Maybe[ArrayRef | HashRef],
+);
+
+has id => (
+    is  => 'ro',
+    isa => Maybe[Str | Int],
+);
 ```
 
-型定義がそのまま仕様書になっている。
+また、テストコードを見れば、どのような仕様で動作するのかがわかります。
 
 ### リファクタリングの安全性
 
-値オブジェクトを変更しても、テストが失敗すればすぐに気づける。
+機能を追加するときは、まずはテストを追加します。（Red）
 
-```perl
-# MethodName の検証ルールを変更
-# → Request のテストが失敗する
-# → すぐに影響範囲がわかる
-```
+Red を Green にするときは、実装はコピペでも構いません。とにかくGreenにすることだけを考えて実装します。（Green）
+
+Greenの間はテストコードによって仕様を満たしていることになるので、**仕様を変えずにリファクタリング**ができます。（Refactor）
 
 ### テストの容易さ
+
+テスト駆動開発では、機能を追加するときは、まずはテストを追加します。
+
+機能を実装する時には、すでにテストが書かれていることになります。
+
+結果的に、テストコードが書きやすい状態を（否応なく）維持できることになります。
 
 ```perl
 # モックオブジェクトも簡単
@@ -1078,7 +907,7 @@ my $req = JsonRpc::Request->new(
 
 ### この記事で学んだこと - JSON-RPC実装で習得した技術
 
-今回は、JSON-RPC 2.0のRequest/Responseという**複合値オブジェクト**の実装を通じて、以下の技術を習得した。
+今回は、JSON-RPC 2.0のRequest/Responseという**複合値オブジェクト**の実装を通じて、以下の技術を習得しました。
 
 **複合値オブジェクトの設計:**
 - 単純な値オブジェクトを組み合わせた階層構造
@@ -1094,7 +923,6 @@ my $req = JsonRpc::Request->new(
 **ファクトリーメソッドパターン:**
 - `from_hash`による簡潔なオブジェクト生成
 - JSONデコード結果からの直接変換
-- `to_hash`による双方向変換の実現
 
 **TDDでの実装プロセス:**
 - 複合的な値オブジェクトのテスト戦略
@@ -1109,8 +937,6 @@ JSON-RPCのような複合値オブジェクトを実装する際は、以下の
 2. **型制約を明確にする**: Type::TinyのMaybe/InstanceOfで厳密に型を定義し、実行可能な仕様書とする
 3. **ファクトリーメソッドを提供する**: from_hashでJSON→オブジェクト変換の利便性を向上
 4. **テストファーストで進める**: TDDのRed-Green-Refactorサイクルで段階的に実装
-5. **双方向変換を実装**: to_hashで元のハッシュ形式に戻せるようにし、JSONエンコードを可能にする
-6. **仕様への忠実性**: JSON-RPC 2.0仕様のような標準仕様には厳密に準拠する
 
 ### 次回予告 - エラー処理と境界値テスト（シリーズ完結編）
 
@@ -1130,6 +956,7 @@ JSON-RPCのような複合値オブジェクトを実装する際は、以下の
 
 ## 参考リンク
 
+{{< linkcard "https://typetiny.toby.ink" >}}
 {{< linkcard "https://metacpan.org/pod/Type::Tiny" >}}
 {{< linkcard "https://metacpan.org/pod/Types::Standard" >}}
 {{< linkcard "https://metacpan.org/pod/Moo" >}}
@@ -1145,4 +972,4 @@ JSON-RPCのような複合値オブジェクトを実装する際は、以下の
 4. **JSON-RPC Request/Response実装 - 複合値オブジェクト設計【Perl×TDD】**（この記事）
 5. エラー処理と境界値テスト - 堅牢な値オブジェクトを作る（次回・シリーズ完結編）
 
-各記事は独立して読めますが、順番に読むことでPerlにおけるTDD開発と値オブジェクト設計の全体像が理解できます。
+各記事は独立して読めますが、順番に読むことでPerlにおけるTDDと値オブジェクト設計の全体像が理解できます。
