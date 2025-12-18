@@ -166,9 +166,9 @@ JSON-RPC 2.0仕様では、エラーは`error`オブジェクトとして表現�
 このセクションでは、**TDD（Test-Driven Development）**でJsonRpcError値オブジェクトを段階的に実装します。
 
 > 🎯 **TDDの利点**  
-> • 仕様を確実に満たす実装が可能  
-> • リファクタリング時の安全性が向上  
-> • テストがドキュメントとして機能  
+> • 仕様を確実に満たす実装が可能
+> • リファクタリング時の安全性が向上
+> • テストがドキュメントとして機能
 > • バグの早期発見とデグレーション防止
 
 ### Error objectの仕様再確認
@@ -203,10 +203,7 @@ JSON-RPC 2.0の[Error object仕様](https://www.jsonrpc.org/specification#error_
 ```perl
 # t/error.t
 use v5.38;
-use Test2::V0;
-use lib 'lib';
-
-use_ok 'JsonRpc::Error' or die;
+use Test2::V0 -target => 'JsonRpc::Error';
 
 subtest 'constructor with required fields' => sub {
     my $error = JsonRpc::Error->new(
@@ -244,10 +241,10 @@ subtest 'code must be integer' => sub {
 subtest 'message must be string' => sub {
     like(
         dies {
-            JsonRpc::Error->new(code => -32600, message => 123);
+            JsonRpc::Error->new(code => -32600, message => []);
         },
         qr/type constraint|string/i,
-        'numeric message is rejected'
+        'ArrayRef is rejected'
     );
 };
 
@@ -362,14 +359,13 @@ Represents a JSON-RPC 2.0 Error object with validation.
 
 ```bash
 $ prove -lv t/error.t
-ok 1 - use JsonRpc::Error;
-    # Subtest: constructor with required fields
+ok 1 - constructor with required fields {
     ok 1 - Error created with required fields
     ok 2 - code is correct
     ok 3 - message is correct
     ok 4 - data is undef by default
     1..4
-ok 2 - constructor with required fields
+}
 ...
 All tests successful.
 ```

@@ -54,7 +54,7 @@ use Moo;
 has jsonrpc => (is => 'ro', isa => InstanceOf['JsonRpc::Version']);
 has method  => (is => 'ro', isa => InstanceOf['JsonRpc::MethodName']);
 has params  => (is => 'ro', isa => Maybe[ArrayRef|HashRef]);  # オプション
-has id      => (is => 'ro', isa => Maybe[Str|Int]);            # オプション
+has id      => (is => 'ro', isa => Maybe[Str|Int]);           # オプション
 ```
 
 ### 値オブジェクトのネスト構造
@@ -424,20 +424,7 @@ subtest 'from_hash factory method' => sub {
         is $req->params, { user_id => 42 }, 'params is correct';
         is $req->id, 'req-001', 'id is correct';
     };
-    
-    subtest 'from_hash with minimal fields' => sub {
-        my $req = JsonRpc::Request->from_hash({
-            jsonrpc => '2.0',
-            method  => 'notify',
-        });
-        
-        isa_ok $req,['JsonRpc::Request'], 'is a JsonRpc::Request';
-        is $req->jsonrpc->value, '2.0', 'jsonrpc is correct';
-        is $req->method->value, 'notify', 'method is correct';
-        is $req->params, undef, 'params defaults to undef';
-        is $req->id, undef, 'id defaults to undef';
-    };
-    
+
     subtest 'from_hash rejects missing required fields' => sub {
         like(dies {
             JsonRpc::Request->from_hash({ method => 'test' });
@@ -551,6 +538,570 @@ my $json = '{"jsonrpc":"2.0","method":"getUser","id":1}';
 my $hash = decode_json($json);
 my $req  = JsonRpc::Request->from_hash($hash);
 ```
+
+### ここで重要な仕様が追加されます
+
+さて、ここで仕様が追加されます！（という体でお願いします）
+
+JSON-RPC 2.0には、 `Notification` という仕様があります。
+
+> A Notification is a Request object without an "id" member. A Request object that is a Notification signifies the Client's lack of interest in the corresponding Response object, and as such no Response object needs to be returned to the client. The Server MUST NOT reply to a Notification, including those that are within a batch request.
+
+リクエストに `id` が存在しない場合は、 `Notification` という扱いになります。**MUST NOT**が使用されている重要な仕様です。
+
+`Notification` に対しては、サーバーは返信してはいけません。それがバッチに含まれるリクエストであってもです。
+
+ですが、心配ありません。新しい仕様を追加するには、テストを追加すれば良いのです。
+
+### Red - リクエストに id が含まれない場合は Notification
+
+さて、テストを書くために、どのような仕様にするかを検討します。
+
+重要な仕様でもあるので、値オブジェクトを厳密に適用する方向で考えます。ここでは `JsonRpc::Notification` を定義することにします。
+
+> 💡 **仕様の判断**
+> `JsonRpc::Request` に `is_notification` のようなフラグを追加する方法もあります（そして、おそらくそちらの方が書き直す量は少ない）。実際のプロダクトではそのような判断になる場合もあると思います。
+> 最初から仕様が決まっていた場合はともかく、仕様変更の場合、既存コードへの影響も判断材料になります。（ほとんどの場合、想定しているよりも大きく影響するのが怖いところです）
+
+ところで、この場合 `JsonRpc::Request` は `id` を必須項目に変更する必要もあります。何故ならば、 `id` が存在しない `JsonRpc::Request` は `JsonRpc::Notification` になるので、結果的に `JsonRpc::Request` は `id` が必ず存在するという仕様に変わりました。
+
+```mermaid
+graph LR;
+  リクエスト-->idを持っているか;
+  idを持っているか-- Yes -->JsonRpc::Request;
+  idを持っているか-- No -->JsonRpc::Notification;
+```
+
+ちょっとした仕様追加のはずだったのに、かなり大ごとになりそうな予感です。
+
+ですが、落ち着いてテストコードを変更していきましょう。
+
+- `id` が必須項目になるので、 `id` を省略していた正しく生成しているテストには、必須項目として `id` を追加する
+- 新たなテストとして、 `id` を指定しないで new すると、エラー（required）を返すテストを追加する
+
+ちなみに、 `id` は null を許容しているので、**指定しない**のと**undefを渡す**のとは明確に区別する必要があります。今回の仕様変更で `JsonRpc::Request` は `id` を指定しない場合はエラーになりますが、`id`としてundefを渡すと正常に作成されます。
+
+ここまでは、 `JsonRpc::Request` として話をしてきましたが、`JsonRpc::Request`のファクトリーメソッドで `JsonRpc::Notification` も作成されるのはわかりにくそうです。なので、ファクトリークラスを作成してしまいましょう。`JsonRpc::Request->from_hash()`を`JsonRpc::RequestFactory->from_hash` として再実装します。
+
+`JsonRpc::Notification` についても、新たにテストコードを作成します。クラスの構成としては `id` を持たない `JsonRpc::Request` という感じを想定します。
+
+これで大筋が決まりました。これらの仕様をテストコードに落とし込んでいきます。
+
+まずは、新たに追加されるファクトリークラスのテストコードを作成します。
+
+```perl
+# t/request_factory.t
+use v5.38;
+use Test2::V0 -target => 'JsonRpc::RequestFactory';
+
+subtest 'constructor with required fields only' => sub {
+    subtest 'from_hash creates JsonRpc::Request' => sub {
+        my $req = JsonRpc::RequestFactory->from_hash(
+            {
+                jsonrpc => '2.0',
+                method  => 'createUser',
+                params  => {name => 'Bob'},
+                id      => 123,
+            }
+        );
+
+        isa_ok $req,          ['JsonRpc::Request'];
+        isa_ok $req->jsonrpc, ['JsonRpc::Version'];
+        isa_ok $req->method,  ['JsonRpc::MethodName'];
+        is $req->params, {name => 'Bob'}, 'params is hash';
+        is $req->id, 123, 'id is integer';
+    };
+
+    subtest 'from_hash creates JsonRpc::Notification' => sub {
+        my $req = JsonRpc::RequestFactory->from_hash(
+            {
+                jsonrpc => '2.0',
+                method  => 'notifyEvent',
+                params  => ['event1', 'event2'],
+            }
+        );
+
+        isa_ok $req,          ['JsonRpc::Notification'];
+        isa_ok $req->jsonrpc, ['JsonRpc::Version'];
+        isa_ok $req->method,  ['JsonRpc::MethodName'];
+        is $req->params, ['event1', 'event2'], 'params is array';
+    };
+};
+
+done_testing;
+```
+
+`JsonRpc::Notification` のためのテストを書いていきます。`JsonRpc::Request` のテストと被るところが多いですが、気にせず書いていきます。
+
+```perl
+# t/notification.t
+use v5.38;
+use Test2::V0 -target => 'JsonRpc::Notification';
+
+use JsonRpc::Version;
+use JsonRpc::MethodName;
+
+subtest 'constructor with required fields only' => sub {
+    my $req = JsonRpc::Notification->new(
+        jsonrpc => JsonRpc::Version->new(value => '2.0'),
+        method  => JsonRpc::MethodName->new(value => 'notify'),
+    );
+
+    isa_ok $req,          ['JsonRpc::Notification'];
+    isa_ok $req->jsonrpc, ['JsonRpc::Version'];
+    isa_ok $req->method,  ['JsonRpc::MethodName'];
+    is $req->method->value, 'notify', 'method value is notify';
+    is $req->params,        undef,    'params is undef by default';
+};
+
+subtest 'constructor with all fields' => sub {
+    my $req = JsonRpc::Notification->new(
+        jsonrpc => JsonRpc::Version->new(value => '2.0'),
+        method  => JsonRpc::MethodName->new(value => 'notifyEvent'),
+        params  => [{event => 'event1'}, {event => 'event2'}],
+    );
+
+    isa_ok $req, ['JsonRpc::Notification'];
+    is $req->method->value, 'notifyEvent',                              'method value is notifyEvent';
+    is $req->params,        [{event => 'event1'}, {event => 'event2'}], 'params is array';
+};
+
+subtest 'constructor rejects invalid jsonrpc' => sub {
+    like(
+        dies {
+            JsonRpc::Notification->new(
+                jsonrpc => "not a Version object",
+                method  => JsonRpc::MethodName->new(value => 'test'),
+            );
+        },
+        qr/type constraint|isa/i,
+        'rejects non-Version jsonrpc'
+    );
+};
+
+subtest 'constructor rejects invalid method' => sub {
+    like(
+        dies {
+            JsonRpc::Notification->new(
+                jsonrpc => JsonRpc::Version->new(value => '2.0'),
+                method  => "not a MethodName object",
+            );
+        },
+        qr/type constraint|isa/i,
+        'rejects non-MethodName method'
+    );
+};
+
+subtest 'params accepts array or hash or undef' => sub {
+    my $version = JsonRpc::Version->new(value => '2.0');
+    my $method  = JsonRpc::MethodName->new(value => 'testMethod');
+
+    my $req_array = JsonRpc::Notification->new(
+        jsonrpc => $version,
+        method  => $method,
+        params  => ['item1', 'item2'],
+    );
+    is $req_array->params, ['item1', 'item2'], 'params is array';
+
+    my $req_hash = JsonRpc::Notification->new(
+        jsonrpc => $version,
+        method  => $method,
+        params  => {key1 => 'value1', key2 => 'value2'},
+    );
+    is $req_hash->params, {key1 => 'value1', key2 => 'value2'}, 'params is hash';
+
+    my $req_undef = JsonRpc::Notification->new(
+        jsonrpc => $version,
+        method  => $method,
+        params  => undef,
+    );
+    is $req_undef->params, undef, 'params is undef';
+
+    # String は拒否
+    like(
+        dies {
+            JsonRpc::Notification->new(
+                jsonrpc => $version,
+                method  => $method,
+                params  => "not an array or hash",
+            );
+        },
+        qr/type constraint|isa/i,
+        'rejects string params'
+    );
+};
+
+done_testing;
+```
+
+`JsonRpc::Request` は仕様が変更になるのでテストは細かく変更になります。
+
+```perl
+# t/request.t
+use v5.38;
+use Test2::V0 -target => 'JsonRpc::Request';
+
+use JsonRpc::Version;
+use JsonRpc::MethodName;
+
+subtest 'constructor with required fields only' => sub {
+    my $req = JsonRpc::Request->new(
+        jsonrpc => JsonRpc::Version->new(value => '2.0'),
+        method  => JsonRpc::MethodName->new(value => 'ping'),
+        id      => undef,
+    );
+
+    isa_ok $req,          ['JsonRpc::Request'];
+    isa_ok $req->jsonrpc, ['JsonRpc::Version'];
+    isa_ok $req->method,  ['JsonRpc::MethodName'];
+    is $req->method->value, 'ping', 'method value is ping';
+    is $req->params,        undef,  'params is undef by default';
+    is $req->id,            undef,  'id is undef';
+};
+
+subtest 'constructor with all fields' => sub {
+    my $req = JsonRpc::Request->new(
+        jsonrpc => JsonRpc::Version->new(value => '2.0'),
+        method  => JsonRpc::MethodName->new(value => 'createUser'),
+        params  => {name => 'Alice', age => 30},
+        id      => 'req-001',
+    );
+
+    isa_ok $req, ['JsonRpc::Request'];
+    is $req->method->value, 'createUser', 'method value is createUser';
+    is $req->params, {name => 'Alice', age => 30}, 'params is hash';
+    is $req->id, 'req-001', 'id is string';
+};
+
+subtest 'constructor rejects invalid jsonrpc' => sub {
+    like(
+        dies {
+            JsonRpc::Request->new(
+                jsonrpc => "not a Version object",
+                method  => JsonRpc::MethodName->new(value => 'test'),
+                id      => undef,
+            );
+        },
+        qr/type constraint|isa/i,
+        'rejects non-Version jsonrpc'
+    );
+};
+
+subtest 'constructor rejects invalid method' => sub {
+    like(
+        dies {
+            JsonRpc::Request->new(
+                jsonrpc => JsonRpc::Version->new(value => '2.0'),
+                method  => "not a MethodName object",
+                id      => undef,
+            );
+        },
+        qr/type constraint|isa/i,
+        'rejects non-MethodName method'
+    );
+};
+
+subtest 'constructor rejects missing id' => sub {
+    like(
+        dies {
+            JsonRpc::Request->new(
+                jsonrpc => JsonRpc::Version->new(value => '2.0'),
+                method  => "not a MethodName object",
+            );
+        },
+        qr/required/i,
+        'rejects missing id'
+    );
+};
+
+subtest 'params accepts array or hash or undef' => sub {
+    my $version = JsonRpc::Version->new(value => '2.0');
+    my $method  = JsonRpc::MethodName->new(value => 'test');
+
+    # ArrayRef
+    ok(
+        lives {
+            JsonRpc::Request->new(
+                jsonrpc => $version,
+                method  => $method,
+                params  => [1, 2, 3],
+                id      => 1,
+            );
+        },
+        'params accepts ArrayRef'
+    );
+
+    # HashRef
+    ok(
+        lives {
+            JsonRpc::Request->new(
+                jsonrpc => $version,
+                method  => $method,
+                params  => {key => 'value'},
+                id      => 1,
+            );
+        },
+        'params accepts HashRef'
+    );
+
+    # undef
+    ok(
+        lives {
+            JsonRpc::Request->new(
+                jsonrpc => $version,
+                method  => $method,
+                params  => undef,
+                id      => 1,
+            );
+        },
+        'params accepts undef'
+    );
+
+    # String は拒否
+    like(
+        dies {
+            JsonRpc::Request->new(
+                jsonrpc => $version,
+                method  => $method,
+                params  => "string",
+                id      => 1,
+            );
+        },
+        qr/type constraint/i,
+        'params rejects string'
+    );
+};
+
+subtest 'id accepts string, int, or undef' => sub {
+    my $version = JsonRpc::Version->new(value => '2.0');
+    my $method  = JsonRpc::MethodName->new(value => 'test');
+
+    ok(
+        lives {
+            JsonRpc::Request->new(jsonrpc => $version, method => $method, id => 'str-id');
+        },
+        'id accepts string'
+    );
+
+    ok(
+        lives {
+            JsonRpc::Request->new(jsonrpc => $version, method => $method, id => 123);
+        },
+        'id accepts integer'
+    );
+
+    ok(
+        lives {
+            JsonRpc::Request->new(jsonrpc => $version, method => $method, id => undef);
+        },
+        'id accepts undef'
+    );
+
+    like(
+        dies {
+            JsonRpc::Request->new(jsonrpc => $version, method => $method, id => []);
+        },
+        qr/type constraint/i,
+        'id rejects array reference'
+    );
+};
+
+done_testing;
+```
+
+### Green - テストを満たす最小限の実装
+
+まずは `JsonRpc::Request` を変更しましょう。
+
+```perl
+# lib/JsonRpc/Request.pm
+package JsonRpc::Request;
+use v5.38;
+use Moo;
+use Types::Standard qw(InstanceOf Maybe ArrayRef HashRef Str Int);
+use JsonRpc::Version;
+use JsonRpc::MethodName;
+use namespace::clean;
+
+has jsonrpc => (
+    is       => 'ro',
+    isa      => InstanceOf ['JsonRpc::Version'],
+    required => 1,
+);
+
+has method => (
+    is       => 'ro',
+    isa      => InstanceOf ['JsonRpc::MethodName'],
+    required => 1,
+);
+
+has params => (
+    is  => 'ro',
+    isa => Maybe [ArrayRef | HashRef],
+);
+
+has id => (
+    is       => 'ro',
+    isa      => Maybe [Str | Int],
+    required => 1,                   # 必須にする
+);
+
+1;
+```
+
+次は、`JsonRpc::Notification`です。`JsonRpc::Request` の `id` なしですね。
+
+```perl
+# lib/JsonRpc/Notification.pm
+package JsonRpc::Notification;
+use v5.38;
+use Moo;
+use Types::Standard qw(InstanceOf Maybe ArrayRef HashRef);
+use JsonRpc::Version;
+use JsonRpc::MethodName;
+use namespace::clean;
+
+has jsonrpc => (
+    is       => 'ro',
+    isa      => InstanceOf ['JsonRpc::Version'],
+    required => 1,
+);
+
+has method => (
+    is       => 'ro',
+    isa      => InstanceOf ['JsonRpc::MethodName'],
+    required => 1,
+);
+
+has params => (
+    is  => 'ro',
+    isa => Maybe [ArrayRef | HashRef],
+);
+
+1;
+```
+
+最後に `JsonRpc::RequestFactory` を作ります。
+
+```perl
+# lib/JsonRpc/RequestFactory.pm
+package JsonRpc::RequestFactory;
+use v5.38;
+use Moo;
+use JsonRpc::Request;
+use JsonRpc::Notification;
+use JsonRpc::Version;
+use JsonRpc::MethodName;
+use namespace::clean;
+
+sub from_hash {
+    my ($class, $hashref) = @_;
+
+    my $jsonrpc = JsonRpc::Version->new(value => $hashref->{jsonrpc});
+    my $method  = JsonRpc::MethodName->new(value => $hashref->{method});
+    my $params  = $hashref->{params};
+
+    if (exists $hashref->{id}) {
+
+        # Request
+        return JsonRpc::Request->new(
+            jsonrpc => $jsonrpc,
+            method  => $method,
+            params  => $params,
+            id      => $hashref->{id},
+        );
+    }
+    else {
+        # Notification
+        return JsonRpc::Notification->new(
+            jsonrpc => $jsonrpc,
+            method  => $method,
+            params  => $params,
+        );
+    }
+}
+
+1;
+```
+
+すべてGreenになりました。
+
+### Refactor - 重複を取り除く
+
+`JsonRpc::Request` と `JsonRpc::Notification` は `id` の有無以外は、ほぼ同じです。ここをリファクタリングしましょう。
+
+`JsonRpc::RequestBase` を作成し、このクラスを継承させることにします。
+
+よくある設計の助言として、まずは「合成（composition）を優先する」と言われることがあります。今回のように、リファクタリングとして重複部分を切り出すような場合は、継承を使わない方が良い場合が多いと思います。一部機能が重複しているだけであれば尚更です。
+
+今回、継承を選択したのは、RequestとNotificationが、どちらもmethodに対してparamsを渡す処理を行うためです（今回はその部分は実装しないのですが）。Requestはレスポンスを返しますが、Notificationはレスポンスを返さない（返してはいけない）という部分だけが異なります。
+
+```perl
+# lib/JsonRpc/RequestBase.pm
+package JsonRpc::RequestBase;
+use v5.38;
+use Moo;
+use Types::Standard qw(InstanceOf Maybe ArrayRef HashRef);
+use JsonRpc::Version;
+use JsonRpc::MethodName;
+use namespace::clean;
+
+has jsonrpc => (
+    is       => 'ro',
+    isa      => InstanceOf ['JsonRpc::Version'],
+    required => 1,
+);
+
+has method => (
+    is       => 'ro',
+    isa      => InstanceOf ['JsonRpc::MethodName'],
+    required => 1,
+);
+
+has params => (
+    is  => 'ro',
+    isa => Maybe [ArrayRef | HashRef],
+);
+
+1;
+```
+
+`JsonRpc::Notification` は `JsonRpc::RequestBase` を継承させると、何も残りません。
+
+```perl
+# lib/JsonRpc/Notification.pm
+package JsonRpc::Notification;
+use v5.38;
+use Moo;
+extends 'JsonRpc::RequestBase';
+use namespace::clean;
+
+1;
+```
+
+`JsonRpc::Request` にも `JsonRpc::RequestBase` を継承させます。
+
+```perl
+# lib/JsonRpc/Request.pm
+package JsonRpc::Request;
+use v5.38;
+use Moo;
+extends 'JsonRpc::RequestBase';
+use Types::Standard qw(Maybe Str Int);
+use namespace::clean;
+
+has id => (
+    is       => 'ro',
+    isa      => Maybe [Str | Int],
+    required => 1,
+);
+
+1;
+```
+
+Greenのままであればリファクタリングはうまくいっています。今回は継承（extends）を使うことで重複を削除できました。
+
+テストコードはたくさん増えましたが、実装の方は、最終的な増減はそれほどでもありませんでした。ですが、`JsonRpc::Notification` という重要な仕様を持つクラスを実装できたので十分な成果と言えます。
 
 ## JsonRpc::Response値オブジェクトのTDD実装
 
