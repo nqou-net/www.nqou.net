@@ -1,39 +1,24 @@
 ---
-title: "エラー処理と境界値テスト - 堅牢な値オブジェクトを作る【Perl×TDD完結編】"
+title: "値オブジェクトのエラー処理と境界値テスト — Perl×TDD（シリーズ完結）"
 draft: false
 date: 2025-12-20T09:00:00+09:00
 tags:
-  - json-rpc
-  - perl
-  - tdd
-  - error-handling
-  - boundary-testing
-  - value-object
-  - test2
-  - defensive-programming
-  - fail-fast
-  - software-quality
-description: "【シリーズ完結編・第5回】JsonRpcError値オブジェクトのTDD実装、境界値分析の実践的手法、エラー時Responseの実装を通じて、本番環境に耐えうる堅牢な値オブジェクト設計を完全マスター。Perlで学ぶ防御的プログラミングの実践とTest2による網羅的テスト技法。Fail Fast原則の実装と排他性の保証まで、プロダクション品質のコード設計を学ぶ。"
+    - value-object
+    - perl
+    - tdd
+    - json-rpc
+    - error-handling
+    - boundary-testing
+    - defensive-programming
+    - fail-fast
+    - software-quality
+    - test2
+description: "PerlとTDDで学ぶ、JSON‑RPCエラー設計と境界値テスト。JsonRpcError値オブジェクトの実装手順、Fail Fastと防御的プログラミングによる本番向け設計を解説。"
 series: "Perlで値オブジェクトを使ってテスト駆動開発してみよう"
 series_order: 5
-keywords:
-  - "Perl エラー処理"
-  - "境界値テスト"
-  - "boundary value analysis"
-  - "TDD テスト駆動開発"
-  - "値オブジェクト 実装"
-  - "JSON-RPC 2.0"
-  - "Test2 Perl"
-  - "防御的プログラミング"
-  - "Fail Fast パターン"
-  - "エラーハンドリング設計"
-  - "Perl モダン開発"
-  - "ソフトウェア品質"
 slug: "error-handling-boundary-testing-robust-value-objects"
 image: "/images/perl-tdd-series.png"
 ---
-
-<!-- エラー処理 境界値テスト TDD 値オブジェクト Perl Test2 -->
 
 この記事は「**Perlで値オブジェクトを使ってテスト駆動開発してみよう**」シリーズの**第5回（全5回・完結編）**です。
 前回は、[JSON-RPC Request/Response実装](/2025/12/19/jsonrpc-request-response-composite-value-objects/)を通じて複合値オブジェクトの設計を学びました。
@@ -370,9 +355,37 @@ ok 1 - constructor with required fields {
 All tests successful.
 ```
 
-### Refactor - 標準エラーコードの定数定義
+### Red - 標準エラーコードの定数定義
 
 JSON-RPC 2.0の標準エラーコードを定数として定義し、コードの保守性を高めます。
+
+定数を使用したテストを追加します：
+
+```perl
+# t/error.t に追加
+use JsonRpc::ErrorCode qw(:all);
+
+subtest 'standard error code constants' => sub {
+    is ERROR_PARSE_ERROR,      -32700, 'PARSE_ERROR constant';
+    is ERROR_INVALID_REQUEST,  -32600, 'INVALID_REQUEST constant';
+    is ERROR_METHOD_NOT_FOUND, -32601, 'METHOD_NOT_FOUND constant';
+    is ERROR_INVALID_PARAMS,   -32602, 'INVALID_PARAMS constant';
+    is ERROR_INTERNAL_ERROR,   -32603, 'INTERNAL_ERROR constant';
+};
+
+subtest 'use constants in Error construction' => sub {
+    my $error = JsonRpc::Error->new(
+        code    => ERROR_INVALID_REQUEST,
+        message => 'Invalid Request',
+    );
+    
+    is $error->code, -32600, 'constant used correctly';
+};
+```
+
+### Green - 標準エラーコードの定数定義
+
+実装します。
 
 ```perl
 # lib/JsonRpc/ErrorCode.pm
@@ -454,31 +467,6 @@ Internal JSON-RPC error.
 Server-defined errors should use codes in the range -32000 to -32099.
 
 =cut
-```
-
-定数を使用したテストも追加します：
-
-```perl
-# t/error.t に追加
-
-use JsonRpc::ErrorCode qw(:all);
-
-subtest 'standard error code constants' => sub {
-    is ERROR_PARSE_ERROR,      -32700, 'PARSE_ERROR constant';
-    is ERROR_INVALID_REQUEST,  -32600, 'INVALID_REQUEST constant';
-    is ERROR_METHOD_NOT_FOUND, -32601, 'METHOD_NOT_FOUND constant';
-    is ERROR_INVALID_PARAMS,   -32602, 'INVALID_PARAMS constant';
-    is ERROR_INTERNAL_ERROR,   -32603, 'INTERNAL_ERROR constant';
-};
-
-subtest 'use constants in Error construction' => sub {
-    my $error = JsonRpc::Error->new(
-        code    => ERROR_INVALID_REQUEST,
-        message => 'Invalid Request',
-    );
-    
-    is $error->code, -32600, 'constant used correctly';
-};
 ```
 
 これで、マジックナンバーを排除し、可読性の高いコードになりました！🎉
@@ -706,7 +694,7 @@ done_testing;
 
 #### matchによる柔軟な検証
 
-`match`を使うと、正規表現や範囲チェックなど、柔軟な検証が可能になります。
+`match` や `validator` を使うと、正規表現や範囲チェックなど、柔軟な検証が可能になります。
 
 ```perl
 # t/error_structure.t に追加
@@ -736,17 +724,14 @@ subtest 'flexible validation with match' => sub {
     }, 'error object matches expected structure';
 };
 
-subtest 'match with number ranges' => sub {
+subtest 'validate with number ranges' => sub {
     my $error = JsonRpc::Error->new(
-        code    => -32050,  # カスタムエラー範囲内
+        code    => -32050,           # カスタムエラー範囲内
         message => 'Server error',
     );
-    
+
     # codeが特定範囲内にあることを検証
-    like $error->code, match sub {
-        my $code = shift;
-        return $code >= -32099 && $code <= -32000;
-    }, 'code is within custom error range';
+    is $error->code, validator(sub { return $_ >= -32099 && $_ <= -32000 }), 'code is within custom error range';
 };
 ```
 
@@ -768,10 +753,7 @@ JSON-RPC 2.0仕様では、Responseオブジェクトは`result`か`error`のど
 ```perl
 # t/error_response.t
 use v5.38;
-use Test2::V0;
-use lib 'lib';
-
-use_ok 'JsonRpc::ErrorResponse' or die;
+use Test2::V0 -target => 'JsonRpc::ErrorResponse';
 use JsonRpc::Version;
 use JsonRpc::Error;
 use JsonRpc::ErrorCode qw(:all);
@@ -1196,9 +1178,6 @@ describe 'JsonRpc::Error' => sub {
 - **prove**: テストランナー（並列実行、詳細出力が可能）
 
 ```bash
-# コードカバレッジを測定
-cover -test
-
 # 並列テスト実行（高速化）
 prove -j4 -lv t/
 
@@ -1294,37 +1273,6 @@ has id => (
 
 ### Q4: Test2とTest::Moreの違いは？
 **A:** Test2はモダンな設計で拡張性が高く、サブテストや構造テストが簡潔に書けます。Test::Moreとの互換性もあるため、段階的移行が可能です。
-
----
-
-## シリーズ記事一覧 - Perlで値オブジェクトを使ってテスト駆動開発してみよう
-
-本記事は「**Perlで値オブジェクトを使ってテスト駆動開発してみよう**」シリーズの最終回（第5回・完結編）です。
-
-### 📚 全5回のカリキュラム
-
-1. **値オブジェクトって何だろう？ - DDDの基本概念とPerlでの実装入門**  
-   値オブジェクトの基礎理論とMooを使った実装方法
-
-2. **JSON-RPC 2.0で学ぶ値オブジェクト設計 - 仕様から設計へ**  
-   標準仕様を読み解き、値オブジェクトを抽出する設計手法
-
-3. **[PerlのTest2でTDD実践 - 値オブジェクトのテスト戦略](/2025/12/18/test2-tdd-value-object-testing-strategy/)**  
-   Red-Green-Refactorサイクルとテストファースト開発
-
-4. **[JSON-RPC Request/Response実装 - 複合値オブジェクト設計](/2025/12/19/jsonrpc-request-response-composite-value-objects/)**  
-   Type::Tinyによる型安全性とファクトリーパターン
-
-5. **エラー処理と境界値テスト - 堅牢な値オブジェクトを作る**（✅ この記事・完結編）  
-   エラーハンドリング、境界値分析、プロダクション品質のコード設計
-
-> 🎯 **シリーズ完走で得られるスキル**  
-> 全5回を通じて、値オブジェクトの概念から実践的なTDD開発まで、JSON-RPC 2.0実装を題材に体系的に学べます。  
-> ここで得た知識は、PerlだけでなくあらゆるOOP言語（Java, C#, Ruby, Python）での開発に応用できます。
-
-**シリーズをお読みいただき、ありがとうございました！**
-
-この知識があなたのプロジェクトで活かされ、より堅牢で保守性の高いコードが生まれることを願っています。
 
 ---
 

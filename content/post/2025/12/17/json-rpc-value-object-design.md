@@ -8,6 +8,8 @@ tags:
   - api-design
   - tdd
 description: "JSON-RPC 2.0仕様書から値オブジェクトを設計する実践ガイド。RFC 2119(MUST/SHOULD/MAY)の読み解き方、不変性の担保、バリデーション実装、Perlコード例とTest2によるTDD検証まで完全解説。仕様書駆動設計の教科書的チュートリアル。"
+series: "Perlで値オブジェクトを使ってテスト駆動開発してみよう"
+series_order: 2
 ---
 
 この記事は「**Perlで値オブジェクトを使ってテスト駆動開発してみよう**」シリーズの第2回です。

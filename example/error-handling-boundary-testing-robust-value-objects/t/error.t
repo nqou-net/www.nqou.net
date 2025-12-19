@@ -1,5 +1,6 @@
 use v5.38;
 use Test2::V0 -target => 'JsonRpc::Error';
+use JsonRpc::ErrorCode qw(:all);
 
 subtest 'constructor with required fields' => sub {
     my $error = JsonRpc::Error->new(
@@ -79,6 +80,24 @@ subtest 'data accepts any type' => sub {
     ok(lives {
         JsonRpc::Error->new(code => -1, message => 'test', data => undef);
     }, 'data accepts undef');
+};
+
+
+subtest 'standard error code constants' => sub {
+    is ERROR_PARSE_ERROR,      -32700, 'PARSE_ERROR constant';
+    is ERROR_INVALID_REQUEST,  -32600, 'INVALID_REQUEST constant';
+    is ERROR_METHOD_NOT_FOUND, -32601, 'METHOD_NOT_FOUND constant';
+    is ERROR_INVALID_PARAMS,   -32602, 'INVALID_PARAMS constant';
+    is ERROR_INTERNAL_ERROR,   -32603, 'INTERNAL_ERROR constant';
+};
+
+subtest 'use constants in Error construction' => sub {
+    my $error = JsonRpc::Error->new(
+        code    => ERROR_INVALID_REQUEST,
+        message => 'Invalid Request',
+    );
+    
+    is $error->code, -32600, 'constant used correctly';
 };
 
 done_testing;

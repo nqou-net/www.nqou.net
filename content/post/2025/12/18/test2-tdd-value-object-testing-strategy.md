@@ -8,6 +8,8 @@ tags:
   - value-object
   - red-green-refactor
 description: "PerlのTest2::V0で学ぶTDD実践ガイド。Red-Green-Refactorサイクル、dies/lives例外テスト、subtest構造化、境界値分析を実例付きで解説。MethodName値オブジェクトで体験する本格的なテスト駆動開発。"
+series: "Perlで値オブジェクトを使ってテスト駆動開発してみよう"
+series_order: 3
 ---
 
 この記事は「**Perlで値オブジェクトを使ってテスト駆動開発してみよう**」シリーズの第3回です。前回は、[JSON-RPC 2.0仕様から値オブジェクトを設計するプロセス](/2025/12/17/json-rpc-value-object-design/)を学びました。今回は、**PerlのTest2::V0を使ったテスト駆動開発（TDD）の実践**に焦点を当て、Red-Green-Refactorサイクルを体験しながらMethodName値オブジェクトを段階的に実装します。
