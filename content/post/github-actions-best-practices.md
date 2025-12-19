@@ -1,13 +1,17 @@
 ---
-title: "GitHub Actions 効率化の極意：ビルド時間 70% 削減、コスト 50% カットの実践テクニック"
+title: "GitHub Actions 完全ガイド 2025：ビルド時間 70% 削減、コスト 50% カットを実現する実践テクニック"
 draft: true
 tags:
 - github-actions
 - ci-cd
-- performance-optimization
+- performance
+- devops
+- automation
+- workflow
 - cost-reduction
-- practical-guide
-description: "GitHub Actions で実測ビルド時間 70% 削減、コスト 50% カット達成。キャッシング、並列化、OIDC 認証など、すぐに使える実践テクニックを豊富なコード例とともに解説。"
+- best-practices
+description: "GitHub Actions でビルド時間を 14 分→4 分（70% 削減）、月額コストを $50→$15（50% カット）した実績をもとに、キャッシング戦略、マトリックス並列化、OIDC セキュア認証など、今すぐ実装できる 10 の最適化手法をコード付きで完全解説。"
+image: /favicon.png
 ---
 
 ## はじめに
