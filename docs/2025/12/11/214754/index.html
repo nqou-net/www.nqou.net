@@ -1,1189 +1,235 @@
-<!DOCTYPE html>
-<html lang="ja" dir="ltr">
-    <head><meta charset='utf-8'>
-<meta name='viewport' content='width=device-width, initial-scale=1'><meta name='description' content="プルリクエストやプッシュのたびに自動でテストが走るCI環境を構築します。GitHub Actionsの基本からDockerを使ったテスト実行まで、実践的な設定を学びます。">
-<title>MooによるTDD講座 #4 - GitHub ActionsでCI環境を構築</title>
-
-<link rel='canonical' href='https://www.nqou.net/2025/12/11/214754/'>
-
-<link rel="stylesheet" href="/scss/style.min.6a692fd055deae459f2a9767f57f3855ba80cafd5041317f24f7360f6ca47cdf.css"><meta property='og:title' content="MooによるTDD講座 #4 - GitHub ActionsでCI環境を構築">
-<meta property='og:description' content="プルリクエストやプッシュのたびに自動でテストが走るCI環境を構築します。GitHub Actionsの基本からDockerを使ったテスト実行まで、実践的な設定を学びます。">
-<meta property='og:url' content='https://www.nqou.net/2025/12/11/214754/'>
-<meta property='og:site_name' content='nqou.net'>
-<meta property='og:type' content='article'><meta property='article:section' content='Post' /><meta property='article:tag' content='perl' /><meta property='article:tag' content='github-actions' /><meta property='article:tag' content='continuous-integration' /><meta property='article:tag' content='docker' /><meta property='article:tag' content='test-automation' /><meta property='article:tag' content='tutorial' /><meta property='article:published_time' content='2025-12-11T21:47:54&#43;09:00'/><meta property='article:modified_time' content='2025-12-11T21:47:54&#43;09:00'/><meta property='og:image' content='https://www.nqou.net/public_images/2025/1765457274-image.jpg' />
-<meta name="twitter:title" content="MooによるTDD講座 #4 - GitHub ActionsでCI環境を構築">
-<meta name="twitter:description" content="プルリクエストやプッシュのたびに自動でテストが走るCI環境を構築します。GitHub Actionsの基本からDockerを使ったテスト実行まで、実践的な設定を学びます。"><meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:image" content='https://www.nqou.net/public_images/2025/1765457274-image.jpg' />
-    <link rel="shortcut icon" href="/favicon.png" />
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap');
-
-    :root {
-        --base-font-family: Arial, "Noto Sans JP", sans-serif;
-    }
-</style>
-
-<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015"
-        crossorigin="anonymous"></script>
-
-
-<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js" defer></script>
-<script defer>
-document.addEventListener('DOMContentLoaded', function () {
-    try {
-        if (typeof mermaid !== 'undefined' && document.querySelector('.mermaid')) {
-            mermaid.initialize({ startOnLoad: true, securityLevel: 'strict' });
-        }
-    } catch (e) {
-        console.warn('Mermaid failed to initialize:', e);
-    }
-});
-</script>
-
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-E50H9ESN7E');
-</script>
-
-    </head>
-    <body class="
-    article-page
-    ">
-    <script>
-        (function() {
-            const colorSchemeKey = 'StackColorScheme';
-            if(!localStorage.getItem(colorSchemeKey)){
-                localStorage.setItem(colorSchemeKey, "auto");
-            }
-        })();
-    </script><script>
-    (function() {
-        const colorSchemeKey = 'StackColorScheme';
-        const colorSchemeItem = localStorage.getItem(colorSchemeKey);
-        const supportDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches === true;
-
-        if (colorSchemeItem == 'dark' || colorSchemeItem === 'auto' && supportDarkMode) {
-            
-
-            document.documentElement.dataset.scheme = 'dark';
-        } else {
-            document.documentElement.dataset.scheme = 'light';
-        }
-    })();
-</script>
-<div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky ">
-    <button class="hamburger hamburger--spin" type="button" id="toggle-menu" aria-label="メニューを開く・閉じる">
-        <span class="hamburger-box">
-            <span class="hamburger-inner"></span>
-        </span>
-    </button>
-
-    <header>
-        
-            
-            <figure class="site-avatar">
-                <a href="/">
-                
-                    
-                    
-                    
-                        
-                        <img src="/images/nqounet201703_hu_138ef4f6e1904465.jpg" width="300"
-                            height="300" class="site-logo" loading="lazy" alt="Avatar">
-                    
-                
-                </a>
-                
-                    <span class="emoji">🥃</span>
-                
-            </figure>
-            
-        
-        
-        <div class="site-meta">
-            <h1 class="site-name"><a href="/">nqou.net</a></h1>
-            <h2 class="site-description">Whisky, Perl, Kansai.pm</h2>
-        </div>
-    </header><ol class="menu-social">
-            
-                <li>
-                    <a 
-                        href='https://github.com/nqounet'
-                        target="_blank"
-                        title="GitHub"
-                        rel="me"
-                    >
-                        
-                        
-                            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
-  <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-  <path d="M9 19c-4.3 1.4 -4.3 -2.5 -6 -3m12 5v-3.5c0 -1 .1 -1.4 -.5 -2c2.8 -.3 5.5 -1.4 5.5 -6a4.6 4.6 0 0 0 -1.3 -3.2a4.2 4.2 0 0 0 -.1 -3.2s-1.1 -.3 -3.5 1.3a12.3 12.3 0 0 0 -6.2 0c-2.4 -1.6 -3.5 -1.3 -3.5 -1.3a4.2 4.2 0 0 0 -.1 3.2a4.6 4.6 0 0 0 -1.3 3.2c0 4.6 2.7 5.7 5.5 6c-.6 .6 -.6 1.2 -.5 2v3.5" />
-</svg>
-
-
-
-                        
-                    </a>
-                </li>
-            
-                <li>
-                    <a 
-                        href='https://x.com/nqounet'
-                        target="_blank"
-                        title="X"
-                        rel="me"
-                    >
-                        
-                        
-                            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
-  <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-  <path d="M22 4.01c-1 .49 -1.98 .689 -3 .99c-1.121 -1.265 -2.783 -1.335 -4.38 -.737s-2.643 2.06 -2.62 3.737v1c-3.245 .083 -6.135 -1.395 -8 -4c0 0 -4.182 7.433 4 11c-1.872 1.247 -3.739 2.088 -6 2c3.308 1.803 6.913 2.423 10.034 1.517c3.58 -1.04 6.522 -3.723 7.651 -7.742a13.84 13.84 0 0 0 .497 -3.753c-.002 -.249 1.51 -2.772 1.818 -4.013z" />
-</svg>
-
-
-
-                        
-                    </a>
-                </li>
-            
-        </ol><ol class="menu" id="main-menu">
-        
-        
-        
-        <li >
-            <a href='/' >
-                
-                
-                
-                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
-  <path stroke="none" d="M0 0h24v24H0z"/>
-  <polyline points="5 12 3 12 12 3 21 12 19 12" />
-  <path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-7" />
-  <path d="M9 21v-6a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v6" />
-</svg>
-
-
-
-                
-                <span>Home</span>
-            </a>
-        </li>
-        
-        
-        <li >
-            <a href='/about/' >
-                
-                
-                
-                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round">
-  <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-  <circle cx="12" cy="7" r="4" />
-  <path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
-</svg>
-
-                
-                <span>About</span>
-            </a>
-        </li>
-        
-        
-        <li >
-            <a href='/advent-calendar-2025/' >
-                
-                
-                
-                    <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round">
-  <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-  <rect x="4" y="5" width="16" height="16" rx="2" />
-  <line x1="16" y1="3" x2="16" y2="7" />
-  <line x1="8" y1="3" x2="8" y2="7" />
-  <line x1="4" y1="11" x2="20" y2="11" />
-  <path d="M8 15h.01" />
-  <path d="M12 15h.01" />
-  <path d="M16 15h.01" />
-  <path d="M8 19h.01" />
-  <path d="M12 19h.01" />
-  <path d="M16 19h.01" />
-</svg>
-
-                
-                <span>Perl Advent Calendar 2025 - AI Edition</span>
-            </a>
-        </li>
-        
-        
-        <li >
-            <a href='/archives/' >
-                
-                
-                
-                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
-  <path stroke="none" d="M0 0h24v24H0z"/>
-  <rect x="3" y="4" width="18" height="4" rx="2" />
-  <path d="M5 8v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-10" />
-  <line x1="10" y1="12" x2="14" y2="12" />
-</svg>
-
-
-
-                
-                <span>Archives</span>
-            </a>
-        </li>
-        
-        
-        <li >
-            <a href='/search/' >
-                
-                
-                
-                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
-  <path stroke="none" d="M0 0h24v24H0z"/>
-  <circle cx="10" cy="10" r="7" />
-  <line x1="21" y1="21" x2="15" y2="15" />
-</svg>
-
-
-
-                
-                <span>Search</span>
-            </a>
-        </li>
-        
-        
-        <li >
-            <a href='/links/' >
-                
-                
-                
-                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
-  <path stroke="none" d="M0 0h24v24H0z"/>
-  <path d="M10 14a3.5 3.5 0 0 0 5 0l4 -4a3.5 3.5 0 0 0 -5 -5l-.5 .5" />
-  <path d="M14 10a3.5 3.5 0 0 0 -5 0l-4 4a3.5 3.5 0 0 0 5 5l.5 -.5" />
-</svg>
-
-
-
-                
-                <span>Links</span>
-            </a>
-        </li>
-        
-        <li class="menu-bottom-section">
-            <ol class="menu">
-
-                
-                    <li id="dark-mode-toggle">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
-  <path stroke="none" d="M0 0h24v24H0z"/>
-  <circle cx="8" cy="12" r="2" />
-  <rect x="2" y="6" width="20" height="12" rx="6" />
-</svg>
-
-
-
-                        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
-  <path stroke="none" d="M0 0h24v24H0z"/>
-  <circle cx="16" cy="12" r="2" />
-  <rect x="2" y="6" width="20" height="12" rx="6" />
-</svg>
-
-
-
-                        <span>ダークモード</span>
-                    </li>
-                
-            </ol>
-        </li>
-    </ol>
-</aside>
-
-    <aside class="sidebar right-sidebar sticky">
-        
-            
-                
-    <section class="widget archives">
-        <div class="widget-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
-  <path stroke="none" d="M0 0h24v24H0z"/>
-  <line x1="5" y1="9" x2="19" y2="9" />
-  <line x1="5" y1="15" x2="19" y2="15" />
-  <line x1="11" y1="4" x2="7" y2="20" />
-  <line x1="17" y1="4" x2="13" y2="20" />
-</svg>
-
-
-
-        </div>
-        <h2 class="widget-title section-title">目次</h2>
-        
-        <div class="widget--toc">
-            <nav id="TableOfContents">
-  <ol>
-    <li><a href="#ciとは何か">CIとは何か</a>
-      <ol>
-        <li><a href="#継続的インテグレーションの基本">継続的インテグレーションの基本</a></li>
-        <li><a href="#なぜ自動テストが重要か">なぜ自動テストが重要か</a></li>
-        <li><a href="#github-actionsの役割">GitHub Actionsの役割</a></li>
-      </ol>
-    </li>
-    <li><a href="#github-actionsの基本">GitHub Actionsの基本</a>
-      <ol>
-        <li><a href="#ワークフローファイルの配置">ワークフローファイルの配置</a></li>
-        <li><a href="#トリガーの設定push-pull_request">トリガーの設定（push, pull_request）</a></li>
-        <li><a href="#ジョブとステップの概念">ジョブとステップの概念</a></li>
-      </ol>
-    </li>
-    <li><a href="#dockerを使ったテスト実行">Dockerを使ったテスト実行</a>
-      <ol>
-        <li><a href="#マトリックス戦略複数のperlバージョン">マトリックス戦略（複数のPerlバージョン）</a></li>
-        <li><a href="#cpanmで依存関係をインストール">cpanmで依存関係をインストール</a></li>
-        <li><a href="#prove-コマンドでテスト実行">prove コマンドでテスト実行</a></li>
-      </ol>
-    </li>
-    <li><a href="#実践ワークフローの作成">実践：ワークフローの作成</a>
-      <ol>
-        <li><a href="#githubworkflowstestymlの作成">.github/workflows/test.ymlの作成</a></li>
-        <li><a href="#ブランチ戦略との連携">ブランチ戦略との連携</a></li>
-        <li><a href="#プルリクエストでのテスト確認">プルリクエストでのテスト確認</a></li>
-      </ol>
-    </li>
-    <li><a href="#バッジの追加とステータス確認">バッジの追加とステータス確認</a>
-      <ol>
-        <li><a href="#readmemdにバッジを追加">README.mdにバッジを追加</a></li>
-        <li><a href="#テスト結果の確認方法">テスト結果の確認方法</a></li>
-        <li><a href="#失敗時のデバッグ">失敗時のデバッグ</a></li>
-      </ol>
-    </li>
-    <li><a href="#まとめと次回予告">まとめと次回予告</a>
-      <ol>
-        <li><a href="#自動テストでチーム開発が楽になる">自動テストでチーム開発が楽になる</a></li>
-        <li><a href="#tddとciの相乗効果">TDDとCIの相乗効果</a></li>
-        <li><a href="#次回予告">次回予告</a></li>
-      </ol>
-    </li>
-  </ol>
-</nav>
-        </div>
-    </section>
-
-            
-        
-    </aside>
-
-
-            <main class="main full-width">
-    <article class="has-image main-article">
-    <header class="article-header">
-        <div class="article-image">
-            <a href="/2025/12/11/214754/">
-                
-                    <img src="/public_images/2025/1765457274-image.jpg" loading="lazy" alt="Featured image of post MooによるTDD講座 #4 - GitHub ActionsでCI環境を構築" />
-                
-            </a>
-        </div>
-    
-
-    <div class="article-details">
-    
-
-    <div class="article-title-wrapper">
-        <h2 class="article-title">
-            <a href="/2025/12/11/214754/">MooによるTDD講座 #4 - GitHub ActionsでCI環境を構築</a>
-        </h2>
-    
-        
-        <h3 class="article-subtitle">
-            プルリクエストやプッシュのたびに自動でテストが走るCI環境を構築します。GitHub Actionsの基本からDockerを使ったテスト実行まで、実践的な設定を学びます。
-        </h3>
-        
-    </div>
-
-    
-    
-    
-    
-    <footer class="article-time">
-        
-            <div>
-                <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
-  <path stroke="none" d="M0 0h24v24H0z"/>
-  <path d="M11.795 21h-6.795a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v4" />
-  <circle cx="18" cy="18" r="4" />
-  <path d="M15 3v4" />
-  <path d="M7 3v4" />
-  <path d="M3 11h16" />
-  <path d="M18 16.496v1.504l1 1" />
-</svg>
-                <time class="article-time--published">12月 11, 2025</time>
-            </div>
-        
-
-        
-            <div>
-                <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
-  <path stroke="none" d="M0 0h24v24H0z"/>
-  <circle cx="12" cy="12" r="9" />
-  <polyline points="12 7 12 12 15 15" />
-</svg>
-
-
-
-                <time class="article-time--reading">
-                    読了時間: 8分
-                </time>
-            </div>
-        
-    </footer>
-    
-
-    
-</div>
-
-</header>
-
-    <section class="article-content">
-    
-    
-    <h2 id="ciとは何か">CIとは何か
-</h2><p>コードを書いていると、「テストを実行し忘れた」「ローカルでは動いたのに本番で動かない」といった経験はありませんか？</p>
-<p>CI（継続的インテグレーション：Continuous Integration）は、こうした問題を防ぐための仕組みです。</p>
-<h3 id="継続的インテグレーションの基本">継続的インテグレーションの基本
-</h3><p>CIとは、コードの変更を頻繁に統合（マージ）し、その都度自動でテストやビルドを実行する開発手法です。</p>
-<p>主な特徴は以下の通りです。</p>
-<ul>
-<li><strong>自動化</strong>：コミットやプルリクエストをトリガーにテストが自動実行される</li>
-<li><strong>早期発見</strong>：問題を早い段階で検出できる</li>
-<li><strong>品質保証</strong>：常にテストが通る状態を維持する</li>
-</ul>
-<p>開発者がコードをプッシュするだけで、バックグラウンドでテストが走る。これがCIの魅力です。</p>
-<h3 id="なぜ自動テストが重要か">なぜ自動テストが重要か
-</h3><p>手動でテストを実行する場合、以下のような問題が起こりがちです。</p>
-<ul>
-<li><strong>実行忘れ</strong>：急いでいると、つい忘れてしまう</li>
-<li><strong>環境差異</strong>：「僕の環境では動くんだけど…」が発生する</li>
-<li><strong>時間のロス</strong>：チーム全員が毎回手動実行するのは非効率</li>
-</ul>
-<p>自動化することで、これらの問題を解決できます。</p>
-<div class="highlight"><div class="chroma">
-<table class="lntable"><tr><td class="lntd">
-<pre tabindex="0" class="chroma"><code><span class="lnt">1
-</span><span class="lnt">2
-</span></code></pre></td>
-<td class="lntd">
-<pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="c1"># 手動実行（毎回これをタイプするのは面倒）</span>
-</span></span><span class="line"><span class="cl">docker compose run --rm app prove -lv t/
-</span></span></code></pre></td></tr></table>
-</div>
-</div><p>自動化すれば、コードをプッシュするだけで、この作業が自動的に行われます。</p>
-<h3 id="github-actionsの役割">GitHub Actionsの役割
-</h3><p>GitHub Actionsは、GitHubが提供するCI/CDサービスです。</p>
-<p>主な利点は以下の通りです。</p>
-<ul>
-<li><strong>GitHubに統合</strong>：リポジトリと同じ場所で管理できる</li>
-<li><strong>無料枠が充実</strong>：パブリックリポジトリなら無料、プライベートでも月2,000分まで無料</li>
-<li><strong>豊富なエコシステム</strong>：様々な言語やツールに対応</li>
-<li><strong>YAMLで設定</strong>：分かりやすい設定ファイル</li>
-</ul>
-<p>次のセクションから、実際にGitHub Actionsを設定していきましょう。</p>
-<h2 id="github-actionsの基本">GitHub Actionsの基本
-</h2><p>GitHub Actionsは、<strong>ワークフロー</strong>という単位で動作を定義します。</p>
-<h3 id="ワークフローファイルの配置">ワークフローファイルの配置
-</h3><p>ワークフローは、リポジトリの特定の場所に配置します。</p>
-<div class="highlight"><div class="chroma">
-<table class="lntable"><tr><td class="lntd">
-<pre tabindex="0" class="chroma"><code><span class="lnt">1
-</span><span class="lnt">2
-</span><span class="lnt">3
-</span><span class="lnt">4
-</span></code></pre></td>
-<td class="lntd">
-<pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="c1"># ワークフローファイルの配置場所</span>
-</span></span><span class="line"><span class="cl">.github/
-</span></span><span class="line"><span class="cl">  workflows/
-</span></span><span class="line"><span class="cl">    test.yml  <span class="c1"># ← ここに配置</span>
-</span></span></code></pre></td></tr></table>
-</div>
-</div><p>この<code>.github/workflows/</code>ディレクトリに、YAML形式の設定ファイルを置くだけで、GitHub Actionsが認識してくれます。</p>
-<h3 id="トリガーの設定push-pull_request">トリガーの設定（push, pull_request）
-</h3><p>ワークフローは、様々なイベントで起動できます。よく使うのは以下の2つです。</p>
-<div class="highlight"><div class="chroma">
-<table class="lntable"><tr><td class="lntd">
-<pre tabindex="0" class="chroma"><code><span class="lnt">1
-</span><span class="lnt">2
-</span><span class="lnt">3
-</span><span class="lnt">4
-</span><span class="lnt">5
-</span><span class="lnt">6
-</span><span class="lnt">7
-</span><span class="lnt">8
-</span></code></pre></td>
-<td class="lntd">
-<pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">on</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">push</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">branches</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="l">main</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="l">develop</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">pull_request</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">branches</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="l">main</span><span class="w">
-</span></span></span></code></pre></td></tr></table>
-</div>
-</div><p>この設定では、以下のタイミングでワークフローが実行されます。</p>
-<ul>
-<li><code>main</code>または<code>develop</code>ブランチへのプッシュ</li>
-<li><code>main</code>ブランチへのプルリクエスト</li>
-</ul>
-<h3 id="ジョブとステップの概念">ジョブとステップの概念
-</h3><p>ワークフローは、<strong>ジョブ</strong>（Job）と<strong>ステップ</strong>（Step）で構成されます。</p>
-<div class="highlight"><div class="chroma">
-<table class="lntable"><tr><td class="lntd">
-<pre tabindex="0" class="chroma"><code><span class="lnt">1
-</span><span class="lnt">2
-</span><span class="lnt">3
-</span><span class="lnt">4
-</span><span class="lnt">5
-</span><span class="lnt">6
-</span><span class="lnt">7
-</span><span class="lnt">8
-</span><span class="lnt">9
-</span></code></pre></td>
-<td class="lntd">
-<pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">jobs</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">test</span><span class="p">:</span><span class="w">  </span><span class="c"># ジョブ名</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">runs-on</span><span class="p">:</span><span class="w"> </span><span class="l">ubuntu-latest </span><span class="w"> </span><span class="c"># 実行環境</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">steps</span><span class="p">:</span><span class="w">  </span><span class="c"># 実行するステップ</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">Checkout code</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l">actions/checkout@v4</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">      
-</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">Run tests</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="l">echo &#34;テストを実行&#34;</span><span class="w">
-</span></span></span></code></pre></td></tr></table>
-</div>
-</div><ul>
-<li><strong>ジョブ</strong>：独立した作業単位（例：テスト、ビルド、デプロイ）</li>
-<li><strong>ステップ</strong>：ジョブ内の個別の処理（例：コードのチェックアウト、テスト実行）</li>
-</ul>
-<p>複数のジョブを定義すると、並列実行されます。</p>
-<h2 id="dockerを使ったテスト実行">Dockerを使ったテスト実行
-</h2><p>前回までの連載で、Dockerを使ったローカル環境を構築しました。CI環境でも、同じDockerイメージを使えば、環境の一貫性が保たれます。</p>
-<h3 id="マトリックス戦略複数のperlバージョン">マトリックス戦略（複数のPerlバージョン）
-</h3><p>GitHub Actionsの<strong>マトリックス戦略</strong>を使うと、複数のバージョンで同時にテストできます。</p>
-<div class="highlight"><div class="chroma">
-<table class="lntable"><tr><td class="lntd">
-<pre tabindex="0" class="chroma"><code><span class="lnt">1
-</span><span class="lnt">2
-</span><span class="lnt">3
-</span><span class="lnt">4
-</span><span class="lnt">5
-</span><span class="lnt">6
-</span><span class="lnt">7
-</span><span class="lnt">8
-</span><span class="lnt">9
-</span></code></pre></td>
-<td class="lntd">
-<pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">jobs</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">test</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">runs-on</span><span class="p">:</span><span class="w"> </span><span class="l">ubuntu-latest</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">strategy</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">matrix</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">perl-version</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">          </span>- <span class="s1">&#39;5.36&#39;</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">          </span>- <span class="s1">&#39;5.38&#39;</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">          </span>- <span class="s1">&#39;5.40&#39;</span><span class="w">
-</span></span></span></code></pre></td></tr></table>
-</div>
-</div><p>この設定により、Perl 5.36、5.38、5.40の3つのバージョンで並列にテストが実行されます。</p>
-<h3 id="cpanmで依存関係をインストール">cpanmで依存関係をインストール
-</h3><p>PerlのモジュールをCI環境でインストールするには、<code>cpanm</code>（cpanminus）を使うのが一般的です。</p>
-<div class="highlight"><div class="chroma">
-<table class="lntable"><tr><td class="lntd">
-<pre tabindex="0" class="chroma"><code><span class="lnt">1
-</span><span class="lnt">2
-</span><span class="lnt">3
-</span></code></pre></td>
-<td class="lntd">
-<pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl">- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">Install dependencies</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p">|</span><span class="sd">
-</span></span></span><span class="line"><span class="cl"><span class="sd">    cpanm --notest --installdeps .</span><span class="w">
-</span></span></span></code></pre></td></tr></table>
-</div>
-</div><p><code>--notest</code>オプションで、依存モジュール自体のテストはスキップし、インストールだけを高速に行います。</p>
-<p><code>--installdeps .</code>で、カレントディレクトリの<code>cpanfile</code>や<code>Makefile.PL</code>から依存関係を読み取ってインストールします。</p>
-<h3 id="prove-コマンドでテスト実行">prove コマンドでテスト実行
-</h3><p>テストの実行には、これまでと同じ<code>prove</code>コマンドを使います。</p>
-<div class="highlight"><div class="chroma">
-<table class="lntable"><tr><td class="lntd">
-<pre tabindex="0" class="chroma"><code><span class="lnt">1
-</span><span class="lnt">2
-</span></code></pre></td>
-<td class="lntd">
-<pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl">- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">Run tests</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="l">prove -lv t/</span><span class="w">
-</span></span></span></code></pre></td></tr></table>
-</div>
-</div><p>オプションの意味：</p>
-<ul>
-<li><code>-l</code>：<code>lib/</code>ディレクトリをライブラリパスに追加</li>
-<li><code>-v</code>：詳細な出力（verbose）</li>
-</ul>
-<p>この1行で、<code>t/</code>ディレクトリ内のすべてのテストが実行されます。</p>
-<h2 id="実践ワークフローの作成">実践：ワークフローの作成
-</h2><p>それでは、実際にワークフローファイルを作成してみましょう。</p>
-<h3 id="githubworkflowstestymlの作成">.github/workflows/test.ymlの作成
-</h3><p>以下の内容で<code>.github/workflows/test.yml</code>を作成します。</p>
-<div class="highlight"><div class="chroma">
-<table class="lntable"><tr><td class="lntd">
-<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
-</span><span class="lnt"> 2
-</span><span class="lnt"> 3
-</span><span class="lnt"> 4
-</span><span class="lnt"> 5
-</span><span class="lnt"> 6
-</span><span class="lnt"> 7
-</span><span class="lnt"> 8
-</span><span class="lnt"> 9
-</span><span class="lnt">10
-</span><span class="lnt">11
-</span><span class="lnt">12
-</span><span class="lnt">13
-</span><span class="lnt">14
-</span><span class="lnt">15
-</span><span class="lnt">16
-</span><span class="lnt">17
-</span><span class="lnt">18
-</span><span class="lnt">19
-</span><span class="lnt">20
-</span><span class="lnt">21
-</span><span class="lnt">22
-</span><span class="lnt">23
-</span><span class="lnt">24
-</span><span class="lnt">25
-</span><span class="lnt">26
-</span><span class="lnt">27
-</span><span class="lnt">28
-</span><span class="lnt">29
-</span><span class="lnt">30
-</span><span class="lnt">31
-</span><span class="lnt">32
-</span><span class="lnt">33
-</span><span class="lnt">34
-</span><span class="lnt">35
-</span><span class="lnt">36
-</span><span class="lnt">37
-</span><span class="lnt">38
-</span><span class="lnt">39
-</span><span class="lnt">40
-</span><span class="lnt">41
-</span><span class="lnt">42
-</span><span class="lnt">43
-</span></code></pre></td>
-<td class="lntd">
-<pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">Test</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">on</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">push</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">branches</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="l">main</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="l">develop</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">pull_request</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">branches</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="l">main</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">jobs</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">test</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">runs-on</span><span class="p">:</span><span class="w"> </span><span class="l">ubuntu-latest</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">strategy</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">fail-fast</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">matrix</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">perl-version</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">          </span>- <span class="s1">&#39;5.36&#39;</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">          </span>- <span class="s1">&#39;5.38&#39;</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">          </span>- <span class="s1">&#39;5.40&#39;</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">steps</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">Checkout code</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l">actions/checkout@v4</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">      
-</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">Set up Perl</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l">shogo82148/actions-setup-perl@v1</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">with</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nt">perl-version</span><span class="p">:</span><span class="w"> </span><span class="l">${{ matrix.perl-version }}</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">      
-</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">Install cpanm</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p">|</span><span class="sd">
-</span></span></span><span class="line"><span class="cl"><span class="sd">          curl -L https://cpanmin.us | perl - App::cpanminus</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">      
-</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">Install dependencies</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p">|</span><span class="sd">
-</span></span></span><span class="line"><span class="cl"><span class="sd">          cpanm --notest --installdeps .</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">      
-</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">Run tests</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p">|</span><span class="sd">
-</span></span></span><span class="line"><span class="cl"><span class="sd">          prove -lv t/</span><span class="w">
-</span></span></span></code></pre></td></tr></table>
-</div>
-</div><p>このワークフローの流れを見ていきましょう。</p>
-<ol>
-<li><strong>Checkout code</strong>：リポジトリのコードを取得</li>
-<li><strong>Set up Perl</strong>：マトリックスで指定したPerlバージョンをセットアップ</li>
-<li><strong>Install cpanm</strong>：cpanminusをインストール</li>
-<li><strong>Install dependencies</strong>：<code>cpanfile</code>から依存モジュールをインストール</li>
-<li><strong>Run tests</strong>：テストを実行</li>
-</ol>
-<p><code>fail-fast: false</code>の設定により、1つのバージョンでテストが失敗しても、他のバージョンのテストは続行されます。</p>
-<h3 id="ブランチ戦略との連携">ブランチ戦略との連携
-</h3><p>ブランチ戦略に合わせて、トリガーを調整できます。</p>
-<div class="highlight"><div class="chroma">
-<table class="lntable"><tr><td class="lntd">
-<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
-</span><span class="lnt"> 2
-</span><span class="lnt"> 3
-</span><span class="lnt"> 4
-</span><span class="lnt"> 5
-</span><span class="lnt"> 6
-</span><span class="lnt"> 7
-</span><span class="lnt"> 8
-</span><span class="lnt"> 9
-</span><span class="lnt">10
-</span></code></pre></td>
-<td class="lntd">
-<pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">on</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">push</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">branches</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="l">main       </span><span class="w"> </span><span class="c"># 本番</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="l">develop    </span><span class="w"> </span><span class="c"># 開発</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="s1">&#39;feature/*&#39;</span><span class="w"> </span><span class="c"># フィーチャーブランチ</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">pull_request</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">branches</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="l">main</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="l">develop</span><span class="w">
-</span></span></span></code></pre></td></tr></table>
-</div>
-</div><p>この設定なら、フィーチャーブランチへのプッシュでもテストが走ります。</p>
-<h3 id="プルリクエストでのテスト確認">プルリクエストでのテスト確認
-</h3><p>プルリクエストを作成すると、自動的にワークフローが実行されます。</p>
-<p>GitHubのプルリクエスト画面で、以下のように表示されます。</p>
-<div class="highlight"><div class="chroma">
-<table class="lntable"><tr><td class="lntd">
-<pre tabindex="0" class="chroma"><code><span class="lnt">1
-</span><span class="lnt">2
-</span><span class="lnt">3
-</span><span class="lnt">4
-</span><span class="lnt">5
-</span></code></pre></td>
-<td class="lntd">
-<pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">✓ Test (5.36) — 1m 23s
-</span></span><span class="line"><span class="cl">✓ Test (5.38) — 1m 19s
-</span></span><span class="line"><span class="cl">✓ Test (5.40) — 1m 25s
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">All checks have passed
-</span></span></code></pre></td></tr></table>
-</div>
-</div><p>すべてのテストが通るまで、マージしないようにルールを設定することもできます。</p>
-<h2 id="バッジの追加とステータス確認">バッジの追加とステータス確認
-</h2><p>テストの状態を視覚的に表示するために、バッジ（ステータスバッジ）を追加しましょう。</p>
-<h3 id="readmemdにバッジを追加">README.mdにバッジを追加
-</h3><p><code>README.md</code>の冒頭に、以下のようなバッジを追加します。</p>
-<div class="highlight"><div class="chroma">
-<table class="lntable"><tr><td class="lntd">
-<pre tabindex="0" class="chroma"><code><span class="lnt">1
-</span><span class="lnt">2
-</span><span class="lnt">3
-</span><span class="lnt">4
-</span><span class="lnt">5
-</span></code></pre></td>
-<td class="lntd">
-<pre tabindex="0" class="chroma"><code class="language-markdown" data-lang="markdown"><span class="line"><span class="cl"><span class="gh"># Moo TDD Tutorial
-</span></span></span><span class="line"><span class="cl"><span class="gh"></span>
-</span></span><span class="line"><span class="cl">![<span class="nt">Test</span>](<span class="na">https://github.com/your-username/moo-tdd-tutorial/workflows/Test/badge.svg</span>)
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">Test2とMooを使ったTDD（テスト駆動開発）のチュートリアルです。
-</span></span></code></pre></td></tr></table>
-</div>
-</div><p>バッジのURL形式：</p>
-<div class="highlight"><div class="chroma">
-<table class="lntable"><tr><td class="lntd">
-<pre tabindex="0" class="chroma"><code><span class="lnt">1
-</span></code></pre></td>
-<td class="lntd">
-<pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">https://github.com/{owner}/{repo}/workflows/{workflow-name}/badge.svg
-</span></span></code></pre></td></tr></table>
-</div>
-</div><ul>
-<li><code>{owner}</code>：GitHubのユーザー名または組織名</li>
-<li><code>{repo}</code>：リポジトリ名</li>
-<li><code>{workflow-name}</code>：ワークフローファイルの<code>name:</code>で指定した名前（今回は<code>Test</code>）</li>
-</ul>
-<h3 id="テスト結果の確認方法">テスト結果の確認方法
-</h3><p>GitHubのリポジトリページで、テスト結果を確認できます。</p>
-<ol>
-<li><strong>Actionsタブ</strong>：すべてのワークフロー実行履歴</li>
-<li><strong>プルリクエストページ</strong>：そのPRに関連するチェック結果</li>
-<li><strong>コミットページ</strong>：各コミットのチェック結果</li>
-</ol>
-<p>実行中のワークフローは、リアルタイムでログを確認できます。</p>
-<h3 id="失敗時のデバッグ">失敗時のデバッグ
-</h3><p>テストが失敗した場合、以下の手順でデバッグします。</p>
-<div class="highlight"><div class="chroma">
-<table class="lntable"><tr><td class="lntd">
-<pre tabindex="0" class="chroma"><code><span class="lnt">1
-</span><span class="lnt">2
-</span><span class="lnt">3
-</span><span class="lnt">4
-</span></code></pre></td>
-<td class="lntd">
-<pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="c"># デバッグ用の詳細ログを有効化</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span>- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">Run tests with verbose output</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p">|</span><span class="sd">
-</span></span></span><span class="line"><span class="cl"><span class="sd">    prove -lvr t/</span><span class="w">
-</span></span></span></code></pre></td></tr></table>
-</div>
-</div><p><code>-r</code>オプションで、サブディレクトリも再帰的にテストします。</p>
-<p>失敗したテストのログを確認し、以下をチェックします。</p>
-<ul>
-<li><strong>依存関係</strong>：必要なモジュールがインストールされているか</li>
-<li><strong>環境変数</strong>：CI環境特有の設定が必要か</li>
-<li><strong>ファイルパス</strong>：相対パスの問題がないか</li>
-</ul>
-<p>GitHub Actionsのログには、ステップごとに折りたたみ可能なセクションがあり、エラー箇所が見つけやすくなっています。</p>
-<h2 id="まとめと次回予告">まとめと次回予告
-</h2><h3 id="自動テストでチーム開発が楽になる">自動テストでチーム開発が楽になる
-</h3><p>今回は、GitHub Actionsを使ったCI環境を構築しました。</p>
-<p><strong>設定したこと</strong>：</p>
-<ul>
-<li>ワークフローファイルの作成（<code>.github/workflows/test.yml</code>）</li>
-<li>複数のPerlバージョンでの並列テスト（マトリックス戦略）</li>
-<li>プッシュとプルリクエストでの自動実行</li>
-<li>ステータスバッジの追加</li>
-</ul>
-<p><strong>得られた効果</strong>：</p>
-<ul>
-<li>コードをプッシュするだけで、自動的にテストが実行される</li>
-<li>複数のPerlバージョンでの互換性を確認できる</li>
-<li>チーム全員が、テストの状態を一目で把握できる</li>
-</ul>
-<p>CIを導入することで、「テストを忘れた」「環境で動かない」という問題から解放されます。</p>
-<h3 id="tddとciの相乗効果">TDDとCIの相乗効果
-</h3><p>TDD（テスト駆動開発）とCI（継続的インテグレーション）を組み合わせると、以下の好循環が生まれます。</p>
-<ol>
-<li><strong>TDDでテストを書く</strong> → 常にテストが存在する</li>
-<li><strong>CIで自動実行</strong> → テストの実行漏れがなくなる</li>
-<li><strong>早期にバグ発見</strong> → 修正コストが低い</li>
-<li><strong>安心してリファクタリング</strong> → コード品質が向上</li>
-</ol>
-<p>この流れが、チーム全体の開発速度と品質を高めます。</p>
-<h3 id="次回予告">次回予告
-</h3><p>次回は「<strong>MooによるTDD講座 #5 - 実践的なTDDテクニックとベストプラクティス</strong>」として、以下の内容を扱います。</p>
-<ul>
-<li>実践的なTDDのワークフロー</li>
-<li>効果的なテスト設計のポイント</li>
-<li>リファクタリングとテストの連携</li>
-<li>チームでTDDを推進するコツ</li>
-</ul>
-<p>TDDをより深く理解し、現場で活用できるテクニックを紹介します。お楽しみに！</p>
-
-</section>
-
-
-    <footer class="article-footer">
-    
-    <section class="article-tags">
-        
-            <a href="/tags/perl/">Perl</a>
-        
-            <a href="/tags/github-actions/">Github-Actions</a>
-        
-            <a href="/tags/continuous-integration/">Continuous-Integration</a>
-        
-            <a href="/tags/docker/">Docker</a>
-        
-            <a href="/tags/test-automation/">Test-Automation</a>
-        
-            <a href="/tags/tutorial/">Tutorial</a>
-        
-    </section>
-
-
-    </footer>
-
-
-    
-</article>
-
-    
-
-    
-
-<aside class="related-content--wrapper">
-    <h2 class="section-title">関連するコンテンツ</h2>
-    <div class="related-content">
-        <div class="flex article-list--tile">
-            
-                
-<article class="has-image">
-    <a href="/2025/12/08/214754/">
-        
-        
-            <div class="article-image">
-                
-                    <img src="/public_images/2025/1765198074-image.jpg" loading="lazy" data-key="" data-hash="/public_images/2025/1765198074-image.jpg"/>
-                
-            </div>
-        
-
-        <div class="article-details">
-            <h2 class="article-title">MooによるTDD講座 #1 - 環境構築とはじめてのテスト駆動開発</h2>
-        </div>
-    </a>
-</article>
-
-            
-                
-<article class="has-image">
-    <a href="/2025/12/14/183305/">
-        
-        
-            <div class="article-image">
-                
-                    <img src="/public_images/2025/1765704785-image.jpg" loading="lazy" data-key="" data-hash="/public_images/2025/1765704785-image.jpg"/>
-                
-            </div>
-        
-
-        <div class="article-details">
-            <h2 class="article-title">Perl WebSocket入門：Mojoliciousで作る3つの実践アプリ</h2>
-        </div>
-    </a>
-</article>
-
-            
-                
-<article class="has-image">
-    <a href="/2025/12/12/214754/">
-        
-        
-            <div class="article-image">
-                
-                    <img src="/public_images/2025/1765543674-image.jpg" loading="lazy" data-key="" data-hash="/public_images/2025/1765543674-image.jpg"/>
-                
-            </div>
-        
-
-        <div class="article-details">
-            <h2 class="article-title">MooによるTDD講座 #5 - 実践的なTDDテクニックとベストプラクティス</h2>
-        </div>
-    </a>
-</article>
-
-            
-                
-<article class="has-image">
-    <a href="/2025/12/10/214754/">
-        
-        
-            <div class="article-image">
-                
-                    <img src="/public_images/2025/1765370874-image.jpg" loading="lazy" data-key="" data-hash="/public_images/2025/1765370874-image.jpg"/>
-                
-            </div>
-        
-
-        <div class="article-details">
-            <h2 class="article-title">MooによるTDD講座 #3 - テストに守られながらリファクタリング</h2>
-        </div>
-    </a>
-</article>
-
-            
-                
-<article class="has-image">
-    <a href="/2025/12/09/214754/">
-        
-        
-            <div class="article-image">
-                
-                    <img src="/public_images/2025/1765284474-image.jpg" loading="lazy" data-key="" data-hash="/public_images/2025/1765284474-image.jpg"/>
-                
-            </div>
-        
-
-        <div class="article-details">
-            <h2 class="article-title">MooによるTDD講座 #2 - メソッドのテストとTest2の便利な機能</h2>
-        </div>
-    </a>
-</article>
-
-            
-        </div>
-    </div>
-</aside>
-
-     
-    
-        
-    <div class="disqus-container">
-    <div id="disqus_thread"></div>
-<script>
-    window.disqus_config = function () {
-    
-    
-    
-    };
-    (function() {
-        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
-            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
-            return;
-        }
-        var d = document, s = d.createElement('script'); s.async = true;
-        s.src = '//' + "nqounet" + '.disqus.com/embed.js';
-        s.setAttribute('data-timestamp', +new Date());
-        (d.head || d.body).appendChild(s);
-    })();
-</script>
-<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
-<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
-</div>
-
-<style>
-    .disqus-container {
-        background-color: var(--card-background);
-        border-radius: var(--card-border-radius);
-        box-shadow: var(--shadow-l1);
-        padding: var(--card-padding);
-    }
-</style>
-
-<script>
-    window.addEventListener('onColorSchemeChange', (e) => {
-        if (typeof DISQUS == 'object') {
-            DISQUS.reset({
-                reload: true
-            });
-        }
-    })
-</script>
-
-    
-
-    <footer class="site-footer">
-    <section class="copyright">
-        &copy; 
-        
-            2000 - 
-        
-        2025 nqou.net
-    </section>
-    
-    <section class="powerby">
-        <a href="https://gohugo.io/" target="_blank" rel="noopener">Hugo</a> で構築されています。 <br />
-        テーマ <b><a href="https://github.com/CaiJimmy/hugo-theme-stack" target="_blank" rel="noopener" data-version="3.29.0">Stack</a></b> は <a href="https://jimmycai.com" target="_blank" rel="noopener">Jimmy</a> によって設計されています。
-    </section>
-</footer>
-
-
-    
-<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
-
-    
-    <div class="pswp__bg"></div>
-
-    
-    <div class="pswp__scroll-wrap">
-
-        
-        <div class="pswp__container">
-            <div class="pswp__item"></div>
-            <div class="pswp__item"></div>
-            <div class="pswp__item"></div>
-        </div>
-
-        
-        <div class="pswp__ui pswp__ui--hidden">
-
-            <div class="pswp__top-bar">
-
-                
-
-                <div class="pswp__counter"></div>
-
-                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
-
-                <button class="pswp__button pswp__button--share" title="Share"></button>
-
-                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
-
-                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
-
-                
-                
-                <div class="pswp__preloader">
-                    <div class="pswp__preloader__icn">
-                        <div class="pswp__preloader__cut">
-                            <div class="pswp__preloader__donut"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
-                <div class="pswp__share-tooltip"></div>
-            </div>
-
-            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
-            </button>
-
-            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
-            </button>
-
-            <div class="pswp__caption">
-                <div class="pswp__caption__center"></div>
-            </div>
-
-        </div>
-
-    </div>
-
-</div><script 
-                src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js"integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo="crossorigin="anonymous"
-                defer
-                >
-            </script><script 
-                src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js"integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU="crossorigin="anonymous"
-                defer
-                >
-            </script><link 
-                rel="stylesheet" 
-                href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css"crossorigin="anonymous"
-            ><link 
-                rel="stylesheet" 
-                href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css"crossorigin="anonymous"
-            >
-
-            </main>
-        </div>
-        <script 
-                src="https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js"integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z&#43;KMkF24hUW8WePSA9HM="crossorigin="anonymous"
-                
-                >
-            </script><script type="text/javascript" src="/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js" defer></script>
-<script>
-    (function () {
-        const customFont = document.createElement('link');
-        customFont.href = "https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap";
-
-        customFont.type = "text/css";
-        customFont.rel = "stylesheet";
-
-        document.head.appendChild(customFont);
-    }());
-</script>
-
-    </body>
-</html>
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="プルリクエストやプッシュのたびに自動でテストが走るCI環境を構築します。GitHub Actionsの基本からDockerを使ったテスト実行まで、実践的な設定を学びます。"><title>MooによるTDD講座 #4 - GitHub ActionsでCI環境を構築</title><link rel=canonical href=https://www.nqou.net/2025/12/11/214754/><link rel=stylesheet href=/scss/style.min.6a692fd055deae459f2a9767f57f3855ba80cafd5041317f24f7360f6ca47cdf.css><meta property='og:title' content="MooによるTDD講座 #4 - GitHub ActionsでCI環境を構築"><meta property='og:description' content="プルリクエストやプッシュのたびに自動でテストが走るCI環境を構築します。GitHub Actionsの基本からDockerを使ったテスト実行まで、実践的な設定を学びます。"><meta property='og:url' content='https://www.nqou.net/2025/12/11/214754/'><meta property='og:site_name' content='nqou.net'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='perl'><meta property='article:tag' content='github-actions'><meta property='article:tag' content='continuous-integration'><meta property='article:tag' content='docker'><meta property='article:tag' content='test-automation'><meta property='article:tag' content='tutorial'><meta property='article:published_time' content='2025-12-11T21:47:54+09:00'><meta property='article:modified_time' content='2025-12-11T21:47:54+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2025/1765457274-image.jpg'><meta name=twitter:title content="MooによるTDD講座 #4 - GitHub ActionsでCI環境を構築"><meta name=twitter:description content="プルリクエストやプッシュのたびに自動でテストが走るCI環境を構築します。GitHub Actionsの基本からDockerを使ったテスト実行まで、実践的な設定を学びます。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2025/1765457274-image.jpg'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/images/nqounet201703_hu_138ef4f6e1904465.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar>
+</a><span class=emoji>🥃</span></figure><div class=site-meta><h1 class=site-name><a href=/>nqou.net</a></h1><h2 class=site-description>Whisky, Perl, Kansai.pm</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#ciとは何か>CIとは何か</a><ol><li><a href=#継続的インテグレーションの基本>継続的インテグレーションの基本</a></li><li><a href=#なぜ自動テストが重要か>なぜ自動テストが重要か</a></li><li><a href=#github-actionsの役割>GitHub Actionsの役割</a></li></ol></li><li><a href=#github-actionsの基本>GitHub Actionsの基本</a><ol><li><a href=#ワークフローファイルの配置>ワークフローファイルの配置</a></li><li><a href=#トリガーの設定push-pull_request>トリガーの設定（push, pull_request）</a></li><li><a href=#ジョブとステップの概念>ジョブとステップの概念</a></li></ol></li><li><a href=#dockerを使ったテスト実行>Dockerを使ったテスト実行</a><ol><li><a href=#マトリックス戦略複数のperlバージョン>マトリックス戦略（複数のPerlバージョン）</a></li><li><a href=#cpanmで依存関係をインストール>cpanmで依存関係をインストール</a></li><li><a href=#prove-コマンドでテスト実行>prove コマンドでテスト実行</a></li></ol></li><li><a href=#実践ワークフローの作成>実践：ワークフローの作成</a><ol><li><a href=#githubworkflowstestymlの作成>.github/workflows/test.ymlの作成</a></li><li><a href=#ブランチ戦略との連携>ブランチ戦略との連携</a></li><li><a href=#プルリクエストでのテスト確認>プルリクエストでのテスト確認</a></li></ol></li><li><a href=#バッジの追加とステータス確認>バッジの追加とステータス確認</a><ol><li><a href=#readmemdにバッジを追加>README.mdにバッジを追加</a></li><li><a href=#テスト結果の確認方法>テスト結果の確認方法</a></li><li><a href=#失敗時のデバッグ>失敗時のデバッグ</a></li></ol></li><li><a href=#まとめと次回予告>まとめと次回予告</a><ol><li><a href=#自動テストでチーム開発が楽になる>自動テストでチーム開発が楽になる</a></li><li><a href=#tddとciの相乗効果>TDDとCIの相乗効果</a></li><li><a href=#次回予告>次回予告</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2025/12/11/214754/><img src=/public_images/2025/1765457274-image.jpg loading=lazy alt="Featured image of post MooによるTDD講座 #4 - GitHub ActionsでCI環境を構築"></a></div><div class=article-details><div class=article-title-wrapper><h2 class=article-title><a href=/2025/12/11/214754/>MooによるTDD講座 #4 - GitHub ActionsでCI環境を構築</a></h2><h3 class=article-subtitle>プルリクエストやプッシュのたびに自動でテストが走るCI環境を構築します。GitHub Actionsの基本からDockerを使ったテスト実行まで、実践的な設定を学びます。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>12月 11, 2025</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 8分</time></div></footer></div></header><section class=article-content><h2 id=ciとは何か>CIとは何か</h2><p>コードを書いていると、「テストを実行し忘れた」「ローカルでは動いたのに本番で動かない」といった経験はありませんか？</p><p>CI（継続的インテグレーション：Continuous Integration）は、こうした問題を防ぐための仕組みです。</p><h3 id=継続的インテグレーションの基本>継続的インテグレーションの基本</h3><p>CIとは、コードの変更を頻繁に統合（マージ）し、その都度自動でテストやビルドを実行する開発手法です。</p><p>主な特徴は以下の通りです。</p><ul><li><strong>自動化</strong>：コミットやプルリクエストをトリガーにテストが自動実行される</li><li><strong>早期発見</strong>：問題を早い段階で検出できる</li><li><strong>品質保証</strong>：常にテストが通る状態を維持する</li></ul><p>開発者がコードをプッシュするだけで、バックグラウンドでテストが走る。これがCIの魅力です。</p><h3 id=なぜ自動テストが重要か>なぜ自動テストが重要か</h3><p>手動でテストを実行する場合、以下のような問題が起こりがちです。</p><ul><li><strong>実行忘れ</strong>：急いでいると、つい忘れてしまう</li><li><strong>環境差異</strong>：「僕の環境では動くんだけど…」が発生する</li><li><strong>時間のロス</strong>：チーム全員が毎回手動実行するのは非効率</li></ul><p>自動化することで、これらの問題を解決できます。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl><span class=c1># 手動実行（毎回これをタイプするのは面倒）</span>
+</span></span><span class=line><span class=cl>docker compose run --rm app prove -lv t/
+</span></span></code></pre></td></tr></table></div></div><p>自動化すれば、コードをプッシュするだけで、この作業が自動的に行われます。</p><h3 id=github-actionsの役割>GitHub Actionsの役割</h3><p>GitHub Actionsは、GitHubが提供するCI/CDサービスです。</p><p>主な利点は以下の通りです。</p><ul><li><strong>GitHubに統合</strong>：リポジトリと同じ場所で管理できる</li><li><strong>無料枠が充実</strong>：パブリックリポジトリなら無料、プライベートでも月2,000分まで無料</li><li><strong>豊富なエコシステム</strong>：様々な言語やツールに対応</li><li><strong>YAMLで設定</strong>：分かりやすい設定ファイル</li></ul><p>次のセクションから、実際にGitHub Actionsを設定していきましょう。</p><h2 id=github-actionsの基本>GitHub Actionsの基本</h2><p>GitHub Actionsは、<strong>ワークフロー</strong>という単位で動作を定義します。</p><h3 id=ワークフローファイルの配置>ワークフローファイルの配置</h3><p>ワークフローは、リポジトリの特定の場所に配置します。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl><span class=c1># ワークフローファイルの配置場所</span>
+</span></span><span class=line><span class=cl>.github/
+</span></span><span class=line><span class=cl>  workflows/
+</span></span><span class=line><span class=cl>    test.yml  <span class=c1># ← ここに配置</span>
+</span></span></code></pre></td></tr></table></div></div><p>この<code>.github/workflows/</code>ディレクトリに、YAML形式の設定ファイルを置くだけで、GitHub Actionsが認識してくれます。</p><h3 id=トリガーの設定push-pull_request>トリガーの設定（push, pull_request）</h3><p>ワークフローは、様々なイベントで起動できます。よく使うのは以下の2つです。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>on</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>push</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>branches</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span>- <span class=l>main</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span>- <span class=l>develop</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>pull_request</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>branches</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span>- <span class=l>main</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p>この設定では、以下のタイミングでワークフローが実行されます。</p><ul><li><code>main</code>または<code>develop</code>ブランチへのプッシュ</li><li><code>main</code>ブランチへのプルリクエスト</li></ul><h3 id=ジョブとステップの概念>ジョブとステップの概念</h3><p>ワークフローは、<strong>ジョブ</strong>（Job）と<strong>ステップ</strong>（Step）で構成されます。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span><span class=lnt>9
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>jobs</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>test</span><span class=p>:</span><span class=w>  </span><span class=c># ジョブ名</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>runs-on</span><span class=p>:</span><span class=w> </span><span class=l>ubuntu-latest </span><span class=w> </span><span class=c># 実行環境</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>steps</span><span class=p>:</span><span class=w>  </span><span class=c># 実行するステップ</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>Checkout code</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>uses</span><span class=p>:</span><span class=w> </span><span class=l>actions/checkout@v4</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      
+</span></span></span><span class=line><span class=cl><span class=w>      </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>Run tests</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>run</span><span class=p>:</span><span class=w> </span><span class=l>echo &#34;テストを実行&#34;</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><ul><li><strong>ジョブ</strong>：独立した作業単位（例：テスト、ビルド、デプロイ）</li><li><strong>ステップ</strong>：ジョブ内の個別の処理（例：コードのチェックアウト、テスト実行）</li></ul><p>複数のジョブを定義すると、並列実行されます。</p><h2 id=dockerを使ったテスト実行>Dockerを使ったテスト実行</h2><p>前回までの連載で、Dockerを使ったローカル環境を構築しました。CI環境でも、同じDockerイメージを使えば、環境の一貫性が保たれます。</p><h3 id=マトリックス戦略複数のperlバージョン>マトリックス戦略（複数のPerlバージョン）</h3><p>GitHub Actionsの<strong>マトリックス戦略</strong>を使うと、複数のバージョンで同時にテストできます。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span><span class=lnt>9
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>jobs</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>test</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>runs-on</span><span class=p>:</span><span class=w> </span><span class=l>ubuntu-latest</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>strategy</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>matrix</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>perl-version</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span>- <span class=s1>&#39;5.36&#39;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span>- <span class=s1>&#39;5.38&#39;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span>- <span class=s1>&#39;5.40&#39;</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p>この設定により、Perl 5.36、5.38、5.40の3つのバージョンで並列にテストが実行されます。</p><h3 id=cpanmで依存関係をインストール>cpanmで依存関係をインストール</h3><p>PerlのモジュールをCI環境でインストールするには、<code>cpanm</code>（cpanminus）を使うのが一般的です。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>Install dependencies</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>run</span><span class=p>:</span><span class=w> </span><span class=p>|</span><span class=sd>
+</span></span></span><span class=line><span class=cl><span class=sd>    cpanm --notest --installdeps .</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p><code>--notest</code>オプションで、依存モジュール自体のテストはスキップし、インストールだけを高速に行います。</p><p><code>--installdeps .</code>で、カレントディレクトリの<code>cpanfile</code>や<code>Makefile.PL</code>から依存関係を読み取ってインストールします。</p><h3 id=prove-コマンドでテスト実行>prove コマンドでテスト実行</h3><p>テストの実行には、これまでと同じ<code>prove</code>コマンドを使います。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>Run tests</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>run</span><span class=p>:</span><span class=w> </span><span class=l>prove -lv t/</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p>オプションの意味：</p><ul><li><code>-l</code>：<code>lib/</code>ディレクトリをライブラリパスに追加</li><li><code>-v</code>：詳細な出力（verbose）</li></ul><p>この1行で、<code>t/</code>ディレクトリ内のすべてのテストが実行されます。</p><h2 id=実践ワークフローの作成>実践：ワークフローの作成</h2><p>それでは、実際にワークフローファイルを作成してみましょう。</p><h3 id=githubworkflowstestymlの作成>.github/workflows/test.ymlの作成</h3><p>以下の内容で<code>.github/workflows/test.yml</code>を作成します。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>Test</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>on</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>push</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>branches</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span>- <span class=l>main</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span>- <span class=l>develop</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>pull_request</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>branches</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span>- <span class=l>main</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>jobs</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>test</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>runs-on</span><span class=p>:</span><span class=w> </span><span class=l>ubuntu-latest</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>strategy</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>fail-fast</span><span class=p>:</span><span class=w> </span><span class=kc>false</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>matrix</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>perl-version</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span>- <span class=s1>&#39;5.36&#39;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span>- <span class=s1>&#39;5.38&#39;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span>- <span class=s1>&#39;5.40&#39;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>steps</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>Checkout code</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>uses</span><span class=p>:</span><span class=w> </span><span class=l>actions/checkout@v4</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      
+</span></span></span><span class=line><span class=cl><span class=w>      </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>Set up Perl</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>uses</span><span class=p>:</span><span class=w> </span><span class=l>shogo82148/actions-setup-perl@v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>with</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>perl-version</span><span class=p>:</span><span class=w> </span><span class=l>${{ matrix.perl-version }}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      
+</span></span></span><span class=line><span class=cl><span class=w>      </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>Install cpanm</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>run</span><span class=p>:</span><span class=w> </span><span class=p>|</span><span class=sd>
+</span></span></span><span class=line><span class=cl><span class=sd>          curl -L https://cpanmin.us | perl - App::cpanminus</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      
+</span></span></span><span class=line><span class=cl><span class=w>      </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>Install dependencies</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>run</span><span class=p>:</span><span class=w> </span><span class=p>|</span><span class=sd>
+</span></span></span><span class=line><span class=cl><span class=sd>          cpanm --notest --installdeps .</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      
+</span></span></span><span class=line><span class=cl><span class=w>      </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>Run tests</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>run</span><span class=p>:</span><span class=w> </span><span class=p>|</span><span class=sd>
+</span></span></span><span class=line><span class=cl><span class=sd>          prove -lv t/</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p>このワークフローの流れを見ていきましょう。</p><ol><li><strong>Checkout code</strong>：リポジトリのコードを取得</li><li><strong>Set up Perl</strong>：マトリックスで指定したPerlバージョンをセットアップ</li><li><strong>Install cpanm</strong>：cpanminusをインストール</li><li><strong>Install dependencies</strong>：<code>cpanfile</code>から依存モジュールをインストール</li><li><strong>Run tests</strong>：テストを実行</li></ol><p><code>fail-fast: false</code>の設定により、1つのバージョンでテストが失敗しても、他のバージョンのテストは続行されます。</p><h3 id=ブランチ戦略との連携>ブランチ戦略との連携</h3><p>ブランチ戦略に合わせて、トリガーを調整できます。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>on</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>push</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>branches</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span>- <span class=l>main       </span><span class=w> </span><span class=c># 本番</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span>- <span class=l>develop    </span><span class=w> </span><span class=c># 開発</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span>- <span class=s1>&#39;feature/*&#39;</span><span class=w> </span><span class=c># フィーチャーブランチ</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>pull_request</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>branches</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span>- <span class=l>main</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span>- <span class=l>develop</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p>この設定なら、フィーチャーブランチへのプッシュでもテストが走ります。</p><h3 id=プルリクエストでのテスト確認>プルリクエストでのテスト確認</h3><p>プルリクエストを作成すると、自動的にワークフローが実行されます。</p><p>GitHubのプルリクエスト画面で、以下のように表示されます。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>✓ Test (5.36) — 1m 23s
+</span></span><span class=line><span class=cl>✓ Test (5.38) — 1m 19s
+</span></span><span class=line><span class=cl>✓ Test (5.40) — 1m 25s
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>All checks have passed
+</span></span></code></pre></td></tr></table></div></div><p>すべてのテストが通るまで、マージしないようにルールを設定することもできます。</p><h2 id=バッジの追加とステータス確認>バッジの追加とステータス確認</h2><p>テストの状態を視覚的に表示するために、バッジ（ステータスバッジ）を追加しましょう。</p><h3 id=readmemdにバッジを追加>README.mdにバッジを追加</h3><p><code>README.md</code>の冒頭に、以下のようなバッジを追加します。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-markdown data-lang=markdown><span class=line><span class=cl><span class=gh># Moo TDD Tutorial
+</span></span></span><span class=line><span class=cl><span class=gh></span>
+</span></span><span class=line><span class=cl>![<span class=nt>Test</span>](<span class=na>https://github.com/your-username/moo-tdd-tutorial/workflows/Test/badge.svg</span>)
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>Test2とMooを使ったTDD（テスト駆動開発）のチュートリアルです。
+</span></span></code></pre></td></tr></table></div></div><p>バッジのURL形式：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>https://github.com/{owner}/{repo}/workflows/{workflow-name}/badge.svg
+</span></span></code></pre></td></tr></table></div></div><ul><li><code>{owner}</code>：GitHubのユーザー名または組織名</li><li><code>{repo}</code>：リポジトリ名</li><li><code>{workflow-name}</code>：ワークフローファイルの<code>name:</code>で指定した名前（今回は<code>Test</code>）</li></ul><h3 id=テスト結果の確認方法>テスト結果の確認方法</h3><p>GitHubのリポジトリページで、テスト結果を確認できます。</p><ol><li><strong>Actionsタブ</strong>：すべてのワークフロー実行履歴</li><li><strong>プルリクエストページ</strong>：そのPRに関連するチェック結果</li><li><strong>コミットページ</strong>：各コミットのチェック結果</li></ol><p>実行中のワークフローは、リアルタイムでログを確認できます。</p><h3 id=失敗時のデバッグ>失敗時のデバッグ</h3><p>テストが失敗した場合、以下の手順でデバッグします。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=c># デバッグ用の詳細ログを有効化</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>Run tests with verbose output</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>run</span><span class=p>:</span><span class=w> </span><span class=p>|</span><span class=sd>
+</span></span></span><span class=line><span class=cl><span class=sd>    prove -lvr t/</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p><code>-r</code>オプションで、サブディレクトリも再帰的にテストします。</p><p>失敗したテストのログを確認し、以下をチェックします。</p><ul><li><strong>依存関係</strong>：必要なモジュールがインストールされているか</li><li><strong>環境変数</strong>：CI環境特有の設定が必要か</li><li><strong>ファイルパス</strong>：相対パスの問題がないか</li></ul><p>GitHub Actionsのログには、ステップごとに折りたたみ可能なセクションがあり、エラー箇所が見つけやすくなっています。</p><h2 id=まとめと次回予告>まとめと次回予告</h2><h3 id=自動テストでチーム開発が楽になる>自動テストでチーム開発が楽になる</h3><p>今回は、GitHub Actionsを使ったCI環境を構築しました。</p><p><strong>設定したこと</strong>：</p><ul><li>ワークフローファイルの作成（<code>.github/workflows/test.yml</code>）</li><li>複数のPerlバージョンでの並列テスト（マトリックス戦略）</li><li>プッシュとプルリクエストでの自動実行</li><li>ステータスバッジの追加</li></ul><p><strong>得られた効果</strong>：</p><ul><li>コードをプッシュするだけで、自動的にテストが実行される</li><li>複数のPerlバージョンでの互換性を確認できる</li><li>チーム全員が、テストの状態を一目で把握できる</li></ul><p>CIを導入することで、「テストを忘れた」「環境で動かない」という問題から解放されます。</p><h3 id=tddとciの相乗効果>TDDとCIの相乗効果</h3><p>TDD（テスト駆動開発）とCI（継続的インテグレーション）を組み合わせると、以下の好循環が生まれます。</p><ol><li><strong>TDDでテストを書く</strong> → 常にテストが存在する</li><li><strong>CIで自動実行</strong> → テストの実行漏れがなくなる</li><li><strong>早期にバグ発見</strong> → 修正コストが低い</li><li><strong>安心してリファクタリング</strong> → コード品質が向上</li></ol><p>この流れが、チーム全体の開発速度と品質を高めます。</p><h3 id=次回予告>次回予告</h3><p>次回は「<strong>MooによるTDD講座 #5 - 実践的なTDDテクニックとベストプラクティス</strong>」として、以下の内容を扱います。</p><ul><li>実践的なTDDのワークフロー</li><li>効果的なテスト設計のポイント</li><li>リファクタリングとテストの連携</li><li>チームでTDDを推進するコツ</li></ul><p>TDDをより深く理解し、現場で活用できるテクニックを紹介します。お楽しみに！</p></section><footer class=article-footer><section class=article-tags><a href=/tags/perl/>Perl</a>
+<a href=/tags/github-actions/>Github-Actions</a>
+<a href=/tags/continuous-integration/>Continuous-Integration</a>
+<a href=/tags/docker/>Docker</a>
+<a href=/tags/test-automation/>Test-Automation</a>
+<a href=/tags/tutorial/>Tutorial</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2025/12/08/214754/><div class=article-image><img src=/public_images/2025/1765198074-image.jpg loading=lazy data-key data-hash=/public_images/2025/1765198074-image.jpg></div><div class=article-details><h2 class=article-title>MooによるTDD講座 #1 - 環境構築とはじめてのテスト駆動開発</h2></div></a></article><article class=has-image><a href=/2025/12/14/183305/><div class=article-image><img src=/public_images/2025/1765704785-image.jpg loading=lazy data-key data-hash=/public_images/2025/1765704785-image.jpg></div><div class=article-details><h2 class=article-title>Perl WebSocket入門：Mojoliciousで作る3つの実践アプリ</h2></div></a></article><article class=has-image><a href=/2025/12/12/214754/><div class=article-image><img src=/public_images/2025/1765543674-image.jpg loading=lazy data-key data-hash=/public_images/2025/1765543674-image.jpg></div><div class=article-details><h2 class=article-title>MooによるTDD講座 #5 - 実践的なTDDテクニックとベストプラクティス</h2></div></a></article><article class=has-image><a href=/2025/12/10/214754/><div class=article-image><img src=/public_images/2025/1765370874-image.jpg loading=lazy data-key data-hash=/public_images/2025/1765370874-image.jpg></div><div class=article-details><h2 class=article-title>MooによるTDD講座 #3 - テストに守られながらリファクタリング</h2></div></a></article><article class=has-image><a href=/2025/12/09/214754/><div class=article-image><img src=/public_images/2025/1765284474-image.jpg loading=lazy data-key data-hash=/public_images/2025/1765284474-image.jpg></div><div class=article-details><h2 class=article-title>MooによるTDD講座 #2 - メソッドのテストとTest2の便利な機能</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2025 nqou.net</section><section class=powerby><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>
