@@ -1,6 +1,13 @@
 ---
-title: "GitHub Actions 完全ガイド 2025：ビルド時間 70% 削減、コスト 50% カットを実現する実践テクニック"
+date: 2025-12-20T17:00:00+09:00
+description: "GitHub Actions でビルド時間を 14 分→4 分（70% 削減）、月額コストを $50→$15（50% カット）した実績をもとに、キャッシング戦略、マトリックス並列化、OIDC セキュア認証など、今すぐ実装できる 10 の最適化手法をコード付きで完全解説。"
 draft: true
+epoch: 1734681600
+hidden: false
+image: /favicon.png
+iso8601: 2025-12-20T17:00:00+09:00
+license: ~
+math: ~
 tags:
 - github-actions
 - ci-cd
@@ -10,8 +17,7 @@ tags:
 - workflow
 - cost-reduction
 - best-practices
-description: "GitHub Actions でビルド時間を 14 分→4 分（70% 削減）、月額コストを $50→$15（50% カット）した実績をもとに、キャッシング戦略、マトリックス並列化、OIDC セキュア認証など、今すぐ実装できる 10 の最適化手法をコード付きで完全解説。"
-image: /favicon.png
+title: "GitHub Actions 完全ガイド 2025：ビルド時間 70% 削減、コスト 50% カットを実現する実践テクニック"
 ---
 
 ## はじめに
@@ -327,8 +333,8 @@ jobs:
       - uses: actions/checkout@v4
       
       - name: Test ${{ matrix.package }}
+        working-directory: packages/${{ matrix.package }}
         run: |
-          cd packages/${{ matrix.package }}
           npm ci
           npm test
 ```
@@ -891,7 +897,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Run actionlint
-        uses: reviewdog/action-actionlint@v1
+        # reviewdog/action-actionlint@v1 pinned to commit SHA for security
+        uses: reviewdog/action-actionlint@7eeec1dd160c2301eb028681e2cae289fd4b73f0
 ```
 
 ### ミス 2: アクションのバージョン未固定（CI/CD インシデントの主要な原因）
