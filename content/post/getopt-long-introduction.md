@@ -72,12 +72,6 @@ use Getopt::Long;
 my $verbose = 0;
 my $output = '';
 
-```perl
-use Getopt::Long;
-
-my $verbose = 0;
-my $output = '';
-
 GetOptions(
     'verbose' => \$verbose,
     'output=s' => \$output,
@@ -417,7 +411,6 @@ print $count + 10;  # 正しく数値計算される
 エイリアス（別名）を使います。
 
 ```perl
-```perl
 GetOptions(
     'verbose|v' => \$verbose,  # --verboseまたは-v
     'help|h|?' => \$help,      # --help、-h、-?すべて有効
@@ -445,7 +438,6 @@ $ perl script.pl --help      # OK
 配列で受け取ります。
 
 ```perl
-```perl
 my @include_dirs;
 GetOptions('include=s@' => \@include_dirs);
 
@@ -454,7 +446,6 @@ GetOptions('include=s@' => \@include_dirs);
 
 または、カウンタとして使います。
 
-```perl
 ```perl
 my $debug_level = 0;
 GetOptions('debug+' => \$debug_level);
@@ -469,7 +460,6 @@ GetOptions('debug+' => \$debug_level);
 
 `GetOptions()`は処理したオプションを`@ARGV`から**削除**します。残った要素が、オプション以外の引数です。
 
-```perl
 ```perl
 use Getopt::Long;
 
@@ -968,7 +958,6 @@ WARNING: Force delete!
 デバッグ出力のレベルを制御する実用的なパターンです。
 
 ```perl
-```perl
 use Getopt::Long;
 
 my $debug_level = 0;
@@ -1013,7 +1002,6 @@ $ perl script.pl -ddd
 多くのUNIXツールは、`--color`と`--no-color`のような否定形をサポートしています。
 
 ```perl
-```perl
 use Getopt::Long;
 
 my $color = 1;  # デフォルトで有効
@@ -1052,7 +1040,6 @@ Plain text  # カラー無効
 オプションが指定されたときに、カスタム関数を実行できます。
 
 ```perl
-```perl
 use Getopt::Long;
 
 my $verbose = 0;
@@ -1089,7 +1076,6 @@ print "  $_\n" for @log_messages;
 UNIX風の`-abc`形式を有効にします。
 
 ```perl
-```perl
 use Getopt::Long qw(:config bundling);
 
 my ($all, $verbose, $recursive, $force);
@@ -1124,7 +1110,6 @@ Force: 1
 
 厳密に区別したい場合は以下のようにします。
 
-```perl
 ```perl
 use Getopt::Long qw(:config no_ignore_case);
 
