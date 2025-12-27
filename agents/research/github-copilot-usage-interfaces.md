@@ -2,9 +2,9 @@
 
 ## 調査概要
 
-- **調査日**: 2025年12月27日
+- **調査日**: 2025年12月28日
 - **調査者**: investigative-research エージェント
-- **調査目的**: GitHub Copilot の3つのインターフェース（Web UI、エディタ拡張、CLI）とプレミアムリクエストの仕組みについて、技術的に正確な情報を収集し、記事執筆のための信頼性の高い情報源リストを作成する
+- **調査目的**: GitHub Copilot の主要インターフェース（Web UI、エディタ拡張、CLI）、および 2025年12月時点での利用可能なモデル群とプラン依存の扱い（premium requests）について、公式情報を基に整理する
 
 ## 調査対象トピック
 
@@ -131,78 +131,44 @@
 
 ---
 
-## 2. プレミアムリクエストの仕組み
+## 2. プレミアムリクエストの仕組み（2025年12月の状況）
 
-### 2.1 プレミアムリクエストとは
+### 2.1 概要
 
-**定義**
-- 高度な AI モデル（Claude 3.5、Gemini、GPT-4.5 など）を使用する際に消費されるリクエスト
-- 基本モデル（GPT-4o、GPT-4.1）はプレミアムリクエストとしてカウントされない（有料プランの場合）
-- Copilot Chat、Copilot Agent、Code Review、Extensions、Spaces などで使用される
+ - GitHub Copilot は複数の大規模言語モデル（LLM）を切り替えて利用できるマルチモデル構成を採用している。個々のモデルは応答品質・レイテンシ・コストのトレードオフが異なり、プランに応じて利用可能なモデルや「プレミアムリクエスト」の取り扱いが変わる
+ - 2025年12月時点の公式アナウンスにより、OpenAI 系（GPT-5.x 系列）や Google の Gemini 系、Anthropic の Claude 系など複数モデルが Copilot に組み込まれている（例: GPT-5.2、GPT-5.1-Codex-Max、Gemini 3 Flash、Claude Opus 4.5 等）
+ - GitHub は **自動モデル選択（Auto model selection）** と手動での **モデルピッカー** を提供しており、用途に応じて低遅延/低コストモデルから高精度モデルへ切り替え可能
 
-### 2.2 月間300リクエストの制限
+### 2.2 プランとプレミアムリクエスト（重要点）
 
-**基本情報**
-- Copilot Pro および Business プランで月間300プレミアムリクエストが提供される
-- リセットタイミング：毎月1日 UTC 00:00:00
-- Enterprise プランでは1,000リクエスト以上
+ - Copilot のプラン（Free / Pro / Pro+ / Enterprise）により、利用可能なモデル群と「プレミアムリクエスト」の割当が異なる（例: Pro で月間のプレミアムリクエスト枠を持ち、Pro+ はそれより多い枠を提供）
+ - 公式サイトのプラン記載では、Pro プランは一部高級モデル（例：GPT-5 系の一部、Claude Sonnet/Opus系の一部、Gemini Pro 系）を有料枠（premium requests）で利用するとされている。また Pro には GPT-5 mini などの低コストモデルへの無制限アクセスが含まれる旨の説明がある
+ - モデルごとの「消費扱い（premiumか否か）」や課金の詳細は随時更新されるため、記事執筆時は GitHub の課金/プランページと最新の changelog を参照すること
 
-**マルチプライヤーシステム**
-各モデルには異なるマルチプライヤーが設定されている：
-- GPT-4o、GPT-4.1: 0× （プレミアム制限にカウントされない）
-- Gemini 2.0 Flash: 0.25×
-- Claude 3.5 Sonnet: 1×
-- Claude Opus 4: 10×
-- GPT-4.5: 最大50×
+### 2.3 モデルの例（2025年12月に公式確認できた主な候補）
 
-**例**
-- 300リクエストの上限で、Gemini Flash を使用すると最大1,200回のプロンプトが可能
-- Claude Opus 4 を使用すると30回のプロンプトで上限に達する
+ - OpenAI 系: `GPT-5.2`, `GPT-5.1`, `GPT-5.1-Codex-Max`, `GPT-5`, `GPT-5 mini`, `GPT-5 nano`, `GPT-4.1`, `GPT-4o` など（詳細は OpenAI のモデルページ参照）
+ - Google 系: `Gemini 3 Flash`, `Gemini 3 Pro`（一部 IDE や Copilot のオプションで利用可能）
+ - Anthropic 系: `Claude Opus 4.5`, `Claude Sonnet` 系列（Copilot の一部機能で提供）
+ - GitHub 独自/カスタム: Copilot は補完向けにカスタムチューニングされた独自モデルや、組織単位で導入する MCP サーバ（Model Context Protocol）経由のカスタムモデルを利用できる
 
-### 2.3 使用量の計測方法
+※ 上記は「公式発表で確認できるモデル名の抜粋」であり、地域・プラン・プレビュー状態により利用可否が異なる
 
-**トラッキング方法**
-1. **IDE 内モニタリング（VS Code など）**
-   - ステータスバーの Copilot アイコンからプレミアムリクエスト使用状況、月間制限までの進捗、リセット日を確認
+### 2.4 付帯機能（自動選択・モデルピッカー・メトリクス）
 
-2. **GitHub.com 課金ダッシュボード**
-   - [GitHub Billing Overview](https://github.com/settings/billing) から「Metered usage」セクションで詳細な使用状況を確認
-   - プレミアムリクエスト分析ページ：総使用量、ユーザー/モデル/組織別フィルタリング、含まれる/課金されるリクエストの内訳
+ - **Auto model selection**: VS Code 等では自動モデル選択が導入されており、要求の種類や応答時間に応じて最適なモデルを自動で選ぶ
+ - **Model picker**: Copilot coding agent 等でユーザーが手動でモデルを選択できる機能が提供され始めている（Pro/Pro+ 向けの機能として案内）
+ - **使用量メトリクス**: GitHub 側のダッシュボードおよび changelog にて、プレミアムリクエストの可視化や組織向けメトリクスが強化されている（Enterprise 向けの詳細レポートなど）
 
-3. **ダウンロード可能な使用レポート**
-   - CSV レポートをダウンロード：タイムスタンプ、ユーザー、モデル、インタラクション別に明細化
-   - 個人アカウントと組織アカウントで利用可能
+### 2.5 参考（必ず最新版を確認すること）
 
-4. **VS Code 拡張機能**
-   - [Copilot Premium Usage Monitor](https://marketplace.visualstudio.com/items?itemName=fail-safe.copilot-premium-usage-monitor)
-   - リアルタイムの予算追跡、月間支出、組織全体のメトリクス
-
-5. **REST API アクセス**
-   - カスタムダッシュボードや可観測性ツールとの統合用 API エンドポイント
-
-### 2.4 制限に達した場合の選択肢
-
-1. **待つ**: 翌月の1日まで待ってクォータがリセットされるのを待つ
-2. **追加リクエストを購入**: $0.04/リクエストで追加購入
-3. **アップグレード**: 
-   - Copilot Pro+（$39/月で1,500リクエスト/月）
-   - Enterprise（1,000以上のリクエスト/月）
-4. **プレミアムリクエストを無効化**: 含まれるモデルのみ利用可能
-
-### 2.5 組織管理機能
-
-- 管理者はクォータ超過時のポリシー設定が可能
-- 自動従量課金を許可するか、使用をブロックするかを選択
-- 予算とコストの管理を向上
+ - GitHub Blog / Changelog（2025年12月時点のリリース情報）
+ - GitHub Docs — Copilot と課金/プランのページ
+ - OpenAI Models ページ（platform.openai.com/docs/models）
 
 ### 信頼性の評価
-- ⭐⭐⭐⭐⭐ 公式ドキュメントと GitHub 公式ブログ、最高レベルの信頼性
 
-### 参考URL
-- [GitHub Copilot premium requests](https://docs.github.com/en/billing/concepts/product-billing/github-copilot-premium-requests)
-- [Monitoring your GitHub Copilot usage and entitlements](https://docs.github.com/enterprise-cloud@latest/copilot/how-tos/manage-and-track-spending/monitor-premium-requests)
-- [Premium requests analytics page is now generally available](https://github.blog/changelog/2025-09-30-premium-requests-analytics-page-is-now-generally-available/)
-- [GitHub Copilot: Monthly Request Quotas Now Active](https://www.dawnliphardt.com/github-copilot-monthly-request-quotas-now-active/)
+ - ⭐⭐⭐⭐⭐ GitHub Blog（changelog）と GitHub Docs、OpenAI Models ページを直接参照して更新済み
 
 ---
 
