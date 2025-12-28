@@ -12,12 +12,12 @@ description: "Perlのウェブスクレイピング入門！Mojo::UserAgentの�
 
 ### ウェブスクレイピングとは何か
 
-ウェブスクレイピングとは、ウェブサイトから必要な情報を自動的に収集する技術のことです。例えば以下のような場面で活用できます。
+ウェブスクレイピングとは、ウェブサイトから必要な情報を自動的に収集する技術です。例えば以下のような場面で活用できます。
 
-- 複数の技術ブログから最新記事を定期的に収集
-- ECサイトの価格変動を追跡
-- REST APIからデータを取得して自動処理
-- 研究や分析のためのデータ収集
+- 複数の技術ブログから最新記事を定期的に収集する
+- ECサイトの価格変動を追跡する
+- REST APIからデータを取得して自動処理する
+- 研究や分析のためのデータを収集する
 
 ```mermaid
 flowchart LR
@@ -40,30 +40,30 @@ flowchart LR
 Perlには様々なHTTPクライアントライブラリが存在します（LWP::UserAgent、WWW::Mechanizeなど）が、Mojo::UserAgentは特に以下の点で優れています。
 
 **1. 組み込みのHTML/XML解析機能**
-- Mojo::DOMによるCSSセレクタサポート
-- 追加のパーサーモジュール不要
-- 直感的なAPI
+- Mojo::DOMによるCSSセレクタをサポート
+- 追加のパーサーモジュールが不要
+- 直感的なAPIを提供
 
 **2. モダンな機能が標準装備**
 - 同期・非同期の両方に対応
-- WebSocketサポート
-- IPv6、TLS、SNI対応
-- JSON自動エンコード/デコード
+- WebSocketをサポート
+- IPv6、TLS、SNIに対応
+- JSON自動エンコード/デコードを実装
 
 **3. アクティブなメンテナンス**
-- Mojoliciousエコシステムの一部として継続的に更新
-- 豊富なドキュメントとコミュニティサポート
-- Perl 5.16以降で動作
+- Mojoliciousエコシステムの一部として継続的に更新される
+- 豊富なドキュメントとコミュニティサポートがある
+- Perl 5.16以降で動作する
 
 ### この記事で作れるようになること
 
 このチュートリアルを完了すると、以下のことができるようになります。
 
-- Mojo::UserAgentで任意のウェブページにアクセス
-- HTMLから欲しい情報を抽出
-- 複数ページを自動巡回するスクリプト作成
-- REST APIとのJSON通信
-- エラーに強い堅牢なスクレイパー実装
+- Mojo::UserAgentで任意のウェブページにアクセスする
+- HTMLから欲しい情報を抽出する
+- 複数ページを自動巡回するスクリプトを作成する
+- REST APIとのJSON通信を行う
+- エラーに強い堅牢なスクレイパーを実装する
 
 それでは実際に手を動かして学んでいきましょう！
 
@@ -129,11 +129,11 @@ if ($res->is_success) {
 perl check_install.pl
 ```
 
-**よくあるトラブルと対処法**:
+**よくあるトラブルと対処法**
 
 | 問題 | 原因 | 解決策 |
 |------|------|--------|
-| `Can't locate Mojolicious` | モジュール未インストール | `cpanm Mojolicious`を実行 |
+| `Can't locate Mojolicious` | モジュール未インストール | `cpanm Mojolicious`を実行する |
 | SSL接続エラー | SSL証明書の問題 | `IO::Socket::SSL`をインストール: `cpanm IO::Socket::SSL` |
 | タイムアウト | ネットワーク接続の問題 | プロキシ設定を確認、またはタイムアウト値を増やす |
 
@@ -184,11 +184,12 @@ my $res = $tx->result;
 print $res->body;
 ```
 
-**コードの解説**:
-- `Mojo::UserAgent->new`: HTTPクライアントを作成
+**コードの解説**
+
+- `Mojo::UserAgent->new`: HTTPクライアントを作成する
 - `$ua->get($url)`: 指定URLにGETリクエストを送信し、トランザクションオブジェクト（`$tx`）を返す
-- `$tx->result`: レスポンスオブジェクトを取得
-- `$res->body`: レスポンス本文（HTML）を取得
+- `$tx->result`: レスポンスオブジェクトを取得する
+- `$res->body`: レスポンス本文（HTML）を取得する
 
 ### レスポンスを表示する
 
@@ -287,16 +288,16 @@ if ($res->code == 200) {
 }
 ```
 
-**重要なステータスコード一覧**:
+**重要なステータスコード一覧**
 
 | コード | 意味 | 対処方法 |
 |--------|------|----------|
-| 200 | OK - 成功 | そのまま処理を続行 |
-| 301/302 | リダイレクト | Mojo::UserAgentは自動で追跡 |
-| 403 | Forbidden - アクセス拒否 | User-Agentやrobots.txtを確認 |
-| 404 | Not Found - ページなし | URLを確認 |
+| 200 | OK - 成功 | そのまま処理を続行する |
+| 301/302 | リダイレクト | Mojo::UserAgentは自動で追跡する |
+| 403 | Forbidden - アクセス拒否 | User-Agentやrobots.txtを確認する |
+| 404 | Not Found - ページなし | URLを確認する |
 | 429 | Too Many Requests | レート制限を実装、待機時間を増やす |
-| 500/503 | Server Error | リトライ処理を実装 |
+| 500/503 | Server Error | リトライ処理を実装する |
 
 ## ステップ2：HTMLから情報を取り出す
 
@@ -374,15 +375,15 @@ for my $h2 ($dom->find('h2')->each) {
 }
 ```
 
-**DOMメソッドの使い分け**:
+**DOMメソッドの使い分け**
 
 | メソッド | 戻り値 | 使用場面 |
 |----------|--------|----------|
-| `at($selector)` | 最初の要素1つ | タイトルや特定の要素を取得 |
-| `find($selector)` | すべての要素のコレクション | 複数の記事やリンクを取得 |
-| `text` | テキストのみ | タグを除いた文字列が欲しい |
-| `all_text` | 子孫すべてのテキスト | ネストした要素のテキストも取得 |
-| `attr($name)` | 属性値 | href、src、idなどの属性を取得 |
+| `at($selector)` | 最初の要素1つ | タイトルや特定の要素を取得する |
+| `find($selector)` | すべての要素のコレクション | 複数の記事やリンクを取得する |
+| `text` | テキストのみ | タグを除いた文字列が欲しい場合 |
+| `all_text` | 子孫すべてのテキスト | ネストした要素のテキストも取得する |
+| `attr($name)` | 属性値 | href、src、idなどの属性を取得する |
 
 ### CSSセレクタの基本パターン
 
@@ -458,7 +459,7 @@ for my $h2 ($dom->find('h2:not(.title)')->each) {
 }
 ```
 
-**よく使うCSSセレクタ早見表**:
+**よく使うCSSセレクタ早見表**
 
 | セレクタ | 例 | マッチする要素 |
 |----------|-----|----------------|
@@ -516,22 +517,26 @@ for my $link ($dom->find('a[href]')->each) {
 }
 ```
 
-**実践Tips**:
+**実践Tips**
+
 - `text // 'デフォルト値'`: テキストがない場合のフォールバック
-- 相対URLは絶対URLに変換すると扱いやすい
+- 相対URLを絶対URLに変換すると扱いやすくなる
 - リンクが空でないかチェックする
 
 ## ステップ3：実践！ブログ記事を収集する
 
 ### 目標の設定：何を作るか
 
-ここでは、技術ブログから記事タイトルとURLを収集するスクレイパーを作成します。対象サイトは[JSONPlaceholder](https://jsonplaceholder.typicode.com/)のようなテスト用APIや、公開されているブログサイトを使用します。
+ここでは、技術ブログから記事タイトルとURLを収集するスクレイパーを作成します。対象サイトはJSONPlaceholderのようなテスト用APIや、公開されているブログサイトを使用します。
 
-**仕様**:
-- 記事タイトルを抽出
-- 記事へのリンクURLを取得
-- 投稿日があれば取得
-- 結果をCSVファイルに保存
+{{< linkcard "https://jsonplaceholder.typicode.com/" >}}
+
+**仕様**
+
+- 記事タイトルを抽出する
+- 記事へのリンクURLを取得する
+- 投稿日があれば取得する
+- 結果をCSVファイルに保存する
 
 ### 記事タイトルの抽出コード
 
@@ -578,13 +583,14 @@ for my $article ($dom->find('h2 > a')->each) {
 }
 ```
 
-**DOM構造の調査方法**:
+**DOM構造の調査方法**
+
 1. ブラウザでページを開く
 2. 開発者ツール（F12キー）を開く
-3. 要素を選択（Ctrl+Shift+C または要素の検証）して構造を確認
-4. 記事のコンテナとなる要素のクラスやIDを特定
-5. CSSセレクタで表現できるか検証
-6. コンソールで`document.querySelector('セレクタ')`を試して動作確認
+3. 要素を選択（Ctrl+Shift+C または要素の検証）して構造を確認する
+4. 記事のコンテナとなる要素のクラスやIDを特定する
+5. CSSセレクタで表現できるか検証する
+6. コンソールで`document.querySelector('セレクタ')`を試して動作確認する
 
 ```mermaid
 flowchart LR
@@ -618,7 +624,8 @@ flowchart LR
 
 **図: CSSセレクタ特定のワークフロー**
 
-**初心者向けTips**:
+**初心者向けTips**
+
 - まずは1つの記事要素だけを抽出して試す
 - セレクタが複雑になりすぎる場合は、より単純な構造を探す
 - 要素が見つからない場合は`at()`の戻り値が`undef`になるのでチェックする
@@ -776,7 +783,8 @@ close $fh;
 say "\narticles.csv に保存しました！";
 ```
 
-**CSVライブラリがない場合のインストール**:
+**CSVライブラリがない場合のインストール**
+
 ```bash
 cpanm Text::CSV
 ```
@@ -939,7 +947,7 @@ if ($res->is_success) {
 }
 ```
 
-**PUT、DELETEメソッドの例**:
+**PUT、DELETEメソッドの例**
 
 ```perl
 #!/usr/bin/env perl
@@ -998,12 +1006,13 @@ if ($res->is_success) {
 
 スクレイピングを行う前に、必ず対象サイトの`robots.txt`を確認しましょう。これはウェブマナーの基本です。
 
-**robots.txtとは**:
+**robots.txtとは**
+
 - ウェブサイトのルートディレクトリに配置される（例: `https://example.com/robots.txt`）
 - どのパスがクローリング可能/不可能かを示す
 - クロール間隔（Crawl-delay）の推奨値を指定することもある
 
-**robots.txtの確認例**:
+**robots.txtの確認例**
 
 ```perl
 #!/usr/bin/env perl
@@ -1047,7 +1056,7 @@ sub check_robots_txt {
 check_robots_txt('https://www.perl.org');
 ```
 
-**robots.txtの読み方**:
+**robots.txtの読み方**
 
 ```
 User-agent: *
@@ -1056,8 +1065,9 @@ Disallow: /admin/
 Crawl-delay: 10
 ```
 
-上記の例の意味:
-- `User-agent: *`: すべてのボットに適用
+上記の例の意味
+
+- `User-agent: *`: すべてのボットに適用する
 - `Disallow: /private/`: `/private/`以下はクロール禁止
 - `Crawl-delay: 10`: リクエスト間隔を10秒以上空ける
 
@@ -1100,10 +1110,11 @@ flowchart TD
 
 **図: robots.txt確認とルール適用フロー**
 
-**重要な注意点**:
+**重要な注意点**
+
 - `robots.txt`を無視すると、IPアドレスがブロックされる可能性がある
 - 法的問題に発展するケースもある（Computer Fraud and Abuse Act等）
-- エシカルスクレイピングの基本として必ず尊重する
+- エシカルスクレイピングの基本として必ず尊重すること
 
 ### サーバーに優しいレート制限の実装
 
@@ -1148,7 +1159,7 @@ flowchart TD
 
 **図: 動的レート制限とリトライロジックのフローチャート**
 
-**基本的なレート制限**:
+**基本的なレート制限**
 
 ```perl
 #!/usr/bin/env perl
@@ -1186,7 +1197,7 @@ for my $url (@urls) {
 }
 ```
 
-**動的レート制限（429エラーに対応）**:
+**動的レート制限（429エラーに対応）**
 
 ```perl
 #!/usr/bin/env perl
@@ -1243,7 +1254,7 @@ for my $url (@urls) {
 }
 ```
 
-**推奨レート制限ガイドライン**:
+**推奨レート制限ガイドライン**
 
 | サイトタイプ | 推奨間隔 | 理由 |
 |--------------|----------|------|
@@ -1252,7 +1263,8 @@ for my $url (@urls) {
 | 大規模サイト | 1-2秒 | インフラが強固だが礼儀として |
 | API（制限なし） | 1秒 | APIは通常スクレイピングより堅牢 |
 
-**Crawl-delayの尊重**:
+**Crawl-delayの尊重**
+
 `robots.txt`に`Crawl-delay`が指定されている場合は、それを優先します。
 
 ### エラーハンドリングとリトライ戦略
@@ -1304,7 +1316,7 @@ flowchart TD
 
 **図: 包括的エラーハンドリングとリトライのフロー**
 
-**包括的なエラーハンドリング**:
+**包括的なエラーハンドリング**
 
 ```perl
 #!/usr/bin/env perl
@@ -1365,7 +1377,7 @@ if ($@) {
 }
 ```
 
-**リトライロジックの実装**:
+**リトライロジックの実装**
 
 ```perl
 #!/usr/bin/env perl
@@ -1423,7 +1435,7 @@ if ($@) {
 
 User-Agentは、あなたのスクレイパーの身元を示す重要なヘッダーです。
 
-**推奨されるUser-Agentの設定**:
+**推奨されるUser-Agentの設定**
 
 ```perl
 #!/usr/bin/env perl
@@ -1455,7 +1467,7 @@ my $res = $ua3->get(
 say "デフォルトUA: " . Mojo::UserAgent->new->agent;
 ```
 
-**User-Agent設定のベストプラクティス**:
+**User-Agent設定のベストプラクティス**
 
 | ケース | 推奨設定 | 例 |
 |--------|----------|-----|
@@ -1463,12 +1475,13 @@ say "デフォルトUA: " . Mojo::UserAgent->new->agent;
 | 商用スクレイパー | 会社名+製品名+連絡先 | `CompanyName-Bot/1.0 (contact@company.com)` |
 | アンチボット回避 | 最新のブラウザUA | `Mozilla/5.0 (...)` |
 
-**重要な注意**:
+**重要な注意**
+
 - 正直に身元を明かすことが最も安全
 - ブラウザを装う場合でも、他のヘッダー（Accept、Refererなど）も設定すると効果的
 - User-AgentだけでなくIPアドレスでもブロックされる可能性がある
 
-**複数のヘッダーを設定する例**:
+**複数のヘッダーを設定する例**
 
 ```perl
 #!/usr/bin/env perl
@@ -1497,13 +1510,13 @@ if ($res->is_success) {
 }
 ```
 
-**よくある間違いと対処法**:
+**よくある間違いと対処法**
 
 | 間違い | 問題 | 正しい方法 |
 |--------|------|-----------|
-| `$dom->at('a')->text` | 要素がないとエラー | `if (my $a = $dom->at('a')) { $a->text }` |
+| `$dom->at('a')->text` | 要素がないとエラーになる | `if (my $a = $dom->at('a')) { $a->text }` |
 | User-Agent未設定 | ブロックされる | `$ua->agent('BotName/1.0')` |
-| robots.txt無視 | IPバンのリスク | 必ず事前確認 |
+| robots.txt無視 | IPバンのリスク | 必ず事前確認する |
 | レート制限なし | サーバー負荷、ブロック | `usleep(2_000_000)` |
 | エラー処理なし | スクリプトが止まる | `eval { ... }` または `is_success`チェック |
 
@@ -1513,22 +1526,26 @@ if ($res->is_success) {
 
 このチュートリアルを通じて、以下のスキルを習得しました。
 
-**基礎スキル**:
+**基礎スキル**
+
 - Mojo::UserAgentのインストールと基本的な使い方
 - HTTP GETリクエストの送信とレスポンスの取得
 - ステータスコードによるエラーハンドリング
 
-**DOM解析スキル**:
+**DOM解析スキル**
+
 - Mojo::DOMによるHTML解析
 - CSSセレクタを使った要素の抽出
 - テキスト、リンク、属性の取得
 
-**実践スキル**:
+**実践スキル**
+
 - 複数ページの自動巡回
 - JSONデータの取得と送信（REST API連携）
 - データのCSV保存
 
-**ベストプラクティス**:
+**ベストプラクティス**
+
 - robots.txtの確認と尊重
 - レート制限の実装（固定・動的）
 - 包括的なエラーハンドリングとリトライ戦略
@@ -1538,28 +1555,31 @@ if ($res->is_success) {
 
 スクレイピングスキルをさらに向上させるための次のステップです。
 
-**中級トピック**:
+**中級トピック**
+
 - 非同期リクエストによる高速化（Mojo::UserAgentの非同期機能）
 - Cookieとセッション管理（ログインが必要なサイト）
 - フォーム送信とPOSTデータの処理
 - プロキシサーバーの利用
 - CAPTCHA対策（2Captcha、reCAPTCHA v3など）
 
-**高度なトピック**:
+**高度なトピック**
+
 - JavaScriptレンダリングサイトの攻略（Selenium、Puppeteer連携）
 - 分散スクレイピング（複数サーバーからの並列実行）
 - データベースへの保存（SQLite、PostgreSQL、MongoDB）
 - スケジューリング（cron、systemdタイマー）
 - スクレイピング結果の可視化（グラフ、ダッシュボード）
 
-**法律とエシカル**:
+**法律とエシカル**
+
 - 各国のウェブスクレイピング関連法規
 - 利用規約（Terms of Service）の理解
 - 個人情報の取り扱い（GDPR、個人情報保護法）
 
 ### 役立つ参考リソース
 
-**公式ドキュメント**:
+**公式ドキュメント**
 
 {{< linkcard "https://docs.mojolicious.org/Mojo/UserAgent" >}}
 
@@ -1567,7 +1587,7 @@ if ($res->is_success) {
 
 {{< linkcard "https://metacpan.org/pod/Mojo::UserAgent" >}}
 
-**チュートリアルと記事**:
+**チュートリアルと記事**
 
 {{< linkcard "https://scrape.do/blog/web-scraping-in-perl/" >}}
 
@@ -1575,7 +1595,7 @@ if ($res->is_success) {
 
 {{< linkcard "https://proxiesapi.com/articles/downloading-images-from-a-website-with-perl-and-mojo-dom" >}}
 
-**ベストプラクティス**:
+**ベストプラクティス**
 
 {{< linkcard "https://www.datacamp.com/blog/ethical-web-scraping" >}}
 
@@ -1583,46 +1603,52 @@ if ($res->is_success) {
 
 {{< linkcard "https://expertbeacon.com/the-ultimate-guide-to-using-robots-txt-for-web-scraping/" >}}
 
-**書籍**:
+**書籍**
 
 {{< amazon asin="1680500880" title="Modern Perl (Fourth Edition)" >}}
 
-**コミュニティ**:
+**コミュニティ**
 
 {{< linkcard "https://github.com/mojolicious/mojo" >}}
 
-**関連記事**（内部リンク）:
+**関連記事**（内部リンク）
+
 - Mojolicious::Liteでハローワールド（`tags: mojolicious, perl`で検索）
 - Perl入門記事シリーズ（`tags: perl-entrance`で検索）
 
 ### クイックリファレンス
 
-**基本的なリクエスト**:
+**基本的なリクエスト**
+
 ```perl
 my $ua = Mojo::UserAgent->new;
 my $res = $ua->get('https://example.com')->result;
 ```
 
-**DOM解析**:
+**DOM解析**
+
 ```perl
 my $dom = $res->dom;
 my $title = $dom->at('title')->text;           # 1つ取得
 my @links = $dom->find('a[href]')->each;       # 複数取得
 ```
 
-**JSON処理**:
+**JSON処理**
+
 ```perl
 my $data = $res->json;                         # JSON取得
 $ua->post($url, json => { key => 'value' });   # JSON送信
 ```
 
-**エラーハンドリング**:
+**エラーハンドリング**
+
 ```perl
 if ($res->is_success) { ... }
 elsif ($res->is_error) { warn $res->message; }
 ```
 
-**レート制限**:
+**レート制限**
+
 ```perl
 use Time::HiRes qw(usleep);
 usleep(2_000_000);  # 2秒待機
