@@ -135,10 +135,15 @@
   - ユーザーが求める回答を分かりやすく、独自の視点やデータで提供
   - コード例、図表（mermaid記法など）、引用を適切に配置する
   - 引用元のURLや内部リンクを明記する
-4. スタイルと構成の整形（layout-and-content-harmonizationエージェント）
-5. 校正（proofreaderエージェント）
-6. SEO（search-engine-optimizationエージェント）
-7. 公開前の最終チェック（reviewerエージェント）
+4. 挿絵を追加する（illustration-craftspersonエージェント）
+  - 記事の内容を理解し、読者の理解を深めるための視覚的な要素を提案する
+  - 技術記事に適した図表、ダイアグラム、フローチャートなどを作成する
+  - Mermaid記法を活用して、システム構成図やシーケンス図などを作成する
+  - 必要に応じて、画像ファイルの配置場所や命名規則を提案する
+5. スタイルと構成の整形（layout-and-content-harmonizationエージェント）
+6. 校正（proofreaderエージェント）
+7. SEO（search-engine-optimizationエージェント）
+8. 公開前の最終チェック（reviewerエージェント）
 
 ## エージェントトピックマッピング
 
@@ -154,6 +159,7 @@
 - GitHub / ワークフロー・PR ベストプラクティス: `github-otaku`
 - カスタムエージェント: `github-copilot-otaku`
 - AGENTS.pm / AIエージェントガイドライン: `agents-pm-otaku`
+- 挿絵作成 / 図表・ダイアグラム / Mermaid: `illustration-craftsperson`
 
 ## プロンプトテンプレート
 
