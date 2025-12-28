@@ -1,12 +1,13 @@
 ---
-title: "GitHub Copilot の Ask モード、実は「調べ物ツール」じゃなかった話"
+title: "GitHub Copilot Ask モードの真の使い方｜リポジトリ調査で開発効率を劇的に向上"
 draft: true
 tags:
   - github-copilot
-  - ask-mode
-  - plan-mode
-  - repository-exploration
-description: "GitHub Copilot Chat の Ask モードを「単なる調べ物ツール」だと思っていた私が、その真価を理解するまでの気づきの記録。リポジトリ調査から実装計画まで、Ask → Plan → Agent という流れで効率的に開発を進める方法を共有します。"
+  - ai-coding
+  - developer-productivity
+  - code-review
+  - vscode
+description: "GitHub Copilot の Ask モードを調べ物ツールだと勘違いしていませんか？実はリポジトリ全体を分析する強力な調査ツール。Ask → Plan → Agent の流れで新規プロジェクトのオンボーディングが数分で完了。実践的な活用法を解説します。"
 ---
 
 ## はじめに - Ask モードへの誤解
