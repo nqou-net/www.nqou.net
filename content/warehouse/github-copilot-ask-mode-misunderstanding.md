@@ -1,4 +1,18 @@
-# GitHub Copilot Chat の Ask/Edit/Agent/Plan モード調査レポート
+---
+title: "GitHub Copilot Chat の Ask/Edit/Agent/Plan モード調査レポート"
+slug: "github-copilot-ask-mode-misunderstanding"
+date: 2025-12-28
+tags:
+   - github-copilot
+   - ask-mode
+   - plan-mode
+description: "Ask/Edit/Agent/Plan 各モードの正しい使い分けと、Ask モードのリポジトリ調査能力を中心に整理した調査レポート。"
+image: /favicon.png
+draft: true
+---
+
+## タイトル
+GitHub Copilot Chat の Ask/Edit/Agent/Plan モード調査レポート
 
 ## 調査目的
 

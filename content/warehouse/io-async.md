@@ -1,3 +1,14 @@
+---
+title: "IO::Async 調査メモ"
+date: 2025-12-19
+tags:
+  - perl
+  - io-async
+  - asynchronous-io
+  - event-driven
+description: "Perl用の非同期I/Oライブラリ IO::Async に関する調査・技術情報のメモ"
+---
+
 # IO::Async 調査メモ
 
 ## 概要

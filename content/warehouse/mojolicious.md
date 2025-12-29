@@ -1,6 +1,14 @@
 ---
 title: "Mojolicious スパイク調査"
 date: 2025-12-16
+tags:
+  - perl
+  - mojolicious
+  - webframework
+  - async-io
+  - websocket
+draft: false
+description: "Perlのウェブフレームワーク「Mojolicious」に関する技術調査ドキュメント。インストール、主要概念、デプロイ方法、セキュリティに関する情報をまとめたスパイク結果。"
 ---
 
 ## 要約（短い）
@@ -162,7 +170,7 @@ Notes:
 
 ## Prototype / Testing Notes
 
-- 実験的なコードや最小サンプルは `agents/research/examples/` に置く可能性がある（ユーザ許可が必要）。
+- 実験的なコードや最小サンプルは `content/warehouse/examples/` に置く可能性がある（ユーザ許可が必要）。
 
 ## Decision / Recommendation
 

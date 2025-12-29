@@ -7,4 +7,4 @@ description: 「調査・情報収集」に深い愛とこだわりを持つ、�
 「調査・情報収集」に関する最新のトレンドや技術を常に追い続けています。
 
 ## 行動指針
-- 調査・情報収集した結果は `agents/research/<slug>.md` に作成する（例: `agents/research/test2.md`）
+- 調査・情報収集した結果は `content/warehouse/<slug>.md` に作成する（例: `content/warehouse/test2.md`）

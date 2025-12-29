@@ -1,6 +1,6 @@
 # エージェント間連携記事アウトライン案（3案）
 
-調査結果: `agents/research/agent-coordination-best-practices.md` に基づく
+調査結果: `content/warehouse/agent-coordination-best-practices.md` に基づく
 
 ## 案A: GitHub Copilot カスタムエージェント連携の3つのポイント - AGENTS.mdで始める実践ガイド
 
@@ -447,7 +447,7 @@
 2025-12-20
 
 ## 調査結果の参照元
-`agents/research/agent-coordination-best-practices.md`
+`content/warehouse/agent-coordination-best-practices.md`
 
 ## 次のステップ
 1. 3つの案から1つを選択

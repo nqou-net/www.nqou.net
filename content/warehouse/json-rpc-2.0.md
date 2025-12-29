@@ -1,11 +1,13 @@
 ---
 title: "JSON-RPC 2.0 調査ログ"
+slug: "json-rpc-2-0"
 date: 2025-12-16
-draft: false
 tags:
-  - "json-rpc"
-  - "rpc"
+  - json-rpc
+  - rpc
 description: "JSON-RPC 2.0 の仕様・使用例・運用上の注意点をまとめる"
+image: /favicon.png
+draft: true
 ---
 
 ## 目的

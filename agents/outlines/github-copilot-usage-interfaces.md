@@ -2,7 +2,7 @@
 
 **作成日**: 2025年12月27日  
 **対象記事**: GitHub Copilot の使い分けに関する技術記事  
-**調査ドキュメント**: `/agents/research/github-copilot-usage-interfaces.md`
+**調査ドキュメント**: `/content/warehouse/github-copilot-usage-interfaces.md`
 
 ---
 
@@ -1318,7 +1318,7 @@ Q3: プレミアムリクエストを節約したい？
 
 このアウトラインを基に、記事作成エージェント（該当する専門家エージェント）に以下を依頼：
 
-1. **調査結果の参照**: `/home/runner/work/www.nqou.net/www.nqou.net/agents/research/github-copilot-usage-interfaces.md`
+1. **調査結果の参照**: `/home/runner/work/www.nqou.net/www.nqou.net/content/warehouse/github-copilot-usage-interfaces.md`
 2. **アウトラインの選択**: 案A（または他の案）を選択
 3. **記事作成**: アウトラインに従って詳細な本文を作成
 4. **内部リンク**: 既存記事への linkcard 挿入

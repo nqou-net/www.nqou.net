@@ -1,3 +1,16 @@
+---
+title: "調査レポート: エージェント間連携とAGENTS.mdのベストプラクティス"
+date: 2025-12-30
+draft: true
+tags:
+  - agents
+  - agents-md
+  - github-copilot
+  - custom-agents
+  - a2a-protocol
+description: エージェント間連携とAGENTS.mdのベストプラクティスについての調査レポート
+---
+
 # 調査レポート: エージェント間連携とAGENTS.mdのベストプラクティス
 
 ## 調査概要
@@ -664,4 +677,4 @@ AIの基礎知識と推論能力が、シンプルな性格設定から適切な
 
 **調査完了日**: 2025-12-20
 **調査者**: investigative-research エージェント
-**保存場所**: `agents/research/agent-coordination-best-practices.md`
+**保存場所**: `content/warehouse/agent-coordination-best-practices.md`
