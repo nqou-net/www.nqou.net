@@ -1,0 +1,596 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="Mojo::Log を教材に、Perl のイベント駆動プログラミングを基礎から解説。on（購読）と emit（発火）の仕組みを図解とコードで学び、カスタムフォーマットや複数出力先への配信など実用パターンも紹介します。"><title>Perl イベント駆動プログラミング入門｜Mojo::Log の on と emit で基礎から実践まで</title><link rel=canonical href=https://www.nqou.net/2025/12/29/185252/><link rel=stylesheet href=/scss/style.min.6a692fd055deae459f2a9767f57f3855ba80cafd5041317f24f7360f6ca47cdf.css><meta property='og:title' content="Perl イベント駆動プログラミング入門｜Mojo::Log の on と emit で基礎から実践まで"><meta property='og:description' content="Mojo::Log を教材に、Perl のイベント駆動プログラミングを基礎から解説。on（購読）と emit（発火）の仕組みを図解とコードで学び、カスタムフォーマットや複数出力先への配信など実用パターンも紹介します。"><meta property='og:url' content='https://www.nqou.net/2025/12/29/185252/'><meta property='og:site_name' content='nqou.net'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='perl'><meta property='article:tag' content='event-driven-programming'><meta property='article:tag' content='mojolicious'><meta property='article:published_time' content='2025-12-29T18:52:52+09:00'><meta property='article:modified_time' content='2025-12-29T18:52:52+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2025/1767001972-image.jpg'><meta name=twitter:title content="Perl イベント駆動プログラミング入門｜Mojo::Log の on と emit で基礎から実践まで"><meta name=twitter:description content="Mojo::Log を教材に、Perl のイベント駆動プログラミングを基礎から解説。on（購読）と emit（発火）の仕組みを図解とコードで学び、カスタムフォーマットや複数出力先への配信など実用パターンも紹介します。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2025/1767001972-image.jpg'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/nqounet201703.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar>
+</a><span class=emoji>🥃</span></figure><div class=site-meta><h1 class=site-name><a href=/>nqou.net</a></h1><h2 class=site-description>Whisky, Perl, Kansai.pm</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#はじめに---イベント駆動プログラミングを学ぼう>はじめに - イベント駆動プログラミングを学ぼう</a><ol><li><a href=#ボタンを押したら画面が変わるも実はイベント駆動>「ボタンを押したら画面が変わる」も実はイベント駆動</a></li><li><a href=#この記事のゴールon-と-emit-を使いこなせるようになる>この記事のゴール：on と emit を使いこなせるようになる</a></li><li><a href=#対象読者プログラミングの基礎を知っている初心者>対象読者：プログラミングの基礎を知っている初心者</a></li></ol></li><li><a href=#30秒でわかるイベント駆動の考え方>30秒でわかるイベント駆動の考え方</a><ol><li><a href=#同期処理との違いをたとえ話で理解>同期処理との違いをたとえ話で理解</a></li><li><a href=#on-と-emit---覚えるのはこの2つだけ>on と emit - 覚えるのはこの2つだけ</a></li></ol></li><li><a href=#mojolog-とは---イベント駆動学習に最適な教材>Mojo::Log とは - イベント駆動学習に最適な教材</a><ol><li><a href=#mojolicious-のシンプルなロガー>Mojolicious のシンプルなロガー</a></li><li><a href=#環境を準備する>環境を準備する</a></li></ol></li><li><a href=#基礎を学ぶon-でイベントを購読する>基礎を学ぶ：on でイベントを購読する</a><ol><li><a href=#最小限のコードで始める>最小限のコードで始める</a></li><li><a href=#message-イベントを理解する>message イベントを理解する</a></li><li><a href=#複数の-on-を登録する>複数の on を登録する</a></li></ol></li><li><a href=#emit-を理解するイベントの発火>emit を理解する：イベントの発火</a><ol><li><a href=#mojolog-では内部で使われている>Mojo::Log では内部で使われている</a></li><li><a href=#自分で-emit-を使う場面>自分で emit を使う場面</a></li></ol></li><li><a href=#実用例で身につける3つのログ処理パターン>実用例で身につける：3つのログ処理パターン</a><ol><li><a href=#パターン1カスタムフォーマットで出力>パターン1：カスタムフォーマットで出力</a></li><li><a href=#パターン2複数の出力先に同時配信>パターン2：複数の出力先に同時配信</a></li><li><a href=#パターン3エラー時だけ特別な処理>パターン3：エラー時だけ特別な処理</a></li></ol></li><li><a href=#もう一歩深くmojoeventemitter>もう一歩深く：Mojo::EventEmitter</a><ol><li><a href=#mojolog-の親クラス>Mojo::Log の親クラス</a></li><li><a href=#その他のメソッド>その他のメソッド</a></li></ol></li><li><a href=#まとめ---イベント駆動の第一歩を踏み出した>まとめ - イベント駆動の第一歩を踏み出した</a><ol><li><a href=#覚えるのは-2-つだけ>覚えるのは 2 つだけ</a></li><li><a href=#mojolog-で学んだこと>Mojo::Log で学んだこと</a></li><li><a href=#3-つの実用パターン>3 つの実用パターン</a></li><li><a href=#次のステップ>次のステップ</a></li></ol></li><li><a href=#関連記事>関連記事</a></li><li><a href=#参考リンク>参考リンク</a></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2025/12/29/185252/><img src=/public_images/2025/1767001972-image.jpg loading=lazy alt="Featured image of post Perl イベント駆動プログラミング入門｜Mojo::Log の on と emit で基礎から実践まで"></a></div><div class=article-details><div class=article-title-wrapper><h2 class=article-title><a href=/2025/12/29/185252/>Perl イベント駆動プログラミング入門｜Mojo::Log の on と emit で基礎から実践まで</a></h2><h3 class=article-subtitle>Mojo::Log を教材に、Perl のイベント駆動プログラミングを基礎から解説。on（購読）と emit（発火）の仕組みを図解とコードで学び、カスタムフォーマットや複数出力先への配信など実用パターンも紹介します。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>12月 29, 2025</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 14分</time></div></footer></div></header><section class=article-content><p><a class=link href=https://x.com/nqounet target=_blank rel=noopener>@nqounet</a>です。</p><p>「イベント駆動プログラミング」という言葉を聞いたことはありますか？ なんとなく難しそうに感じるかもしれませんが、実は私たちの身近にあるものです。スマートフォンのボタンを押したら画面が変わる、メールが届いたら通知が表示される──これらはすべてイベント駆動の考え方で動いています。</p><p>この記事では、Perl の Mojo::Log モジュールを使って、イベント駆動プログラミングの基礎を学びます。覚えるのは <code>on</code> と <code>emit</code> の 2 つだけです。この記事を読み終えるころには、自分でイベント駆動のコードが書けるようになっているはずです。</p><h2 id=はじめに---イベント駆動プログラミングを学ぼう>はじめに - イベント駆動プログラミングを学ぼう</h2><h3 id=ボタンを押したら画面が変わるも実はイベント駆動>「ボタンを押したら画面が変わる」も実はイベント駆動</h3><p>日常生活でイベント駆動の例を考えてみましょう。</p><ul><li><strong>スマートフォン</strong>: 画面をタップすると反応する</li><li><strong>エレベーター</strong>: ボタンを押すと来てくれる</li><li><strong>メールアプリ</strong>: 新着メールが届くと通知される</li></ul><p>これらに共通するのは「何かが起きたら、それに応じて処理が実行される」という仕組みです。この「何かが起きた」ことを「イベント」と呼びます。</p><p>プログラミングでも同じ考え方が使えます。「ログが出力されたら、ファイルに保存する」「エラーが発生したら、管理者に通知する」──このように、イベントをきっかけに処理を実行するのがイベント駆動プログラミングです。</p><h3 id=この記事のゴールon-と-emit-を使いこなせるようになる>この記事のゴール：on と emit を使いこなせるようになる</h3><p>イベント駆動プログラミングで覚えるべきことは、たった 2 つです。</p><ul><li><strong>on</strong>: 「〇〇が起きたら、これをして」と登録する</li><li><strong>emit</strong>: 「〇〇が起きたよ！」と通知する</li></ul><p>この 2 つを理解すれば、イベント駆動プログラミングの基礎はマスターしたも同然です。</p><h3 id=対象読者プログラミングの基礎を知っている初心者>対象読者：プログラミングの基礎を知っている初心者</h3><p>この記事は、以下のような方を対象としています。</p><ul><li>Perl の基本的な文法（変数、サブルーチン、ハッシュなど）を理解している方</li><li>イベント駆動プログラミングに興味があるが、どこから始めればよいかわからない方</li><li>実際に動くコードで学びたい方</li></ul><h2 id=30秒でわかるイベント駆動の考え方>30秒でわかるイベント駆動の考え方</h2><h3 id=同期処理との違いをたとえ話で理解>同期処理との違いをたとえ話で理解</h3><p>イベント駆動を理解するために、まずは「同期処理」との違いを見てみましょう。</p><p><strong>同期処理：レシピ通りに順番に料理する</strong></p><p>同期処理は、レシピ通りに 1 つずつ順番に作業を進めるようなものです。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>1. 野菜を切る（完了するまで待つ）
+</span></span><span class=line><span class=cl>2. 肉を焼く（完了するまで待つ）
+</span></span><span class=line><span class=cl>3. 調味料を加える（完了するまで待つ）
+</span></span><span class=line><span class=cl>4. 盛り付ける
+</span></span></code></pre></td></tr></table></div></div><p>1 つの作業が終わるまで、次の作業には進めません。</p><p><strong>イベント駆動：「注文が入ったら作り始める」レストラン</strong></p><p>イベント駆動は、レストランの厨房のようなものです。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>「注文が入った」→ 料理を作り始める
+</span></span><span class=line><span class=cl>「料理ができた」→ 配膳する
+</span></span><span class=line><span class=cl>「お客さんが呼んでいる」→ 対応する
+</span></span></code></pre></td></tr></table></div></div><p>それぞれのイベント（出来事）に対して、対応する処理が実行されます。複数のイベントを効率よく処理できるのが特徴です。</p><pre class=mermaid>
+	---
+config:
+  look: handDrawn
+  theme: neutral
+---
+flowchart LR
+    subgraph 同期処理[&#34;🍳 同期処理（家庭料理）&#34;]
+        direction TB
+        S1[&#34;1. 野菜を切る&#34;] --&gt; S2[&#34;2. 肉を焼く&#34;]
+        S2 --&gt; S3[&#34;3. 調味料を加える&#34;]
+        S3 --&gt; S4[&#34;4. 盛り付ける&#34;]
+    end
+    
+    subgraph イベント駆動[&#34;🍽️ イベント駆動（レストラン）&#34;]
+        direction TB
+        E1[&#34;📋 注文が入った&#34;]
+        E2[&#34;✅ 料理ができた&#34;]
+        E3[&#34;🔔 お客さんが呼んでいる&#34;]
+        
+        E1 --&gt; A1[&#34;👨‍🍳 料理を作り始める&#34;]
+        E2 --&gt; A2[&#34;🚶 配膳する&#34;]
+        E3 --&gt; A3[&#34;💬 対応する&#34;]
+    end
+</pre><p>同期処理では 1 つの作業が終わるまで次に進めませんが、イベント駆動では各イベントに対して独立した処理が実行されます。</p><h3 id=on-と-emit---覚えるのはこの2つだけ>on と emit - 覚えるのはこの2つだけ</h3><p>イベント駆動プログラミングの核心は、この 2 つの操作です。</p><p><strong>on = 「〇〇が起きたら、これをして」と登録</strong></p><p>「メッセージが出力されたら、ファイルに保存して」のように、イベントに対する処理を事前に登録しておきます。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># 「message」イベントが起きたら、この処理を実行する</span>
+</span></span><span class=line><span class=cl><span class=nv>$log</span><span class=o>-&gt;</span><span class=n>on</span><span class=p>(</span><span class=n>message</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$log</span><span class=p>,</span> <span class=nv>$level</span><span class=p>,</span> <span class=nv>@lines</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=c1># ここに処理を書く</span>
+</span></span><span class=line><span class=cl><span class=p>});</span>
+</span></span></code></pre></td></tr></table></div></div><p><strong>emit = 「〇〇が起きたよ！」と通知</strong></p><p>イベントが発生したことを知らせます。登録されている処理が実行されます。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># 「message」イベントを発火させる</span>
+</span></span><span class=line><span class=cl><span class=nv>$log</span><span class=o>-&gt;</span><span class=n>emit</span><span class=p>(</span><span class=n>message</span> <span class=o>=&gt;</span> <span class=s>&#39;info&#39;</span><span class=p>,</span> <span class=s>&#39;ログメッセージ&#39;</span><span class=p>);</span>
+</span></span></code></pre></td></tr></table></div></div><p>たったこれだけで、イベント駆動プログラミングの基本形が完成します。</p><pre class=mermaid>
+	---
+config:
+  look: handDrawn
+  theme: neutral
+---
+flowchart LR
+    subgraph 登録フェーズ[&#34;📝 登録フェーズ&#34;]
+        ON[&#34;on(&#39;message&#39;, 処理)&#34;]
+        REG[&#34;処理を登録&#34;]
+        ON --&gt; REG
+    end
+    
+    subgraph 実行フェーズ[&#34;⚡ 実行フェーズ&#34;]
+        EMIT[&#34;emit(&#39;message&#39;, データ)&#34;]
+        FIRE[&#34;イベント発火！&#34;]
+        EXEC[&#34;登録した処理を実行&#34;]
+        EMIT --&gt; FIRE --&gt; EXEC
+    end
+    
+    REG -.-&gt;|&#34;購読中&#34;| FIRE
+</pre><p><code>on</code> で処理を登録しておき、<code>emit</code> でイベントが発火すると、登録した処理が自動的に実行されます。</p><h2 id=mojolog-とは---イベント駆動学習に最適な教材>Mojo::Log とは - イベント駆動学習に最適な教材</h2><h3 id=mojolicious-のシンプルなロガー>Mojolicious のシンプルなロガー</h3><p>Mojo::Log は、Perl の人気 Web フレームワーク「Mojolicious」に含まれるロギングモジュールです。</p><p>なぜ Mojo::Log がイベント駆動の学習に最適なのでしょうか？</p><ul><li><strong>シンプルな API</strong>: 覚えることが少ない</li><li><strong>イベント駆動の設計</strong>: 内部で on と emit を使用している</li><li><strong>すぐに動く</strong>: インストールが簡単</li></ul><p>Mojo::Log は、ログを出力するたびに <code>message</code> イベントを発火します。このイベントを <code>on</code> で購読すれば、ログ出力をカスタマイズできます。</p><h3 id=環境を準備する>環境を準備する</h3><p>まず、Mojolicious をインストールしましょう。cpanm（CPAN Minus）を使うと簡単です。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl><span class=c1># cpanmがなければ先にインストール</span>
+</span></span><span class=line><span class=cl><span class=c1># curl -L https://cpanmin.us | perl - App::cpanminus</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># Mojoliciousをインストール</span>
+</span></span><span class=line><span class=cl>cpanm Mojolicious
+</span></span></code></pre></td></tr></table></div></div><p>インストールできたか確認してみましょう。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl>perl -MMojo::Log -e <span class=s1>&#39;print &#34;OK\n&#34;&#39;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「OK」と表示されればインストール成功です。</p><h2 id=基礎を学ぶon-でイベントを購読する>基礎を学ぶ：on でイベントを購読する</h2><h3 id=最小限のコードで始める>最小限のコードで始める</h3><p>それでは、実際にコードを書いてみましょう。まずは 10 行で動く最小限のサンプルです。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=ch>#!/usr/bin/env perl</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Mojo::Log</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$log</span> <span class=o>=</span> <span class=nn>Mojo::Log</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>  <span class=c1># ロガーを作成</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># messageイベントを購読する</span>
+</span></span><span class=line><span class=cl><span class=nv>$log</span><span class=o>-&gt;</span><span class=n>on</span><span class=p>(</span><span class=n>message</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$log</span><span class=p>,</span> <span class=nv>$level</span><span class=p>,</span> <span class=nv>@lines</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>  <span class=c1># イベントの引数を受け取る</span>
+</span></span><span class=line><span class=cl>    <span class=k>print</span> <span class=s>&#34;[$level] @lines\n&#34;</span><span class=p>;</span>        <span class=c1># ログを整形して出力</span>
+</span></span><span class=line><span class=cl><span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nv>$log</span><span class=o>-&gt;</span><span class=n>info</span><span class=p>(</span><span class=s>&#39;Hello, Event-Driven!&#39;</span><span class=p>);</span>   <span class=c1># ログを出力（イベントが発火）</span>
+</span></span></code></pre></td></tr></table></div></div><p>このコードを <code>event_basic.pl</code> として保存し、実行してみてください。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl>perl event_basic.pl
+</span></span></code></pre></td></tr></table></div></div><p>出力結果:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>[info] Hello, Event-Driven!
+</span></span></code></pre></td></tr></table></div></div><p><strong>注意</strong>: 実際には Mojo::Log のデフォルトハンドラも動作するため、2 行出力されることがあります。自分のハンドラだけを動かしたい場合は、「パターン1：カスタムフォーマットで出力」で説明する <code>unsubscribe</code> を使います。</p><p>おめでとうございます！ これがイベント駆動プログラミングの第一歩です。</p><h3 id=message-イベントを理解する>message イベントを理解する</h3><p>上のコードで何が起きているのか、順番に見ていきましょう。</p><ol><li><code>$log->on(message => sub { ... })</code> で、<code>message</code> イベントに対する処理を登録</li><li><code>$log->info('Hello, Event-Driven!')</code> でログを出力</li><li>Mojo::Log の内部で <code>message</code> イベントが発火</li><li>登録しておいた処理（sub { &mldr; }）が実行される</li></ol><p><code>message</code> イベントのコールバック（処理）には、3 つの引数が渡されます。</p><ul><li><code>$log</code>: Mojo::Log オブジェクト自身</li><li><code>$level</code>: ログレベル（debug, info, warn, error, fatal）</li><li><code>@lines</code>: ログメッセージ（複数行の場合もある）</li></ul><pre class=mermaid>
+	---
+config:
+  look: handDrawn
+  theme: neutral
+---
+sequenceDiagram
+    participant User as 👤 ユーザーコード
+    participant Log as 📋 Mojo::Log
+    participant Handler as ⚙️ on で登録した処理
+    
+    Note over User,Handler: 1. 事前に処理を登録
+    User-&gt;&gt;Log: $log-&gt;on(message =&gt; sub {...})
+    Log--&gt;&gt;Log: 処理を保存
+    
+    Note over User,Handler: 2. ログ出力でイベント発火
+    User-&gt;&gt;Log: $log-&gt;info(&#39;Hello!&#39;)
+    Log-&gt;&gt;Log: emit(&#39;message&#39;, &#39;info&#39;, &#39;Hello!&#39;)
+    Log-&gt;&gt;Handler: コールバック実行
+    Handler--&gt;&gt;Handler: [$level] @lines を処理
+    Handler--&gt;&gt;User: 処理完了
+</pre><p>この図のように、<code>$log->info()</code> を呼ぶと内部で <code>message</code> イベントが発火し、<code>on</code> で登録した処理が自動的に実行されます。</p><h3 id=複数の-on-を登録する>複数の on を登録する</h3><p>同じイベントに対して、複数の処理を登録できます。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=ch>#!/usr/bin/env perl</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Mojo::Log</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$log</span> <span class=o>=</span> <span class=nn>Mojo::Log</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 1つ目の購読者：コンソールに出力</span>
+</span></span><span class=line><span class=cl><span class=nv>$log</span><span class=o>-&gt;</span><span class=n>on</span><span class=p>(</span><span class=n>message</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$log</span><span class=p>,</span> <span class=nv>$level</span><span class=p>,</span> <span class=nv>@lines</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>print</span> <span class=s>&#34;[Console] $level: @lines\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 2つ目の購読者：大文字で出力</span>
+</span></span><span class=line><span class=cl><span class=nv>$log</span><span class=o>-&gt;</span><span class=n>on</span><span class=p>(</span><span class=n>message</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$log</span><span class=p>,</span> <span class=nv>$level</span><span class=p>,</span> <span class=nv>@lines</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>print</span> <span class=s>&#34;[UPPER] &#34;</span> <span class=o>.</span> <span class=nb>uc</span><span class=p>(</span><span class=s>&#34;$level: @lines&#34;</span><span class=p>)</span> <span class=o>.</span> <span class=s>&#34;\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 3つ目の購読者：文字数をカウント</span>
+</span></span><span class=line><span class=cl><span class=nv>$log</span><span class=o>-&gt;</span><span class=n>on</span><span class=p>(</span><span class=n>message</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$log</span><span class=p>,</span> <span class=nv>$level</span><span class=p>,</span> <span class=nv>@lines</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$len</span> <span class=o>=</span> <span class=nb>length</span><span class=p>(</span><span class=s>&#34;@lines&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>print</span> <span class=s>&#34;[Count] Message length: $len chars\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nv>$log</span><span class=o>-&gt;</span><span class=n>info</span><span class=p>(</span><span class=s>&#39;Test message&#39;</span><span class=p>);</span>
+</span></span></code></pre></td></tr></table></div></div><p>出力結果:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>[Console] info: Test message
+</span></span><span class=line><span class=cl>[UPPER] INFO: TEST MESSAGE
+</span></span><span class=line><span class=cl>[Count] Message length: 12 chars
+</span></span></code></pre></td></tr></table></div></div><p>1 つのイベントに対して、複数の処理が順番に実行されています。これがイベント駆動の強力な点です。処理を追加したいときは、既存のコードを変更せずに <code>on</code> で新しい処理を登録するだけでよいのです。</p><h2 id=emit-を理解するイベントの発火>emit を理解する：イベントの発火</h2><h3 id=mojolog-では内部で使われている>Mojo::Log では内部で使われている</h3><p><code>emit</code> は「イベントを発火させる」メソッドです。Mojo::Log では、ログを出力するメソッド（<code>info</code>、<code>warn</code> など）の内部で <code>emit</code> が呼ばれています。</p><p>概念的には、次のような処理が行われています。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># $log-&gt;info(&#39;message&#39;) の内部動作（イメージ）</span>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>info</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>@messages</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>emit</span><span class=p>(</span><span class=n>message</span> <span class=o>=&gt;</span> <span class=s>&#39;info&#39;</span><span class=p>,</span> <span class=nv>@messages</span><span class=p>);</span>  <span class=c1># イベントを発火</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>つまり、私たちが <code>$log->info('Hello')</code> と書くと、内部で <code>emit</code> が呼ばれ、<code>on</code> で登録した処理が実行されるというわけです。</p><h3 id=自分で-emit-を使う場面>自分で emit を使う場面</h3><p>Mojo::Log を使うだけなら、<code>emit</code> を直接呼ぶ必要はありません。しかし、自分でイベント駆動の仕組みを作りたい場合は、<code>emit</code> を使うことになります。</p><p>例えば、カスタムイベントを定義する場合です。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=ch>#!/usr/bin/env perl</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Mojo::EventEmitter</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Encode</span> <span class=sx>qw(encode_utf8)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># Mojo::EventEmitterを継承したクラスを作成</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>MyNotifier</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Mojo::Base</span> <span class=s>&#39;Mojo::EventEmitter&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>notify</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$message</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>emit</span><span class=p>(</span><span class=n>notification</span> <span class=o>=&gt;</span> <span class=nv>$message</span><span class=p>);</span>  <span class=c1># カスタムイベントを発火</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>main</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$notifier</span> <span class=o>=</span> <span class=nn>MyNotifier</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># カスタムイベントを購読</span>
+</span></span><span class=line><span class=cl><span class=nv>$notifier</span><span class=o>-&gt;</span><span class=n>on</span><span class=p>(</span><span class=n>notification</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$message</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>print</span> <span class=n>encode_utf8</span><span class=p>(</span><span class=s>&#34;通知を受信: $message\n&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nv>$notifier</span><span class=o>-&gt;</span><span class=n>notify</span><span class=p>(</span><span class=s>&#39;新しいメッセージがあります&#39;</span><span class=p>);</span>
+</span></span></code></pre></td></tr></table></div></div><p>出力結果:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>通知を受信: 新しいメッセージがあります
+</span></span></code></pre></td></tr></table></div></div><p>このように、<code>emit</code> を使えば独自のイベントを作成できます。</p><h2 id=実用例で身につける3つのログ処理パターン>実用例で身につける：3つのログ処理パターン</h2><p>ここからは、実際に役立つ 3 つのパターンを紹介します。</p><h3 id=パターン1カスタムフォーマットで出力>パターン1：カスタムフォーマットで出力</h3><p>標準のログ出力を、見やすいフォーマットにカスタマイズしてみましょう。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=ch>#!/usr/bin/env perl</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Mojo::Log</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Time::Piece</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$log</span> <span class=o>=</span> <span class=nn>Mojo::Log</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># unsubscribeでデフォルトのハンドラ（STDERRへの出力）を無効化</span>
+</span></span><span class=line><span class=cl><span class=nv>$log</span><span class=o>-&gt;</span><span class=n>unsubscribe</span><span class=p>(</span><span class=s>&#39;message&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># カスタムフォーマットで出力</span>
+</span></span><span class=line><span class=cl><span class=nv>$log</span><span class=o>-&gt;</span><span class=n>on</span><span class=p>(</span><span class=n>message</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$log</span><span class=p>,</span> <span class=nv>$level</span><span class=p>,</span> <span class=nv>@lines</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=c1># タイムスタンプを取得</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$timestamp</span> <span class=o>=</span> <span class=nb>localtime</span><span class=o>-&gt;</span><span class=n>strftime</span><span class=p>(</span><span class=s>&#39;%Y-%m-%d %H:%M:%S&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=c1># ログレベルを大文字に統一</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$level_upper</span> <span class=o>=</span> <span class=nb>uc</span><span class=p>(</span><span class=nv>$level</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=c1># フォーマットして出力</span>
+</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=k>my</span> <span class=nv>$line</span> <span class=p>(</span><span class=nv>@lines</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>print</span> <span class=s>&#34;[$timestamp] [$level_upper] $line\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nv>$log</span><span class=o>-&gt;</span><span class=n>debug</span><span class=p>(</span><span class=s>&#39;デバッグ情報です&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$log</span><span class=o>-&gt;</span><span class=n>info</span><span class=p>(</span><span class=s>&#39;処理を開始しました&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$log</span><span class=o>-&gt;</span><span class=nb>warn</span><span class=p>(</span><span class=s>&#39;警告：ディスク容量が少なくなっています&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$log</span><span class=o>-&gt;</span><span class=n>error</span><span class=p>(</span><span class=s>&#39;エラーが発生しました&#39;</span><span class=p>);</span>
+</span></span></code></pre></td></tr></table></div></div><p>出力例:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>[2025-12-29 12:00:00] [DEBUG] デバッグ情報です
+</span></span><span class=line><span class=cl>[2025-12-29 12:00:00] [INFO] 処理を開始しました
+</span></span><span class=line><span class=cl>[2025-12-29 12:00:00] [WARN] 警告：ディスク容量が少なくなっています
+</span></span><span class=line><span class=cl>[2025-12-29 12:00:00] [ERROR] エラーが発生しました
+</span></span></code></pre></td></tr></table></div></div><p>ポイントは <code>unsubscribe('message')</code> です。これでデフォルトの出力処理を解除し、自分のカスタム処理だけを実行できます。</p><h3 id=パターン2複数の出力先に同時配信>パターン2：複数の出力先に同時配信</h3><p>1 つのログを、コンソールとファイルの両方に出力してみましょう。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=ch>#!/usr/bin/env perl</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Mojo::Log</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Time::Piece</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$log</span> <span class=o>=</span> <span class=nn>Mojo::Log</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=nv>$log</span><span class=o>-&gt;</span><span class=n>unsubscribe</span><span class=p>(</span><span class=s>&#39;message&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$log_file</span> <span class=o>=</span> <span class=s>&#39;/tmp/app.log&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># コンソールへ出力</span>
+</span></span><span class=line><span class=cl><span class=nv>$log</span><span class=o>-&gt;</span><span class=n>on</span><span class=p>(</span><span class=n>message</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$log</span><span class=p>,</span> <span class=nv>$level</span><span class=p>,</span> <span class=nv>@lines</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$timestamp</span> <span class=o>=</span> <span class=nb>localtime</span><span class=o>-&gt;</span><span class=n>strftime</span><span class=p>(</span><span class=s>&#39;%H:%M:%S&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>print</span> <span class=s>&#34;[$timestamp] [$level] @lines\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># ファイルへ出力</span>
+</span></span><span class=line><span class=cl><span class=nv>$log</span><span class=o>-&gt;</span><span class=n>on</span><span class=p>(</span><span class=n>message</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$log</span><span class=p>,</span> <span class=nv>$level</span><span class=p>,</span> <span class=nv>@lines</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$timestamp</span> <span class=o>=</span> <span class=nb>localtime</span><span class=o>-&gt;</span><span class=n>strftime</span><span class=p>(</span><span class=s>&#39;%Y-%m-%d %H:%M:%S&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=nb>open</span> <span class=k>my</span> <span class=nv>$fh</span><span class=p>,</span> <span class=s>&#39;&gt;&gt;&#39;</span><span class=p>,</span> <span class=nv>$log_file</span> <span class=ow>or</span> <span class=nb>die</span> <span class=s>&#34;Cannot open $log_file: $!&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>print</span> <span class=nv>$fh</span> <span class=s>&#34;[$timestamp] [$level] @lines\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nb>close</span> <span class=nv>$fh</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nv>$log</span><span class=o>-&gt;</span><span class=n>info</span><span class=p>(</span><span class=s>&#39;アプリケーションが起動しました&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$log</span><span class=o>-&gt;</span><span class=nb>warn</span><span class=p>(</span><span class=s>&#39;設定ファイルが見つかりません、デフォルト値を使用します&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$log</span><span class=o>-&gt;</span><span class=n>info</span><span class=p>(</span><span class=s>&#39;処理が完了しました&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># ログファイルの内容を表示</span>
+</span></span><span class=line><span class=cl><span class=k>print</span> <span class=s>&#34;\n--- ログファイルの内容 ---\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>if</span> <span class=p>(</span><span class=nb>open</span> <span class=k>my</span> <span class=nv>$fh</span><span class=p>,</span> <span class=s>&#39;&lt;&#39;</span><span class=p>,</span> <span class=nv>$log_file</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>print</span> <span class=k>while</span> <span class=sr>&lt;$fh&gt;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nb>close</span> <span class=nv>$fh</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>出力例:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>[12:00:00] [info] アプリケーションが起動しました
+</span></span><span class=line><span class=cl>[12:00:00] [warn] 設定ファイルが見つかりません、デフォルト値を使用します
+</span></span><span class=line><span class=cl>[12:00:00] [info] 処理が完了しました
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>--- ログファイルの内容 ---
+</span></span><span class=line><span class=cl>[2025-12-29 12:00:00] [info] アプリケーションが起動しました
+</span></span><span class=line><span class=cl>[2025-12-29 12:00:00] [warn] 設定ファイルが見つかりません、デフォルト値を使用します
+</span></span><span class=line><span class=cl>[2025-12-29 12:00:00] [info] 処理が完了しました
+</span></span></code></pre></td></tr></table></div></div><p>2 つの <code>on</code> を登録することで、1 つのログ出力が複数の場所に配信されています。</p><h3 id=パターン3エラー時だけ特別な処理>パターン3：エラー時だけ特別な処理</h3><p>エラーレベル以上のログだけ、特別な処理をするパターンです。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=ch>#!/usr/bin/env perl</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Mojo::Log</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Time::Piece</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$log</span> <span class=o>=</span> <span class=nn>Mojo::Log</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=nv>$log</span><span class=o>-&gt;</span><span class=n>unsubscribe</span><span class=p>(</span><span class=s>&#39;message&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 通常のログ出力</span>
+</span></span><span class=line><span class=cl><span class=nv>$log</span><span class=o>-&gt;</span><span class=n>on</span><span class=p>(</span><span class=n>message</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$log</span><span class=p>,</span> <span class=nv>$level</span><span class=p>,</span> <span class=nv>@lines</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$timestamp</span> <span class=o>=</span> <span class=nb>localtime</span><span class=o>-&gt;</span><span class=n>strftime</span><span class=p>(</span><span class=s>&#39;%H:%M:%S&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>print</span> <span class=s>&#34;[$timestamp] [$level] @lines\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># エラー・致命的エラーの場合だけ追加処理</span>
+</span></span><span class=line><span class=cl><span class=nv>$log</span><span class=o>-&gt;</span><span class=n>on</span><span class=p>(</span><span class=n>message</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$log</span><span class=p>,</span> <span class=nv>$level</span><span class=p>,</span> <span class=nv>@lines</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=c1># errorまたはfatalの場合のみ</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=k>unless</span> <span class=nv>$level</span> <span class=ow>eq</span> <span class=s>&#39;error&#39;</span> <span class=ow>or</span> <span class=nv>$level</span> <span class=ow>eq</span> <span class=s>&#39;fatal&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=c1># エラーログを専用ファイルに保存</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$timestamp</span> <span class=o>=</span> <span class=nb>localtime</span><span class=o>-&gt;</span><span class=n>strftime</span><span class=p>(</span><span class=s>&#39;%Y-%m-%d %H:%M:%S&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$error_log</span> <span class=o>=</span> <span class=s>&#39;/tmp/error.log&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=nb>open</span> <span class=k>my</span> <span class=nv>$fh</span><span class=p>,</span> <span class=s>&#39;&gt;&gt;&#39;</span><span class=p>,</span> <span class=nv>$error_log</span> <span class=ow>or</span> <span class=k>return</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>print</span> <span class=nv>$fh</span> <span class=s>&#34;[$timestamp] [$level] @lines\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nb>close</span> <span class=nv>$fh</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=c1># コンソールにも警告表示</span>
+</span></span><span class=line><span class=cl>    <span class=k>print</span> <span class=s>&#34;!!! エラーが記録されました: $error_log !!!\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nv>$log</span><span class=o>-&gt;</span><span class=n>info</span><span class=p>(</span><span class=s>&#39;処理を開始します&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$log</span><span class=o>-&gt;</span><span class=n>debug</span><span class=p>(</span><span class=s>&#39;デバッグ情報&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$log</span><span class=o>-&gt;</span><span class=n>error</span><span class=p>(</span><span class=s>&#39;データベース接続に失敗しました&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$log</span><span class=o>-&gt;</span><span class=n>info</span><span class=p>(</span><span class=s>&#39;リトライします...&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$log</span><span class=o>-&gt;</span><span class=n>fatal</span><span class=p>(</span><span class=s>&#39;致命的なエラー：復旧できません&#39;</span><span class=p>);</span>
+</span></span></code></pre></td></tr></table></div></div><p>出力例:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>[12:00:00] [info] 処理を開始します
+</span></span><span class=line><span class=cl>[12:00:00] [debug] デバッグ情報
+</span></span><span class=line><span class=cl>[12:00:00] [error] データベース接続に失敗しました
+</span></span><span class=line><span class=cl>!!! エラーが記録されました: /tmp/error.log !!!
+</span></span><span class=line><span class=cl>[12:00:00] [info] リトライします...
+</span></span><span class=line><span class=cl>[12:00:00] [fatal] 致命的なエラー：復旧できません
+</span></span><span class=line><span class=cl>!!! エラーが記録されました: /tmp/error.log !!!
+</span></span></code></pre></td></tr></table></div></div><p><code>return unless</code> で条件をチェックすることで、特定のログレベルだけに反応する処理を書けます。</p><h2 id=もう一歩深くmojoeventemitter>もう一歩深く：Mojo::EventEmitter</h2><h3 id=mojolog-の親クラス>Mojo::Log の親クラス</h3><p>ここまで使ってきた <code>on</code> と <code>emit</code> は、実は Mojo::Log だけのものではありません。Mojo::Log は <code>Mojo::EventEmitter</code> というクラスを継承しており、イベント処理の機能はすべてこの親クラスから来ています。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>Mojo::EventEmitter（イベント機能を提供）
+</span></span><span class=line><span class=cl>    ↑ 継承
+</span></span><span class=line><span class=cl>Mojo::Log（ロギング機能 + イベント機能）
+</span></span></code></pre></td></tr></table></div></div><p>つまり、Mojo::EventEmitter を継承すれば、どんなクラスでもイベント駆動の仕組みを持たせられるのです。</p><h3 id=その他のメソッド>その他のメソッド</h3><p>Mojo::EventEmitter には、<code>on</code> と <code>emit</code> 以外にも便利なメソッドがあります。</p><p><strong>once - 1回だけ実行</strong></p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># 最初の1回だけ実行される</span>
+</span></span><span class=line><span class=cl><span class=nv>$log</span><span class=o>-&gt;</span><span class=n>once</span><span class=p>(</span><span class=n>message</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$log</span><span class=p>,</span> <span class=nv>$level</span><span class=p>,</span> <span class=nv>@lines</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>print</span> <span class=s>&#34;初回のみ: @lines\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nv>$log</span><span class=o>-&gt;</span><span class=n>info</span><span class=p>(</span><span class=s>&#39;1回目&#39;</span><span class=p>);</span>  <span class=c1># 「初回のみ: 1回目」と出力</span>
+</span></span><span class=line><span class=cl><span class=nv>$log</span><span class=o>-&gt;</span><span class=n>info</span><span class=p>(</span><span class=s>&#39;2回目&#39;</span><span class=p>);</span>  <span class=c1># 何も出力されない（onceなので）</span>
+</span></span></code></pre></td></tr></table></div></div><p><strong>unsubscribe - 購読を解除</strong></p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># 特定のハンドラを解除</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$handler</span> <span class=o>=</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$log</span><span class=p>,</span> <span class=nv>$level</span><span class=p>,</span> <span class=nv>@lines</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>print</span> <span class=s>&#34;Handler: @lines\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nv>$log</span><span class=o>-&gt;</span><span class=n>on</span><span class=p>(</span><span class=n>message</span> <span class=o>=&gt;</span> <span class=nv>$handler</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$log</span><span class=o>-&gt;</span><span class=n>info</span><span class=p>(</span><span class=s>&#39;購読中&#39;</span><span class=p>);</span>  <span class=c1># 出力される</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nv>$log</span><span class=o>-&gt;</span><span class=n>unsubscribe</span><span class=p>(</span><span class=n>message</span> <span class=o>=&gt;</span> <span class=nv>$handler</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$log</span><span class=o>-&gt;</span><span class=n>info</span><span class=p>(</span><span class=s>&#39;解除後&#39;</span><span class=p>);</span>  <span class=c1># 出力されない</span>
+</span></span></code></pre></td></tr></table></div></div><p><strong>has_subscribers - 購読者の確認</strong></p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>if</span> <span class=p>(</span><span class=nv>$log</span><span class=o>-&gt;</span><span class=n>has_subscribers</span><span class=p>(</span><span class=s>&#39;message&#39;</span><span class=p>))</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>print</span> <span class=s>&#34;messageイベントには購読者がいます\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><h2 id=まとめ---イベント駆動の第一歩を踏み出した>まとめ - イベント駆動の第一歩を踏み出した</h2><p>この記事で学んだことをまとめます。</p><h3 id=覚えるのは-2-つだけ>覚えるのは 2 つだけ</h3><ul><li><strong>on</strong>: イベントに対する処理を登録する</li><li><strong>emit</strong>: イベントを発火させる（通知する）</li></ul><h3 id=mojolog-で学んだこと>Mojo::Log で学んだこと</h3><ul><li><code>message</code> イベントはログ出力時に自動で発火する</li><li>複数の <code>on</code> を登録すれば、1 つのイベントで複数の処理が実行される</li><li><code>unsubscribe</code> でデフォルトの処理を解除できる</li></ul><h3 id=3-つの実用パターン>3 つの実用パターン</h3><ol><li><strong>カスタムフォーマット</strong>: ログの見た目を自由に変更</li><li><strong>複数出力先</strong>: コンソールとファイルなど、複数の場所に同時出力</li><li><strong>条件付き処理</strong>: エラー時だけ特別な処理を実行</li></ol><h3 id=次のステップ>次のステップ</h3><p>イベント駆動プログラミングの基礎を身につけた今、次のステップとして以下を試してみてください。</p><ul><li><strong>Mojo::EventEmitter を使って独自クラスを作る</strong>: 自分でイベントを定義してみる</li><li><strong>Mojo::IOLoop を学ぶ</strong>: 非同期 I/O とイベント駆動を組み合わせる</li><li><strong>Mojolicious アプリケーションを作る</strong>: Web アプリでイベント駆動を活用する</li></ul><p>イベント駆動プログラミングは、最初は少し不思議に感じるかもしれません。しかし、一度理解すれば、コードの見通しがよくなり、機能の追加も簡単になります。ぜひ、実際にコードを書いて試してみてください。</p><h2 id=関連記事>関連記事</h2><p>Perl の非同期処理やMojoliciousについてさらに学びたい方は、以下の記事も参考になります。</p><link rel=stylesheet href=/css/linkcard.css><div class=linkcard><a class=linkcard-a href=https://www.nqou.net/2025/12/04/000000/ target=_blank rel="noopener noreferrer"><div class=linkcard-image><img src=https://www.nqou.net/public_images/20251204-mojolicious.jpg alt="Mojolicious入門 — Mojolicious::Liteで始めるPerlのWeb開発" loading=lazy></div><div class=linkcard-content><div class=linkcard-title>Mojolicious入門 — Mojolicious::Liteで始めるPerlのWeb開発</div><div class=linkcard-description>Perl製モダンWebフレームワークMojolicious（Mojolicious::Lite含む）の基本、ルーティング、テンプレート、JSON API、WebSocket、デプロイ方法などを初心者向けに解説します。</div><div class=linkcard-meta><img class=linkcard-favicon src=https://www.nqou.net/favicon.ico alt onerror='this.style.display="none"'>
+<span class=linkcard-domain>nqou.net</span></div></div></a></div><link rel=stylesheet href=/css/linkcard.css><div class=linkcard><a class=linkcard-a href=https://www.nqou.net/2025/12/17/000000/ target=_blank rel="noopener noreferrer"><div class=linkcard-image><img src=https://www.nqou.net/public_images/2025/20251217000000-image.jpg alt="Perlでの非同期処理 — IO::Async と Mojo::IOLoop" loading=lazy></div><div class=linkcard-content><div class=linkcard-title>Perlでの非同期処理 — IO::Async と Mojo::IOLoop</div><div class=linkcard-description>IO::Async と Mojo::IOLoop を使った Perl の非同期処理入門。タイマー、HTTP、プロセス実行、WebSocket の実装例を紹介。</div><div class=linkcard-meta><img class=linkcard-favicon src=https://www.nqou.net/favicon.ico alt onerror='this.style.display="none"'>
+<span class=linkcard-domain>nqou.net</span></div></div></a></div><link rel=stylesheet href=/css/linkcard.css><div class=linkcard><a class=linkcard-a href=https://www.nqou.net/tags/mojolicious/ target=_blank rel="noopener noreferrer"><div class=linkcard-content><div class=linkcard-title>Tag: Mojolicious - nqou.net</div><div class=linkcard-description>Whisky, Perl, Kansai.pm</div><div class=linkcard-meta><img class=linkcard-favicon src=https://www.nqou.net/favicon.ico alt onerror='this.style.display="none"'>
+<span class=linkcard-domain>nqou.net</span></div></div></a></div><h2 id=参考リンク>参考リンク</h2><link rel=stylesheet href=/css/linkcard.css><div class=linkcard><a class=linkcard-a href=https://docs.mojolicious.org/Mojo/Log target=_blank rel="noopener noreferrer"><div class=linkcard-content><div class=linkcard-title>Mojo::Log - Simple logger</div><div class=linkcard-meta><img class=linkcard-favicon src=https://docs.mojolicious.org/favicon.ico alt onerror='this.style.display="none"'>
+<span class=linkcard-domain>docs.mojolicious.org</span></div></div></a></div><link rel=stylesheet href=/css/linkcard.css><div class=linkcard><a class=linkcard-a href=https://docs.mojolicious.org/Mojo/EventEmitter target=_blank rel="noopener noreferrer"><div class=linkcard-content><div class=linkcard-title>Mojo::EventEmitter - Event emitter base class</div><div class=linkcard-meta><img class=linkcard-favicon src=https://docs.mojolicious.org/favicon.ico alt onerror='this.style.display="none"'>
+<span class=linkcard-domain>docs.mojolicious.org</span></div></div></a></div><link rel=stylesheet href=/css/linkcard.css><div class=linkcard><a class=linkcard-a href=https://mojolicious.org/ target=_blank rel="noopener noreferrer"><div class=linkcard-content><div class=linkcard-title>Mojolicious - Perl real-time web framework</div><div class=linkcard-meta><img class=linkcard-favicon src=https://mojolicious.org/favicon.ico alt onerror='this.style.display="none"'>
+<span class=linkcard-domain>mojolicious.org</span></div></div></a></div></section><footer class=article-footer><section class=article-tags><a href=/tags/perl/>Perl</a>
+<a href=/tags/event-driven-programming/>Event-Driven-Programming</a>
+<a href=/tags/mojolicious/>Mojolicious</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2025/12/14/183305/><div class=article-image><img src=/public_images/2025/1765704785-image.jpg loading=lazy data-key data-hash=/public_images/2025/1765704785-image.jpg></div><div class=article-details><h2 class=article-title>Perl WebSocket入門：Mojoliciousで作る3つの実践アプリ</h2></div></a></article><article class=has-image><a href=/2016/02/27/164502/><div class=article-image><img src=/favicon.png loading=lazy data-key data-hash=/favicon.png></div><div class=article-details><h2 class=article-title>Mojolicious でファイルがアップロードできる掲示板を作る</h2></div></a></article><article class=has-image><a href=/2015/11/16/083646/><div class=article-image><img src=/favicon.png loading=lazy data-key data-hash=/favicon.png></div><div class=article-details><h2 class=article-title>JSON::RPC::Spec v1.0.5 をリリースしました</h2></div></a></article><article class=has-image><a href=/2015/04/13/112530/><div class=article-image><img src=/favicon.png loading=lazy data-key data-hash=/favicon.png></div><div class=article-details><h2 class=article-title>HerokuではProcletを使うとお得</h2></div></a></article><article class=has-image><a href=/2015/03/07/071219/><div class=article-image><img src=/favicon.png loading=lazy data-key data-hash=/favicon.png></div><div class=article-details><h2 class=article-title>Mojolicious::LiteでPOSTメソッドを使う</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2025 nqou.net</section><section class=powerby><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>
