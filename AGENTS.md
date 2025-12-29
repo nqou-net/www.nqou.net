@@ -70,7 +70,8 @@
 - ファイル名はスラッグ（例: `how-to-hugo.md`）を推奨。ただし、公開時にファイル名が変更される。関連記事の検索はタグを利用すること
 - 見出しは ATX スタイル（`##` 以上）を使用。H1 はフロントマターの `title` に任せる
 - 外部参照は既存ショートコード（例: `{{< linkcard "https://example.com" >}}`）を優先する
-- よく使うフロントマターキー: `title`, `draft`, `tags`, `description`
+- よく使うフロントマターキー: `title`, `draft`, `tags`, `description`, `image`
+- アイキャッチ画像: `image` フィールドで指定。画像は `static/public_images/2025/` に配置する
 
 ## テスト手順
 
@@ -135,15 +136,20 @@
   - ユーザーが求める回答を分かりやすく、独自の視点やデータで提供
   - コード例、図表（mermaid記法など）、引用を適切に配置する
   - 引用元のURLや内部リンクを明記する
-4. 挿絵を追加する（illustration-craftspersonエージェント）
+4. アイキャッチ画像の作成（illustration-craftspersonエージェント）
+  - 記事の内容とタイトルから、読者の目を引く魅力的なアイキャッチ画像を作成する
+  - 画像は `static/public_images/2025/` に配置する
+  - ファイル名は `エポックタイム-image.jpg` または `YYYYMMDDHHMMSS-image.jpg` の形式にする
+  - フロントマターの `image` フィールドに画像パスを設定する（例: `/public_images/2025/20251220000000-image.jpg`）
+5. 挿絵を追加する（illustration-craftspersonエージェント）
   - 記事の内容を理解し、読者の理解を深めるための視覚的な要素を提案する
   - 技術記事に適した図表、ダイアグラム、フローチャートなどを作成する
   - Mermaid記法を活用して、システム構成図やシーケンス図などを作成する
   - 必要に応じて、画像ファイルの配置場所や命名規則を提案する
-5. スタイルと構成の整形（layout-and-content-harmonizationエージェント）
-6. 校正（proofreaderエージェント）
-7. SEO（search-engine-optimizationエージェント）
-8. 公開前の最終チェック（reviewerエージェント）
+6. スタイルと構成の整形（layout-and-content-harmonizationエージェント）
+7. 校正（proofreaderエージェント）
+8. SEO（search-engine-optimizationエージェント）
+9. 公開前の最終チェック（reviewerエージェント）
 
 ## エージェントトピックマッピング
 
@@ -199,6 +205,19 @@
 - **箇条書きの最後の句点（。）はつけない**
 - 各コード例に言語タグ、バージョン、外部依存を明記する
 - 書籍については、ショートコード（amazon）を使用して記載する（例: `{{< amazon asin="<ASIN>" title="<書籍のタイトル>" >}}`）
+
+### アイキャッチ画像作成依頼
+
+- 記事のタイトルと内容から、読者の目を引く魅力的なアイキャッチ画像を作成すること
+- 技術記事に適したデザインで、記事の主題を視覚的に表現する
+- 画像サイズは横1200px × 縦630px を推奨（OGP画像として最適）
+- 画像は `static/public_images/2025/` ディレクトリに保存する
+- ファイル名は `エポックタイム-image.jpg` または `YYYYMMDDHHMMSS-image.jpg` の形式にする（例: `1735574400-image.jpg`, `20251220000000-image.jpg`）
+
+#### 出力
+- 画像ファイルを指定のディレクトリに保存する
+- フロントマターの `image` フィールドに画像パスを設定する（例: `image: /public_images/2025/20251220000000-image.jpg`）
+- 画像の説明やコンセプトを記録する（任意）
 
 ## 検証と品質ゲート
 
