@@ -5,6 +5,8 @@ tags:
   - perl
   - moo
   - object-oriented
+  - oop
+  - cpan
 description: "Perlのblessを使ったOOPに悩んでいませんか？Mooなら宣言的な構文でシンプルにクラス定義ができます。has属性、ロール、Type::Tinyによる型制約まで、実践的なコード例で学ぶMoo入門ガイド。"
 image: /public_images/2025/1766986914-image.jpg
 ---
@@ -26,7 +28,7 @@ Perlでオブジェクト指向プログラミング（OOP）を始めようと�
 
 なお、Moo/Mooseの概要については、以下の記事でも解説しています。
 
-{{< linkcard "/post/2025/12/11/000000/" >}}
+{{< linkcard "https://www.nqou.net/2025/12/11/000000/" >}}
 
 たとえば、簡単なPersonクラスを`bless`で書くと、こうなります。
 
@@ -1228,7 +1230,7 @@ Mooをマスターしたら、以下のトピックにも挑戦してみてく�
 
 - **MooX::*モジュール**: Mooの機能を拡張するモジュール群
 - **Moose**: より高度なメタプログラミング機能
-- **DBIx::Class**: MooベースのORMフレームワーク
+- **DBIx::Class**: PerlのORMフレームワーク
 - **Mojo::Base**: Mojoliciousフレームワークでのオブジェクト指向
 
 ### 参考リンク
