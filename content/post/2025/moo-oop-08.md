@@ -48,6 +48,28 @@ has created_at => (is => 'ro', default => sub { time });
 
 一方、ロールは「〜ができる」という能力を表します。たとえば、「タイムスタンプを持つことができる」という能力です。
 
+```mermaid
+classDiagram
+    class Timestampable {
+        <<Role>>
+        +created_at : ro
+        +formatted_time()
+    }
+    class BBS_Message["BBS::Message"] {
+        +content : ro
+        +author : ro
+    }
+    class BBS_Thread["BBS::Thread"] {
+        +title : ro
+        +messages : ro
+    }
+    Timestampable <|.. BBS_Message : with
+    Timestampable <|.. BBS_Thread : with
+    note for Timestampable "ロールは複数のクラスに\n適用できる共通機能"
+```
+
+この図は、`Timestampable` ロールが `Message` と `Thread` の両方に適用される様子を示しています。点線の矢印（`with`）はロールの適用を表しています。
+
 `BBS::Message` と `BBS::Thread` は親子関係ではありませんが、どちらも「タイムスタンプを持つことができる」という共通の能力を持っています。このような場合に、ロールが役立ちます。
 
 ## Moo::Roleを使う

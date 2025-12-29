@@ -37,6 +37,21 @@ $app->show;
 
 「ほげ」と表示されるこのコード、何が書いてあるのか順番に見ていきましょう。
 
+## クラスの構造を理解しよう
+
+まず、このコードの全体像を図で見てみましょう。
+
+```mermaid
+classDiagram
+    class MyApp {
+        +hoge : rw
+        +show()
+    }
+    note for MyApp "package MyApp で定義\nuse Moo で OOP 機能を有効化"
+```
+
+この図は、`MyApp` クラスが持つ要素を示しています。`hoge` というプロパティと `show` というメソッドがあることが分かります。
+
 ## packageで名前を付ける
 
 ```perl

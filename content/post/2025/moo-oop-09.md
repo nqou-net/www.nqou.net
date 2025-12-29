@@ -74,6 +74,21 @@ print $msg->format, "\n";
 
 委譲とは、あるオブジェクトへのメソッド呼び出しを、別のオブジェクトに転送する仕組みです。
 
+```mermaid
+sequenceDiagram
+    participant 呼び出し側
+    participant Message
+    participant User
+
+    呼び出し側->>Message: author_name()
+    Message->>User: name()
+    User-->>Message: "nqounet"
+    Message-->>呼び出し側: "nqounet"
+    Note over Message: handles で自動転送
+```
+
+この図は、委譲の仕組みを示しています。`Message` への `author_name` 呼び出しが、内部で `User` の `name` に転送されています。
+
 先ほどの例で言えば、`$msg->author_name` が呼ばれたとき、内部的に `$msg->author->name` を呼び出す、という処理を自動化できます。
 
 委譲を使うと、オブジェクトの内部構造を隠しつつ、必要なメソッドだけを外部に公開できます。利用者は `Message` オブジェクトだけを意識すればよく、`User` オブジェクトの存在を知らなくても済みます。

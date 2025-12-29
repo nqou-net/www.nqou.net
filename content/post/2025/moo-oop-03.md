@@ -48,6 +48,20 @@ description: "チャットアプリを題材に、Messageクラスを設計し�
 
 それでは、メッセージを表す `BBS::Message` クラスを設計してみましょう。
 
+まず、クラスの構造を図で確認します。
+
+```mermaid
+classDiagram
+    class BBS_Message["BBS::Message"] {
+        +content : ro, required
+        +author : ro, required
+        +timestamp : ro, default
+    }
+    note for BBS_Message "content: メッセージ本文\nauthor: 投稿者名\ntimestamp: 投稿時刻（自動設定）"
+```
+
+この図を見ると、`BBS::Message` クラスには3つのプロパティがあることが分かります。
+
 ```perl
 package BBS::Message {
     use Moo;

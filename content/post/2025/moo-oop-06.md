@@ -61,6 +61,25 @@ package BBS::User {
 
 そこで登場するのが「継承」です。
 
+```mermaid
+classDiagram
+    class BBS_User["BBS::User"] {
+        +name : ro
+        +display_name : rw
+        +created_at : ro
+        +greet()
+    }
+    class BBS_AdminUser["BBS::AdminUser"] {
+        +role : ro
+        +can_delete_message()
+        +greet()
+    }
+    BBS_User <|-- BBS_AdminUser : extends
+    note for BBS_AdminUser "親クラスの機能を継承しつつ\n独自の機能を追加"
+```
+
+この図は、`BBS::AdminUser` が `BBS::User` を継承している関係を示しています。矢印の方向が「継承元（親）」を指しています。
+
 ### 共通部分を親クラスに
 
 継承とは、あるクラス（親クラス）の機能を、別のクラス（子クラス）が引き継ぐ仕組みです。

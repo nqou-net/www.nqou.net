@@ -30,6 +30,27 @@ description: "Threadクラスを作成し、メッセージをまとめる機能
 
 この「複数のオブジェクトを持つ」という関係を、オブジェクト指向では「集約」と呼びます。
 
+```mermaid
+classDiagram
+    class BBS_Thread["BBS::Thread"] {
+        +title : ro
+        +messages : ro
+        +add_message()
+        +count()
+        +list()
+    }
+    class BBS_Message["BBS::Message"] {
+        +content : ro
+        +author : ro
+        +timestamp : ro
+        +format()
+    }
+    BBS_Thread "1" o-- "*" BBS_Message : 集約
+    note for BBS_Thread "1つのスレッドが\n複数のメッセージを持つ"
+```
+
+この図は「集約」の関係を示しています。ひし形がある側（Thread）が、相手（Message）を複数持つことを表しています。
+
 ## Threadクラスを作る
 
 それでは、スレッドを表す `BBS::Thread` クラスを作ってみましょう。
