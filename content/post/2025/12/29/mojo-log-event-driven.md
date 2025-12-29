@@ -343,6 +343,7 @@ Mojo::Log を使うだけなら、`emit` を直接呼ぶ必要はありません
 use strict;
 use warnings;
 use Mojo::EventEmitter;
+use Encode qw(encode_utf8);
 
 # Mojo::EventEmitterを継承したクラスを作成
 package MyNotifier;
@@ -360,7 +361,7 @@ my $notifier = MyNotifier->new;
 # カスタムイベントを購読
 $notifier->on(notification => sub {
     my ($self, $message) = @_;
-    print "通知を受信: $message\n";
+    print encode_utf8("通知を受信: $message\n");
 });
 
 $notifier->notify('新しいメッセージがあります');
@@ -642,7 +643,7 @@ Perl の非同期処理やMojoliciousについてさらに学びたい方は、�
 
 {{< linkcard "https://www.nqou.net/2025/12/17/000000/" >}}
 
-{{< linkcard "https://www.nqou.net/2025/12/22/000000/" >}}
+{{< linkcard "https://www.nqou.net/tags/mojolicious/" >}}
 
 ## 参考リンク
 
