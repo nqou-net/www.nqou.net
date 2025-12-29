@@ -1,6 +1,6 @@
 ---
 title: "【2025年版】Perlスクレイピング入門｜Mojo::UserAgentで学ぶ基礎と実践"
-draft: true
+draft: false
 tags: [perl, mojolicious, web-scraping, mojo-useragent, tutorial]
 description: "Perl初心者向けWebスクレイピング完全ガイド。Mojo::UserAgentの基本から実践まで、動くサンプルコードで解説。robots.txt・レート制限など倫理面も網羅。今すぐ始められます！"
 image: /public_images/2025/1766968259-image.jpg
