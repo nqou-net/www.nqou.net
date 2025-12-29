@@ -8,7 +8,7 @@ tags:
   - mojo-useragent
   - tutorial
 description: "Perl初心者でも安心！Mojo::UserAgentを使ったスクレイピングを基礎から実践まで段階的に解説。環境構築からデータ抽出、エラー処理、倫理的配慮まで網羅した完全ガイド。CSSセレクタで簡単データ取得！"
-image: ""
+image: /public_images/2025/1735448609-image.jpg
 ---
 
 ## Mojo::UserAgentとは？なぜスクレイピングに最適なのか
