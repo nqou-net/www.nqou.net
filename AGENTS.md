@@ -140,16 +140,10 @@
   - 記事の内容を理解し、読者の理解を深めるための視覚的な要素を提案する
   - 技術記事に適した図表、ダイアグラム、フローチャートなどを作成する
   - Mermaid記法を活用して、システム構成図やシーケンス図などを作成する
-  - 必要に応じて、画像ファイルの配置場所や命名規則を提案する
-5. アイキャッチ画像の生成（eye-catch-generator-otakuエージェント）
-  - 記事の内容から、読者の目を引く魅力的なアイキャッチ画像を生成する
-  - 画像は `static/public_images/2025/` に配置する
-  - ファイル名は `エポックタイム-image.jpg` の形式にする（例: `1764000000-image.jpg`）
-  - フロントマターの `image` フィールドに画像パスを設定する（例: `/public_images/2025/1764000000-image.jpg`）
-6. スタイルと構成の整形（layout-and-content-harmonizationエージェント）
-7. 校正（proofreaderエージェント）
-8. SEO（search-engine-optimizationエージェント）
-9. 公開前の最終チェック（reviewerエージェント）
+5. スタイルと構成の整形（layout-and-content-harmonizationエージェント）
+6. 校正（proofreaderエージェント）
+7. SEO（search-engine-optimizationエージェント）
+8. 公開前の最終チェック（reviewerエージェント）
 
 ## エージェントトピックマッピング
 
