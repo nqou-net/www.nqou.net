@@ -11,8 +11,6 @@ image: /public_images/2025/YYYYMMDDHHMMSS-image.jpg
   ファイル名ルール: スラッグのみ（`slug.md`）を推奨します。
   例: `how-to-hugo.md`
   フロントマターに `date` と `iso8601` は含めないでください。
-  `image` フィールドには、アイキャッチ画像のパスを指定してください。
-  画像は `static/public_images/2025/` に配置し、ファイル名は `YYYYMMDDHHMMSS-image.jpg` の形式を推奨します。
 -->
 
 ## 概要
