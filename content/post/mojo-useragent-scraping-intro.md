@@ -23,6 +23,27 @@ Webスクレイピング（Web scraping）は、ウェブサイトから情報�
 
 ただし、スクレイピングには法的・倫理的な配慮が必要です（詳しくは後述します）。
 
+以下は、Webスクレイピングの基本的な流れを示した図です。
+
+```mermaid
+flowchart TD
+    A[URLを指定] --> B[HTTPリクエスト送信]
+    B --> C{レスポンス取得}
+    C -->|成功| D[HTML取得]
+    C -->|失敗| E[エラー処理]
+    D --> F[DOM解析]
+    F --> G[CSSセレクタで要素抽出]
+    G --> H[データ整形]
+    H --> I[データ保存<br/>CSV/JSON/DB]
+    E --> J[リトライ or 終了]
+    I --> K{次のページ?}
+    K -->|あり| L[レート制限<br/>sleep]
+    L --> A
+    K -->|なし| M[完了]
+```
+
+この図からわかるように、スクレイピングは「取得→解析→抽出→保存」という一連のサイクルで構成されています。
+
 ### Mojo::UserAgentを選ぶ3つの理由（Modern Perl対応・統合DOM・非同期）
 
 Perlでスクレイピングを行う場合、従来は `LWP::UserAgent` が広く使われてきました。しかし、2025年の現在では `Mojo::UserAgent` が以下の3つの理由で推奨されます。
@@ -180,6 +201,33 @@ if ($res->is_success) {
 
 `$ua->get($url)` はトランザクションオブジェクトを返し、`->result` でレスポンスを取得します。この2ステップが基本形です。
 
+以下は、Mojo::UserAgentによるHTTPリクエストとレスポンス処理の流れを示した図です。
+
+```mermaid
+sequenceDiagram
+    participant Script as Perlスクリプト
+    participant UA as Mojo::UserAgent
+    participant Server as Webサーバー
+    participant DOM as Mojo::DOM
+    
+    Script->>UA: $ua->get($url)
+    UA->>Server: HTTP GETリクエスト
+    Server-->>UA: HTTPレスポンス<br/>(HTML)
+    UA->>UA: ->result
+    UA-->>Script: レスポンスオブジェクト
+    Script->>Script: is_success?
+    alt 成功時
+        Script->>DOM: ->dom
+        DOM-->>Script: DOMオブジェクト
+        Script->>DOM: CSSセレクタで検索
+        DOM-->>Script: 抽出データ
+    else 失敗時
+        Script->>Script: エラーハンドリング
+    end
+```
+
+この図は、リクエストからデータ取得までの一連の流れを時系列で表現しています。
+
 ### レスポンスの確認とis_success/is_errorの使い分け
 
 レスポンスの状態を確認するメソッドがいくつか用意されています。
@@ -258,6 +306,27 @@ if ($res->is_success) {
 ```
 
 このパターンでは、接続エラーとHTTPエラーを分けて処理できます。本番環境では、ログ出力やリトライロジックを追加すると良いでしょう。
+
+以下は、エラーハンドリングの判定フローを示した図です。
+
+```mermaid
+flowchart TD
+    A[HTTPリクエスト実行] --> B{トランザクション<br/>エラー?}
+    B -->|あり| C{エラーコード<br/>存在?}
+    C -->|あり| D[HTTPエラー<br/>404/500など]
+    C -->|なし| E[接続エラー<br/>タイムアウトなど]
+    B -->|なし| F[レスポンス取得]
+    F --> G{is_success?}
+    G -->|true| H[処理成功<br/>データ抽出へ]
+    G -->|false| I{is_error?}
+    I -->|true| J[HTTPエラー処理]
+    I -->|false| K[その他のステータス<br/>リダイレクトなど]
+    D --> L[ログ出力/リトライ]
+    E --> L
+    J --> L
+```
+
+この図は、エラーハンドリングの判定ロジックを階層的に表現しています。接続レベルのエラーとHTTPレベルのエラーを適切に分離することが重要です。
 
 ## データ抽出：Mojo::DOMでHTML解析する方法
 
@@ -474,6 +543,33 @@ print Dumper(\@items);
 - `all_text`: 子孫要素のテキストも含めて全て取得
 - `content`: 内部HTMLを取得
 - 正規表現と組み合わせてデータをクリーンアップ
+
+以下は、Mojo::DOMによるHTML解析とデータ抽出のプロセスを示した図です。
+
+```mermaid
+flowchart LR
+    A[HTMLレスポンス] --> B[Mojo::DOM<br/>オブジェクト生成]
+    B --> C{CSSセレクタ}
+    C -->|at| D[単一要素取得]
+    C -->|find| E[複数要素取得<br/>Collection]
+    D --> F[->text<br/>テキスト抽出]
+    D --> G[->attr<br/>属性抽出]
+    D --> H[->content<br/>HTML抽出]
+    E --> I[->each<br/>ループ処理]
+    E --> J[->map<br/>変換処理]
+    E --> K[->grep<br/>フィルタ処理]
+    I --> L[各要素を処理]
+    J --> M[配列生成]
+    K --> N[条件一致要素]
+    F --> O[処理済みデータ]
+    G --> O
+    H --> O
+    L --> O
+    M --> O
+    N --> O
+```
+
+この図は、HTMLからデータを抽出する際の各メソッドの役割と処理の流れを表しています。CSSセレクタで要素を特定し、適切なメソッドでデータを取り出す流れが理解できます。
 
 ## 実践：Perlでニュースサイトをスクレイピング
 
@@ -780,6 +876,32 @@ say "取得ページ数: $page_count";
 - 最大ページ数の制限で無限ループを防止
 - エラー時は `warn` してループを抜ける
 
+以下は、複数ページをクロールする際の処理フローを示した図です。
+
+```mermaid
+flowchart TD
+    A[開始] --> B[ページカウント = 0<br/>URL = 最初のページ]
+    B --> C{URL存在 AND<br/>カウント < 最大値?}
+    C -->|いいえ| D[終了]
+    C -->|はい| E[ページカウント++]
+    E --> F[HTTPリクエスト]
+    F --> G{成功?}
+    G -->|いいえ| H[警告出力]
+    H --> D
+    G -->|はい| I[記事データ抽出]
+    I --> J[配列に追加]
+    J --> K[次ページリンク検索]
+    K --> L{次ページあり?}
+    L -->|いいえ| M[URL = null]
+    M --> C
+    L -->|はい| N[相対URL→絶対URL変換]
+    N --> O[URL更新]
+    O --> P[sleep<br/>レート制限]
+    P --> C
+```
+
+この図は、ページネーション対応のクローリング処理における、ループ制御とエラーハンドリングの仕組みを明確に示しています。
+
 ## 必須知識：スクレイピングの倫理的・法的配慮
 
 スクレイピングは強力な技術ですが、不適切な使用は法的問題や倫理的批判を招きます。必ず以下の点を遵守してください。
@@ -850,6 +972,32 @@ foreach my $url (@urls_to_check) {
 ```
 
 `WWW::RobotRules` モジュールは `cpanm WWW::RobotRules` でインストールできます。
+
+以下は、robots.txtのチェックとアクセス制御のフローを示した図です。
+
+```mermaid
+flowchart TD
+    A[スクレイピング開始] --> B[robots.txt取得]
+    B --> C{取得成功?}
+    C -->|いいえ| D[警告: robots.txtなし<br/>慎重に実行]
+    C -->|はい| E[WWW::RobotRules<br/>でパース]
+    D --> F[アクセス対象URL]
+    E --> F
+    F --> G{allowed<br/>チェック}
+    G -->|許可| H[スクレイピング実行]
+    G -->|禁止| I[スキップ<br/>ログ記録]
+    H --> J{Crawl-delay<br/>指定あり?}
+    J -->|あり| K[指定秒数待機]
+    J -->|なし| L[デフォルト待機<br/>2-5秒]
+    I --> M[次のURL]
+    K --> M
+    L --> M
+    M --> N{URLリスト<br/>残あり?}
+    N -->|あり| F
+    N -->|なし| O[完了]
+```
+
+この図は、robots.txtを尊重した倫理的なスクレイピングの実装フローを表しています。
 
 ### レート制限（sleep）の適切な設定
 
@@ -1288,6 +1436,33 @@ say "メール: $user->{email}";
 
 JSONのパース・生成は自動的に行われるため、非常にシンプルです。
 
+以下は、JSON APIとの連携フローを示した図です。
+
+```mermaid
+sequenceDiagram
+    participant Script as Perlスクリプト
+    participant UA as Mojo::UserAgent
+    participant API as JSON API
+    
+    Note over Script,API: POSTリクエスト（JSON送信）
+    Script->>UA: post($url => json => {...})
+    UA->>UA: PerlハッシュをJSON変換
+    UA->>API: POST /api/endpoint<br/>Content-Type: application/json
+    API-->>UA: JSONレスポンス
+    UA->>UA: JSONをPerlハッシュに変換
+    UA-->>Script: ->result->json
+    Script->>Script: データ処理
+    
+    Note over Script,API: GETリクエスト（JSON取得）
+    Script->>UA: get($url)
+    UA->>API: GET /api/resource
+    API-->>UA: JSONレスポンス
+    UA-->>Script: ->result->json
+    Script->>Script: $data->{key}でアクセス
+```
+
+この図は、JSON APIとのやり取りにおけるデータのシリアライズ/デシリアライズの流れを明確に示しています。
+
 ### Promiseによる並列処理の基礎
 
 複数のURLを並列に取得する場合、Promiseを使用します。
@@ -1342,6 +1517,48 @@ say "処理完了";
 - 複数のリクエストを同時に実行し、全体の処理時間を大幅に短縮
 - ネットワークI/O待ちの間にCPUを有効活用
 - `get_p()` はPromiseを返す非同期版のメソッド
+
+以下は、Promiseによる並列処理の仕組みを示した図です。
+
+```mermaid
+flowchart TD
+    A[複数のURL] --> B[各URLでget_p呼び出し]
+    B --> C[Promise配列生成]
+    C --> D[Promise::all]
+    D --> E[並列実行開始]
+    
+    E --> F1[URL1リクエスト]
+    E --> F2[URL2リクエスト]
+    E --> F3[URL3リクエスト]
+    
+    F1 --> G1[URL1レスポンス]
+    F2 --> G2[URL2レスポンス]
+    F3 --> G3[URL3レスポンス]
+    
+    G1 --> H{全て完了?}
+    G2 --> H
+    G3 --> H
+    
+    H -->|はい| I[then処理]
+    I --> J[各結果を処理]
+    J --> K[データ抽出・整形]
+    
+    H -->|エラー| L[catch処理]
+    L --> M[エラーハンドリング]
+    
+    K --> N[完了]
+    M --> N
+
+    style E fill:#e1f5ff
+    style F1 fill:#e1f5ff
+    style F2 fill:#e1f5ff
+    style F3 fill:#e1f5ff
+    style G1 fill:#d4edda
+    style G2 fill:#d4edda
+    style G3 fill:#d4edda
+```
+
+この図は、複数のHTTPリクエストを並列実行し、全ての完了を待って結果を処理する仕組みを視覚的に表現しています。従来の同期的な処理と比べて、待機時間を大幅に削減できることがわかります。
 
 ### 非ブロッキングI/Oの活用
 
