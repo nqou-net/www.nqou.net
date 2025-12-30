@@ -7,6 +7,7 @@ tags:
   - asynchronous-io
   - event-driven
 description: "Perl用の非同期I/Oライブラリ IO::Async に関する調査・技術情報のメモ"
+draft: false
 ---
 
 # IO::Async 調査メモ

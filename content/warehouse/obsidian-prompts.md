@@ -8,7 +8,7 @@ tags:
   - workflow
 description: "Obsidian をプロンプトテンプレート管理基盤として活用するための構成、プラグイン、ワークフロー、外部連携を整理した調査レポート。"
 image: /favicon.png
-draft: true
+draft: false
 ---
 
 ## タイトル

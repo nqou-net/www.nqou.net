@@ -1,6 +1,6 @@
 ---
 title: "エージェント定義の `handoffs` 項目調査"
-draft: true
+draft: false
 tags:
 - "agent"
 - "handoffs"

@@ -8,7 +8,7 @@ tags:
   - perl
 description: "Mojo::Log とイベント駆動プログラミングの基礎、Observer パターン、実用例をまとめた調査レポート。"
 image: /favicon.png
-draft: true
+draft: false
 ---
 
 ## 調査目的

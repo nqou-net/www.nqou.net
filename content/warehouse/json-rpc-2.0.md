@@ -7,7 +7,7 @@ tags:
   - rpc
 description: "JSON-RPC 2.0 の仕様・使用例・運用上の注意点をまとめる"
 image: /favicon.png
-draft: true
+draft: false
 ---
 
 ## 目的

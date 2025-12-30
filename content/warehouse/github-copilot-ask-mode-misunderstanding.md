@@ -8,7 +8,7 @@ tags:
    - plan-mode
 description: "Ask/Edit/Agent/Plan 各モードの正しい使い分けと、Ask モードのリポジトリ調査能力を中心に整理した調査レポート。"
 image: /favicon.png
-draft: true
+draft: false
 ---
 
 ## タイトル

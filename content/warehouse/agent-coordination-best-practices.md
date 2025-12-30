@@ -1,7 +1,7 @@
 ---
 title: "調査レポート: エージェント間連携とAGENTS.mdのベストプラクティス"
 date: 2025-12-30
-draft: true
+draft: false
 tags:
   - agents
   - agents-md
