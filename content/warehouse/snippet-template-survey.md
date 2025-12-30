@@ -1,12 +1,16 @@
 ---
-title: "スニペット・テンプレート管理ソフト調査"
+date: 2025-12-30T18:28:46+09:00
+description: エディタ内でのスニペットや、システム全体でのテンプレート入力（テキスト展開）を実現する代表的なツール・手法を整理。VS Code Snippets、Espanso、JetBrains Live Templatesなどの比較と選び方ガイド。
 draft: false
+epoch: 1767086926
+image: /favicon.png
+iso8601: 2025-12-30T18:28:46+09:00
 tags:
   - snippet
   - template
   - text-expander
   - productivity
-description: "エディタ内でのスニペットや、システム全体でのテンプレート入力（テキスト展開）を実現する代表的なツール・手法を整理。VS Code Snippets、Espanso、JetBrains Live Templatesなどの比較と選び方ガイド。"
+title: スニペット・テンプレート管理ソフト調査
 ---
 
 # スニペット・テンプレート管理ソフト調査

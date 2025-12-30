@@ -1,14 +1,16 @@
 ---
-title: "Obsidian をプロンプトテンプレート集として活用する方法（調査）"
-slug: "obsidian-prompts"
-date: 2025-12-23
+date: 2025-12-30T18:28:46+09:00
+description: Obsidian をプロンプトテンプレート管理基盤として活用するための構成、プラグイン、ワークフロー、外部連携を整理した調査レポート。
+draft: false
+epoch: 1767086926
+image: /favicon.png
+iso8601: 2025-12-30T18:28:46+09:00
+slug: obsidian-prompts
 tags:
   - obsidian
   - prompt-template
   - workflow
-description: "Obsidian をプロンプトテンプレート管理基盤として活用するための構成、プラグイン、ワークフロー、外部連携を整理した調査レポート。"
-image: /favicon.png
-draft: false
+title: Obsidian をプロンプトテンプレート集として活用する方法（調査）
 ---
 
 ## タイトル

@@ -1,11 +1,14 @@
 ---
-title: "Password Hashing Competition（PHC）調査レポート"
-date: 2025-12-19
+date: 2025-12-30T18:28:46+09:00
+description: Password Hashing Competition の目的、経緯、評価基準、主要提出物（受賞・選定）とその意義をまとめた調査レポート。
+draft: false
+epoch: 1767086926
+image: /favicon.png
+iso8601: 2025-12-30T18:28:46+09:00
 tags:
   - cryptography
   - password-hashing
-description: "Password Hashing Competition の目的、経緯、評価基準、主要提出物（受賞・選定）とその意義をまとめた調査レポート。"
-draft: false
+title: Password Hashing Competition（PHC）調査レポート
 ---
 
 ## 概要

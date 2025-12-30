@@ -1,13 +1,16 @@
 ---
-title: "IO::Async 調査メモ"
-date: 2025-12-19
+date: 2025-12-30T18:28:46+09:00
+description: Perl用の非同期I/Oライブラリ IO::Async に関する調査・技術情報のメモ
+draft: false
+epoch: 1767086926
+image: /favicon.png
+iso8601: 2025-12-30T18:28:46+09:00
 tags:
   - perl
   - io-async
   - asynchronous-io
   - event-driven
-description: "Perl用の非同期I/Oライブラリ IO::Async に関する調査・技術情報のメモ"
-draft: false
+title: IO::Async 調査メモ
 ---
 
 # IO::Async 調査メモ

@@ -1,14 +1,17 @@
 ---
-title: "調査レポート: エージェント間連携とAGENTS.mdのベストプラクティス"
-date: 2025-12-30
+date: 2025-12-30T18:28:46+09:00
+description: エージェント間連携とAGENTS.mdのベストプラクティスについての調査レポート
 draft: false
+epoch: 1767086926
+image: /favicon.png
+iso8601: 2025-12-30T18:28:46+09:00
 tags:
   - agents
   - agents-md
   - github-copilot
   - custom-agents
   - a2a-protocol
-description: エージェント間連携とAGENTS.mdのベストプラクティスについての調査レポート
+title: '調査レポート: エージェント間連携とAGENTS.mdのベストプラクティス'
 ---
 
 # 調査レポート: エージェント間連携とAGENTS.mdのベストプラクティス

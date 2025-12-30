@@ -1,14 +1,17 @@
 ---
-title: "Mojolicious スパイク調査"
-date: 2025-12-16
+date: 2025-12-30T18:28:46+09:00
+description: Perlのウェブフレームワーク「Mojolicious」に関する技術調査ドキュメント。インストール、主要概念、デプロイ方法、セキュリティに関する情報をまとめたスパイク結果。
+draft: false
+epoch: 1767086926
+image: /favicon.png
+iso8601: 2025-12-30T18:28:46+09:00
 tags:
   - perl
   - mojolicious
   - webframework
   - async-io
   - websocket
-draft: false
-description: "Perlのウェブフレームワーク「Mojolicious」に関する技術調査ドキュメント。インストール、主要概念、デプロイ方法、セキュリティに関する情報をまとめたスパイク結果。"
+title: Mojolicious スパイク調査
 ---
 
 ## 要約（短い）

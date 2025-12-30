@@ -1,10 +1,14 @@
 ---
-title: "エージェント定義の `handoffs` 項目調査"
+date: 2025-12-30T18:28:46+09:00
+description: エージェント定義フロントマターにおける `handoffs` の意味、想定スキーマ、使用例、セキュリティ上の注意点についての調査結果
 draft: false
+epoch: 1767086926
+image: /favicon.png
+iso8601: 2025-12-30T18:28:46+09:00
 tags:
-- "agent"
-- "handoffs"
-description: "エージェント定義フロントマターにおける `handoffs` の意味、想定スキーマ、使用例、セキュリティ上の注意点についての調査結果"
+  - agent
+  - handoffs
+title: エージェント定義の `handoffs` 項目調査
 ---
 
 ## 概要

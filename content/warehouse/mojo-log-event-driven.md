@@ -1,14 +1,16 @@
 ---
-title: "Mojo::Log で学ぶイベント駆動プログラミング入門 — 調査レポート"
-slug: "mojo-log-event-driven"
-date: 2025-12-29
+date: 2025-12-30T18:28:46+09:00
+description: Mojo::Log とイベント駆動プログラミングの基礎、Observer パターン、実用例をまとめた調査レポート。
+draft: false
+epoch: 1767086926
+image: /favicon.png
+iso8601: 2025-12-30T18:28:46+09:00
+slug: mojo-log-event-driven
 tags:
   - mojo-log
   - event-driven
   - perl
-description: "Mojo::Log とイベント駆動プログラミングの基礎、Observer パターン、実用例をまとめた調査レポート。"
-image: /favicon.png
-draft: false
+title: Mojo::Log で学ぶイベント駆動プログラミング入門 — 調査レポート
 ---
 
 ## 調査目的

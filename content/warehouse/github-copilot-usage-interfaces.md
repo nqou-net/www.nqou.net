@@ -1,16 +1,18 @@
 ---
-title: "GitHub Copilot インターフェースと使い分けに関する調査"
-slug: "github-copilot-usage-interfaces"
-date: 2025-12-28
-tags:
-   - github-copilot
-   - copilot-interfaces
-   - vscode
-   - web-ui
-   - cli
-description: "Web UI・エディタ拡張・CLI の3インターフェースとプレミアムリクエストの仕組み、使い分けのベストプラクティスを整理した調査レポート。"
-image: /favicon.png
+date: 2025-12-30T18:28:46+09:00
+description: Web UI・エディタ拡張・CLI の3インターフェースとプレミアムリクエストの仕組み、使い分けのベストプラクティスを整理した調査レポート。
 draft: false
+epoch: 1767086926
+image: /favicon.png
+iso8601: 2025-12-30T18:28:46+09:00
+slug: github-copilot-usage-interfaces
+tags:
+  - github-copilot
+  - copilot-interfaces
+  - vscode
+  - web-ui
+  - cli
+title: GitHub Copilot インターフェースと使い分けに関する調査
 ---
 
 ## タイトル

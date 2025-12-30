@@ -1,9 +1,13 @@
 ---
-title: "Test2 調査ログ"
+date: 2025-12-30T18:28:46+09:00
+description: Perl の Test2 テストフレームワークに関する調査メモ
 draft: false
+epoch: 1767086926
+image: /favicon.png
+iso8601: 2025-12-30T18:28:46+09:00
 tags:
-- "test2"
-description: "Perl の Test2 テストフレームワークに関する調査メモ"
+  - test2
+title: Test2 調査ログ
 ---
 
 ## 概要

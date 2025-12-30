@@ -1,12 +1,16 @@
 ---
-title: "Mermaid記法の調査メモ"
-slug: "mermaid"
-description: "Mermaid.jsの基本構文、図種、Hugoへの埋め込み方法をまとめた調査ドキュメント"
+date: 2025-12-30T18:28:46+09:00
+description: Mermaid.jsの基本構文、図種、Hugoへの埋め込み方法をまとめた調査ドキュメント
+draft: false
+epoch: 1767086926
+image: /favicon.png
+iso8601: 2025-12-30T18:28:46+09:00
+slug: mermaid
 tags:
   - mermaid
   - diagram
   - documentation
-draft: false
+title: Mermaid記法の調査メモ
 ---
 
 ## 調査目的

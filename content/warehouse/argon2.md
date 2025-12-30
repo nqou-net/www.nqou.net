@@ -1,13 +1,15 @@
 ---
-title: "Argon2 調査レポート"
-slug: "argon2"
-date: 2025-12-19
+date: 2025-12-30T18:28:46+09:00
+description: Argon2 の設計、バリアント、パラメータ、実装例、運用上の推奨をまとめた技術レポート。
+draft: false
+epoch: 1767086926
+image: /favicon.png
+iso8601: 2025-12-30T18:28:46+09:00
+slug: argon2
 tags:
   - cryptography
   - password-hashing
-description: "Argon2 の設計、バリアント、パラメータ、実装例、運用上の推奨をまとめた技術レポート。"
-image: /favicon.png
-draft: false
+title: Argon2 調査レポート
 ---
 
 ## 概要
