@@ -1,3 +1,123 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Rpc on nqou.net</title><link>https://www.nqou.net/tags/rpc/</link><description>Recent content in Rpc on nqou.net</description><generator>Hugo -- gohugo.io</generator><language>ja</language><lastBuildDate>Fri, 12 Dec 2025 00:54:57 +0900</lastBuildDate><atom:link href="https://www.nqou.net/tags/rpc/index.xml" rel="self" type="application/rss+xml"/><item><title>JSON-RPC 2.0エラーオブジェクトにおけるID必須仕様 - 8年越しの誤解と正しい理解</title><link>https://www.nqou.net/2025/12/12/005457/</link><pubDate>Fri, 12 Dec 2025 00:54:57 +0900</pubDate><guid>https://www.nqou.net/2025/12/12/005457/</guid><description>&lt;img src="https://www.nqou.net/public_images/2025/1765468497-image.jpg" alt="Featured image of post JSON-RPC 2.0エラーオブジェクトにおけるID必須仕様 - 8年越しの誤解と正しい理解" /&gt;&lt;h2 id="はじめに---8年越しの誤解"&gt;はじめに - 8年越しの誤解
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Rpc on nqou.net</title><link>https://www.nqou.net/tags/rpc/</link><description>Recent content in Rpc on nqou.net</description><generator>Hugo -- gohugo.io</generator><language>ja</language><lastBuildDate>Tue, 16 Dec 2025 00:00:00 +0000</lastBuildDate><atom:link href="https://www.nqou.net/tags/rpc/index.xml" rel="self" type="application/rss+xml"/><item><title>JSON-RPC 2.0 調査ログ</title><link>https://www.nqou.net/warehouse/json-rpc-2-0/</link><pubDate>Tue, 16 Dec 2025 00:00:00 +0000</pubDate><guid>https://www.nqou.net/warehouse/json-rpc-2-0/</guid><description>&lt;img src="https://www.nqou.net/favicon.png" alt="Featured image of post JSON-RPC 2.0 調査ログ" /&gt;&lt;h2 id="目的"&gt;目的
+&lt;/h2&gt;&lt;p&gt;JSON-RPC 2.0 の仕様と実運用での使い方（HTTP/WebSocket 等の輸送、エラー処理、バッチ、通知、セキュリティ）を整理する。&lt;/p&gt;
+&lt;h2 id="要点まとめ"&gt;要点まとめ
+&lt;/h2&gt;&lt;ul&gt;
+&lt;li&gt;仕様: 軽量・ステートレスな RPC プロトコルで「transport-agnostic」。メッセージは JSON。公式仕様: &lt;a class="link" href="https://www.jsonrpc.org/specification" target="_blank" rel="noopener"
+&gt;https://www.jsonrpc.org/specification&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;リクエスト: &lt;code&gt;jsonrpc&lt;/code&gt; (&amp;ldquo;2.0&amp;rdquo;), &lt;code&gt;method&lt;/code&gt; (String), 任意の &lt;code&gt;params&lt;/code&gt; (Array or Object), 任意の &lt;code&gt;id&lt;/code&gt; (String | Number | NULL)。&lt;code&gt;id&lt;/code&gt; が無ければ通知（Notification）。&lt;/li&gt;
+&lt;li&gt;レスポンス: 成功時は &lt;code&gt;result&lt;/code&gt;、失敗時は &lt;code&gt;error&lt;/code&gt;（&lt;code&gt;code&lt;/code&gt;, &lt;code&gt;message&lt;/code&gt;, 任意の &lt;code&gt;data&lt;/code&gt;）、&lt;code&gt;id&lt;/code&gt; はリクエストの &lt;code&gt;id&lt;/code&gt; と一致（パースエラー等で id が不明な場合は &lt;code&gt;null&lt;/code&gt;）。&lt;/li&gt;
+&lt;li&gt;エラーコード（主な予約）:
+&lt;ul&gt;
+&lt;li&gt;-32700 Parse error&lt;/li&gt;
+&lt;li&gt;-32600 Invalid Request&lt;/li&gt;
+&lt;li&gt;-32601 Method not found&lt;/li&gt;
+&lt;li&gt;-32602 Invalid params&lt;/li&gt;
+&lt;li&gt;-32603 Internal error&lt;/li&gt;
+&lt;li&gt;-32000〜-32099 Server error (実装定義)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;バッチ: 複数の Request を配列で送信可能。サーバは配列で複数の Response を返す（Notification にはレスポンス無し）。空配列はエラー扱い。&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id="典型的な-http-使用例"&gt;典型的な HTTP 使用例
+&lt;/h2&gt;&lt;ul&gt;
+&lt;li&gt;エンドポイント: 単一の HTTP POST エンドポイント（例: &lt;code&gt;/rpc&lt;/code&gt;）に対して JSON を送るのが一般的。&lt;/li&gt;
+&lt;li&gt;必須ヘッダ: &lt;code&gt;Content-Type: application/json&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;例 — 単一リクエスト:&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class="highlight"&gt;&lt;div class="chroma"&gt;
+&lt;table class="lntable"&gt;&lt;tr&gt;&lt;td class="lntd"&gt;
+&lt;pre tabindex="0" class="chroma"&gt;&lt;code&gt;&lt;span class="lnt"&gt;1
+&lt;/span&gt;&lt;span class="lnt"&gt;2
+&lt;/span&gt;&lt;span class="lnt"&gt;3
+&lt;/span&gt;&lt;span class="lnt"&gt;4
+&lt;/span&gt;&lt;span class="lnt"&gt;5
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class="lntd"&gt;
+&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-json" data-lang="json"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="c1"&gt;// Request (POST body)
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;{&lt;/span&gt;&lt;span class="nt"&gt;&amp;#34;jsonrpc&amp;#34;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="s2"&gt;&amp;#34;2.0&amp;#34;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;&lt;span class="nt"&gt;&amp;#34;method&amp;#34;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="s2"&gt;&amp;#34;subtract&amp;#34;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;&lt;span class="nt"&gt;&amp;#34;params&amp;#34;&lt;/span&gt;&lt;span class="p"&gt;:[&lt;/span&gt;&lt;span class="mi"&gt;42&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;&lt;span class="mi"&gt;23&lt;/span&gt;&lt;span class="p"&gt;],&lt;/span&gt;&lt;span class="nt"&gt;&amp;#34;id&amp;#34;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="mi"&gt;1&lt;/span&gt;&lt;span class="p"&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="c1"&gt;// Response (200 OK, body)
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;{&lt;/span&gt;&lt;span class="nt"&gt;&amp;#34;jsonrpc&amp;#34;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="s2"&gt;&amp;#34;2.0&amp;#34;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;&lt;span class="nt"&gt;&amp;#34;result&amp;#34;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="mi"&gt;19&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;&lt;span class="nt"&gt;&amp;#34;id&amp;#34;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="mi"&gt;1&lt;/span&gt;&lt;span class="p"&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;ul&gt;
+&lt;li&gt;例 — Notification (応答なし):&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class="highlight"&gt;&lt;div class="chroma"&gt;
+&lt;table class="lntable"&gt;&lt;tr&gt;&lt;td class="lntd"&gt;
+&lt;pre tabindex="0" class="chroma"&gt;&lt;code&gt;&lt;span class="lnt"&gt;1
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class="lntd"&gt;
+&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-json" data-lang="json"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;{&lt;/span&gt;&lt;span class="nt"&gt;&amp;#34;jsonrpc&amp;#34;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="s2"&gt;&amp;#34;2.0&amp;#34;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;&lt;span class="nt"&gt;&amp;#34;method&amp;#34;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="s2"&gt;&amp;#34;update&amp;#34;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;&lt;span class="nt"&gt;&amp;#34;params&amp;#34;&lt;/span&gt;&lt;span class="p"&gt;:[&lt;/span&gt;&lt;span class="mi"&gt;1&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;&lt;span class="mi"&gt;2&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;&lt;span class="mi"&gt;3&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;&lt;span class="mi"&gt;4&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;&lt;span class="mi"&gt;5&lt;/span&gt;&lt;span class="p"&gt;]}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;ul&gt;
+&lt;li&gt;例 — バッチ:&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class="highlight"&gt;&lt;div class="chroma"&gt;
+&lt;table class="lntable"&gt;&lt;tr&gt;&lt;td class="lntd"&gt;
+&lt;pre tabindex="0" class="chroma"&gt;&lt;code&gt;&lt;span class="lnt"&gt; 1
+&lt;/span&gt;&lt;span class="lnt"&gt; 2
+&lt;/span&gt;&lt;span class="lnt"&gt; 3
+&lt;/span&gt;&lt;span class="lnt"&gt; 4
+&lt;/span&gt;&lt;span class="lnt"&gt; 5
+&lt;/span&gt;&lt;span class="lnt"&gt; 6
+&lt;/span&gt;&lt;span class="lnt"&gt; 7
+&lt;/span&gt;&lt;span class="lnt"&gt; 8
+&lt;/span&gt;&lt;span class="lnt"&gt; 9
+&lt;/span&gt;&lt;span class="lnt"&gt;10
+&lt;/span&gt;&lt;span class="lnt"&gt;11
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class="lntd"&gt;
+&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-json" data-lang="json"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;[&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="p"&gt;{&lt;/span&gt;&lt;span class="nt"&gt;&amp;#34;jsonrpc&amp;#34;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="s2"&gt;&amp;#34;2.0&amp;#34;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;&lt;span class="nt"&gt;&amp;#34;method&amp;#34;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="s2"&gt;&amp;#34;sum&amp;#34;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;&lt;span class="nt"&gt;&amp;#34;params&amp;#34;&lt;/span&gt;&lt;span class="p"&gt;:[&lt;/span&gt;&lt;span class="mi"&gt;1&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;&lt;span class="mi"&gt;2&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;&lt;span class="mi"&gt;3&lt;/span&gt;&lt;span class="p"&gt;],&lt;/span&gt;&lt;span class="nt"&gt;&amp;#34;id&amp;#34;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="s2"&gt;&amp;#34;1&amp;#34;&lt;/span&gt;&lt;span class="p"&gt;},&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="p"&gt;{&lt;/span&gt;&lt;span class="nt"&gt;&amp;#34;jsonrpc&amp;#34;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="s2"&gt;&amp;#34;2.0&amp;#34;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;&lt;span class="nt"&gt;&amp;#34;method&amp;#34;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="s2"&gt;&amp;#34;notify_hello&amp;#34;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;&lt;span class="nt"&gt;&amp;#34;params&amp;#34;&lt;/span&gt;&lt;span class="p"&gt;:[&lt;/span&gt;&lt;span class="mi"&gt;7&lt;/span&gt;&lt;span class="p"&gt;]},&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="p"&gt;{&lt;/span&gt;&lt;span class="nt"&gt;&amp;#34;jsonrpc&amp;#34;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="s2"&gt;&amp;#34;2.0&amp;#34;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;&lt;span class="nt"&gt;&amp;#34;method&amp;#34;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="s2"&gt;&amp;#34;subtract&amp;#34;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;&lt;span class="nt"&gt;&amp;#34;params&amp;#34;&lt;/span&gt;&lt;span class="p"&gt;:[&lt;/span&gt;&lt;span class="mi"&gt;42&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;&lt;span class="mi"&gt;23&lt;/span&gt;&lt;span class="p"&gt;],&lt;/span&gt;&lt;span class="nt"&gt;&amp;#34;id&amp;#34;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="s2"&gt;&amp;#34;2&amp;#34;&lt;/span&gt;&lt;span class="p"&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="c1"&gt;// サーバ応答例（順不同可）
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;[&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="p"&gt;{&lt;/span&gt;&lt;span class="nt"&gt;&amp;#34;jsonrpc&amp;#34;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="s2"&gt;&amp;#34;2.0&amp;#34;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;&lt;span class="nt"&gt;&amp;#34;result&amp;#34;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="mi"&gt;6&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;&lt;span class="nt"&gt;&amp;#34;id&amp;#34;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="s2"&gt;&amp;#34;1&amp;#34;&lt;/span&gt;&lt;span class="p"&gt;},&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="p"&gt;{&lt;/span&gt;&lt;span class="nt"&gt;&amp;#34;jsonrpc&amp;#34;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="s2"&gt;&amp;#34;2.0&amp;#34;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;&lt;span class="nt"&gt;&amp;#34;result&amp;#34;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="mi"&gt;19&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;&lt;span class="nt"&gt;&amp;#34;id&amp;#34;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="s2"&gt;&amp;#34;2&amp;#34;&lt;/span&gt;&lt;span class="p"&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;h2 id="websocket--長時間接続での利用"&gt;WebSocket / 長時間接続での利用
+&lt;/h2&gt;&lt;ul&gt;
+&lt;li&gt;JSON-RPC は輸送非依存なので WebSocket と相性が良い（双方向、低レイテンシ）。&lt;/li&gt;
+&lt;li&gt;メッセージはテキストフレームに JSON を乗せる。通知/バッチ/リクエストは同じ形式で送受信可能。&lt;/li&gt;
+&lt;li&gt;接続管理、再接続、順序保証（必要なら id を工夫）を実装側でカバーする必要あり。&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id="セキュリティと運用上の注意点"&gt;セキュリティと運用上の注意点
+&lt;/h2&gt;&lt;ul&gt;
+&lt;li&gt;認証/認可: プロトコル自体に認証は含まれない。HTTP ヘッダ（Bearer トークン等）やセッション、TLS を組み合わせる。&lt;/li&gt;
+&lt;li&gt;TLS: 常に HTTPS / WSS を使う（認証情報や内部エラー情報流出を防ぐ）。&lt;/li&gt;
+&lt;li&gt;CSRF: ブラウザ経由で JSON POST を受ける場合は CSRF トークン／CORS 制限を用いる。&lt;code&gt;Content-Type: application/json&lt;/code&gt; のみ許可するだけでは十分ではない。&lt;/li&gt;
+&lt;li&gt;入力検証: &lt;code&gt;params&lt;/code&gt; を厳密に検証し、過大な配列や深いネストによる DoS を防ぐ。&lt;/li&gt;
+&lt;li&gt;エラーメッセージ: 内部情報を &lt;code&gt;error.data&lt;/code&gt; に載せない（ログに残しつつクライアントには簡潔な説明を返す）。&lt;/li&gt;
+&lt;li&gt;レート制限・監査: 公開 API ではレート制限、IP/認証情報単位での監査を行う。&lt;/li&gt;
+&lt;li&gt;バッチの注意: Notification を混在させると応答が来ない要素があるため、クライアントはレスポンス配列を &lt;code&gt;id&lt;/code&gt; で照合する必要がある。&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id="エラーハンドリングの実装方針推奨"&gt;エラーハンドリングの実装方針（推奨）
+&lt;/h2&gt;&lt;ul&gt;
+&lt;li&gt;受信 JSON のパース失敗 → -32700（レスポンスの &lt;code&gt;id&lt;/code&gt; は &lt;code&gt;null&lt;/code&gt;）&lt;/li&gt;
+&lt;li&gt;リクエストオブジェクトの構造不正 → -32600&lt;/li&gt;
+&lt;li&gt;未知メソッド → -32601&lt;/li&gt;
+&lt;li&gt;パラメータ検証失敗 → -32602（&lt;code&gt;data&lt;/code&gt; に検証エラー情報を付けるが詳細は限定）&lt;/li&gt;
+&lt;li&gt;サーバ内部例外 → -32603（または -320xx の実装定義）&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id="ライブラリエコシステム参考"&gt;ライブラリ・エコシステム（参考）
+&lt;/h2&gt;&lt;ul&gt;
+&lt;li&gt;公式仕様: &lt;a class="link" href="https://www.jsonrpc.org/specification" target="_blank" rel="noopener"
+&gt;https://www.jsonrpc.org/specification&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;実装例/ガイド: Wikipedia の JSON-RPC ページ（実装リストあり）&lt;/li&gt;
+&lt;li&gt;OpenRPC（仕様記述・ドキュメント生成）: &lt;a class="link" href="https://www.open-rpc.org/" target="_blank" rel="noopener"
+&gt;https://www.open-rpc.org/&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;各言語のライブラリは多数存在（例: JavaScript の &lt;code&gt;json-rpc-2.0&lt;/code&gt;、Python の &lt;code&gt;jsonrpcserver/jsonrpcclient&lt;/code&gt;、Go の &lt;code&gt;gorilla/rpc/json&lt;/code&gt; など）。選定時はバッチ/notification/transport サポートを確認する。&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id="perl-実装サマリ"&gt;Perl 実装サマリ
+&lt;/h2&gt;&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;主な CPAN モジュール:&lt;/p&gt;</description></item><item><title>JSON-RPC 2.0エラーオブジェクトにおけるID必須仕様 - 8年越しの誤解と正しい理解</title><link>https://www.nqou.net/2025/12/12/005457/</link><pubDate>Fri, 12 Dec 2025 00:54:57 +0900</pubDate><guid>https://www.nqou.net/2025/12/12/005457/</guid><description>&lt;img src="https://www.nqou.net/public_images/2025/1765468497-image.jpg" alt="Featured image of post JSON-RPC 2.0エラーオブジェクトにおけるID必須仕様 - 8年越しの誤解と正しい理解" /&gt;&lt;h2 id="はじめに---8年越しの誤解"&gt;はじめに - 8年越しの誤解
 &lt;/h2&gt;&lt;p&gt;恥ずかしながら、私は8年もの間、JSON-RPC 2.0の仕様を誤解していました。&lt;/p&gt;
 &lt;p&gt;具体的には、「エラーレスポンスの場合は、リクエストIDが正しく取得できた場合でも、IDをnullにして返す必要がある」と解釈していたのです。この誤解のまま、自作のPerlモジュール &lt;code&gt;JSON::RPC::Spec&lt;/code&gt; を実装し、CPANに公開していました。&lt;/p&gt;</description></item></channel></rss>
