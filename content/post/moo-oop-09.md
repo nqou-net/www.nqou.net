@@ -1,0 +1,172 @@
+---
+title: "第9回-同じ名前で違う動作を - Mooで覚えるオブジェクト指向プログラミング"
+draft: true
+tags:
+  - perl
+  - moo
+  - override
+description: "親クラスと子クラスで同じ名前のメソッドを持つとき、子クラスのメソッドが優先されます。if文による分岐だらけのコードを、オーバーライドでスッキリ書き直す方法を学びましょう。"
+---
+
+[@nqounet](https://x.com/nqounet)です。
+
+「Mooで覚えるオブジェクト指向プログラミング」シリーズの第9回です。
+
+## 前回の振り返り
+
+前回は、`extends`を使った継承を学び、共通のコードを親クラスにまとめる方法を紹介しました。
+
+{{< linkcard "/moo-oop-08/" >}}
+
+MessageクラスからAdminMessageクラスを派生させて、コードの重複を解消しましたね。
+
+今回は、親クラスのメソッドを子クラスで**上書き（オーバーライド）**する方法を学びます。
+
+## if文で分岐だらけになる問題
+
+前回のAdminMessageクラスには、`is_important`属性がありました。「重要なお知らせ」には「【重要】」ラベルを付けたいですよね。
+
+安直に実装すると、こうなりがちです。
+
+```perl
+sub show {
+    my $self = shift;
+    my $author = $self->user->display_name;
+
+    if ($self->isa('AdminMessage') && $self->is_important) {
+        print "【重要】[$author] " . $self->content . "\n";
+    } else {
+        print "[$author] " . $self->content . "\n";
+    }
+}
+```
+
+クラスの種類によってif文で分岐する方法は、一見シンプルに見えます。しかし、クラスが増えるたびに分岐が増え、コードがどんどん複雑になっていきます。
+
+- UrgentMessageクラスが増えたら？→ 新しい分岐を追加
+- NoticeMessageクラスが増えたら？→ また分岐を追加
+- 分岐を追加し忘れたらバグになる
+
+これでは継承のメリットが台無しです。
+
+## 解決策：親クラスにformat()メソッドを定義
+
+if文での分岐を避けるために、「メッセージをフォーマットする」という責務を専用のメソッドに切り出しましょう。
+
+```perl
+package User {
+    use Moo;
+    has name => (is => 'ro', required => 1);
+
+    sub display_name {
+        my $self = shift;
+        return $self->name;
+    }
+};
+
+package Message {
+    use Moo;
+    has content     => (is => 'ro', required => 1);
+    has _like_count => (is => 'ro', default => 0);
+    has user        => (is => 'ro', required => 1);
+
+    sub format {
+        my $self = shift;
+        my $author = $self->user->display_name;
+        return "[$author] " . $self->content;
+    }
+
+    sub show {
+        my $self = shift;
+        print $self->format . "\n";
+    }
+};
+
+my $user = User->new(name => 'nqounet');
+my $msg = Message->new(content => 'こんにちは！', user => $user);
+
+$msg->show;  # [nqounet] こんにちは！
+```
+
+`format`メソッドは「表示用の文字列を作る」役割だけを担います。`show`メソッドは`format`の結果を画面に出力するだけです。
+
+この分離がオーバーライドの伏線になります。
+
+## 解決策：子クラスでformat()を上書き
+
+子クラスで同じ名前のメソッドを定義すると、親クラスのメソッドを**上書き（オーバーライド）**できます。
+
+```perl
+package User {
+    use Moo;
+    has name => (is => 'ro', required => 1);
+
+    sub display_name {
+        my $self = shift;
+        return $self->name;
+    }
+};
+
+package Message {
+    use Moo;
+    has content     => (is => 'ro', required => 1);
+    has _like_count => (is => 'ro', default => 0);
+    has user        => (is => 'ro', required => 1);
+
+    sub format {
+        my $self = shift;
+        my $author = $self->user->display_name;
+        return "[$author] " . $self->content;
+    }
+
+    sub show {
+        my $self = shift;
+        print $self->format . "\n";
+    }
+};
+
+package AdminMessage {
+    use Moo;
+    extends 'Message';
+
+    has is_important => (is => 'ro', default => 0);
+
+    sub format {  # 親クラスのformat()を上書き！
+        my $self = shift;
+        my $author = $self->user->display_name;
+        my $label = $self->is_important ? '【重要】' : '';
+        return "$label\[$author] " . $self->content;
+    }
+};
+
+my $user = User->new(name => 'admin');
+
+my $normal = Message->new(content => '通常の投稿', user => $user);
+$normal->show;  # [admin] 通常の投稿
+
+my $important = AdminMessage->new(
+    content      => 'システムメンテナンスのお知らせ',
+    user         => $user,
+    is_important => 1,
+);
+$important->show;  # 【重要】[admin] システムメンテナンスのお知らせ
+```
+
+AdminMessageクラスで`format`メソッドを再定義しています。これがオーバーライドです。
+
+`$important->show`を呼び出すと、内部で`$self->format`が実行されます。この時、`$self`はAdminMessageオブジェクトなので、AdminMessageの`format`メソッドが呼ばれます。
+
+ポイントは、`show`メソッドには手を加えていないことです。親クラスのMessageに定義された`show`がそのまま使われていますが、`format`だけが子クラスの実装に差し替わっています。
+
+これがオーバーライドの力です。if文の分岐は一切ありません。新しいクラスを追加しても、そのクラスで`format`を定義するだけで済みます。
+
+## まとめ
+
+- 子クラスで同じ名前のメソッドを定義すると、親クラスのメソッドを上書きできる
+- この上書きを**オーバーライド**と呼ぶ
+- if文でクラスの種類を判定して分岐するのは避ける
+- 共通の呼び出し元（show）から上書きされたメソッド（format）を呼ぶ設計がスッキリする
+
+## 次回予告
+
+次回は、継承とは違う形で振る舞いを共有する方法を学びます。MessageもUserも「作成日時を持つ」という共通の機能を持たせたいとき、どうすればいいでしょうか？**ロール**の出番です。お楽しみに。

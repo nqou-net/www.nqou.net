@@ -1,0 +1,147 @@
+---
+title: "第7回-関連するデータを別のクラスに - Mooで覚えるオブジェクト指向プログラミング"
+draft: true
+tags:
+  - perl
+  - moo
+  - class-design
+description: "クラスが巨大になって管理しづらい…そんな悩みはありませんか？関連するデータを別のクラスに分離し、クラス同士を連携させる設計を学びます。MessageクラスからUserクラスを抽出して、シンプルで拡張しやすい設計を目指しましょう。"
+---
+
+[@nqounet](https://x.com/nqounet)です。
+
+「Mooで覚えるオブジェクト指向プログラミング」シリーズの第7回です。
+
+## 前回の振り返り
+
+前回は、内部実装を外から触らせない「カプセル化」を学びました。
+
+{{< linkcard "/moo-oop-06/" >}}
+
+アンダースコアで始まる`_like_count`を内部属性として定義し、`add_like`メソッド経由でのみ安全に操作できるようにしましたね。
+
+今回は、**関連するデータを別のクラスに分離する方法**を学びます。
+
+## クラスが巨大化する問題
+
+掲示板アプリを発展させていくと、Messageクラスにどんどん属性が増えていきます。投稿者の名前、メールアドレス、アバター画像のURL、自己紹介文……。
+
+```perl
+package Message {
+    use Moo;
+    has content       => (is => 'ro', required => 1);
+    has _like_count   => (is => 'ro', default => 0);
+    has author_name   => (is => 'ro', required => 1);  # 投稿者名
+    has author_email  => (is => 'ro');                 # メールアドレス
+    has author_avatar => (is => 'ro');                 # アバターURL
+    has author_bio    => (is => 'ro');                 # 自己紹介
+    # ... さらに増えていく
+};
+```
+
+よく見ると、`author_`で始まる属性がたくさんあります。これらは「投稿者」に関するデータであり、「メッセージ」のデータとは性質が異なります。
+
+このまま属性を追加し続けると、Messageクラスは「なんでも屋」になってしまいます。コードの見通しが悪くなり、変更も難しくなっていきます。
+
+## 解決策：Userクラスを分離する
+
+「投稿者」のデータは、別のクラスに分離しましょう。これが**複数クラスの連携**という考え方です。
+
+```perl
+package User {
+    use Moo;
+    has name   => (is => 'ro', required => 1);
+    has email  => (is => 'ro');
+    has avatar => (is => 'ro');
+    has bio    => (is => 'ro', default => '');
+
+    sub display_name {
+        my $self = shift;
+        return $self->name;
+    }
+};
+
+my $user = User->new(
+    name   => 'nqounet',
+    email  => 'nqounet@example.com',
+    avatar => '/images/nqounet.png',
+    bio    => 'Perlが好きです',
+);
+
+print $user->display_name . "\n";  # nqounet
+```
+
+`User`クラスには、ユーザーに関する属性だけを定義します。名前、メールアドレス、アバター、自己紹介文。すべて「ユーザー」という概念に関連するデータです。
+
+これで、Messageクラスから`author_`で始まる属性を取り除けます。
+
+## 解決策：MessageがUserを保持する
+
+Userクラスを分離したら、MessageクラスにはUserオブジェクトを「持たせる」ようにします。
+
+```perl
+package User {
+    use Moo;
+    has name => (is => 'ro', required => 1);
+
+    sub display_name {
+        my $self = shift;
+        return $self->name;
+    }
+};
+
+package Message {
+    use Moo;
+    has content     => (is => 'ro', required => 1);
+    has _like_count => (is => 'ro', default => 0);
+    has user        => (is => 'ro', required => 1);  # Userオブジェクトを保持
+
+    sub show {
+        my $self = shift;
+        my $author = $self->user->display_name;
+        print "[$author] " . $self->content . " (いいね: " . $self->_like_count . ")\n";
+    }
+
+    sub add_like {
+        my $self = shift;
+        $self->{_like_count}++;
+    }
+
+    sub like_count {
+        my $self = shift;
+        return $self->_like_count;
+    }
+};
+
+# Userオブジェクトを作成
+my $user = User->new(name => 'nqounet');
+
+# Messageオブジェクトを作成（Userオブジェクトを渡す）
+my $msg = Message->new(
+    content => 'Mooは便利ですね！',
+    user    => $user,
+);
+
+$msg->show;  # [nqounet] Mooは便利ですね！ (いいね: 0)
+```
+
+Messageクラスの`user`属性には、文字列ではなく**Userオブジェクト**を格納します。
+
+`$self->user->display_name`のように、Userオブジェクトのメソッドを呼び出すことで、投稿者の名前を取得できます。これは「Messageオブジェクトが、Userオブジェクトを**持っている**」という関係です。
+
+この設計には、いくつかの利点があります。
+
+- MessageクラスはUserの内部実装を知らなくてよい
+- Userクラスを変更しても、Messageクラスへの影響が少ない
+- 同じUserオブジェクトを複数のMessageで共有できる
+
+## まとめ
+
+- 関連するデータ群は、別のクラスに分離するとよい
+- あるオブジェクトが別のオブジェクトを「持つ」設計を**複数クラスの連携**と呼ぶ
+- クラスを分離することで、コードの見通しがよくなる
+- 同じオブジェクトを複数箇所で共有できるようになる
+
+## 次回予告
+
+次回は、クラスの「親子関係」を学びます。共通の機能を持つクラスを作るとき、同じコードを何度も書くのは無駄ですよね。**継承**を使って、コードの重複を減らす方法を紹介します。お楽しみに。

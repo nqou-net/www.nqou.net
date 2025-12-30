@@ -1,0 +1,137 @@
+---
+title: "第10回-継承しないで振る舞いを共有 - Mooで覚えるオブジェクト指向プログラミング"
+draft: true
+tags:
+  - perl
+  - moo
+  - role
+description: "MessageもUserも作成日時を記録したい。でも継承関係はない…。そんなとき、Moo::Roleを使えば継承なしで同じ機能を複数のクラスに追加できます。ロールによる振る舞いの共有を学びましょう。"
+---
+
+[@nqounet](https://x.com/nqounet)です。
+
+「Mooで覚えるオブジェクト指向プログラミング」シリーズの第10回です。
+
+## 前回の振り返り
+
+前回は、子クラスで同じ名前のメソッドを定義して親クラスのメソッドを上書きする**オーバーライド**を学びました。
+
+{{< linkcard "/moo-oop-09/" >}}
+
+if文でクラスの種類を判定して分岐するのではなく、各クラスが自分の`format`メソッドを持つ設計にすることで、コードがスッキリしましたね。
+
+今回は、継承とは別の方法で振る舞いを共有する**ロール**を学びます。
+
+## 問題：継承関係にないクラスで同じ機能が必要
+
+掲示板アプリに「作成日時を記録する」機能を追加したくなりました。MessageとUserの両方に`created_at`属性を持たせたいとします。
+
+しかし、ここで困った問題があります。
+
+- MessageとUserは継承関係にない
+- Userは投稿ではないので、Messageの子クラスにするのはおかしい
+- 逆に、MessageがUserを継承するのもおかしい
+- かといって、両方のクラスに同じコードを書くのはコードの重複になる
+
+継承は「AはBの一種である」（is-a関係）のときに使うべきです。UserはMessageの一種ではありません。無理に継承関係を作ると、設計が歪んでしまいます。
+
+このような「継承関係にないが、同じ振る舞いを持たせたい」ケースで活躍するのが**ロール**です。
+
+## 解決策：Moo::Roleでロールを定義
+
+ロールとは、クラスに「合成（compose）」できる振る舞いの集まりです。継承ではなく、機能の断片を複数のクラスで共有する仕組みです。
+
+Perlでは`Moo::Role`を使ってロールを定義します。
+
+```perl
+package Timestampable {
+    use Moo::Role;
+
+    has created_at => (
+        is      => 'ro',
+        default => sub { time },  # 現在のエポック秒
+    );
+
+    sub created_date {
+        my $self = shift;
+        my @t = localtime($self->created_at);
+        return sprintf('%04d-%02d-%02d', $t[5]+1900, $t[4]+1, $t[3]);
+    }
+};
+```
+
+`use Moo`ではなく`use Moo::Role`と書くのがポイントです。
+
+このTimestampableロールは、`created_at`属性と`created_date`メソッドを提供します。しかし、ロール単体ではオブジェクトを作ることはできません。クラスに合成して初めて使えるようになります。
+
+## 解決策：withでロールを適用
+
+ロールをクラスに適用するには、`with`を使います。
+
+```perl
+package Timestampable {
+    use Moo::Role;
+
+    has created_at => (
+        is      => 'ro',
+        default => sub { time },
+    );
+
+    sub created_date {
+        my $self = shift;
+        my @t = localtime($self->created_at);
+        return sprintf('%04d-%02d-%02d', $t[5]+1900, $t[4]+1, $t[3]);
+    }
+};
+
+package User {
+    use Moo;
+    with 'Timestampable';  # ロールを適用！
+
+    has name => (is => 'ro', required => 1);
+
+    sub display_name {
+        my $self = shift;
+        return $self->name;
+    }
+};
+
+package Message {
+    use Moo;
+    with 'Timestampable';  # 同じロールを適用！
+
+    has content => (is => 'ro', required => 1);
+    has user    => (is => 'ro', required => 1);
+
+    sub show {
+        my $self = shift;
+        my $author = $self->user->display_name;
+        print "[$author] " . $self->content . "\n";
+    }
+};
+
+my $user = User->new(name => 'nqounet');
+my $msg = Message->new(content => 'こんにちは！', user => $user);
+
+print "User作成日: " . $user->created_date . "\n";
+print "Message作成日: " . $msg->created_date . "\n";
+```
+
+`with 'Timestampable'`と書くだけで、UserクラスにもMessageクラスにも`created_at`属性と`created_date`メソッドが追加されます。
+
+- UserはMessageを継承していない
+- MessageもUserを継承していない
+- しかし、両方とも「作成日時を持つ」という振る舞いを共有している
+
+これがロールの力です。継承が「AはBの一種である」（is-a）なら、ロールは「Aは〜できる」「Aは〜を持つ」（has-a、can-do）という関係を表現します。
+
+## まとめ
+
+- `Moo::Role`でロールを定義できる
+- `with 'RoleName'`でロールをクラスに適用できる
+- ロールは継承関係にないクラスで振る舞いを共有するのに使う
+- 継承は「AはBの一種である」、ロールは「Aは〜できる」という関係を表す
+
+## 次回予告
+
+次回は、属性として持っているオブジェクトに仕事を任せる**委譲（delegation）**を学びます。クラスが肥大化してきたとき、`handles`オプションで責務を分離する方法を紹介します。お楽しみに。

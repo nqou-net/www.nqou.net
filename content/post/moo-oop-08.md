@@ -1,0 +1,161 @@
+---
+title: "第8回-似ているクラスの重複をなくす - Mooで覚えるオブジェクト指向プログラミング"
+draft: true
+tags:
+  - perl
+  - moo
+  - inheritance
+description: "通常投稿と管理者投稿で同じコードを何度も書いていませんか？Mooのextendsを使った継承で、共通の機能を親クラスにまとめ、コードの重複を解消する方法を学びます。"
+---
+
+[@nqounet](https://x.com/nqounet)です。
+
+「Mooで覚えるオブジェクト指向プログラミング」シリーズの第8回です。
+
+## 前回の振り返り
+
+前回は、関連するデータを別のクラスに分離し、複数のクラスを連携させる方法を学びました。
+
+{{< linkcard "/moo-oop-07/" >}}
+
+MessageクラスからUserクラスを抽出して、`user`属性でUserオブジェクトを保持する設計にしましたね。
+
+今回は、**似ているクラスのコード重複を解消する方法**を学びます。オブジェクト指向の重要な概念、**継承**の入門編です。
+
+## 似たクラスでコードが重複する問題
+
+掲示板を発展させて、「管理者からのお知らせ」機能を追加することになりました。管理者のメッセージには「重要」というラベルを付けたいとします。
+
+通常のMessageクラスとは別に、AdminMessageクラスを作ってみましょう。
+
+```perl
+package Message {
+    use Moo;
+    has content     => (is => 'ro', required => 1);
+    has _like_count => (is => 'ro', default => 0);
+    has user        => (is => 'ro', required => 1);
+
+    sub show {
+        my $self = shift;
+        my $author = $self->user->display_name;
+        print "[$author] " . $self->content . "\n";
+    }
+
+    sub add_like {
+        my $self = shift;
+        $self->{_like_count}++;
+    }
+};
+
+package AdminMessage {
+    use Moo;
+    has content     => (is => 'ro', required => 1);      # 重複！
+    has _like_count => (is => 'ro', default => 0);       # 重複！
+    has user        => (is => 'ro', required => 1);      # 重複！
+    has is_important => (is => 'ro', default => 0);      # 管理者専用
+
+    sub show {                                           # ほぼ重複！
+        my $self = shift;
+        my $author = $self->user->display_name;
+        my $label = $self->is_important ? '【重要】' : '';
+        print "$label\[$author] " . $self->content . "\n";
+    }
+
+    sub add_like {                                       # 完全に重複！
+        my $self = shift;
+        $self->{_like_count}++;
+    }
+};
+```
+
+よく見ると、`content`、`_like_count`、`user`、`add_like`がまったく同じです。これはコードの重複であり、問題があります。
+
+- 同じコードを2箇所に書いているので、修正時に両方を変更する必要がある
+- 片方だけ修正し忘れると、バグになる
+- クラスが増えるたびに、重複も増えていく
+
+## 解決策：継承で共通部分を親クラスに
+
+この問題を解決するのが**継承**です。共通の機能を「親クラス」にまとめ、「子クラス」がそれを受け継ぐ仕組みです。
+
+Mooでは、`extends`を使って継承を実現します。
+
+```perl
+package User {
+    use Moo;
+    has name => (is => 'ro', required => 1);
+
+    sub display_name {
+        my $self = shift;
+        return $self->name;
+    }
+};
+
+package Message {
+    use Moo;
+    has content     => (is => 'ro', required => 1);
+    has _like_count => (is => 'ro', default => 0);
+    has user        => (is => 'ro', required => 1);
+
+    sub show {
+        my $self = shift;
+        my $author = $self->user->display_name;
+        print "[$author] " . $self->content . "\n";
+    }
+
+    sub add_like {
+        my $self = shift;
+        $self->{_like_count}++;
+    }
+};
+
+package AdminMessage {
+    use Moo;
+    extends 'Message';  # Messageを継承！
+
+    has is_important => (is => 'ro', default => 0);  # 管理者専用の属性
+};
+
+my $user = User->new(name => 'admin');
+my $msg = AdminMessage->new(
+    content      => 'システムメンテナンスのお知らせ',
+    user         => $user,
+    is_important => 1,
+);
+
+print $msg->content . "\n";  # システムメンテナンスのお知らせ
+$msg->show;                  # [admin] システムメンテナンスのお知らせ
+$msg->add_like;              # 親クラスのメソッドが使える！
+```
+
+`extends 'Message'`と書くだけで、AdminMessageクラスはMessageクラスのすべての属性とメソッドを引き継ぎます。
+
+- `content`、`_like_count`、`user`属性はMessageから継承
+- `show`、`add_like`メソッドもMessageから継承
+- AdminMessageには独自の`is_important`属性だけを追加
+
+これで、重複コードがなくなりました！Messageクラスを修正すれば、AdminMessageにも自動的に反映されます。
+
+## 親クラスと子クラスの関係
+
+継承では、元になるクラスを**親クラス**（または基底クラス、スーパークラス）、継承するクラスを**子クラス**（または派生クラス、サブクラス）と呼びます。
+
+今回の例では、Messageが親クラス、AdminMessageが子クラスです。
+
+子クラスは、親クラスの機能をすべて持った上で、独自の機能を追加できます。これは「AdminMessageは**一種の**Messageである」という関係を表しています。
+
+- AdminMessageはMessageである（content、userを持ち、showできる）
+- しかし、AdminMessageには追加でis_importantという属性がある
+
+この「AはBの一種である」（is-a関係）が継承の本質です。
+
+## まとめ
+
+- `extends 'ParentClass'`で親クラスを継承できる
+- 子クラスは、親クラスの属性とメソッドをすべて引き継ぐ
+- 子クラスでは独自の属性やメソッドを追加できる
+- 継承により、コードの重複を解消し、保守性が向上する
+
+## 次回予告
+
+次回は、親クラスのメソッドを子クラスで「上書き」する方法を学びます。AdminMessageの`show`メソッドで「【重要】」ラベルを表示するには？**オーバーライド**の出番です。お楽しみに。
