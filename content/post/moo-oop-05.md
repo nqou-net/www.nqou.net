@@ -1,0 +1,112 @@
+---
+title: "第5回-初期化忘れを防ぐ - Mooで覚えるオブジェクト指向プログラミング"
+draft: true
+tags:
+  - perl
+  - moo
+  - attribute
+description: "うっかり値を渡し忘れて動かない…そんなバグに悩んでいませんか？Mooのrequiredで必須パラメータを強制し、defaultで安全なデフォルト値を設定する方法を学びます。"
+---
+
+[@nqounet](https://x.com/nqounet)です。
+
+「Mooで覚えるオブジェクト指向プログラミング」シリーズの第5回です。
+
+## 前回の振り返り
+
+前回は、属性を「勝手に書き換えられない」ようにする方法を学びました。
+
+{{< linkcard "/moo-oop-04/" >}}
+
+`is => 'ro'`で読み取り専用、`is => 'rw'`で読み書き可能な属性を定義しましたね。
+
+今回は、**オブジェクト作成時の「初期化忘れ」を防ぐ方法**を学びます。
+
+## 初期化忘れのバグ
+
+これまでのコードでは、`Message->new()`を呼ぶとき、属性を指定しなくてもオブジェクトが作れてしまいました。
+
+```perl
+my $msg = Message->new();  # contentを指定し忘れた！
+$msg->show;  # 投稿: （空っぽ、または警告）
+```
+
+`content`を渡し忘れると、空のメッセージができてしまいます。小さなプログラムならすぐ気づきますが、大きなプログラムでは「なぜ空なんだ？」と原因を探すのに時間がかかります。
+
+これは典型的なバグの温床です。必ず値が必要な属性には、渡し忘れを防ぐ仕組みが欲しいですよね。
+
+## 解決策：`required`で必須にする
+
+そこで登場するのが、`required => 1`です。これを指定すると、`new`を呼ぶときにその属性を必ず渡さなければなりません。
+
+```perl
+package Message {
+    use Moo;
+    has content => (is => 'ro', required => 1);  # 必須
+
+    sub show {
+        my $self = shift;
+        print "投稿: " . $self->content . "\n";
+    }
+};
+
+# 正しい使い方
+my $msg = Message->new(content => 'おはよう');
+$msg->show;  # 投稿: おはよう
+
+# 間違った使い方（contentを渡し忘れ）
+# my $bad = Message->new();  # エラー！Missing required arguments: content
+```
+
+`required => 1`を指定すると、`content`を渡さずに`new`を呼ぼうとしたとき、Mooがエラーを出して教えてくれます。
+
+これで「うっかり忘れ」がコードを動かした瞬間に発覚します。バグが本番環境に紛れ込む前に気づけるのは、とてもありがたいですね。
+
+## 解決策：`default`で安全なデフォルト値
+
+一方で、「省略してもいいけど、省略したらこの値を使って」という場合もあります。
+
+例えば、投稿に「いいね数」を追加したいとしましょう。いいね数は、最初は0でいいですよね。毎回`like_count => 0`と書くのは面倒です。
+
+```perl
+package Message {
+    use Moo;
+    has content    => (is => 'ro', required => 1);  # 必須
+    has like_count => (is => 'rw', default => 0);   # 省略時は0
+
+    sub show {
+        my $self = shift;
+        print "投稿: " . $self->content . " (いいね: " . $self->like_count . ")\n";
+    }
+
+    sub add_like {
+        my $self = shift;
+        $self->like_count($self->like_count + 1);
+    }
+};
+
+# like_countを省略してもOK
+my $msg = Message->new(content => 'おはよう');
+$msg->show;      # 投稿: おはよう (いいね: 0)
+$msg->add_like;  # いいねを追加
+$msg->show;      # 投稿: おはよう (いいね: 1)
+
+# 明示的に指定することもできる
+my $popular = Message->new(content => 'こんにちは', like_count => 100);
+$popular->show;  # 投稿: こんにちは (いいね: 100)
+```
+
+`default => 0`を指定すると、`like_count`を省略したときに自動的に`0`が設定されます。
+
+これで、必須ではないけど「未定義のまま」にはしたくない属性を、安全に扱えるようになりました。
+
+## まとめ
+
+- `required => 1`は、`new`時に必ず値を渡すことを強制する
+- 渡し忘れるとエラーになり、バグを早期発見できる
+- `default => 値`は、省略時に使われるデフォルト値を指定する
+- 必須属性と省略可能属性を使い分けて、堅牢なクラス設計ができる
+
+## 次回予告
+
+次回は、属性やメソッドを外部から「見えない」ようにする方法を学びます。オブジェクト指向の重要な概念、**カプセル化**の入門編です。お楽しみに。
