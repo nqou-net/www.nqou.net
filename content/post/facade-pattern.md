@@ -70,6 +70,32 @@ public class Client {
 
 実際の開発現場でも、このような複雑さに悩まされることは珍しくありません。
 
+### 複雑な依存関係の視覚化
+
+Facadeパターン適用前のクライアントは、多数のサブシステムクラスに直接依存しており、各サブシステムとの複雑な関係を管理する必要があります。
+
+```mermaid
+graph TD
+    Client[クライアント<br/>映画を見たい]
+    
+    Client -->|直接依存| Amp[Amplifier<br/>アンプ]
+    Client -->|直接依存| DVD[DVDPlayer<br/>DVDプレイヤー]
+    Client -->|直接依存| Proj[Projector<br/>プロジェクター]
+    Client -->|直接依存| Screen[Screen<br/>スクリーン]
+    Client -->|直接依存| Lights[TheaterLights<br/>照明]
+    Client -->|直接依存| Popper[PopcornPopper<br/>ポップコーン]
+    
+    style Client fill:#ffcccc
+    style Amp fill:#e0e0e0
+    style DVD fill:#e0e0e0
+    style Proj fill:#e0e0e0
+    style Screen fill:#e0e0e0
+    style Lights fill:#e0e0e0
+    style Popper fill:#e0e0e0
+```
+
+この図が示すように、クライアントは6つのサブシステムクラスを個別に理解し、正しい順序で操作する必要があります。これが複雑さの原因です。
+
 ## 解決策：Facadeパターンの導入
 
 Facadeパターンは、複雑なサブシステムに対して**シンプルな統一インターフェース**を提供するデザインパターンです。
@@ -119,6 +145,36 @@ classDiagram
     Facade --> SubsystemB
     Facade --> SubsystemC
 ```
+
+### Facadeパターン適用後の依存関係
+
+Facadeパターンを適用すると、クライアントの依存関係が大幅に簡素化されます。
+
+```mermaid
+graph TD
+    Client[クライアント<br/>映画を見たい]
+    Facade[HomeTheaterFacade<br/>統一インターフェース]
+    
+    Client -->|シンプルな依存| Facade
+    
+    Facade -.->|内部で管理| Amp[Amplifier]
+    Facade -.->|内部で管理| DVD[DVDPlayer]
+    Facade -.->|内部で管理| Proj[Projector]
+    Facade -.->|内部で管理| Screen[Screen]
+    Facade -.->|内部で管理| Lights[TheaterLights]
+    Facade -.->|内部で管理| Popper[PopcornPopper]
+    
+    style Client fill:#ccffcc
+    style Facade fill:#ffffcc
+    style Amp fill:#e0e0e0
+    style DVD fill:#e0e0e0
+    style Proj fill:#e0e0e0
+    style Screen fill:#e0e0e0
+    style Lights fill:#e0e0e0
+    style Popper fill:#e0e0e0
+```
+
+クライアントはFacadeのみに依存し、複雑なサブシステムの詳細から解放されます。Facadeが内部で全てのサブシステムを調整します。
 
 - **Client（クライアント）**: サブシステムを使用する側
 - **Facade（ファサード）**: サブシステムへの統一インターフェースを提供するクラス
@@ -188,6 +244,47 @@ public class HomeTheaterFacade {
     }
 }
 ```
+
+### ホームシアターシステムの動作フロー
+
+Facadeパターンによって、複雑な操作シーケンスが統一インターフェースの内部に隠蔽されます。以下のシーケンス図は、`watchMovie()`メソッド呼び出し時の内部動作を示しています。
+
+```mermaid
+sequenceDiagram
+    actor User as ユーザー
+    participant Client as クライアント
+    participant Facade as HomeTheaterFacade
+    participant Popper as PopcornPopper
+    participant Lights as TheaterLights
+    participant Screen as Screen
+    participant Projector as Projector
+    participant Amp as Amplifier
+    participant DVD as DVDPlayer
+    
+    User->>Client: 映画を見たい
+    Client->>Facade: watchMovie("インセプション")
+    
+    Note over Facade: 映画鑑賞の準備をしています...
+    
+    Facade->>Popper: on()
+    Facade->>Popper: pop()
+    Facade->>Lights: dim(10)
+    Facade->>Screen: down()
+    Facade->>Projector: on()
+    Facade->>Projector: wideScreenMode()
+    Facade->>Amp: on()
+    Facade->>Amp: setVolume(5)
+    Facade->>Amp: setSurroundSound()
+    Facade->>DVD: on()
+    Facade->>DVD: play("インセプション")
+    
+    Note over Facade: 映画をお楽しみください！
+    
+    Facade-->>Client: 完了
+    Client-->>User: 映画鑑賞開始
+```
+
+このように、クライアントは単に`watchMovie()`を呼び出すだけで、Facadeが全ての複雑な手順を適切な順序で実行します。
 
 ### クライアントコードの簡素化
 
@@ -318,6 +415,49 @@ class APIFacade {
     }
 }
 ```
+
+### APIFacadeの構造
+
+実践的なAPI統合の例として、認証・ユーザー管理・通知の3つのサブシステムをFacadeで統合する構造を示します。
+
+```mermaid
+classDiagram
+    class APIFacade {
+        -authAPI: AuthenticationAPI
+        -userAPI: UserAPI
+        -notificationAPI: NotificationAPI
+        -currentToken: Token
+        +loginAndGetUser(credentials)
+        +updateProfileAndNotify(userId, updates, notifyEmail)
+    }
+    
+    class AuthenticationAPI {
+        +authenticate(credentials) Token
+        +refreshToken(token) Token
+    }
+    
+    class UserAPI {
+        +getUser(userId, token) User
+        +updateUser(userId, data, token) User
+    }
+    
+    class NotificationAPI {
+        +sendEmail(recipient, message, token) void
+    }
+    
+    class Client {
+        +main()
+    }
+    
+    Client --> APIFacade : 使用
+    APIFacade --> AuthenticationAPI : 認証を委譲
+    APIFacade --> UserAPI : ユーザー操作を委譲
+    APIFacade --> NotificationAPI : 通知を委譲
+    
+    note for APIFacade "認証トークンの管理を隠蔽し、\n複数APIの連携を自動化"
+```
+
+この構造により、クライアントは各APIの詳細や認証トークンの管理を意識することなく、高レベルな操作を実行できます。
 
 ### クライアントコードの簡素化
 
@@ -513,6 +653,41 @@ class MediaFacade {
 | **構造** | オブジェクトを包む（ラッピング） | 複数オブジェクトを統合 |
 | **使用例** | ストリームの装飾、GUIコンポーネント | 複雑なシステムの統合 |
 
+### パターン選択のフローチャート
+
+どのパターンを使うべきか迷った時のために、判断フローを示します。
+
+```mermaid
+flowchart TD
+    Start([デザインパターンが必要])
+    
+    Start --> Q1{何を解決したい？}
+    
+    Q1 -->|インターフェースの\n互換性がない| Adapter[Adapterパターン]
+    Q1 -->|複雑すぎて\n使いにくい| Q2{対象は？}
+    Q1 -->|機能を\n追加したい| Decorator[Decoratorパターン]
+    Q1 -->|アクセスを\n制御したい| Proxy[Proxyパターン]
+    
+    Q2 -->|単一のクラス| Adapter
+    Q2 -->|複数のクラス<br/>サブシステム| Facade[Facadeパターン]
+    
+    Facade --> Use1[複雑なライブラリの\nラッピング]
+    Facade --> Use2[レイヤードアーキテクチャ\nの層分離]
+    Facade --> Use3[レガシーシステム\nの統合]
+    Facade --> Use4[マイクロサービスの\nBFF]
+    
+    style Facade fill:#ffffcc
+    style Adapter fill:#e0e0e0
+    style Decorator fill:#e0e0e0
+    style Proxy fill:#e0e0e0
+    style Use1 fill:#ccffcc
+    style Use2 fill:#ccffcc
+    style Use3 fill:#ccffcc
+    style Use4 fill:#ccffcc
+```
+
+このフローチャートを参考に、現在の課題に最適なパターンを選択してください。
+
 ## Facadeパターンを使うべき場面
 
 ### 1. 複雑なライブラリやフレームワークのラッピング
@@ -630,6 +805,56 @@ class MobileBFFService {
     }
 }
 ```
+
+### Facadeパターン適用場面の全体像
+
+Facadeパターンが有効に機能する主な適用場面を体系的に整理すると、以下のような関係になります。
+
+```mermaid
+graph TB
+    Root[Facadeパターン<br/>適用場面]
+    
+    Root --> Cat1[ライブラリ統合]
+    Root --> Cat2[アーキテクチャ設計]
+    Root --> Cat3[システム統合]
+    Root --> Cat4[マイクロサービス]
+    
+    Cat1 --> Use1[複雑なAPIの<br/>ラッピング]
+    Cat1 --> Use2[外部ライブラリの<br/>抽象化]
+    Cat1 --> Use3[画像処理・メディア<br/>処理の簡素化]
+    
+    Cat2 --> Use4[レイヤードアーキテクチャ<br/>の層分離]
+    Cat2 --> Use5[インフラ層の<br/>詳細隠蔽]
+    Cat2 --> Use6[ドメイン層の<br/>保護]
+    
+    Cat3 --> Use7[レガシーシステム<br/>との統合]
+    Cat3 --> Use8[異種システム間の<br/>橋渡し]
+    Cat3 --> Use9[段階的マイグレーション<br/>の実現]
+    
+    Cat4 --> Use10[BFF パターン<br/>の実装]
+    Cat4 --> Use11[複数サービスの<br/>統合API]
+    Cat4 --> Use12[クライアント最適化<br/>インターフェース]
+    
+    style Root fill:#ffffcc
+    style Cat1 fill:#ffeecc
+    style Cat2 fill:#ffeecc
+    style Cat3 fill:#ffeecc
+    style Cat4 fill:#ffeecc
+    style Use1 fill:#ccffcc
+    style Use2 fill:#ccffcc
+    style Use3 fill:#ccffcc
+    style Use4 fill:#ccffcc
+    style Use5 fill:#ccffcc
+    style Use6 fill:#ccffcc
+    style Use7 fill:#ccffcc
+    style Use8 fill:#ccffcc
+    style Use9 fill:#ccffcc
+    style Use10 fill:#ccffcc
+    style Use11 fill:#ccffcc
+    style Use12 fill:#ccffcc
+```
+
+この図が示すように、Facadeパターンは様々な場面で活用できる汎用性の高いパターンです。それぞれの適用場面で、複雑さの隠蔽という共通の目的を果たします。
 
 ## まとめ
 
