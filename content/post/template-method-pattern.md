@@ -219,6 +219,10 @@ graph LR
 
 ### Java実装：データ処理の共通化パターン
 
+**動作環境**
+- Java 8以降
+- 外部依存: なし
+
 ```java
 // 抽象クラス：データ処理の骨組み
 abstract class DataProcessor {
@@ -307,6 +311,10 @@ public class Main {
 - 共通処理は`private`メソッドとして実装
 
 ### Python実装：決済フローの統一パターン
+
+**動作環境**
+- Python 3.7以降
+- 標準ライブラリ: `abc`, `typing`
 
 ```python
 from abc import ABC, abstractmethod
@@ -400,6 +408,10 @@ if __name__ == "__main__":
 - Pythonでは`final`がないため、ドキュメントで「上書き禁止」を明示
 
 ### TypeScript実装：ファイル操作の抽象化パターン
+
+**動作環境**
+- TypeScript 4.0以降
+- 外部依存: なし
 
 ```typescript
 // 抽象クラス：ファイル操作の骨組み
@@ -1319,8 +1331,20 @@ Template Methodパターンは、適切に使えば保守性の高い、拡張�
 
 ## 参考リンク
 
+### デザインパターン解説サイト
+
 {{< linkcard "https://refactoring.guru/design-patterns/template-method" >}}
 
 {{< linkcard "https://www.digitalocean.com/community/tutorials/template-method-design-pattern-in-java" >}}
 
 {{< linkcard "https://sourcemaking.com/design_patterns/template_method" >}}
+
+### 書籍
+
+{{< amazon asin="4797311126" title="オブジェクト指向における再利用のためのデザインパターン" >}}
+
+### フレームワーク公式ドキュメント
+
+{{< linkcard "https://spring.io/guides/gs/relational-data-access/" >}}
+
+{{< linkcard "https://docs.djangoproject.com/en/stable/topics/class-based-views/" >}}
