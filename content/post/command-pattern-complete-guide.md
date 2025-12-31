@@ -64,6 +64,58 @@ classDiagram
 - **Invoker（起動者）**: コマンドを保持し、実行を要求するオブジェクト
 - **Client（クライアント）**: ConcreteCommandオブジェクトを生成し、Receiverを設定
 
+### Commandパターンの実行フロー
+
+以下のシーケンス図は、Commandパターンにおける各コンポーネント間の相互作用を示しています。クライアントがコマンドを生成してから、実際の処理が実行されるまでの流れを理解できます。
+
+```mermaid
+sequenceDiagram
+    participant Client as Client<br/>(クライアント)
+    participant Command as ConcreteCommand<br/>(具象コマンド)
+    participant Invoker as Invoker<br/>(起動者)
+    participant Receiver as Receiver<br/>(受信者)
+    
+    Note over Client,Receiver: コマンドの生成と設定フェーズ
+    Client->>Receiver: 1. Receiverを生成
+    Client->>Command: 2. ConcreteCommandを生成(receiver)
+    Client->>Invoker: 3. setCommand(command)
+    
+    Note over Client,Receiver: コマンドの実行フェーズ
+    Client->>Invoker: 4. executeCommand()
+    activate Invoker
+    Invoker->>Command: 5. execute()
+    activate Command
+    Command->>Receiver: 6. action()
+    activate Receiver
+    Receiver-->>Command: 7. 処理結果
+    deactivate Receiver
+    Command-->>Invoker: 8. 完了
+    deactivate Command
+    Invoker-->>Client: 9. 実行完了
+    deactivate Invoker
+    
+    Note over Client,Receiver: Undoフェーズ（オプション）
+    Client->>Invoker: 10. undoCommand()
+    activate Invoker
+    Invoker->>Command: 11. undo()
+    activate Command
+    Command->>Receiver: 12. reverseAction()
+    activate Receiver
+    Receiver-->>Command: 13. Undo完了
+    deactivate Receiver
+    Command-->>Invoker: 14. 完了
+    deactivate Command
+    Invoker-->>Client: 15. Undo完了
+    deactivate Invoker
+```
+
+**図の解説:**
+- **生成フェーズ（1-3）**: クライアントがReceiverとCommandを生成し、Invokerに設定します
+- **実行フェーズ（4-9）**: Invokerを通じてコマンドが実行され、Receiverの実際の処理が呼び出されます
+- **Undoフェーズ（10-15）**: 必要に応じて操作を取り消すことができます
+
+このように、InvokerとReceiverが直接やり取りせず、Commandを介することで疎結合が実現されています。
+
 ### GoFデザインパターンにおける位置づけ
 
 Commandパターンは、GoFの23のデザインパターンのうち、**振る舞いパターン**（Behavioral Patterns）に分類されます。振る舞いパターンは、オブジェクト間の責任分担やアルゴリズムの実装方法に関するパターンで、以下の11種類があります。
@@ -403,6 +455,59 @@ manager.redo(); // 挿入後: "Hello World"
 - Undo/Redo履歴の管理を実装
 - 型安全性を確保したインターフェース設計
 
+### Undo/Redoの状態遷移
+
+上記のCommandManagerによるUndo/Redo機能の動作を、状態遷移図で視覚化しました。コマンド履歴における現在位置がどのように変化するかを理解できます。
+
+```mermaid
+stateDiagram-v2
+    [*] --> 初期状態: 履歴なし
+    
+    初期状態 --> コマンド実行中: execute()
+    コマンド実行中 --> 履歴あり: コマンド追加<br/>currentIndex++
+    
+    履歴あり --> コマンド実行中: execute()<br/>新規コマンド
+    コマンド実行中 --> 履歴あり: 以降の履歴削除<br/>コマンド追加
+    
+    履歴あり --> Undo実行中: undo()<br/>(currentIndex >= 0)
+    Undo実行中 --> 履歴あり_Undo可能: currentIndex--<br/>undo()実行
+    Undo実行中 --> 初期状態: currentIndex = -1<br/>これ以上Undo不可
+    
+    履歴あり_Undo可能 --> Redo実行中: redo()<br/>(currentIndex < length-1)
+    Redo実行中 --> 履歴あり: currentIndex++<br/>execute()実行
+    
+    履歴あり_Undo可能 --> Undo実行中: undo()<br/>さらにUndo
+    履歴あり --> Redo不可: redo()<br/>(currentIndex == length-1)
+    Redo不可 --> 履歴あり: メッセージ表示
+    
+    履歴あり_Undo可能 --> コマンド実行中: execute()<br/>新規コマンド
+    
+    note right of 初期状態
+        currentIndex = -1
+        history = []
+    end note
+    
+    note right of 履歴あり
+        currentIndex >= 0
+        history.length > 0
+        Redo可能な状態
+    end note
+    
+    note right of 履歴あり_Undo可能
+        0 <= currentIndex < length-1
+        Undo/Redo両方可能
+    end note
+```
+
+**図の解説:**
+- **初期状態**: 履歴が空で、currentIndexが-1
+- **履歴あり**: コマンドが実行され、履歴に追加された状態
+- **Undo実行中**: 現在のコマンドのundo()を実行し、currentIndexをデクリメント
+- **Redo実行中**: 次のコマンドのexecute()を実行し、currentIndexをインクリメント
+- **重要なポイント**: 新規コマンド実行時は、currentIndex以降の履歴が削除されます（分岐した履歴は保持しない）
+
+この状態管理により、直感的なUndo/Redo操作が実現されています。
+
 ### Python実装例：シンプルな計算機
 
 Pythonの動的な特性を活かしたシンプルな実装例です。
@@ -566,6 +671,68 @@ class MacroCommand implements Command {
 }
 ```
 
+### マクロコマンドの構造
+
+Compositeパターンと組み合わせることで、単一のコマンドと複数のコマンドを統一的に扱えます。
+
+```mermaid
+classDiagram
+    class Command {
+        <<interface>>
+        +execute()
+        +undo()
+    }
+    
+    class SimpleCommand {
+        -receiver: Receiver
+        +execute()
+        +undo()
+    }
+    
+    class MacroCommand {
+        -commands: List~Command~
+        +add(Command)
+        +remove(Command)
+        +execute()
+        +undo()
+    }
+    
+    class Receiver {
+        +action()
+    }
+    
+    Command <|.. SimpleCommand
+    Command <|.. MacroCommand
+    MacroCommand o-- Command : contains
+    SimpleCommand --> Receiver
+    
+    note for MacroCommand "Composite パターンを適用\n複数のコマンドを\nまとめて実行"
+    
+    note for SimpleCommand "個別の操作を\n実行するコマンド"
+```
+
+**マクロコマンドの利点:**
+- 複数の操作を1つの単位として実行・Undo
+- コマンドの再利用性が向上
+- 複雑な操作を階層的に管理可能
+
+**使用例:**
+```java
+// 複数の照明を一度にONにするマクロコマンド
+MacroCommand partyMode = new MacroCommand();
+partyMode.add(new LightOnCommand(livingRoomLight));
+partyMode.add(new LightOnCommand(kitchenLight));
+partyMode.add(new LightOnCommand(bedroomLight));
+partyMode.add(new MusicOnCommand(stereo));
+
+// 1回の実行で全ての照明とステレオがON
+remote.setCommand(0, partyMode, partyOffCommand);
+remote.onButtonWasPushed(0);
+
+// Undo実行で全て逆順にOFF
+remote.undoButtonWasPushed();
+```
+
 ### 6. ロギングと監査証跡
 
 実行されたコマンドを記録することで、以下が実現できます。
@@ -650,6 +817,65 @@ class AddCommand(Command):
 
 CommandパターンとStrategyパターンは構造が似ていますが、目的と用途が異なります。
 
+### 構造の違い
+
+以下の図は、CommandパターンとStrategyパターンの構造的な違いを視覚化したものです。
+
+```mermaid
+graph TB
+    subgraph "Commandパターンの構造"
+        direction TB
+        Client1[Client]
+        Invoker1[Invoker]
+        Command1[Command Interface]
+        ConcreteCmd1[ConcreteCommand A]
+        ConcreteCmd2[ConcreteCommand B]
+        Receiver1[Receiver]
+        
+        Client1 -->|1. 生成| ConcreteCmd1
+        Client1 -->|1. 生成| ConcreteCmd2
+        Client1 -->|2. 設定| Invoker1
+        Invoker1 -->|3. execute呼び出し| Command1
+        ConcreteCmd1 -.->|実装| Command1
+        ConcreteCmd2 -.->|実装| Command1
+        ConcreteCmd1 -->|4. 処理委譲| Receiver1
+        ConcreteCmd2 -->|4. 処理委譲| Receiver1
+        
+        style ConcreteCmd1 fill:#e1f5ff
+        style ConcreteCmd2 fill:#e1f5ff
+        style Receiver1 fill:#ffe1e1
+    end
+    
+    subgraph "Strategyパターンの構造"
+        direction TB
+        Context2[Context]
+        Strategy2[Strategy Interface]
+        ConcreteStrategy1[ConcreteStrategy A]
+        ConcreteStrategy2[ConcreteStrategy B]
+        
+        Context2 -->|アルゴリズム実行| Strategy2
+        ConcreteStrategy1 -.->|実装| Strategy2
+        ConcreteStrategy2 -.->|実装| Strategy2
+        Context2 -.->|内部で直接処理| ConcreteStrategy1
+        Context2 -.->|内部で直接処理| ConcreteStrategy2
+        
+        style ConcreteStrategy1 fill:#fff4e1
+        style ConcreteStrategy2 fill:#fff4e1
+    end
+    
+    style Command1 fill:#b3d9ff
+    style Strategy2 fill:#ffd9b3
+```
+
+**構造上の主な違い:**
+
+| 要素 | Commandパターン | Strategyパターン |
+|------|----------------|------------------|
+| **中間層** | Invoker（命令を発行） | Context（アルゴリズムを使用） |
+| **処理の委譲先** | Receiver（別オブジェクト） | Strategy自身が処理を実装 |
+| **関心事** | 「何を」実行するか | 「どのように」実行するか |
+| **状態保持** | CommandがReceiverへの参照を保持 | Strategyは通常ステートレス |
+
 ### 主な違い
 
 | 観点 | Command パターン | Strategy パターン |
@@ -659,6 +885,49 @@ CommandパターンとStrategyパターンは構造が似ていますが、目�
 | **状態** | Receiverと関連付けられた状態を保持 | 通常、状態を保持しない |
 | **主な用途** | Undo/Redo、キューイング、ロギング | アルゴリズムの切り替え、ポリシーの適用 |
 | **インターフェース** | execute(), undo() | doAlgorithm(), calculate() |
+
+### 実例による比較
+
+```mermaid
+graph LR
+    subgraph "Commandの例：テキストエディタ"
+        direction TB
+        EditorClient[ユーザー操作]
+        EditorInvoker[メニュー/ボタン]
+        CopyCmd[CopyCommand]
+        PasteCmd[PasteCommand]
+        EditorDoc[Document]
+        
+        EditorClient -->|クリック| EditorInvoker
+        EditorInvoker --> CopyCmd
+        EditorInvoker --> PasteCmd
+        CopyCmd -->|クリップボードへ| EditorDoc
+        PasteCmd -->|クリップボードから| EditorDoc
+        
+        style CopyCmd fill:#e1f5ff
+        style PasteCmd fill:#e1f5ff
+    end
+    
+    subgraph "Strategyの例：ソート処理"
+        direction TB
+        SortContext[SortContext]
+        QuickSort[QuickSort]
+        MergeSort[MergeSort]
+        BubbleSort[BubbleSort]
+        
+        SortContext -->|小さい配列| BubbleSort
+        SortContext -->|中規模配列| QuickSort
+        SortContext -->|大規模配列| MergeSort
+        
+        style QuickSort fill:#fff4e1
+        style MergeSort fill:#fff4e1
+        style BubbleSort fill:#fff4e1
+    end
+```
+
+**使用例の違い:**
+- **Command（左）**: 各操作（Copy、Paste）を独立したオブジェクトとして表現し、Undo/Redoや履歴管理が可能
+- **Strategy（右）**: データの状態に応じて最適なアルゴリズムを選択し、同じインターフェースで処理を実行
 
 ### 使い分けガイドライン
 
@@ -829,6 +1098,73 @@ class InputHandler {
 
 ## Commandパターン導入の判断基準
 
+### 導入判断フローチャート
+
+Commandパターンを導入すべきかどうか迷った際は、以下のフローチャートを参考にしてください。
+
+```mermaid
+flowchart TD
+    Start([Commandパターン<br/>導入検討開始]) --> Q1{操作のUndo/Redoが<br/>必要ですか?}
+    
+    Q1 -->|はい| Recommend1[✅ Commandパターンを<br/>強く推奨]
+    Q1 -->|いいえ| Q2{操作履歴の記録や<br/>監査が必要ですか?}
+    
+    Q2 -->|はい| Recommend2[✅ Commandパターンを<br/>推奨]
+    Q2 -->|いいえ| Q3{操作をキューに入れて<br/>後で実行したいですか?}
+    
+    Q3 -->|はい| Recommend3[✅ Commandパターンを<br/>推奨]
+    Q3 -->|いいえ| Q4{トランザクション処理や<br/>ロールバックが必要?}
+    
+    Q4 -->|はい| Recommend4[✅ Commandパターンを<br/>推奨]
+    Q4 -->|いいえ| Q5{同じ操作を複数の<br/>入力手段から実行?<br/>例: GUI/CLI/API}
+    
+    Q5 -->|はい| Q6{マクロ機能<br/>複数操作の一括実行<br/>が必要ですか?}
+    Q5 -->|いいえ| Q6
+    
+    Q6 -->|はい| Consider1[🤔 Commandパターンを<br/>検討する価値あり]
+    Q6 -->|いいえ| Q7{新しい操作が<br/>頻繁に追加される<br/>見込みがある?}
+    
+    Q7 -->|はい| Consider2[🤔 拡張性のため<br/>検討する価値あり]
+    Q7 -->|いいえ| Q8{パフォーマンスが<br/>最優先ですか?}
+    
+    Q8 -->|はい| NotRecommend1[❌ Commandパターンは<br/>オーバーヘッドがあるため<br/>不適切]
+    Q8 -->|いいえ| Q9{チームがデザイン<br/>パターンに不慣れ?}
+    
+    Q9 -->|はい| NotRecommend2[❌ 学習コストが高い<br/>シンプルな実装を推奨]
+    Q9 -->|いいえ| Q10{単純なCRUD操作<br/>のみですか?}
+    
+    Q10 -->|はい| NotRecommend3[❌ 過剰設計になる<br/>可能性が高い]
+    Q10 -->|いいえ| Alternative[💡 代替案を検討<br/>Strategy/Observer等]
+    
+    Recommend1 --> Implementation[実装へ進む]
+    Recommend2 --> Implementation
+    Recommend3 --> Implementation
+    Recommend4 --> Implementation
+    Consider1 --> CostBenefit{コストとメリットを<br/>比較検討}
+    Consider2 --> CostBenefit
+    
+    CostBenefit -->|メリット大| Implementation
+    CostBenefit -->|コスト大| Alternative
+    
+    style Recommend1 fill:#c8e6c9
+    style Recommend2 fill:#c8e6c9
+    style Recommend3 fill:#c8e6c9
+    style Recommend4 fill:#c8e6c9
+    style Consider1 fill:#fff9c4
+    style Consider2 fill:#fff9c4
+    style NotRecommend1 fill:#ffcdd2
+    style NotRecommend2 fill:#ffcdd2
+    style NotRecommend3 fill:#ffcdd2
+    style Implementation fill:#81c784
+    style Alternative fill:#e1bee7
+```
+
+**フローチャートの使い方:**
+1. 上から順に質問に答えていきます
+2. **緑色**の結果が出たら、Commandパターンの導入を推奨
+3. **黄色**の結果が出たら、コストとメリットを慎重に比較
+4. **赤色**の結果が出たら、Commandパターン以外の方法を検討
+
 ### 導入を検討すべき場合
 
 以下のチェックリストに3つ以上当てはまる場合、Commandパターンの導入を検討してください。
@@ -916,6 +1252,79 @@ class CompositeCommand implements Command {
   }
 }
 ```
+
+### 実践的なパターン組み合わせ例
+
+以下の図は、複数のデザインパターンを組み合わせた、エンタープライズレベルのCommandシステムの構造を示しています。
+
+```mermaid
+graph TB
+    subgraph "パターンの組み合わせ構造"
+        Client[Client]
+        
+        subgraph "Command層（Command Pattern）"
+            direction TB
+            MacroCmd[MacroCommand<br/>Composite Pattern適用]
+            EditCmd[EditCommand]
+            SaveCmd[SaveCommand]
+            MacroCmd -->|contains| EditCmd
+            MacroCmd -->|contains| SaveCmd
+        end
+        
+        subgraph "History管理層"
+            CommandManager[CommandManager<br/>Caretaker役割]
+            History[(Command History<br/>Stack)]
+            CommandManager --> History
+        end
+        
+        subgraph "State保存層（Memento Pattern）"
+            Memento1[DocumentMemento]
+            Memento2[DocumentMemento]
+            Memento3[DocumentMemento]
+        end
+        
+        subgraph "Domain層"
+            Document[Document<br/>Receiver/Originator]
+        end
+        
+        Client -->|1. コマンド生成| MacroCmd
+        Client -->|2. 実行依頼| CommandManager
+        CommandManager -->|3. execute| MacroCmd
+        MacroCmd -->|4. 状態保存| Memento1
+        EditCmd -->|5. 編集処理| Document
+        SaveCmd -->|6. 保存処理| Document
+        Document -.->|状態のスナップショット| Memento2
+        
+        style MacroCmd fill:#e1f5ff
+        style EditCmd fill:#e1f5ff
+        style SaveCmd fill:#e1f5ff
+        style Memento1 fill:#ffe1e1
+        style Memento2 fill:#ffe1e1
+        style Memento3 fill:#ffe1e1
+        style Document fill:#e1ffe1
+        style CommandManager fill:#fff4e1
+    end
+    
+    subgraph "各パターンの役割"
+        direction LR
+        Role1[📦 Command Pattern<br/>操作のカプセル化]
+        Role2[🌳 Composite Pattern<br/>マクロコマンド実現]
+        Role3[💾 Memento Pattern<br/>効率的な状態保存]
+        
+        style Role1 fill:#e1f5ff
+        style Role2 fill:#e1f5ff
+        style Role3 fill:#ffe1e1
+    end
+```
+
+**組み合わせによる相乗効果:**
+
+| パターン組み合わせ | メリット | 使用例 |
+|------------------|---------|--------|
+| **Command + Memento** | 状態変更前のスナップショットを効率的に保存 | 大規模ドキュメントエディタのUndo |
+| **Command + Composite** | 複数操作をまとめて実行・管理 | マクロ機能、バッチ処理 |
+| **Command + Observer** | コマンド実行を監視し、UI更新やログ記録 | リアルタイム通知システム |
+| **Command + Chain of Responsibility** | コマンド処理を複数のハンドラで段階的に処理 | 承認ワークフロー |
 
 ## まとめ
 
