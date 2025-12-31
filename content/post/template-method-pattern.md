@@ -96,6 +96,22 @@ GoF（Gang of Four）の定義では、Template Methodパターンは次のよ�
 
 料理のレシピで考えると分かりやすい。「材料を準備する→調理する→盛り付ける」という手順（骨組み）は共通で、具体的な食材や調理法だけが異なるイメージです。
 
+**Template Methodパターンのライフサイクル**
+
+```mermaid
+graph LR
+    A[1. 親クラス定義<br/>アルゴリズムの骨組み] --> B[2. テンプレートメソッド<br/>処理順序を定義]
+    B --> C[3. 抽象メソッド<br/>カスタマイズポイント]
+    C --> D[4. サブクラス実装<br/>具体的な処理]
+    D --> E[5. クライアント呼び出し<br/>統一インターフェース]
+    
+    style A fill:#e1f5ff
+    style B fill:#e1ffe1
+    style C fill:#fff4e1
+    style D fill:#ffe1ff
+    style E fill:#ffe1e1
+```
+
 ### 4つの構成要素と役割分担
 
 Template Methodパターンは以下の4つの要素で構成される
@@ -137,6 +153,61 @@ classDiagram
 Template Methodパターンは、**ハリウッド原則（Hollywood Principle）**を体現している
 
 通常のメソッド呼び出しでは、サブクラスが親クラスのメソッドを呼び出す。しかし、Template Methodでは逆に、親クラスが「いつ」「どの順番で」サブクラスのメソッドを呼び出すかを制御する。
+
+```mermaid
+sequenceDiagram
+    participant Client as クライアント
+    participant Abstract as AbstractProcessor<br/>(親クラス)
+    participant Concrete as CSVProcessor<br/>(サブクラス)
+    
+    Client->>Abstract: process()を呼び出す
+    activate Abstract
+    
+    Note over Abstract: 処理の流れを親クラスが制御
+    Abstract->>Abstract: openFile()<br/>(共通処理)
+    
+    Abstract->>Concrete: readData()<br/>(抽象メソッド)
+    activate Concrete
+    Note right of Concrete: CSV固有の処理
+    Concrete-->>Abstract: データを返す
+    deactivate Concrete
+    
+    Abstract->>Concrete: parseData()<br/>(抽象メソッド)
+    activate Concrete
+    Note right of Concrete: CSV固有の処理
+    Concrete-->>Abstract: パース結果を返す
+    deactivate Concrete
+    
+    Abstract->>Abstract: transform()<br/>(共通処理)
+    Abstract->>Abstract: saveResult()<br/>(共通処理)
+    Abstract->>Abstract: closeFile()<br/>(共通処理)
+    
+    Abstract-->>Client: 処理完了
+    deactivate Abstract
+    
+    Note over Client,Concrete: 親クラスがサブクラスのメソッドを<br/>「呼び出す」制御の流れ
+```
+
+**ハリウッド原則の概念図**
+
+```mermaid
+graph LR
+    subgraph "従来の方式（サブクラスから呼び出す）"
+        S1[サブクラス]
+        P1[親クラス]
+        S1 -->|呼び出す| P1
+    end
+    
+    subgraph "ハリウッド原則（親クラスから呼び出す）"
+        P2[親クラス<br/>制御の主導権]
+        S2[サブクラス<br/>呼ばれるのを待つ]
+        P2 -->|呼び出す| S2
+        S2 -.->|実装を提供| P2
+    end
+    
+    style P2 fill:#e1f5ff
+    style S2 fill:#fff4e1
+```
 
 これにより、以下のメリットが生まれる
 
@@ -552,6 +623,34 @@ class SalesReport(ReportGenerator):
 
 ## 導入効果：5つの利点とビジネス価値
 
+Template Methodパターンの導入により得られる具体的な効果を、ビジネス価値の観点から見ていきましょう。
+
+```mermaid
+graph TB
+    TM[Template Method<br/>パターン導入]
+    
+    TM --> B1[コード重複排除<br/>28%削減]
+    TM --> B2[保守性向上<br/>変更コスト削減]
+    TM --> B3[一貫性保証<br/>品質向上]
+    TM --> B4[DRY原則<br/>徹底]
+    TM --> B5[フレームワーク<br/>設計優位性]
+    
+    B1 --> V1[開発時間短縮]
+    B2 --> V2[バグ修正工数削減]
+    B3 --> V3[テスト効率化]
+    B4 --> V4[保守コスト削減]
+    B5 --> V5[再利用性向上]
+    
+    V1 --> BV[ビジネス価値]
+    V2 --> BV
+    V3 --> BV
+    V4 --> BV
+    V5 --> BV
+    
+    style TM fill:#e1f5ff
+    style BV fill:#ffe1e1
+```
+
 ### コード重複排除による開発コスト削減
 
 **Before（重複あり）**
@@ -648,6 +747,33 @@ class DataProcessor(ABC):
         self.step2_parse()      # 2番目
         self.step3_transform()  # 3番目
         self.step4_save()       # 最後
+```
+
+**テスト戦略の可視化**
+
+```mermaid
+graph TB
+    subgraph "Template Method適用前"
+        T1[CSVProcessorテスト<br/>全処理をテスト]
+        T2[JSONProcessorテスト<br/>全処理をテスト]
+        T3[XMLProcessorテスト<br/>全処理をテスト]
+    end
+    
+    subgraph "Template Method適用後"
+        PT[AbstractProcessorテスト<br/>共通処理を1回だけテスト]
+        ST1[CSVProcessorテスト<br/>固有処理のみテスト]
+        ST2[JSONProcessorテスト<br/>固有処理のみテスト]
+        ST3[XMLProcessorテスト<br/>固有処理のみテスト]
+        
+        PT -.継承.-> ST1
+        PT -.継承.-> ST2
+        PT -.継承.-> ST3
+    end
+    
+    style PT fill:#e1ffe1
+    style ST1 fill:#fff4e1
+    style ST2 fill:#fff4e1
+    style ST3 fill:#fff4e1
 ```
 
 **テストの効率化**
@@ -757,17 +883,33 @@ class CSVProcessor extends DataProcessor, LoggingMixin {
 
 バリエーションが増えると、サブクラスが増殖する
 
-```
-DataProcessor
-├── CSVProcessor
-│   ├── CompressedCSVProcessor
-│   └── EncryptedCSVProcessor
-├── JSONProcessor
-│   ├── CompressedJSONProcessor
-│   └── EncryptedJSONProcessor
-└── XMLProcessor
-    ├── CompressedXMLProcessor
-    └── EncryptedXMLProcessor
+```mermaid
+graph TB
+    DP[DataProcessor]
+    
+    DP --> CSV[CSVProcessor]
+    DP --> JSON[JSONProcessor]
+    DP --> XML[XMLProcessor]
+    
+    CSV --> CSV_C[CompressedCSVProcessor]
+    CSV --> CSV_E[EncryptedCSVProcessor]
+    CSV --> CSV_CE[CompressedEncryptedCSVProcessor]
+    
+    JSON --> JSON_C[CompressedJSONProcessor]
+    JSON --> JSON_E[EncryptedJSONProcessor]
+    JSON --> JSON_CE[CompressedEncryptedJSONProcessor]
+    
+    XML --> XML_C[CompressedXMLProcessor]
+    XML --> XML_E[EncryptedXMLProcessor]
+    XML --> XML_CE[CompressedEncryptedXMLProcessor]
+    
+    style DP fill:#e1f5ff
+    style CSV fill:#ffe1e1
+    style JSON fill:#ffe1e1
+    style XML fill:#ffe1e1
+    
+    Note1[サブクラスが<br/>爆発的に増加]
+    style Note1 fill:#fff4e1
 ```
 
 **回避策**
@@ -912,6 +1054,42 @@ processor.set_strategy(JSONStrategy())     # 動的に切り替え可能
 | **処理順序の制御** | 親クラスが制御 | クライアントが制御 | Template Methodが厳格 |
 | **コード量** | 少ない（継承のみ） | 多い（インターフェース+実装） | Template Methodが簡潔 |
 | **テスタビリティ** | やや低い（継承依存） | 高い（依存注入可能） | Strategyがテストしやすい |
+
+**構造の違いを可視化**
+
+```mermaid
+graph TB
+    subgraph "Template Method（継承ベース）"
+        TM_A[AbstractProcessor<br/>処理の骨組み]
+        TM_C1[CSVProcessor]
+        TM_C2[JSONProcessor]
+        
+        TM_A -.継承.-> TM_C1
+        TM_A -.継承.-> TM_C2
+        
+        TM_Client[Client] -->|使用| TM_C1
+        TM_Client -->|使用| TM_C2
+    end
+    
+    subgraph "Strategy（委譲ベース）"
+        ST_Context[Context<br/>処理の骨組み]
+        ST_I[<<interface>><br/>Strategy]
+        ST_S1[CSVStrategy]
+        ST_S2[JSONStrategy]
+        
+        ST_Context -->|has-a| ST_I
+        ST_I <|.. ST_S1
+        ST_I <|.. ST_S2
+        
+        ST_Client[Client] -->|ストラテジーを注入| ST_Context
+        ST_Client -.->|生成| ST_S1
+        ST_Client -.->|生成| ST_S2
+    end
+    
+    style TM_A fill:#e1f5ff
+    style ST_Context fill:#ffe1ff
+    style ST_I fill:#fff4e1
+```
 
 ### Template Method選択の判断基準
 
