@@ -216,6 +216,7 @@ Joshua Bloch（『Effective Java』著者）は、「単一要素のenumはSingl
 
 ```java
 public class ConfigManager {
+    // volatileは必須！メモリ可視性を保証
     private static volatile ConfigManager instance;
     private Properties config;
     
@@ -225,10 +226,10 @@ public class ConfigManager {
     }
     
     public static ConfigManager getInstance() {
-        if (instance == null) {  // 1st check
-            synchronized (ConfigManager.class) {
-                if (instance == null) {  // 2nd check
-                    instance = new ConfigManager();
+        if (instance == null) {  // 1st check: ロックなしで高速チェック
+            synchronized (ConfigManager.class) {  // 同期化ブロックを取得
+                if (instance == null) {  // 2nd check: ロック内で再チェック
+                    instance = new ConfigManager();  // インスタンス生成
                 }
             }
         }
