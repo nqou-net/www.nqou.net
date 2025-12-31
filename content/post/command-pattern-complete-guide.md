@@ -5,6 +5,10 @@ tags:
   - command-pattern
   - design-patterns
   - behavioral-patterns
+  - undo-redo
+  - java
+  - typescript
+  - python
 description: "Commandパターンの概要から実装、Undo/Redo機能の実現まで完全網羅。Java/TypeScript/Pythonの実装例と実践的な適用シーンを解説します。"
 ---
 
