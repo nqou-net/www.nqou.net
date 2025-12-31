@@ -49,6 +49,21 @@ Singletonパターンの実装には、以下の3つの要素が必要です。
 
 この3つの要素により、クラスの外部からは必ず同じインスタンスにアクセスすることになります。
 
+```mermaid
+classDiagram
+    class Singleton {
+        -Singleton instance$
+        -Singleton()
+        +getInstance()$ Singleton
+        +businessMethod()
+    }
+    note for Singleton "① プライベートコンストラクタ\n外部からのインスタンス化を防ぐ"
+    note for Singleton "② 静的インスタンス変数\n唯一のインスタンスを保持"
+    note for Singleton "③ 静的アクセスメソッド\nインスタンスへのアクセスポイント"
+```
+
+*図1: Singletonパターンの構造 - 3つの構成要素の関係*
+
 ### なぜ「唯一のインスタンス」が必要なのか
 
 「唯一のインスタンス」が必要な理由は、主に以下の3つです。
@@ -479,6 +494,28 @@ Singletonパターンをマルチスレッド環境で使う際の主な問題�
 
 不適切な同期処理により、デッドロックが発生する可能性がある
 
+#### スレッドセーフでない実装の問題
+
+```mermaid
+sequenceDiagram
+    participant Thread1 as スレッド1
+    participant Thread2 as スレッド2
+    participant Singleton as Singleton クラス
+    
+    Thread1->>Singleton: getInstance() 呼び出し
+    Thread1->>Singleton: instance == null? → true
+    Thread2->>Singleton: getInstance() 呼び出し
+    Thread2->>Singleton: instance == null? → true
+    Thread1->>Singleton: new Singleton() 実行 (インスタンスA)
+    Thread2->>Singleton: new Singleton() 実行 (インスタンスB)
+    Singleton-->>Thread1: インスタンスA を返却
+    Singleton-->>Thread2: インスタンスB を返却
+    
+    Note over Thread1,Thread2: 問題：2つの異なるインスタンスが生成される！
+```
+
+*図2: スレッドセーフでない実装の問題 - 同時アクセスによる複数インスタンス生成*
+
 ### Double-Checked Lockingパターン（volatileの重要性）
 
 Double-Checked Lockingパターンは、遅延初期化とスレッドセーフティを両立させるパターンです。
@@ -516,6 +553,35 @@ Javaのメモリモデルでは、`volatile`なしでは以下の問題が発生
 - 書き込みは即座にメインメモリに反映される
 - 読み込みは常にメインメモリから行われる
 - 命令の並び替えが制限される
+
+#### Double-Checked Lockingの動作フロー
+
+```mermaid
+sequenceDiagram
+    participant Thread1 as スレッド1
+    participant Thread2 as スレッド2
+    participant Singleton as Singleton クラス
+    
+    Thread1->>Singleton: getInstance() 呼び出し
+    Thread1->>Singleton: 1st check: instance == null? → true
+    Thread2->>Singleton: getInstance() 呼び出し
+    Thread2->>Singleton: 1st check: instance == null? → true
+    Thread1->>Singleton: synchronized ブロック取得
+    Thread1->>Singleton: 2nd check: instance == null? → true
+    Thread2->>Singleton: synchronized ブロック待機
+    Thread1->>Singleton: new Singleton() 実行
+    Thread1->>Singleton: instance に代入 (volatile)
+    Thread1->>Singleton: synchronized ブロック解放
+    Singleton-->>Thread1: instance を返却
+    Thread2->>Singleton: synchronized ブロック取得
+    Thread2->>Singleton: 2nd check: instance == null? → false
+    Thread2->>Singleton: synchronized ブロック解放
+    Singleton-->>Thread2: 既存の instance を返却
+    
+    Note over Thread1,Thread2: 正常：同一インスタンスが返却される
+```
+
+*図3: Double-Checked Lockingの動作 - volatileとsynchronizedによる安全な初期化*
 
 ### 言語別のスレッドセーフな実装ベストプラクティス
 
@@ -625,6 +691,46 @@ public class UserService {
 - ライフサイクル管理が容易
 - 設定の外部化が可能
 - SOLID原則に準拠
+
+#### 従来のSingleton vs DIコンテナの比較
+
+```mermaid
+graph TB
+    subgraph "従来のSingletonパターン"
+        A1[UserService] -->|直接依存<br/>getInstance呼び出し| B1[DatabaseConnection<br/>Singleton]
+        C1[OrderService] -->|直接依存<br/>getInstance呼び出し| B1
+        D1[ProductService] -->|直接依存<br/>getInstance呼び出し| B1
+        
+        style B1 fill:#ffcccc
+        style A1 fill:#ffe6e6
+        style C1 fill:#ffe6e6
+        style D1 fill:#ffe6e6
+    end
+    
+    subgraph "DIコンテナによる管理"
+        E1[DIコンテナ] -->|生成・管理| F1[DatabaseConnection<br/>Singleton Bean]
+        E1 -->|注入| G1[UserService]
+        E1 -->|注入| H1[OrderService]
+        E1 -->|注入| I1[ProductService]
+        F1 -.->|同一インスタンス| G1
+        F1 -.->|同一インスタンス| H1
+        F1 -.->|同一インスタンス| I1
+        
+        style F1 fill:#ccffcc
+        style E1 fill:#e6ffe6
+        style G1 fill:#f0fff0
+        style H1 fill:#f0fff0
+        style I1 fill:#f0fff0
+    end
+    
+    note1[隠れた依存関係<br/>テスト困難<br/>密結合]
+    note2[明示的な依存関係<br/>テスト容易<br/>疎結合]
+    
+    note1 -.->|問題点| B1
+    note2 -.->|利点| E1
+```
+
+*図4: 従来のSingleton vs DIコンテナ - 依存関係の管理方法の違い*
 
 ### .NET Core/ASP.NET Coreでのライフタイム管理
 
@@ -1111,28 +1217,34 @@ print(config1.settings is config2.settings)  # True（状態は共有）
 
 どの手法を選ぶべきか、フローチャートで示します。
 
+```mermaid
+flowchart TD
+    Start([開始]) --> Q1{唯一性が<br/>本当に必要か？}
+    
+    Q1 -->|No| End1[通常のクラスを使う]
+    Q1 -->|Yes| Q2{DIコンテナを<br/>使っているか？}
+    
+    Q2 -->|Yes| End2[DIコンテナで管理<br/>★推奨★]
+    Q2 -->|No| Q3{分散システムか？}
+    
+    Q3 -->|Yes| End3[分散Singleton<br/>Redis/Etcd等]
+    Q3 -->|No| Q4{テストのしやすさが<br/>重要か？}
+    
+    Q4 -->|Yes| End4[DIを導入する]
+    Q4 -->|No| End5[Singletonパターンを<br/>慎重に使う<br/>Enum/Lazy T 推奨]
+    
+    style End1 fill:#e1f5ff
+    style End2 fill:#90EE90,stroke:#2d8c2d,stroke-width:3px
+    style End3 fill:#fff4e1
+    style End4 fill:#ffe1f5
+    style End5 fill:#ffffcc
+    style Start fill:#f0f0f0
+    
+    classDef questionStyle fill:#ffebcd,stroke:#ff8c00,stroke-width:2px
+    class Q1,Q2,Q3,Q4 questionStyle
 ```
-開始
-  ↓
-唯一性が本当に必要か？
-  ├─ No → 通常のクラスを使う
-  └─ Yes
-      ↓
-    DIコンテナを使っているか？
-      ├─ Yes → DIコンテナで管理（推奨）
-      └─ No
-          ↓
-        分散システムか？
-          ├─ Yes → 分散Singleton（Redis等）
-          └─ No
-              ↓
-            テストのしやすさが重要か？
-              ├─ Yes → DIを導入する
-              └─ No
-                  ↓
-                Singletonパターンを慎重に使う
-                （Enum実装やLazy<T>を推奨）
-```
+
+*図5: Singleton実装手法の選択基準フローチャート*
 
 ## まとめ：Singletonを使う前に確認すべきチェックリスト
 
