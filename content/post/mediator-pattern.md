@@ -1076,6 +1076,37 @@ done_testing();
 - 10個のオブジェクト：45接続 → 10接続（78%削減）
 - 100個のオブジェクト：4,950接続 → 100接続（98%削減）
 
+**視覚的な理解**
+
+```mermaid
+graph TB
+    subgraph "接続数の比較（5オブジェクト）"
+        subgraph "直接通信: 10接続"
+            A1((A)) --- B1((B))
+            A1 --- C1((C))
+            A1 --- D1((D))
+            A1 --- E1((E))
+            B1 --- C1
+            B1 --- D1
+            B1 --- E1
+            C1 --- D1
+            C1 --- E1
+            D1 --- E1
+        end
+        
+        subgraph "Mediator: 5接続"
+            M[Mediator]
+            A2((A)) --- M
+            B2((B)) --- M
+            C2((C)) --- M
+            D2((D)) --- M
+            E2((E)) --- M
+        end
+    end
+    
+    style M fill:#ffffcc
+```
+
 ## Mediatorパターンの欠点【4つの注意点】
 
 ### 欠点1：God Objectの危険性
@@ -1377,6 +1408,228 @@ $mediator->print_document();  # やりすぎ
 - コンポーネント：3つ
 - 相互作用：単純（送信ボタンの有効/無効のみ）
 - 判定：**直接制御で十分 ❌**
+
+## 既存コードのリファクタリング手順【段階的な移行】
+
+既存のレガシーコードをMediatorパターンにリファクタリングする際の、実践的なステップを紹介します。
+
+### ステップ1：現状分析
+
+まず、オブジェクト間の依存関係を可視化します。
+
+```perl
+# 既存コード（密結合）
+package OrderForm;
+
+sub validate {
+    my $self = shift;
+    
+    # 複数のコンポーネントに直接アクセス
+    if (!$self->{customer_panel}->is_valid()) {
+        $self->{error_display}->show("顧客情報が不正です");
+        $self->{submit_button}->disable();
+        return 0;
+    }
+    
+    if (!$self->{product_list}->has_selection()) {
+        $self->{error_display}->show("商品を選択してください");
+        $self->{submit_button}->disable();
+        return 0;
+    }
+    
+    $self->{error_display}->hide();
+    $self->{submit_button}->enable();
+    $self->{total_calculator}->update();
+    return 1;
+}
+```
+
+**依存関係の図**
+
+```
+OrderForm
+  ↓→ customer_panel
+  ↓→ error_display
+  ↓→ submit_button
+  ↓→ product_list
+  ↓→ total_calculator
+```
+
+### ステップ2：Mediatorインターフェースの導入
+
+既存コードを壊さないよう、まずはMediatorを追加するだけにします。
+
+```perl
+# OrderFormMediator.pm を新規作成
+package OrderFormMediator;
+use Moo;
+
+has customer_panel   => (is => 'rw');
+has product_list     => (is => 'rw');
+has error_display    => (is => 'rw');
+has submit_button    => (is => 'rw');
+has total_calculator => (is => 'rw');
+
+sub validate {
+    my $self = shift;
+    
+    # 既存ロジックをそのまま移行
+    if (!$self->customer_panel->is_valid()) {
+        $self->error_display->show("顧客情報が不正です");
+        $self->submit_button->disable();
+        return 0;
+    }
+    
+    if (!$self->product_list->has_selection()) {
+        $self->error_display->show("商品を選択してください");
+        $self->submit_button->disable();
+        return 0;
+    }
+    
+    $self->error_display->hide();
+    $self->submit_button->enable();
+    $self->total_calculator->update();
+    return 1;
+}
+
+1;
+```
+
+### ステップ3：コンポーネントの通知機構を追加
+
+各コンポーネントがMediator経由で通知できるようにします。
+
+```perl
+# CustomerPanel.pm に追加
+package CustomerPanel;
+use Moo;
+
+has mediator => (is => 'rw');
+
+sub set_value {
+    my ($self, $field, $value) = @_;
+    $self->{data}{$field} = $value;
+    
+    # Mediatorに変更を通知
+    $self->mediator->notify($self, 'customer_changed') if $self->mediator;
+}
+```
+
+### ステップ4：イベント駆動への移行
+
+直接呼び出しからイベント駆動に変更します。
+
+```perl
+# OrderFormMediator.pm を改善
+package OrderFormMediator;
+use Moo;
+
+# 各コンポーネントへの参照
+has customer_panel   => (is => 'rw');
+has product_list     => (is => 'rw');
+has error_display    => (is => 'rw');
+has submit_button    => (is => 'rw');
+has total_calculator => (is => 'rw');
+
+# イベントハンドラ
+sub notify {
+    my ($self, $sender, $event) = @_;
+    
+    if ($event eq 'customer_changed' || $event eq 'product_changed') {
+        $self->validate();
+    }
+}
+
+sub validate {
+    my $self = shift;
+    
+    my @errors;
+    
+    if (!$self->customer_panel->is_valid()) {
+        push @errors, "顧客情報が不正です";
+    }
+    
+    if (!$self->product_list->has_selection()) {
+        push @errors, "商品を選択してください";
+    }
+    
+    if (@errors) {
+        $self->error_display->show(join("\n", @errors));
+        $self->submit_button->disable();
+    } else {
+        $self->error_display->hide();
+        $self->submit_button->enable();
+        $self->total_calculator->update();
+    }
+}
+
+1;
+```
+
+### ステップ5：完全な疎結合への移行
+
+最後に、各コンポーネントが他のコンポーネントを知らないようにします。
+
+```perl
+# 各コンポーネントのインターフェースを統一
+package FormComponent;
+use Moo::Role;
+
+requires 'get_data';
+requires 'is_valid';
+
+has mediator => (is => 'rw');
+
+sub notify_change {
+    my $self = shift;
+    $self->mediator->notify($self, 'component_changed') if $self->mediator;
+}
+
+1;
+
+# CustomerPanel は FormComponent を実装
+package CustomerPanel;
+use Moo;
+with 'FormComponent';
+
+sub get_data {
+    my $self = shift;
+    return $self->{data};
+}
+
+sub is_valid {
+    my $self = shift;
+    # 検証ロジック
+    return $self->{data}{name} && $self->{data}{email};
+}
+
+sub set_value {
+    my ($self, $field, $value) = @_;
+    $self->{data}{$field} = $value;
+    $self->notify_change();  # Roleのメソッドを使用
+}
+
+1;
+```
+
+### リファクタリングのチェックリスト
+
+各ステップで以下を確認してください。
+
+- [ ] 既存のテストが全て通る
+- [ ] 新しい機能追加が容易になったか
+- [ ] コンポーネント間の直接参照が減ったか
+- [ ] Mediatorが肥大化していないか
+- [ ] パフォーマンスが許容範囲内か
+
+**リファクタリング前後の比較**
+
+| 指標 | Before | After | 改善 |
+|------|--------|-------|------|
+| OrderFormクラスの行数 | 250行 | 50行 | 80%削減 |
+| コンポーネント間の依存 | 20個 | 5個 | 75%削減 |
+| 新機能追加時の変更ファイル数 | 平均4ファイル | 平均2ファイル | 50%削減 |
+| テストコード行数 | 150行 | 300行 | テスト充実 |
 
 ## よくある間違いと対策【実装時の落とし穴】
 
