@@ -5,7 +5,7 @@ tags:
   - design-patterns
   - facade-pattern
   - structural-patterns
-description: "複雑なサブシステムをシンプルに扱うFacadeパターンを実例で解説。複雑さに悩むコードの問題点から、Facadeによる解決策、実装例、利点・欠点まで徹底解説します。"
+description: "複雑なサブシステムをシンプルに扱うFacadeパターンを実例で解説。問題点から解決策、実装例、利点・欠点まで徹底解説します。"
 ---
 
 [@nqounet](https://x.com/nqounet)です。
@@ -292,11 +292,16 @@ sequenceDiagram
 // Facadeパターン適用後のクライアントコード
 public class Client {
     public static void main(String[] args) {
-        // サブシステムのインスタンス生成は1回だけ
+        // サブシステムのインスタンス生成
+        Amplifier amp = new Amplifier();
+        DVDPlayer dvd = new DVDPlayer(amp);
+        Projector projector = new Projector(dvd);
+        
+        // Facadeを通じてシンプルに操作
         HomeTheaterFacade homeTheater = new HomeTheaterFacade(
-            new Amplifier(),
-            new DVDPlayer(new Amplifier()),
-            new Projector(new DVDPlayer(new Amplifier())),
+            amp,
+            dvd,
+            projector,
             new Screen(),
             new TheaterLights(),
             new PopcornPopper()
@@ -329,6 +334,23 @@ public class Client {
 
 ```typescript
 // TypeScript + Node.js
+// 型定義
+interface Credentials {
+    userId: string;
+    password: string;
+}
+
+interface Token {
+    token: string;
+    expiresIn: number;
+}
+
+interface User {
+    id: string;
+    name: string;
+    email: string;
+}
+
 // 複雑な外部APIクライアント（サブシステム）
 class AuthenticationAPI {
     async authenticate(credentials: Credentials): Promise<Token> {
