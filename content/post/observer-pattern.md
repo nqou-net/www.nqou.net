@@ -99,6 +99,92 @@ sub register_user {
 $user_manager->attach($new_sms_notifier);  # コード修正不要！
 ```
 
+### Before/After比較図
+
+密結合から疎結合への構造変化を視覚的に理解しましょう。
+
+```mermaid
+graph TB
+    subgraph "❌ Before: 密結合"
+        UM1[UserManager]
+        UM1 -->|直接呼び出し| EN1[EmailNotifier]
+        UM1 -->|直接呼び出し| SN1[SlackNotifier]
+        UM1 -->|直接呼び出し| L1[Logger]
+        
+        style UM1 fill:#ffcccc
+        style EN1 fill:#ffcccc
+        style SN1 fill:#ffcccc
+        style L1 fill:#ffcccc
+    end
+    
+    subgraph "✅ After: 疎結合"
+        UM2[UserManager<br/>Subject]
+        UM2 -.->|notify| OL[Observerリスト]
+        OL -->|update| EN2[EmailNotifier<br/>Observer]
+        OL -->|update| SN2[SlackNotifier<br/>Observer]
+        OL -->|update| L2[Logger<br/>Observer]
+        OL -->|update| SMS[SMSNotifier<br/>新規追加も容易]
+        
+        style UM2 fill:#ccffcc
+        style EN2 fill:#ccffcc
+        style SN2 fill:#ccffcc
+        style L2 fill:#ccffcc
+        style SMS fill:#ccffee
+        style OL fill:#ffffcc
+    end
+```
+
+**Before（密結合）の問題点**
+- UserManagerが各通知先を直接知っている
+- 新しい通知先を追加するたびにUserManagerのコードを修正
+- 変更の影響範囲が広い
+
+**After（疎結合）の利点**
+- UserManagerは「Observerインターフェース」のみを知っている
+- 新しい通知先は`attach`で追加するだけ（既存コードの修正不要）
+- 各Observerは独立して変更可能
+
+### 手動通知 vs 自動通知のフロー比較
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant M as Manager
+    participant N1 as Notifier1
+    participant N2 as Notifier2
+    participant N3 as Notifier3
+    
+    rect rgb(255, 220, 220)
+        note over C,N3: ❌ 手動通知: 更新漏れのリスク
+        C->>M: update_data(value)
+        M->>M: data = value
+        M->>N1: notify(value)
+        M->>N2: notify(value)
+        note right of M: N3への通知を忘れた！
+    end
+    
+    rect rgb(220, 255, 220)
+        note over C,N3: ✅ 自動通知: 更新漏れなし
+        C->>M: set_data(value)
+        M->>M: data = value
+        M->>M: notify_all()
+        M->>N1: update(value)
+        M->>N2: update(value)
+        M->>N3: update(value)
+        note right of M: 全てに自動通知
+    end
+```
+
+**手動通知の問題**
+- 通知先ごとに個別に呼び出す必要がある
+- 通知先が増えると呼び出し漏れが発生しやすい
+- コードの重複が多い
+
+**自動通知の利点**
+- `notify_all()`で一括通知
+- 通知先の追加・削除に強い
+- コードがシンプルで保守しやすい
+
 ## Observerパターンの仕組み【図解で理解】
 
 ### 登場人物
@@ -724,6 +810,74 @@ Observerを`detach`せずに破棄すると、Subjectが参照を保持し続け
 # $temp_observerは解放されない！
 ```
 
+### メモリリーク発生パターン図
+
+```mermaid
+graph TB
+    subgraph "❌ メモリリーク発生"
+        S1[Subject<br/>長寿命オブジェクト]
+        S1 -->|強参照保持| OL1[observers<br/>リスト]
+        OL1 -->|ref 1| O1[Observer A]
+        OL1 -->|ref 2| O2[Observer B<br/>一時的]
+        OL1 -->|ref 3| O3[Observer C<br/>一時的]
+        
+        note1[スコープ外でも<br/>解放されない]
+        
+        style S1 fill:#ffcccc
+        style OL1 fill:#ffcccc
+        style O2 fill:#ffaaaa
+        style O3 fill:#ffaaaa
+        style note1 fill:#ffe1e1
+    end
+    
+    subgraph "✅ 弱参照で解決"
+        S2[Subject<br/>長寿命オブジェクト]
+        S2 -.->|弱参照| OL2[observers<br/>リスト]
+        OL2 -.->|weak ref 1| O4[Observer A]
+        OL2 -.->|weak ref 2| O5[Observer B<br/>一時的]
+        OL2 -.->|weak ref 3| O6[Observer C<br/>一時的]
+        
+        note2[スコープ外で<br/>自動解放]
+        
+        style S2 fill:#ccffcc
+        style OL2 fill:#ccffcc
+        style O5 fill:#aaffaa
+        style O6 fill:#aaffaa
+        style note2 fill:#e1ffe1
+    end
+```
+
+**メモリリークの仕組み**
+
+```mermaid
+sequenceDiagram
+    participant Scope as スコープ
+    participant Subject
+    participant Observer
+    
+    rect rgb(255, 220, 220)
+        note over Scope,Observer: ❌ 強参照の場合
+        Scope->>Observer: new()
+        Scope->>Subject: attach(observer)
+        Subject->>Subject: observers.push(observer)<br/>強参照
+        note over Scope: スコープ終了
+        Scope--xObserver: 解放しようとするが...
+        Subject->>Observer: 参照カウント > 0
+        note right of Observer: メモリリーク発生!
+    end
+    
+    rect rgb(220, 255, 220)
+        note over Scope,Observer: ✅ 弱参照の場合
+        Scope->>Observer: new()
+        Scope->>Subject: attach(observer)
+        Subject->>Subject: weaken(observer)<br/>弱参照化
+        note over Scope: スコープ終了
+        Scope->>Observer: 解放
+        Observer->>Observer: 参照カウント = 0
+        note right of Observer: 正常に解放
+    end
+```
+
 **対策：弱参照（Weak Reference）の利用**
 
 ```perl
@@ -775,6 +929,48 @@ sub update {
 }
 ```
 
+### 無限ループ発生メカニズム図
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant S as Subject
+    participant O as EchoObserver
+    
+    rect rgb(255, 220, 220)
+        note over C,O: ❌ 無限ループの発生
+        C->>S: set_data("Hello")
+        activate S
+        S->>S: data = "Hello"
+        S->>O: update("Hello")
+        activate O
+        O->>S: set_data("Hello echo")
+        S->>S: data = "Hello echo"
+        S->>O: update("Hello echo")
+        O->>S: set_data("Hello echo echo")
+        S->>S: data = "Hello echo echo"
+        S->>O: update("Hello echo echo")
+        note right of O: 無限に続く...
+        deactivate O
+        deactivate S
+    end
+```
+
+**発生パターン**
+
+```mermaid
+graph LR
+    S1[Subject] -->|notify| O1[Observer]
+    O1 -->|set_data| S1
+    
+    style S1 fill:#ffcccc
+    style O1 fill:#ffcccc
+    
+    note1[循環参照<br/>無限ループ]
+    
+    style note1 fill:#ffe1e1
+```
+
 **対策：通知フラグの導入**
 
 ```perl
@@ -794,6 +990,26 @@ sub notify {
     $_->update($self->data) for @{ $self->observers };
     $self->is_notifying(0);
 }
+```
+
+### 無限ループ対策後のフロー
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant S as Subject<br/>(with flag)
+    participant O as EchoObserver
+    
+    rect rgb(220, 255, 220)
+        note over C,O: ✅ フラグによる再帰防止
+        C->>S: set_data("Hello")
+        S->>S: is_notifying = true
+        S->>O: update("Hello")
+        O->>S: set_data("Hello echo")
+        S->>S: is_notifying?<br/>→ true, return
+        note right of S: 通知をスキップ
+        S->>S: is_notifying = false
+    end
 ```
 
 ### 落とし穴3：通知順序の不確定性
@@ -948,6 +1164,75 @@ Observerパターンと混同されやすいPub-Sub（Publish-Subscribe）パタ
 
 - **Observerパターン**: UI更新、小規模な状態同期、イベント駆動GUI
 - **Pub-Sub**: マイクロサービス通信、大規模イベント配信、メッセージキュー（RabbitMQ、Kafka）
+
+### アーキテクチャ比較図
+
+ObserverパターンとPub-Subパターンの構造的な違いを明確に理解しましょう。
+
+```mermaid
+graph TB
+    subgraph "Observerパターン: 直接通信"
+        S1[Subject<br/>被観察者]
+        S1 -.->|直接保持| OList1[Observer<br/>リスト]
+        OList1 -->|update呼び出し| O1[Observer A]
+        OList1 -->|update呼び出し| O2[Observer B]
+        OList1 -->|update呼び出し| O3[Observer C]
+        
+        style S1 fill:#e1f5ff
+        style OList1 fill:#fff4e1
+        style O1 fill:#e1ffe1
+        style O2 fill:#e1ffe1
+        style O3 fill:#e1ffe1
+    end
+    
+    subgraph "Pub-Subパターン: 仲介者経由"
+        P1[Publisher<br/>発行者]
+        P2[Publisher<br/>発行者]
+        P1 -->|publish| EB[Event Bus/<br/>Message Broker]
+        P2 -->|publish| EB
+        EB -->|subscribe| Sub1[Subscriber A]
+        EB -->|subscribe| Sub2[Subscriber B]
+        EB -->|subscribe| Sub3[Subscriber C]
+        EB -->|subscribe| Sub4[Subscriber D]
+        
+        style P1 fill:#ffe1e1
+        style P2 fill:#ffe1e1
+        style EB fill:#fff4aa
+        style Sub1 fill:#e1e1ff
+        style Sub2 fill:#e1e1ff
+        style Sub3 fill:#e1e1ff
+        style Sub4 fill:#e1e1ff
+    end
+```
+
+**Observerパターンの特徴**
+- Subjectが全Observerを直接管理
+- 同期的な通知（メソッド呼び出し）
+- 同一プロセス内での動作が基本
+- シンプルな実装で低コスト
+
+**Pub-Subパターンの特徴**
+- PublisherとSubscriberは互いを知らない（完全疎結合）
+- Event Busが仲介（トピックやチャネルで分類）
+- 非同期・分散システムに適している
+- インフラ（Message Queue等）が必要
+
+```mermaid
+graph LR
+    subgraph "選択フローチャート"
+        Start([パターン選択]) --> Q1{同一プロセス内?}
+        Q1 -->|Yes| Q2{Observer数は<br/>100未満?}
+        Q1 -->|No| PS[Pub-Sub<br/>パターン]
+        Q2 -->|Yes| Q3{同期処理<br/>で問題ない?}
+        Q2 -->|No| PS
+        Q3 -->|Yes| OBS[Observer<br/>パターン]
+        Q3 -->|No| PS
+        
+        style OBS fill:#ccffcc
+        style PS fill:#ffcccc
+        style Start fill:#e1f5ff
+    end
+```
 
 ### React（JavaScript）での実装
 
@@ -1251,6 +1536,146 @@ sub notify {
 - **実践例**: マルチ出力ログシステム
 - **5つの落とし穴**: メモリリーク、循環参照、順序不確定、パフォーマンス、可視化困難
 - **他言語との比較**: React、Vue、TypeScript、Java
+
+### Observerパターン選択フローチャート
+
+実務でObserverパターンを採用すべきか判断する際の指針です。
+
+```mermaid
+flowchart TD
+    Start([パターン選択開始]) --> Q1{1つの変更を<br/>複数箇所に反映?}
+    
+    Q1 -->|No| Alt1[他のパターンを検討<br/>Strategy/Command等]
+    Q1 -->|Yes| Q2{変更元と変更先を<br/>疎結合にしたい?}
+    
+    Q2 -->|No| Alt2[直接呼び出しで十分<br/>シンプルな設計]
+    Q2 -->|Yes| Q3{実行時に通知先を<br/>動的に変更?}
+    
+    Q3 -->|No| Q4{将来的に変更先が<br/>増える可能性?}
+    Q3 -->|Yes| Q5{通知先は何個?}
+    
+    Q4 -->|No| Alt3[静的な依存注入<br/>DIパターン]
+    Q4 -->|Yes| Q5
+    
+    Q5 -->|100個未満| Q6{同一プロセス内<br/>で完結?}
+    Q5 -->|100個以上| Alt4[Pub-Sub/Event Bus<br/>を検討]
+    
+    Q6 -->|Yes| Q7{同期処理で<br/>問題ない?}
+    Q6 -->|No| Alt4
+    
+    Q7 -->|Yes| Observer[✅ Observer<br/>パターン採用]
+    Q7 -->|No| Alt5[非同期Observer<br/>または Pub-Sub]
+    
+    Observer --> Impl[実装方針]
+    Impl --> Simple{シンプルさ<br/>優先?}
+    Simple -->|Yes| Bless[bless実装<br/>依存なし]
+    Simple -->|No| Moo[Moo実装<br/>型安全・保守性]
+    
+    style Observer fill:#90EE90
+    style Alt1 fill:#FFB6C1
+    style Alt2 fill:#FFB6C1
+    style Alt3 fill:#FFB6C1
+    style Alt4 fill:#FFB6C1
+    style Alt5 fill:#FFB6C1
+    style Bless fill:#87CEEB
+    style Moo fill:#87CEEB
+    style Start fill:#FFF4E1
+```
+
+**判断基準のポイント**
+
+| 条件 | 推奨パターン | 理由 |
+|------|------------|------|
+| UI更新、状態同期が必要 | Observer | 自動通知で更新漏れ防止 |
+| 通知先が頻繁に変わる | Observer | 動的なattach/detach |
+| 大規模・分散システム | Pub-Sub | スケーラビリティ |
+| 通知先100個以上 | Pub-Sub + 非同期 | パフォーマンス対策 |
+| シンプルな1対1通知 | 直接呼び出し | オーバーエンジニアリング回避 |
+
+### 関連パターンの関係図
+
+Observerパターンは他のデザインパターンと組み合わせることで、より強力な設計を実現できます。
+
+```mermaid
+graph TB
+    Observer[Observer<br/>パターン]
+    
+    subgraph "振る舞いパターン"
+        Strategy[Strategy<br/>アルゴリズム切替]
+        Command[Command<br/>操作のオブジェクト化]
+        Mediator[Mediator<br/>相互作用の調停]
+        Iterator[Iterator<br/>要素の順次アクセス]
+    end
+    
+    subgraph "構造パターン"
+        Proxy[Proxy<br/>代理オブジェクト]
+        Composite[Composite<br/>木構造の統一的扱い]
+    end
+    
+    subgraph "生成パターン"
+        Singleton[Singleton<br/>唯一のインスタンス]
+        Factory[Factory<br/>オブジェクト生成]
+    end
+    
+    Observer -.->|よく組み合わせる| Strategy
+    Observer -.->|MVCで使用| Mediator
+    Observer -.->|イベント処理| Command
+    Observer -.->|グローバルイベント| Singleton
+    
+    Strategy -.->|コールバック実装| Observer
+    Mediator -.->|通知機構| Observer
+    
+    style Observer fill:#90EE90,stroke:#333,stroke-width:3px
+    style Strategy fill:#E1F5FF
+    style Command fill:#E1F5FF
+    style Mediator fill:#E1F5FF
+    style Singleton fill:#FFE1E1
+```
+
+**パターン間の関係**
+
+```mermaid
+mindmap
+  root((Observer))
+    代替パターン
+      Pub-Sub
+        メッセージキュー
+        Event Bus
+      Mediator
+        中央管理者
+        複雑な通信
+    補完パターン
+      Strategy
+        通知方法の切替
+        柔軟な処理
+      Command
+        イベント履歴
+        Undo/Redo
+    実装補助
+      Singleton
+        グローバルSubject
+        イベントマネージャー
+      Factory
+        Observer生成
+        動的登録
+    発展形
+      MVC
+        Model = Subject
+        View = Observer
+      MVVM
+        ViewModel = Subject
+        View = Observer
+```
+
+**組み合わせ例**
+
+| パターン組み合わせ | ユースケース | 効果 |
+|------------------|------------|------|
+| Observer + Strategy | 通知方法を動的に変更（同期/非同期） | 柔軟性向上 |
+| Observer + Command | イベント履歴の記録とリプレイ | デバッグ・監査 |
+| Observer + Singleton | アプリ全体のイベントバス | グローバル通知 |
+| Observer + Mediator | 複雑なUI更新の調停 | 依存関係の整理 |
+| Observer + Factory | 設定ファイルからObserver生成 | プラグイン機構 |
 
 ### 実務で使うための次のステップ
 
