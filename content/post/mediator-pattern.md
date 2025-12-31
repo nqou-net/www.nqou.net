@@ -1802,6 +1802,72 @@ Mediatorパターンは、**複雑なオブジェクト間の相互作用を一�
 - **実用例** - チャットルーム、UIダイアログ、ワークフロー管理に最適
 - **注意点** - God Objectにならないよう、Mediatorの責務を適切に分割
 
+### Mediatorパターン クイックリファレンス
+
+実務で使える早見表です。
+
+**適用判断チャート**
+
+```mermaid
+flowchart TD
+    A[オブジェクト間の通信が必要] --> B{オブジェクト数は<br/>3つ以上?}
+    B -->|No| C[直接通信で十分]
+    B -->|Yes| D{双方向通信が<br/>必要?}
+    D -->|No| E[Observer検討]
+    D -->|Yes| F{通信ロジックは<br/>複雑?}
+    F -->|No| G[直接通信で十分]
+    F -->|Yes| H[Mediator採用✅]
+    
+    style H fill:#90EE90
+    style C fill:#FFE4B5
+    style E fill:#87CEEB
+    style G fill:#FFE4B5
+```
+
+**実装チェックリスト**
+
+| 項目 | チェック |
+|------|---------|
+| □ Mediatorインターフェースを定義したか | |
+| □ 各ColleagueはMediator経由でのみ通信しているか | |
+| □ Mediatorの責務は明確か（God Objectになっていないか） | |
+| □ 新しいColleagueの追加は容易か | |
+| □ 各コンポーネントは独立してテスト可能か | |
+| □ パフォーマンスは許容範囲内か | |
+| □ ドキュメントは整備されているか | |
+
+**よくある質問と回答**
+
+**Q1: MediatorとObserverの違いは？**
+
+A: Mediatorは双方向の複雑な相互作用を管理し、Observerは一方向の通知に特化しています。Mediatorは「調停」、Observerは「通知」が主目的です。
+
+**Q2: いつMediatorを使うべき？**
+
+A: 以下の条件が揃った時です。
+- 3つ以上のオブジェクトが相互に通信
+- 通信ロジックが複雑
+- オブジェクトの追加・削除が頻繁
+
+**Q3: パフォーマンスへの影響は？**
+
+A: 一般的に10〜20%のオーバーヘッドがあります。しかし、保守性向上のメリットの方が大きいことが多いです。性能が最重要な部分は直接通信を検討してください。
+
+**Q4: 既存コードへの適用方法は？**
+
+A: 段階的にリファクタリングしてください。
+1. Mediatorを追加（既存コードは保持）
+2. イベント通知機構を追加
+3. 徐々に直接参照を削除
+4. テストを継続的に実行
+
+**Q5: Mediatorが大きくなりすぎたら？**
+
+A: 以下の対策を取ります。
+- 機能ごとに複数のMediatorに分割
+- Strategy パターンでイベント処理を委譲
+- Command パターンでイベントをオブジェクト化
+
 ### 学習ロードマップ
 
 Mediatorパターンを理解したら、以下のステップで学習を深めましょう。
@@ -1827,6 +1893,203 @@ perl app.pl
 **ステップ3：実務での適用**
 
 既存プロジェクトで、複雑な相互作用を持つコードを見つけ、Mediatorパターンでリファクタリングしてみましょう。
+
+### 実践的なヒント【成功するための7つのポイント】
+
+実務でMediatorパターンを成功させるための具体的なアドバイスです。
+
+**ヒント1：小さく始める**
+
+いきなり大規模なリファクタリングをせず、小さな部分から始めましょう。
+
+```perl
+# Good: 限定的な範囲で試す
+# まずはログインフォームのみにMediator導入
+my $login_mediator = LoginFormMediator->new;
+
+# Bad: 全システムをいきなり変更
+# my $app_mediator = ApplicationMediator->new;  # 範囲が広すぎ
+```
+
+**ヒント2：イベント名を標準化する**
+
+イベント名の命名規則を統一し、ドキュメント化しましょう。
+
+```perl
+# Good: 一貫性のある命名
+# {対象}_{動作}_{状態} の形式
+'user_login_success'
+'user_login_failed'
+'order_create_started'
+'order_create_completed'
+
+# Bad: バラバラな命名
+'login_ok'
+'failed_login'
+'new_order'
+'order_done'
+```
+
+**ヒント3：ログとトレースを充実させる**
+
+Mediator経由の通信はフローが見えにくいため、ログを充実させます。
+
+```perl
+package DebugMediator;
+use Moo;
+use Data::Dumper;
+
+around 'notify' => sub {
+    my ($orig, $self, $sender, $event, $data) = @_;
+    
+    if ($ENV{DEBUG_MEDIATOR}) {
+        warn sprintf(
+            "[MEDIATOR] %s -(%s)-> Mediator [data=%s]\n",
+            ref($sender),
+            $event,
+            Dumper($data)
+        );
+    }
+    
+    return $self->$orig($sender, $event, $data);
+};
+```
+
+**ヒント4：タイムアウト機構を実装する**
+
+無限ループや循環参照を防ぐため、タイムアウトを設定します。
+
+```perl
+package SafeMediator;
+use Moo;
+use Time::HiRes qw(time);
+
+has max_event_time => (
+    is      => 'ro',
+    default => 5.0,  # 5秒
+);
+
+sub notify {
+    my ($self, $sender, $event, $data) = @_;
+    
+    my $start_time = time();
+    my $result = $self->_handle_event($sender, $event, $data);
+    my $elapsed = time() - $start_time;
+    
+    if ($elapsed > $self->max_event_time) {
+        warn "Event '$event' took ${elapsed}s (> " 
+           . $self->max_event_time . "s)";
+    }
+    
+    return $result;
+}
+```
+
+**ヒント5：イベントの優先度を設定する**
+
+重要なイベントを優先的に処理できるようにします。
+
+```perl
+package PriorityMediator;
+use Moo;
+
+has event_queue => (
+    is      => 'ro',
+    default => sub { [] },
+);
+
+sub notify {
+    my ($self, $sender, $event, $data, $priority) = @_;
+    $priority //= 0;
+    
+    push @{ $self->event_queue }, {
+        sender   => $sender,
+        event    => $event,
+        data     => $data,
+        priority => $priority,
+    };
+    
+    $self->process_queue();
+}
+
+sub process_queue {
+    my $self = shift;
+    
+    # 優先度順にソート
+    my @sorted = sort { $b->{priority} <=> $a->{priority} }
+                 @{ $self->event_queue };
+    
+    for my $item (@sorted) {
+        $self->_handle_event($item->{sender}, $item->{event}, $item->{data});
+    }
+    
+    @{ $self->event_queue } = ();
+}
+```
+
+**ヒント6：メトリクスを収集する**
+
+Mediatorの使用状況を監視し、最適化に役立てます。
+
+```perl
+package MetricsMediator;
+use Moo;
+
+has event_counts => (
+    is      => 'ro',
+    default => sub { {} },
+);
+
+sub notify {
+    my ($self, $sender, $event, $data) = @_;
+    
+    # イベント数をカウント
+    $self->event_counts->{$event}++;
+    
+    $self->_handle_event($sender, $event, $data);
+}
+
+sub get_metrics {
+    my $self = shift;
+    
+    return {
+        total_events => sum(values %{ $self->event_counts }),
+        events_by_type => $self->event_counts,
+    };
+}
+```
+
+**ヒント7：ドキュメントを自動生成する**
+
+コードからイベントフロー図を自動生成します。
+
+```perl
+# ドキュメント生成スクリプト
+# generate_mediator_docs.pl
+
+use strict;
+use warnings;
+use PPI;
+
+my $doc = PPI::Document->new('ChatRoomMediator.pm');
+
+# notify メソッドを見つける
+my $methods = $doc->find(sub {
+    $_[1]->isa('PPI::Statement::Sub') && $_[1]->name eq 'notify'
+});
+
+# イベント名を抽出
+my @events;
+# ... 実装 ...
+
+# Mermaid図を生成
+print "```mermaid\n";
+print "graph LR\n";
+for my $event (@events) {
+    print "  User --> |$event| Mediator\n";
+}
+print "```\n";
+```
 
 ### 次のアクション
 
