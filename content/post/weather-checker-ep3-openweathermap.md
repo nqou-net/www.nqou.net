@@ -29,12 +29,12 @@ description: "Perl 5.14以降のコアモジュールHTTP::TinyとJSON::PPを使
 
 **API（Application Programming Interface）** とは、あるプログラムの機能を外部から利用するための仕組みです。**Web API** は、HTTPを使ってインターネット経由で利用できるAPIのことです。
 
-```text
-┌─────────────┐     HTTPリクエスト     ┌─────────────────┐
-│   Perl      │ ─────────────────────→ │  OpenWeatherMap │
-│ スクリプト   │                        │       API       │
-│             │ ←───────────────────── │                 │
-└─────────────┘   JSONレスポンス（天気）  └─────────────────┘
+```mermaid
+sequenceDiagram
+    participant Perlスクリプト
+    participant OpenWeatherMap
+    Perlスクリプト->>OpenWeatherMap: HTTPリクエスト
+    OpenWeatherMap-->>Perlスクリプト: JSONレスポンス（天気）
 ```
 
 第1回でhttpbin.orgから「テストデータ」を取得しましたが、今回は「本物の天気情報」を取得します。
