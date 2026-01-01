@@ -1,7 +1,7 @@
 ---
 title: '第1回-友人からの依頼 — URL短縮サポーターを作ってみよう'
 draft: true
-description: '友人から「長いURLを短くしたい」と相談されたことをきっかけに、Mojolicious::Liteでurl短縮サービスを作り始めます。morboで開発サーバーを起動しHello Worldを表示するまでを解説。'
+description: '友人から「長いURLを短くしたい」と相談されたことをきっかけに、Mojolicious::LiteでURL短縮サービスを作り始めます。morboで開発サーバーを起動しHello Worldを表示するまでを解説。'
 tags:
   - perl
   - mojolicious
