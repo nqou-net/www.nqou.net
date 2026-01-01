@@ -246,4 +246,6 @@ binmode STDOUT, ':utf8';     # 標準出力をUTF-8モードに設定
 
 次回は、いよいよOpenWeatherMap APIに接続して **実際の天気情報** を取得します。今回学んだHTTP通信とJSON解析を組み合わせて、本物の天気データを取得してみましょう！
 
+{{< linkcard "/post/weather-checker-openweathermap/" >}}
+
 {{< linkcard "https://perldoc.perl.org/JSON::PP" >}}

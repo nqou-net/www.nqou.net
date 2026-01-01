@@ -274,4 +274,6 @@ Perlでは、文字列を `.` で連結できます。各パラメータが一�
 
 次回は、シリーズ最終回です。Mooシリーズで学んだオブジェクト指向を活かして **WeatherClientクラス** を実装し、お天気チェッカーを完成させます。`has`/`sub`、`required`/`default`、カプセル化、型制約を総動員します。お楽しみに！
 
+{{< linkcard "/post/weather-checker-moo-client/" >}}
+
 {{< linkcard "https://openweathermap.org/current" >}}

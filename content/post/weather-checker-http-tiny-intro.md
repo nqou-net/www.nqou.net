@@ -43,7 +43,7 @@ description: "Perl 5.14以降のコアモジュールHTTP::Tinyを使って、We
 └─────────────┘     レスポンス      └─────────────────┘
 ```
 
-1. ブラウザがURLを入力される
+1. ブラウザにURLが入力される
 2. ブラウザがWebサーバーに **リクエスト（要求）** を送る
 3. Webサーバーが **レスポンス（応答）** を返す
 4. ブラウザがレスポンスを解釈してページを表示する
@@ -217,5 +217,7 @@ if ($response->{success}) {
 ### 次回予告
 
 次回は、APIから返ってきたJSON形式のデータを解析する方法を学びます。「JSON::PPでJSON解析入門」をお楽しみに！
+
+{{< linkcard "/post/weather-checker-json-pp-intro/" >}}
 
 {{< linkcard "https://perldoc.perl.org/HTTP::Tiny" >}}
