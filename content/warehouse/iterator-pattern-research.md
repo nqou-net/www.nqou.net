@@ -1,13 +1,16 @@
 ---
-title: "Iteratorパターン（イテレータパターン）調査ドキュメント"
 date: 2026-01-01T16:19:00+09:00
+description: Iteratorパターン（イテレータパターン）に関する包括的な調査・情報収集結果
 draft: false
+epoch: 1767251940
+image: /favicon.png
+iso8601: 2026-01-01T16:19:00+09:00
 tags:
   - design-patterns
   - gof
   - iterator-pattern
   - behavioral-patterns
-description: "Iteratorパターン（イテレータパターン）に関する包括的な調査・情報収集結果"
+title: Iteratorパターン（イテレータパターン）調査ドキュメント
 ---
 
 # Iteratorパターン（イテレータパターン）調査ドキュメント

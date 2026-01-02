@@ -1,10 +1,14 @@
 ---
-title: "Mediatorパターンの調査"
-date: 2026-01-01
+date: 2026-01-02T14:55:18+09:00
+draft: false
+epoch: 1767333318
+image: /favicon.png
+iso8601: 2026-01-02T14:55:18+09:00
 tags:
   - design-pattern
   - mediator
   - behavioral-pattern
+title: Mediatorパターンの調査
 ---
 
 # Mediatorパターンの調査ドキュメント

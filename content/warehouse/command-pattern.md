@@ -1,13 +1,16 @@
 ---
-title: "Commandパターン調査ドキュメント"
 date: 2025-12-31T08:37:51+09:00
+description: Commandパターン（振る舞いパターン）に関する包括的な調査結果と実装例
 draft: false
+epoch: 1767137871
+image: /favicon.png
+iso8601: 2025-12-31T08:37:51+09:00
 tags:
   - design-patterns
   - gof
   - behavioral-patterns
   - command-pattern
-description: "Commandパターン（振る舞いパターン）に関する包括的な調査結果と実装例"
+title: Commandパターン調査ドキュメント
 ---
 
 # Commandパターン調査ドキュメント

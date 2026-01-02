@@ -1,12 +1,15 @@
 ---
-title: "Interpreterパターン技術記事アウトライン案（A/B/C）"
 date: 2025-12-31T10:12:00+09:00
+description: Interpreterパターンの技術記事アウトライン3案（理論重視・実装重視・問題解決重視）と改善プロセス
 draft: false
+epoch: 1767143520
+image: /favicon.png
+iso8601: 2025-12-31T10:12:00+09:00
 tags:
   - design-patterns
   - interpreter-pattern
   - outline
-description: "Interpreterパターンの技術記事アウトライン3案（理論重視・実装重視・問題解決重視）と改善プロセス"
+title: Interpreterパターン技術記事アウトライン案（A/B/C）
 ---
 
 # Interpreterパターン技術記事アウトライン案（A/B/C）

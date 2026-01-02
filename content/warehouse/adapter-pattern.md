@@ -1,14 +1,17 @@
 ---
-title: "Adapterパターン（デザインパターン）調査レポート"
 date: 2025-12-31T08:43:00+09:00
+description: Adapterパターンに関する包括的な調査結果。定義、用途、実装パターン、利点・欠点、実践的なサンプルを網羅的にまとめたドキュメント
 draft: false
+epoch: 1767138180
+image: /favicon.png
+iso8601: 2025-12-31T08:43:00+09:00
 tags:
   - design-patterns
   - adapter
   - wrapper
   - gof
   - structural-patterns
-description: "Adapterパターンに関する包括的な調査結果。定義、用途、実装パターン、利点・欠点、実践的なサンプルを網羅的にまとめたドキュメント"
+title: Adapterパターン（デザインパターン）調査レポート
 ---
 
 # Adapterパターン（デザインパターン）調査レポート

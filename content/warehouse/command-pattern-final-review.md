@@ -1,3 +1,18 @@
+---
+date: 2026-01-02T14:53:22+09:00
+description: Commandパターン記事の公開前最終チェック結果。コンテンツの完全性、規約準拠、SEO最適化、読者体験、技術的品質を網羅的にレビュー。
+draft: false
+epoch: 1767333202
+image: /favicon.png
+iso8601: 2026-01-02T14:53:22+09:00
+tags:
+  - command-pattern
+  - design-patterns
+  - quality-assurance
+  - review
+title: Commandパターン記事 公開前最終チェック結果
+---
+
 # Commandパターン記事 公開前最終チェック結果
 
 ## 実施日時

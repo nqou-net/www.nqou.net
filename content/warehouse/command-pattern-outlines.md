@@ -1,8 +1,11 @@
 ---
-title: "Commandパターン記事アウトライン提案（案A/B/C）"
 date: 2025-12-31T08:51:59+09:00
+description: Commandパターンの技術記事について、異なる視点・アプローチを持つ3つのアウトライン案とSEO最適化提案
 draft: false
-description: "Commandパターンの技術記事について、異なる視点・アプローチを持つ3つのアウトライン案とSEO最適化提案"
+epoch: 1767138719
+image: /favicon.png
+iso8601: 2025-12-31T08:51:59+09:00
+title: Commandパターン記事アウトライン提案（案A/B/C）
 ---
 
 # Commandパターン記事アウトライン提案

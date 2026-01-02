@@ -1,13 +1,16 @@
 ---
-title: "Bridgeパターン（デザインパターン）調査レポート"
 date: 2026-01-01T16:50:00+09:00
+description: Bridgeパターンに関する包括的な調査結果。定義、用途、実装パターン、利点・欠点、実践的なサンプルを網羅的にまとめたドキュメント
 draft: false
+epoch: 1767253800
+image: /favicon.png
+iso8601: 2026-01-01T16:50:00+09:00
 tags:
   - design-patterns
   - bridge
   - gof
   - structural-patterns
-description: "Bridgeパターンに関する包括的な調査結果。定義、用途、実装パターン、利点・欠点、実践的なサンプルを網羅的にまとめたドキュメント"
+title: Bridgeパターン（デザインパターン）調査レポート
 ---
 
 # Bridgeパターン（デザインパターン）調査レポート

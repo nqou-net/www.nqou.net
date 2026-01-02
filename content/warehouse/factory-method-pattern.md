@@ -1,14 +1,17 @@
 ---
-title: "Factory Method(ファクトリーメソッド)パターン調査ドキュメント"
 date: 2025-12-31T05:46:00+09:00
+description: Factory Methodパターンの包括的調査：定義、構造、実装例(Perl含む)、メリット・デメリット、使用場面、競合記事分析
 draft: false
+epoch: 1767127560
+image: /favicon.png
+iso8601: 2025-12-31T05:46:00+09:00
 tags:
   - design-patterns
   - factory-method
   - gof
   - creational-patterns
   - perl
-description: "Factory Methodパターンの包括的調査：定義、構造、実装例(Perl含む)、メリット・デメリット、使用場面、競合記事分析"
+title: Factory Method(ファクトリーメソッド)パターン調査ドキュメント
 ---
 
 # Factory Method(ファクトリーメソッド)パターン調査ドキュメント

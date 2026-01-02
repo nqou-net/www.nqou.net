@@ -1,14 +1,17 @@
 ---
-title: "Compositeパターン（構造パターン）調査レポート"
 date: 2026-01-01T16:51:00+09:00
+description: Compositeパターンに関する包括的な調査結果。定義、用途、実装パターン、利点・欠点、関連パターンとの比較を網羅的にまとめたドキュメント
 draft: false
+epoch: 1767253860
+image: /favicon.png
+iso8601: 2026-01-01T16:51:00+09:00
 tags:
   - design-patterns
   - composite
   - gof
   - structural-patterns
   - tree-structure
-description: "Compositeパターンに関する包括的な調査結果。定義、用途、実装パターン、利点・欠点、関連パターンとの比較を網羅的にまとめたドキュメント"
+title: Compositeパターン（構造パターン）調査レポート
 ---
 
 # Compositeパターン（構造パターン）調査レポート

@@ -1,14 +1,17 @@
 ---
-title: "Factory Method パターン技術記事アウトライン案（3パターン）"
 date: 2025-12-31T06:03:00+09:00
+description: Factory Methodデザインパターンに関する技術記事のアウトライン案3つ（初心者向け/実装重視/バランス型）とSEO最適化、推薦案の選定
 draft: false
-description: "Factory Methodデザインパターンに関する技術記事のアウトライン案3つ（初心者向け/実装重視/バランス型）とSEO最適化、推薦案の選定"
+epoch: 1767128580
+image: /favicon.png
+iso8601: 2025-12-31T06:03:00+09:00
 tags:
   - design-patterns
   - factory-method
   - outline
   - seo
   - content-strategy
+title: Factory Method パターン技術記事アウトライン案（3パターン）
 ---
 
 # Factory Method パターン技術記事アウトライン案（3パターン）

@@ -1,12 +1,15 @@
 ---
-title: "Factory Method パターン アウトライン案作成 - 完了サマリー"
 date: 2025-12-31T06:03:00+09:00
+description: Factory Methodパターンの技術記事アウトライン3案の作成完了報告
 draft: false
-description: "Factory Methodパターンの技術記事アウトライン3案の作成完了報告"
+epoch: 1767128580
+image: /favicon.png
+iso8601: 2025-12-31T06:03:00+09:00
 tags:
   - summary
   - factory-method
   - outline
+title: 'Factory Method パターン アウトライン案作成 - 完了サマリー'
 ---
 
 # Factory Method パターン アウトライン案作成 - 完了サマリー

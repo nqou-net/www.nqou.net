@@ -1,9 +1,15 @@
 ---
-title: "Facadeパターン記事アウトライン案"
-draft: false
-tags: ["design-patterns", "facade", "structural-patterns"]
-description: "Facadeパターンに関する技術記事の3つのアウトライン案（初心者向け、実践重視、問題解決型）"
 date: 2025-12-31T09:18:00+09:00
+description: Facadeパターンに関する技術記事の3つのアウトライン案（初心者向け、実践重視、問題解決型）
+draft: false
+epoch: 1767140280
+image: /favicon.png
+iso8601: 2025-12-31T09:18:00+09:00
+tags:
+  - design-patterns
+  - facade
+  - structural-patterns
+title: Facadeパターン記事アウトライン案
 ---
 
 # Facadeパターン記事アウトライン案

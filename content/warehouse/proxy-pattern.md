@@ -1,12 +1,16 @@
 ---
-title: Proxyパターン 調査ドキュメント
+created: 2026-01-01
+date: 2026-01-02T14:56:39+09:00
 description: Proxyパターンに関する包括的な調査ドキュメント。用途、実装例、利点・欠点、他パターンとの比較を網羅
-draft: true
+draft: false
+epoch: 1767333399
+image: /favicon.png
+iso8601: 2026-01-02T14:56:39+09:00
 tags:
   - design-pattern
   - proxy-pattern
   - structural-pattern
-created: 2026-01-01
+title: Proxyパターン 調査ドキュメント
 updated: 2026-01-02
 ---
 

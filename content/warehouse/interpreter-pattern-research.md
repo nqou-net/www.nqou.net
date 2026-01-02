@@ -1,13 +1,16 @@
 ---
-title: "Interpreterパターン（インタプリタパターン）調査ドキュメント"
 date: 2025-12-31T09:55:00+09:00
+description: Interpreterパターン（インタプリタパターン）に関する包括的な調査・情報収集結果
 draft: false
+epoch: 1767142500
+image: /favicon.png
+iso8601: 2025-12-31T09:55:00+09:00
 tags:
   - design-patterns
   - gof
   - interpreter-pattern
   - behavioral-patterns
-description: "Interpreterパターン（インタプリタパターン）に関する包括的な調査・情報収集結果"
+title: Interpreterパターン（インタプリタパターン）調査ドキュメント
 ---
 
 # Interpreterパターン（インタプリタパターン）調査ドキュメント
