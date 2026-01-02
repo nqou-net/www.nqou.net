@@ -19,7 +19,7 @@ description: "肥大化したif-elsif分岐をCommandパターンで解消しま
 
 - `TaskRepository::InMemory` でメモリ上にタスクを保存
 - ファイルI/Oなしでテストが可能に
-- 同じインターフェースで実装を切り替えられる
+- 同じインターフェースで実装を切り替え可能
 
 Repositoryパターンの真価を体感しました。今回は、メイン処理の **if-elsif分岐** を整理し、**Commandパターン** を導入します。
 
@@ -111,6 +111,41 @@ elsif ($command eq 'search') {     # 追加
 - 各コマンドの単体テストが困難
 
 ## Commandパターンとは
+
+Commandパターンの構造を図で確認しましょう。
+
+```mermaid
+classDiagram
+    class Command_Role {
+        <<Role>>
+        +execute()*
+        +description()*
+    }
+    
+    class Command_Add {
+        -repository
+        -title
+        +execute()
+        +description()
+    }
+    
+    class Command_List {
+        -repository
+        +execute()
+        +description()
+    }
+    
+    class TaskRepository_Role {
+        <<Role>>
+    }
+    
+    Command_Role <|.. Command_Add : with
+    Command_Role <|.. Command_List : with
+    Command_Add --> TaskRepository_Role : uses
+    Command_List --> TaskRepository_Role : uses
+```
+
+この図は、Commandパターンの基本構造を示しています。`Command::Role`が共通インターフェース（execute, description）を定義し、各コマンドクラスがそれを実装します。各Commandは依存性注入（DI）でRepositoryを受け取るため、FileでもInMemoryでも動作します。
 
 ### 操作をオブジェクトにする
 

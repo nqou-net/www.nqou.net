@@ -143,6 +143,8 @@ $command->execute;
 
 ## クラス構成図
 
+完成したTodo CLIアプリのクラス構成を図で確認しましょう。
+
 ```mermaid
 classDiagram
     class Task {
@@ -205,6 +207,14 @@ classDiagram
     TaskRepository_File --> Task : manages
     TaskRepository_InMemory --> Task : manages
 ```
+
+この図は、シリーズを通じて構築した完成版のクラス構成を示しています。大きく分けて3つの層があります：
+
+1. **ドメインモデル**: Taskクラス（データと振る舞い）
+2. **永続化層**: TaskRepository::Role + 実装クラス群
+3. **アプリケーション層**: Command::Role + 実装クラス群
+
+各層がRoleを通じて抽象化されているため、実装の詳細を隠蔽しつつ、拡張性を確保しています。
 
 ## 導入したデザインパターン
 
@@ -281,7 +291,7 @@ package Command::Role {
 ### 第1回: まずは動くものを作る
 
 - if-elsif分岐でシンプルに実装
-- 「動くこと」を最優先に
+- 「動くこと」を最優先
 - 拡張性の課題を確認
 
 ### 第2回: タスクをクラスにする

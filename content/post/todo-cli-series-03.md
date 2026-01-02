@@ -18,7 +18,7 @@ description: "プログラム終了後もタスクを保持するため、JSON�
 前回は、タスクをクラスにしてオブジェクト指向の力を借りました。
 
 - `Task` クラスを Moo で定義
-- `id`, `title`, `is_done` の3つの属性を持つ
+- `id`, `title`, `is_done` の3つの属性を保持
 - `mark_done()` メソッドでタスクを完了状態にする
 - タブ区切りのテキストファイルで保存
 
@@ -56,6 +56,31 @@ description: "プログラム終了後もタスクを保持するため、JSON�
 独自形式のため、他のツールやプログラミング言語で読み込むのが面倒です。
 
 ## JSONとは
+
+JSON永続化のデータフローを確認しましょう。
+
+```mermaid
+flowchart LR
+    subgraph アプリケーション
+        A[Task オブジェクト]
+    end
+    
+    subgraph 変換処理
+        B[encode_json]
+        C[decode_json]
+    end
+    
+    subgraph ストレージ
+        D[tasks.json ファイル]
+    end
+    
+    A -->|save_tasks| B
+    B -->|書き込み| D
+    D -->|読み込み| C
+    C -->|load_tasks| A
+```
+
+この図は、Taskオブジェクトとファイルの間でデータがどのように変換されるかを示しています。`encode_json`でPerlデータ構造をJSON文字列に変換し、`decode_json`でJSON文字列をPerlデータ構造に復元します。
 
 ### データ交換のための標準フォーマット
 
@@ -535,7 +560,7 @@ JSON→SQLiteに変更したい場合、`load_tasks` と `save_tasks` を大幅�
 今回は、JSONフォーマットでタスクを永続化しました。
 
 - `JSON` モジュールで読み書き
-- `encode_json` / `decode_json` の使い方を学んだ
+- `encode_json` / `decode_json` の使い方を学習
 - 特殊文字や属性追加の問題が解決
 - 他のツールとの連携が容易になった
 

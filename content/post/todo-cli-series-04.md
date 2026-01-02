@@ -57,15 +57,49 @@ JSON→SQLiteに変更したい場合、`load_tasks` と `save_tasks` を大幅�
 
 テストを実行するたびに実際のファイルが作成・変更されます。
 
-- テスト後のファイル削除が必要
-- 並列テストで競合する可能性
-- CI環境でのファイルパス問題
+- テスト後のファイル削除が必要になる
+- 並列テストで競合する可能性がある
+- CI環境でのファイルパス問題が発生する可能性がある
 
 ### 問題3: ファイルパスがハードコード
 
 `my $file = 'tasks.json';` がグローバルに定義されており、柔軟性がありません。
 
 ## Repositoryパターンとは
+
+Repositoryパターンの構造を図で確認しましょう。
+
+```mermaid
+classDiagram
+    class TaskRepository_Role {
+        <<Role>>
+        +save(task)*
+        +find(id)*
+        +all()*
+        +remove(id)*
+    }
+    
+    class TaskRepository_File {
+        -filepath
+        -_load()
+        -_save_all()
+        +save(task)
+        +find(id)
+        +all()
+        +remove(id)
+    }
+    
+    class Task {
+        +id
+        +title
+        +is_done
+    }
+    
+    TaskRepository_Role <|.. TaskRepository_File : with
+    TaskRepository_File --> Task : manages
+```
+
+この図は、Repositoryパターンの基本構造を示しています。`TaskRepository::Role`がインターフェース（必須メソッド）を定義し、`TaskRepository::File`がそのインターフェースを実装します。メイン処理はRoleで定義されたメソッドを通じてタスクを操作するため、具体的な永続化方法を知る必要がありません。
 
 ### データアクセスを抽象化する
 

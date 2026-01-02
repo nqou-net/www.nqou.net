@@ -45,9 +45,9 @@ unlink 'test_tasks.json';
 
 問題点:
 - テストごとにファイルが作成される
-- テスト失敗時にファイルが残る可能性
-- 並列テストでファイル競合の危険
-- CI環境でパス問題が発生することも
+- テスト失敗時にファイルが残る可能性がある
+- 並列テストでファイル競合の危険がある
+- CI環境でパス問題が発生する可能性がある
 
 ### 理想的なテスト
 
@@ -64,6 +64,41 @@ is(scalar @tasks, 1, 'タスクが1件保存された');
 ```
 
 ## InMemoryRepositoryの設計
+
+InMemoryRepositoryを追加した構造を確認しましょう。
+
+```mermaid
+classDiagram
+    class TaskRepository_Role {
+        <<Role>>
+        +save(task)*
+        +find(id)*
+        +all()*
+        +remove(id)*
+    }
+    
+    class TaskRepository_File {
+        -filepath
+        +save(task)
+        +find(id)
+        +all()
+        +remove(id)
+    }
+    
+    class TaskRepository_InMemory {
+        -storage : Hash
+        -next_id : Int
+        +save(task)
+        +find(id)
+        +all()
+        +remove(id)
+    }
+    
+    TaskRepository_Role <|.. TaskRepository_File : with
+    TaskRepository_Role <|.. TaskRepository_InMemory : with
+```
+
+この図は、同じRoleを適用した2つのRepository実装を示しています。どちらも同じインターフェース（save, find, all, remove）を持つため、呼び出し側のコードを変更せずに実装を切り替えられます。
 
 ### 同じインターフェースを実装する
 
@@ -615,6 +650,32 @@ else {
 
 ## Repositoryパターンの真価
 
+リポジトリ切り替えの概念を図で確認しましょう。
+
+```mermaid
+flowchart TB
+    subgraph メイン処理
+        A[Command]
+    end
+    
+    subgraph Repository選択
+        B{環境変数<br/>TODO_TEST_MODE?}
+    end
+    
+    subgraph Repository実装
+        C[TaskRepository::InMemory]
+        D[TaskRepository::File]
+    end
+    
+    A --> B
+    B -->|設定あり| C
+    B -->|設定なし| D
+    C --> E[メモリ上のハッシュ]
+    D --> F[tasks.json ファイル]
+```
+
+この図は、環境変数によってRepositoryを切り替える仕組みを示しています。テスト時はInMemoryRepository、本番時はFileRepositoryを使用します。どちらのRepositoryも同じインターフェースを持つため、Commandクラスのコードは変更不要です。
+
 ### 同じインターフェースの威力
 
 今回、2つのRepositoryを作成しました。
@@ -662,7 +723,7 @@ run_app(TaskRepository::InMemory->new);
 
 - `TaskRepository::InMemory` を実装
 - ファイルI/Oなしでテストが可能に
-- 同じインターフェースで実装を切り替えられる
+- 同じインターフェースで実装を切り替え可能
 - Repositoryパターンの真価を体感
 
 同じインターフェースを持つ複数の実装があることで、用途に応じて切り替えられるようになりました。これは今後の拡張（SQLiteへの移行など）にも役立ちます。

@@ -38,6 +38,25 @@ my @tasks = ('牛乳を買う', 'メールを返信する');
 
 ## Taskクラスの設計
 
+今回作成するTaskクラスの構造を図で確認しましょう。
+
+```mermaid
+classDiagram
+    class Task {
+        +Int id
+        +String title
+        +Bool is_done
+        +mark_done()
+    }
+    
+    note for Task "Mooでクラス定義
+id: 読み書き可能（rw）
+title: 読み取り専用（ro）・必須
+is_done: 読み書き可能（rw）"
+```
+
+この図は、Taskクラスが持つ3つの属性（id, title, is_done）と1つのメソッド（mark_done）を示しています。Mooの`has`でそれぞれの属性を定義し、`sub`でメソッドを実装します。
+
 ### どんな情報を持たせるか
 
 Taskクラスに持たせる情報を整理します。
@@ -519,7 +538,7 @@ $task->mark_done();
 今回は、タスクをクラスにしてオブジェクト指向の力を借りました。
 
 - `Task` クラスを Moo で定義
-- `id`, `title`, `is_done` の3つの属性を持つ
+- `id`, `title`, `is_done` の3つの属性を保持
 - `mark_done()` メソッドでタスクを完了状態にする
 - データと操作がまとまり、拡張しやすくなった
 
