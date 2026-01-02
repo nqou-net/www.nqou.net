@@ -1,9 +1,15 @@
 ---
-title: "Facadeパターン調査ドキュメント"
-draft: false
-tags: ["design-patterns", "facade", "structural-patterns"]
-description: "構造パターンのひとつであるFacadeパターンについての詳細調査"
 date: 2025-12-31T09:12:00+09:00
+description: 構造パターンのひとつであるFacadeパターンについての詳細調査
+draft: false
+epoch: 1767139920
+image: /favicon.png
+iso8601: 2025-12-31T09:12:00+09:00
+tags:
+  - design-patterns
+  - facade
+  - structural-patterns
+title: Facadeパターン調査ドキュメント
 ---
 
 # Facadeパターン調査ドキュメント

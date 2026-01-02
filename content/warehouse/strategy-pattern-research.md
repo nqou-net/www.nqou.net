@@ -1,6 +1,10 @@
 ---
-title: "Strategyパターン（振る舞いパターン）調査ドキュメント"
+date: 2026-01-02T14:57:47+09:00
+description: Strategyパターン（GoF振る舞いパターン）に関する包括的な調査結果。定義、用途、実装例（Perl/Moo含む）、利点・欠点、競合記事分析、内部リンク調査、参考文献を網羅
 draft: false
+epoch: 1767333467
+image: /favicon.png
+iso8601: 2026-01-02T14:57:47+09:00
 tags:
   - design-patterns
   - strategy-pattern
@@ -8,7 +12,7 @@ tags:
   - gof
   - perl
   - moo
-description: "Strategyパターン（GoF振る舞いパターン）に関する包括的な調査結果。定義、用途、実装例（Perl/Moo含む）、利点・欠点、競合記事分析、内部リンク調査、参考文献を網羅"
+title: Strategyパターン（振る舞いパターン）調査ドキュメント
 ---
 
 # Strategyパターン（振る舞いパターン）調査ドキュメント

@@ -1,3 +1,18 @@
+---
+categories:
+  - warehouse
+date: 2026-01-02T14:57:47+09:00
+description: Singletonパターンの概要、実装例、利点・欠点、モダンな代替手段をまとめた調査ドキュメント。
+draft: false
+epoch: 1767333467
+image: /favicon.png
+iso8601: 2026-01-02T14:57:47+09:00
+tags:
+  - design-patterns
+  - singleton
+title: Singletonパターン 調査ドキュメント
+---
+
 # Singletonパターン 調査ドキュメント
 
 **調査日時**: 2025-12-31  

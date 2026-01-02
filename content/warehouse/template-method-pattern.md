@@ -1,13 +1,16 @@
 ---
-title: "Template Method パターン調査ドキュメント"
 date: 2025-12-31T09:28:00+09:00
+description: Template Method パターンに関する包括的な調査結果。概要、用途、サンプルコード、利点・欠点、関連リソースをまとめた技術ドキュメント
 draft: false
+epoch: 1767140880
+image: /favicon.png
+iso8601: 2025-12-31T09:28:00+09:00
 tags:
   - design-patterns
   - gof
   - template-method
   - behavioral-patterns
-description: "Template Method パターンに関する包括的な調査結果。概要、用途、サンプルコード、利点・欠点、関連リソースをまとめた技術ドキュメント"
+title: Template Method パターン調査ドキュメント
 ---
 
 # Template Method パターン調査ドキュメント

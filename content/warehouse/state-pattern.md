@@ -1,13 +1,16 @@
 ---
-title: "Stateパターン（State Design Pattern）調査報告書"
 date: 2025-12-31T09:55:19+09:00
 draft: false
+epoch: 1767142519
+image: /favicon.png
+iso8601: 2025-12-31T09:55:19+09:00
 tags:
   - design-pattern
   - state-pattern
   - gof
   - behavioral-pattern
   - object-oriented
+title: Stateパターン（State Design Pattern）調査報告書
 ---
 
 # Stateパターン（State Design Pattern）調査報告書

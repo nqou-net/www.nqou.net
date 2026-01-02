@@ -1,14 +1,17 @@
 ---
-title: "Visitorパターン（Visitor Design Pattern）調査ドキュメント"
 date: 2025-12-31T09:26:00+09:00
+description: Visitorパターン（GoF Behavioral Pattern）についての包括的な調査。基本構造、用途、利点・欠点、Perl実装例、内部リンク候補を含む。
 draft: false
+epoch: 1767140760
+image: /favicon.png
+iso8601: 2025-12-31T09:26:00+09:00
 tags:
   - design-pattern
   - gof
   - visitor
   - behavioral-pattern
   - perl
-description: "Visitorパターン（GoF Behavioral Pattern）についての包括的な調査。基本構造、用途、利点・欠点、Perl実装例、内部リンク候補を含む。"
+title: Visitorパターン（Visitor Design Pattern）調査ドキュメント
 ---
 
 # Visitorパターン（Visitor Design Pattern）調査ドキュメント

@@ -1,13 +1,16 @@
 ---
-title: "Chain of Responsibilityパターン調査ドキュメント"
 date: 2025-12-31T23:10:00+09:00
+description: Chain of Responsibilityパターンの概要、用途、実装サンプル、利点・欠点を整理した調査ドキュメント
 draft: false
+epoch: 1767190200
+image: /favicon.png
+iso8601: 2025-12-31T23:10:00+09:00
 tags:
   - design-patterns
   - chain-of-responsibility
   - behavioral-patterns
   - gof
-description: "Chain of Responsibilityパターンの概要、用途、実装サンプル、利点・欠点を整理した調査ドキュメント"
+title: Chain of Responsibilityパターン調査ドキュメント
 ---
 
 # Chain of Responsibilityパターン調査ドキュメント

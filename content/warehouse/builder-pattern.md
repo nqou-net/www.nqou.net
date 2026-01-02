@@ -1,4 +1,17 @@
-# Builderパターン 調査ドキュメント
+---
+date: 2026-01-02T14:52:15+09:00
+description: Builderパターンの定義、用途、実装例、利点・欠点、バリエーションを包括的に解説する調査ドキュメント
+draft: false
+epoch: 1767333135
+image: /favicon.png
+iso8601: 2026-01-02T14:52:15+09:00
+tags:
+  - design-patterns
+  - builder-pattern
+  - creational-patterns
+  - research
+title: Builderパターン 調査ドキュメント
+---
 
 **調査日時**: 2025-12-31  
 **調査担当**: AI Research Specialist

@@ -1,3 +1,19 @@
+---
+date: 2026-01-02T14:56:39+09:00
+description: Observerパターンの概要、実装例、メリット・デメリットを網羅的に調査。PerlとMooでの実装、現代的な応用例、Pub-Subパターンとの違いを解説。
+draft: false
+epoch: 1767333399
+image: /favicon.png
+iso8601: 2026-01-02T14:56:39+09:00
+tags:
+  - observer-pattern
+  - design-patterns
+  - behavioral-patterns
+  - perl
+  - moo
+title: Observerパターン（デザインパターン）調査ドキュメント
+---
+
 # Observerパターン（デザインパターン）調査ドキュメント
 
 **作成日**: 2025-12-31  

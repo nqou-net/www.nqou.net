@@ -1,14 +1,17 @@
 ---
-title: "Mementoパターン調査ドキュメント"
 date: 2025-12-31T09:41:00+09:00
+description: 'Mementoパターンに関する包括的な調査結果 - GoF定義、実装例（Perl/Moo）、利点・欠点、実用例を網羅'
 draft: false
+epoch: 1767141660
+image: /favicon.png
+iso8601: 2025-12-31T09:41:00+09:00
 tags:
   - design-patterns
   - gof
   - behavioral-patterns
   - memento
   - software-design
-description: "Mementoパターンに関する包括的な調査結果 - GoF定義、実装例（Perl/Moo）、利点・欠点、実用例を網羅"
+title: Mementoパターン調査ドキュメント
 ---
 
 # Mementoパターン調査ドキュメント

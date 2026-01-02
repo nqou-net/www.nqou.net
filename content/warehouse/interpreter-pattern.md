@@ -1,12 +1,16 @@
 ---
-title: "Interpreterパターン調査ドキュメント"
+date: 2026-01-02T14:53:23+09:00
+description: 振る舞いパターンInterpreterについての調査結果。概要、用途、サンプル、利点・欠点を整理
 draft: false
+epoch: 1767333203
+image: /favicon.png
+iso8601: 2026-01-02T14:53:23+09:00
 tags:
   - design-patterns
   - gof
   - interpreter
   - behavioral-patterns
-description: "振る舞いパターンInterpreterについての調査結果。概要、用途、サンプル、利点・欠点を整理"
+title: Interpreterパターン調査ドキュメント
 ---
 
 # Interpreterパターン調査ドキュメント

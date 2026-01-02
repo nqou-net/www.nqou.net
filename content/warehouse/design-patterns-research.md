@@ -1,12 +1,15 @@
 ---
-title: "デザインパターン調査ドキュメント"
 date: 2025-12-30T15:18:00+09:00
+description: ソフトウェア開発におけるデザインパターン（GoFパターン）に関する調査結果
 draft: false
+epoch: 1767075480
+image: /favicon.png
+iso8601: 2025-12-30T15:18:00+09:00
 tags:
   - design-patterns
   - gof
   - software-design
-description: "ソフトウェア開発におけるデザインパターン（GoFパターン）に関する調査結果"
+title: デザインパターン調査ドキュメント
 ---
 
 # デザインパターン調査ドキュメント
