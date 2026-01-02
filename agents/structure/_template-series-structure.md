@@ -10,7 +10,7 @@ title: '連載構造案 - タイトル（全N回）'
 
 # 連載構造案：タイトル
 
-調査結果: `content/warehouse/<slug>-research.md` に基づく
+調査結果: `content/warehouse/<slug>.md` に基づく
 
 ## 前提情報
 
