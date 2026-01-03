@@ -1,0 +1,452 @@
+---
+title: "Getopt::Longで引数を整理する - シンプルなTodo CLIアプリ 第8回"
+draft: true
+tags:
+  - perl
+  - cli
+  - getopt-long
+  - todo-app
+description: "Getopt::Longでコマンドライン引数を整理し、--verboseなどのオプションにも対応します。サブコマンドとオプションを組み合わせた堅牢なCLIアプリに仕上げましょう。"
+---
+
+[@nqounet](https://x.com/nqounet)です。
+
+シリーズ「シンプルなTodo CLIアプリ」の第8回です。
+
+## 前回の振り返り
+
+前回は、Command::Completeを追加し、Commandパターンの拡張性を体験しました。
+
+- `Command::Complete` を実装
+- 既存コードへの影響が最小限
+- 新機能追加は「クラス追加 + マップ追加」だけ
+
+今回は Getopt::Long でコマンドライン引数の解析を整理します。オプション（`--verbose` など）にも対応し、より堅牢なCLIに仕上げましょう。
+
+## 現状の引数解析
+
+### シンプルだが限界がある
+
+現在は `shift @ARGV` でサブコマンドと引数を取り出しています。
+
+```perl
+my $cmd_name = shift @ARGV // 'help';
+
+if ($cmd_name eq 'add') {
+    my $title = shift @ARGV;
+    # ...
+}
+elsif ($cmd_name eq 'complete') {
+    my $id = shift @ARGV;
+    # ...
+}
+```
+
+この方法の問題点:
+
+- オプション（`--verbose`, `--file` など）に対応しにくい
+- 引数の順番に依存する
+- バリデーションが散らばる
+
+## Getopt::Long とは
+
+### Perl標準のオプション解析モジュール
+
+`Getopt::Long` は、Perlに標準搭載されているコマンドライン引数解析モジュールです。
+
+```perl
+use Getopt::Long;
+
+my $verbose = 0;
+my $file    = 'tasks.json';
+
+GetOptions(
+    'verbose|v' => \$verbose,
+    'file|f=s'  => \$file,
+) or die "Error in command line arguments\n";
+```
+
+### オプション定義の書式
+
+| 書式 | 意味 |
+|-----|------|
+| `'verbose'` | フラグ（真偽値） |
+| `'verbose|v'` | 長いオプション名とエイリアス |
+| `'file=s'` | 文字列値を取るオプション |
+| `'count=i'` | 整数値を取るオプション |
+| `'file|f=s'` | エイリアス付きで文字列値を取る |
+
+### 動作例
+
+```bash
+$ perl script.pl --verbose --file=custom.json
+# $verbose = 1, $file = 'custom.json'
+
+$ perl script.pl -v -f custom.json
+# 短いオプション名でも同じ
+
+$ perl script.pl
+# デフォルト値: $verbose = 0, $file = 'tasks.json'
+```
+
+`GetOptions` を呼び出すと、`@ARGV` から認識されたオプションが取り除かれます。残りの引数は `@ARGV` に残ります。
+
+{{< linkcard "/2025/12/21/000000/" >}}
+
+## サブコマンドとオプションの組み合わせ
+
+### 設計方針
+
+Todo CLIでは、以下の構造を採用します。
+
+```
+perl todo.pl [オプション] サブコマンド [サブコマンド引数]
+```
+
+例:
+
+```bash
+$ perl todo.pl --file=work.json add "会議の準備"
+$ perl todo.pl -v list
+$ perl todo.pl --verbose complete 1
+```
+
+### 実装手順
+
+1. グローバルオプションを `GetOptions` で解析
+2. 残った `@ARGV` からサブコマンドを取り出す
+3. サブコマンドに応じてCommandオブジェクトを生成
+
+## Getopt::Longの導入
+
+### グローバルオプションの定義
+
+```perl
+use Getopt::Long;
+
+my $verbose  = 0;
+my $filepath = 'tasks.json';
+my $help     = 0;
+
+GetOptions(
+    'verbose|v' => \$verbose,
+    'file|f=s'  => \$filepath,
+    'help|h'    => \$help,
+) or die "Error in command line arguments\n";
+```
+
+### オプションの説明
+
+| オプション | 意味 |
+|-----------|------|
+| `--verbose` / `-v` | 詳細出力モード |
+| `--file` / `-f` | タスクファイルのパス |
+| `--help` / `-h` | ヘルプを表示 |
+
+### ヘルプオプションの処理
+
+```perl
+if ($help) {
+    print_help();
+    exit;
+}
+
+sub print_help {
+    print <<"END_HELP";
+Usage: $0 [options] <command> [args]
+
+Options:
+  -v, --verbose     Verbose output
+  -f, --file=PATH   Task file path (default: tasks.json)
+  -h, --help        Show this help
+
+Commands:
+  add <task>        Add a new task
+  list              List all tasks
+  complete <id>     Complete a task by ID
+END_HELP
+}
+```
+
+ヒアドキュメント `<<"END_HELP"` を使って、複数行のヘルプテキストを定義しています。
+
+## verboseモードの実装
+
+### 詳細出力を追加
+
+`--verbose` オプションが指定されたときに、追加情報を出力するようにします。
+
+```perl
+package Command::Add {
+    use Moo;
+
+    with 'Command::Role';
+
+    has repository => (is => 'ro', required => 1);
+    has title      => (is => 'ro', required => 1);
+    has verbose    => (is => 'ro', default => sub { 0 });
+
+    sub execute {
+        my $self = shift;
+
+        my $task = Task->new(title => $self->title);
+        $self->repository->save($task);
+
+        if ($self->verbose) {
+            print "[DEBUG] Saved to repository\n";
+            print "[DEBUG] Task ID: " . $task->id . "\n";
+        }
+
+        print "Added: " . $self->title . " (ID: " . $task->id . ")\n";
+    }
+
+    sub description {
+        return 'Add a new task';
+    }
+}
+```
+
+### Command生成時にverboseを渡す
+
+```perl
+my %command_map = (
+    add => sub {
+        my $title = shift @ARGV;
+        die "Usage: $0 add <task>\n" unless defined $title && $title ne '';
+        return Command::Add->new(
+            repository => $repository,
+            title      => $title,
+            verbose    => $verbose,
+        );
+    },
+    # ...
+);
+```
+
+### 動作確認
+
+```bash
+$ perl todo.pl add "牛乳を買う"
+Added: 牛乳を買う (ID: 1)
+
+$ perl todo.pl --verbose add "メールを返信する"
+[DEBUG] Saved to repository
+[DEBUG] Task ID: 2
+Added: メールを返信する (ID: 2)
+```
+
+## ファイルパスオプションの活用
+
+### 異なるタスクファイルを使う
+
+`--file` オプションで、タスクファイルを切り替えられます。
+
+```perl
+my $repository;
+if ($ENV{TODO_TEST_MODE}) {
+    $repository = TaskRepository::InMemory->new;
+}
+else {
+    $repository = TaskRepository::File->new(filepath => $filepath);
+}
+```
+
+### 使用例
+
+```bash
+$ perl todo.pl --file=work.json add "会議の準備"
+Added: 会議の準備 (ID: 1)
+
+$ perl todo.pl --file=home.json add "買い物"
+Added: 買い物 (ID: 1)
+
+$ perl todo.pl --file=work.json list
+1. [ ] 会議の準備
+
+$ perl todo.pl --file=home.json list
+1. [ ] 買い物
+```
+
+仕事用とプライベート用でタスクを分けられるようになりました。
+
+## 完成したtodo.pl
+
+### 全体コード（メイン部分）
+
+Getopt::Longを導入したメイン処理です。
+
+```perl
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use utf8;
+use Getopt::Long;
+use JSON;
+
+# クラス定義は省略（前回と同じ）
+
+# === メイン処理 ===
+package main;
+
+my $verbose  = 0;
+my $filepath = 'tasks.json';
+my $help     = 0;
+
+GetOptions(
+    'verbose|v' => \$verbose,
+    'file|f=s'  => \$filepath,
+    'help|h'    => \$help,
+) or die "Error in command line arguments\n";
+
+if ($help) {
+    print_help();
+    exit;
+}
+
+my $repository;
+if ($ENV{TODO_TEST_MODE}) {
+    $repository = TaskRepository::InMemory->new;
+}
+else {
+    $repository = TaskRepository::File->new(filepath => $filepath);
+}
+
+my %command_map = (
+    add => sub {
+        my $title = shift @ARGV;
+        die "Usage: $0 add <task>\n" unless defined $title && $title ne '';
+        return Command::Add->new(
+            repository => $repository,
+            title      => $title,
+            verbose    => $verbose,
+        );
+    },
+    list => sub {
+        return Command::List->new(
+            repository => $repository,
+            verbose    => $verbose,
+        );
+    },
+    complete => sub {
+        my $id = shift @ARGV;
+        die "Usage: $0 complete <id>\n" unless defined $id && $id =~ /^\d+$/;
+        return Command::Complete->new(
+            repository => $repository,
+            task_id    => $id,
+            verbose    => $verbose,
+        );
+    },
+);
+
+my $cmd_name = shift @ARGV // 'help';
+
+if (exists $command_map{$cmd_name}) {
+    my $command = $command_map{$cmd_name}->();
+    $command->execute;
+}
+else {
+    if ($cmd_name ne 'help') {
+        print "Unknown command: $cmd_name\n\n";
+    }
+    print_help();
+}
+
+sub print_help {
+    print <<"END_HELP";
+Usage: $0 [options] <command> [args]
+
+Options:
+  -v, --verbose     Verbose output
+  -f, --file=PATH   Task file path (default: tasks.json)
+  -h, --help        Show this help
+
+Commands:
+  add <task>        Add a new task
+  list              List all tasks
+  complete <id>     Complete a task by ID
+END_HELP
+}
+```
+
+## Getopt::Longの便利な機能
+
+### 1. 設定オプション
+
+厳密なオプション解析を有効にするには、設定を追加します。
+
+```perl
+use Getopt::Long qw(:config no_ignore_case bundling);
+```
+
+| 設定 | 効果 |
+|-----|------|
+| `no_ignore_case` | オプション名の大文字小文字を区別する |
+| `bundling` | 短いオプションをまとめて書ける（`-vf file`） |
+| `pass_through` | 不明なオプションをエラーにしない（なので指定しない） |
+
+### 2. 配列オプション
+
+複数の値を受け取るオプションも定義できます。
+
+```perl
+my @tags;
+GetOptions('tag|t=s' => \@tags);
+
+# 使用例: --tag=work --tag=important
+# @tags = ('work', 'important')
+```
+
+### 3. ハッシュオプション
+
+キーと値のペアを受け取ることもできます。
+
+```perl
+my %options;
+GetOptions('define|D=s' => \%options);
+
+# 使用例: -D key1=value1 -D key2=value2
+# %options = (key1 => 'value1', key2 => 'value2')
+```
+
+## エラーハンドリングの改善
+
+### 引数エラーをわかりやすく
+
+```perl
+if ($cmd_name eq 'complete') {
+    my $id = shift @ARGV;
+
+    if (!defined $id) {
+        die "Error: Task ID is required.\n"
+          . "Usage: $0 complete <id>\n";
+    }
+
+    if ($id !~ /^\d+$/) {
+        die "Error: Task ID must be a positive integer.\n"
+          . "You provided: '$id'\n";
+    }
+
+    return Command::Complete->new(
+        repository => $repository,
+        task_id    => $id,
+        verbose    => $verbose,
+    );
+}
+```
+
+より詳細なエラーメッセージを表示することで、ユーザーが問題を理解しやすくなります。
+
+## まとめ
+
+今回は、Getopt::Longでコマンドライン引数を整理しました。
+
+- `Getopt::Long` でオプションを解析
+- `--verbose`, `--file`, `--help` オプションを追加
+- サブコマンドとオプションを組み合わせた構造
+- 堅牢なCLIアプリに仕上がった
+
+Getopt::Longを使うことで、コマンドライン引数の解析がシンプルかつ柔軟になりました。オプションの追加も容易です。
+
+次回は、シリーズの振り返りとして、最初の素朴な実装と完成した設計を比較します。デザインパターン導入の効果を確認しましょう！
+
+お楽しみに！

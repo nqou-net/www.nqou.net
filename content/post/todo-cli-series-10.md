@@ -1,0 +1,431 @@
+---
+title: "演習｜SQLiteで永続化を切り替えよう - シンプルなTodo CLIアプリ 第10回"
+draft: true
+tags:
+  - perl
+  - sqlite
+  - dbi
+  - todo-app
+  - repository-pattern
+description: "Repositoryパターンの応用演習です。既存コードを変更せずにSQLite永続化を追加し、JSON→SQLiteへの切り替えを実装。DBIとDBD::SQLiteの使い方も学びましょう。"
+---
+
+[@nqounet](https://x.com/nqounet)です。
+
+シリーズ「シンプルなTodo CLIアプリ」の第10回（最終回）です。
+
+## 前回の振り返り
+
+前回は、シリーズ全体を振り返りました。
+
+- 素朴な実装から洗練された設計への変化
+- Repositoryパターン、Commandパターンの効果を確認
+- 設計原則（SRP, OCP, DIP）を実践
+
+今回は 演習 として、SQLiteでの永続化 に挑戦します。Repositoryパターンの応用で、既存コードをほとんど変更せずにSQLite対応を追加しましょう。
+
+## 演習の目標
+
+### やること
+
+1. `TaskRepository::SQLite` クラスを実装
+2. `TaskRepository::Role` を適用（既存と同じインターフェース）
+3. 環境変数やオプションでリポジトリを切り替え
+
+### 期待される動作
+
+```bash
+# JSONファイルを使う（デフォルト）
+$ perl todo.pl add "牛乳を買う"
+Added: 牛乳を買う (ID: 1)
+
+# SQLiteを使う
+$ TODO_USE_SQLITE=1 perl todo.pl add "牛乳を買う"
+Added: 牛乳を買う (ID: 1)
+
+$ TODO_USE_SQLITE=1 perl todo.pl list
+1. [ ] 牛乳を買う
+```
+
+## DBI と DBD::SQLite の基本
+
+### 必要なモジュール
+
+SQLiteを使うには、以下のモジュールが必要です。
+
+```bash
+# cpanmでインストール
+$ cpanm DBI DBD::SQLite
+```
+
+- `DBI` - Perlのデータベースインターフェース
+- `DBD::SQLite` - SQLite用ドライバ
+
+### データベース接続
+
+```perl
+use DBI;
+
+my $dbh = DBI->connect("dbi:SQLite:dbname=tasks.db", "", "", {
+    PrintError => 0,
+    RaiseError => 1,
+    AutoCommit => 1,
+}) or die $DBI::errstr;
+```
+
+| オプション | 説明 |
+|-----------|------|
+| `PrintError => 0` | エラーを標準エラー出力に出さない |
+| `RaiseError => 1` | エラー時に例外を投げる |
+| `AutoCommit => 1` | 各SQLを自動コミット |
+
+### テーブル作成
+
+```perl
+$dbh->do(q{
+    CREATE TABLE IF NOT EXISTS tasks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        is_done INTEGER DEFAULT 0
+    )
+});
+```
+
+- `id` は自動採番
+- `is_done` は 0（未完了）または 1（完了）
+
+### CRUD操作
+
+#### INSERT（追加）
+
+```perl
+$dbh->do("INSERT INTO tasks (title) VALUES (?)", undef, $title);
+my $id = $dbh->last_insert_id(undef, undef, "tasks", "id");
+```
+
+`?` はプレースホルダで、SQLインジェクション対策になります。
+
+#### SELECT（取得）
+
+```perl
+# 全件取得
+my $sth = $dbh->prepare("SELECT id, title, is_done FROM tasks");
+$sth->execute();
+while (my $row = $sth->fetchrow_hashref) {
+    print "$row->{id}: $row->{title}\n";
+}
+
+# 1件取得
+my $sth = $dbh->prepare("SELECT id, title, is_done FROM tasks WHERE id = ?");
+$sth->execute($id);
+my $row = $sth->fetchrow_hashref;
+```
+
+#### UPDATE（更新）
+
+```perl
+$dbh->do("UPDATE tasks SET is_done = ? WHERE id = ?", undef, 1, $id);
+```
+
+#### DELETE（削除）
+
+```perl
+$dbh->do("DELETE FROM tasks WHERE id = ?", undef, $id);
+```
+
+## TaskRepository::SQLite の実装ガイド
+
+### クラスの骨格
+
+```perl
+package TaskRepository::SQLite {
+    use Moo;
+    use DBI;
+
+    with 'TaskRepository::Role';
+
+    has dbfile => (
+        is      => 'ro',
+        default => sub { 'tasks.db' },
+    );
+
+    has dbh => (
+        is      => 'lazy',
+        builder => '_build_dbh',
+    );
+
+    sub _build_dbh {
+        my $self = shift;
+
+        my $dbh = DBI->connect(
+            "dbi:SQLite:dbname=" . $self->dbfile,
+            "", "",
+            { PrintError => 0, RaiseError => 1, AutoCommit => 1 }
+        ) or die $DBI::errstr;
+
+        # テーブルが存在しなければ作成
+        $dbh->do(q{
+            CREATE TABLE IF NOT EXISTS tasks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                is_done INTEGER DEFAULT 0
+            )
+        });
+
+        return $dbh;
+    }
+
+    sub save { ... }
+    sub find { ... }
+    sub all { ... }
+    sub remove { ... }
+}
+```
+
+### 属性の説明
+
+| 属性 | 説明 |
+|-----|------|
+| `dbfile` | SQLiteデータベースファイルのパス |
+| `dbh` | データベースハンドル（遅延初期化） |
+
+`is => 'lazy'` を使うと、最初にアクセスした時だけ `_build_dbh` が呼ばれます。
+
+### saveメソッドの実装ヒント
+
+```perl
+sub save {
+    my ($self, $task) = @_;
+
+    if ($task->id && $task->id > 0) {
+        # 既存タスクの更新
+        $self->dbh->do(
+            "UPDATE tasks SET title = ?, is_done = ? WHERE id = ?",
+            undef,
+            $task->title, $task->is_done ? 1 : 0, $task->id
+        );
+    }
+    else {
+        # 新規タスクの追加
+        $self->dbh->do(
+            "INSERT INTO tasks (title, is_done) VALUES (?, ?)",
+            undef,
+            $task->title, $task->is_done ? 1 : 0
+        );
+        $task->id($self->dbh->last_insert_id(undef, undef, "tasks", "id"));
+    }
+
+    return $task;
+}
+```
+
+### findメソッドの実装ヒント
+
+```perl
+sub find {
+    my ($self, $id) = @_;
+
+    my $sth = $self->dbh->prepare(
+        "SELECT id, title, is_done FROM tasks WHERE id = ?"
+    );
+    $sth->execute($id);
+
+    my $row = $sth->fetchrow_hashref;
+    return unless $row;
+
+    return Task->new(
+        id      => $row->{id},
+        title   => $row->{title},
+        is_done => $row->{is_done} ? 1 : 0,
+    );
+}
+```
+
+### allメソッドの実装ヒント
+
+```perl
+sub all {
+    my $self = shift;
+
+    my $sth = $self->dbh->prepare(
+        "SELECT id, title, is_done FROM tasks ORDER BY id"
+    );
+    $sth->execute();
+
+    my @tasks;
+    while (my $row = $sth->fetchrow_hashref) {
+        push @tasks, Task->new(
+            id      => $row->{id},
+            title   => $row->{title},
+            is_done => $row->{is_done} ? 1 : 0,
+        );
+    }
+
+    return @tasks;
+}
+```
+
+### removeメソッドの実装ヒント
+
+```perl
+sub remove {
+    my ($self, $id) = @_;
+
+    my $rows = $self->dbh->do(
+        "DELETE FROM tasks WHERE id = ?",
+        undef, $id
+    );
+
+    return $rows > 0 ? 1 : 0;
+}
+```
+
+## リポジトリの切り替え
+
+### 環境変数で切り替える
+
+メイン処理で、環境変数に応じてリポジトリを選択します。
+
+```perl
+my $repository;
+if ($ENV{TODO_TEST_MODE}) {
+    $repository = TaskRepository::InMemory->new;
+}
+elsif ($ENV{TODO_USE_SQLITE}) {
+    $repository = TaskRepository::SQLite->new(dbfile => 'tasks.db');
+}
+else {
+    $repository = TaskRepository::File->new(filepath => $filepath);
+}
+```
+
+### オプションで切り替える
+
+Getopt::Longを使って、`--sqlite` オプションを追加することもできます。
+
+```perl
+my $use_sqlite = 0;
+
+GetOptions(
+    'verbose|v' => \$verbose,
+    'file|f=s'  => \$filepath,
+    'sqlite|s'  => \$use_sqlite,
+    'help|h'    => \$help,
+) or die "Error in command line arguments\n";
+
+my $repository;
+if ($use_sqlite) {
+    $repository = TaskRepository::SQLite->new;
+}
+else {
+    $repository = TaskRepository::File->new(filepath => $filepath);
+}
+```
+
+使用例:
+
+```bash
+$ perl todo.pl --sqlite add "SQLiteでタスク管理"
+Added: SQLiteでタスク管理 (ID: 1)
+
+$ perl todo.pl --sqlite list
+1. [ ] SQLiteでタスク管理
+```
+
+## 演習のポイント
+
+### 既存コードへの影響
+
+SQLite対応を追加しても、以下のコードは 変更不要 です。
+
+- `Task` クラス
+- `TaskRepository::Role`
+- `TaskRepository::File`
+- `TaskRepository::InMemory`
+- `Command::Add`, `Command::List`, `Command::Complete`
+
+変更するのはメイン処理のリポジトリ選択部分だけ。これがRepositoryパターンの威力です。
+
+### チェックリスト
+
+演習を完了したら、以下を確認しましょう。
+
+- [ ] `TaskRepository::SQLite` が `TaskRepository::Role` を適用している
+- [ ] `save`, `find`, `all`, `remove` の4メソッドが実装されている
+- [ ] 環境変数またはオプションでリポジトリを切り替えられる
+- [ ] 既存のテスト（InMemoryを使ったもの）が引き続き動作する
+
+## 発展課題
+
+### 1. マイグレーション
+
+JSONファイルからSQLiteへデータを移行するスクリプトを作成してみましょう。
+
+```perl
+# migration.pl
+my $file_repo   = TaskRepository::File->new;
+my $sqlite_repo = TaskRepository::SQLite->new;
+
+for my $task ($file_repo->all) {
+    # IDをリセットして新規追加
+    $task->id(0);
+    $sqlite_repo->save($task);
+}
+```
+
+### 2. トランザクション対応
+
+複数の操作をまとめて実行するトランザクション機能を追加してみましょう。
+
+```perl
+$dbh->begin_work;
+eval {
+    # 複数の操作
+    $dbh->commit;
+};
+if ($@) {
+    $dbh->rollback;
+    die "Transaction failed: $@";
+}
+```
+
+### 3. 他のストレージ
+
+同じパターンで、他のストレージにも対応できます。
+
+- `TaskRepository::YAML` - YAML形式で保存
+- `TaskRepository::CSV` - CSV形式で保存
+- `TaskRepository::Redis` - Redisに保存
+
+## まとめ
+
+今回は、演習としてSQLite永続化に挑戦しました。
+
+- `DBI` と `DBD::SQLite` の基本的な使い方
+- `TaskRepository::SQLite` の実装ガイド
+- 既存コードをほとんど変更せずにストレージを追加
+- Repositoryパターンの真価を体感
+
+## シリーズ完結
+
+「シンプルなTodo CLIアプリ」シリーズ全10回、お疲れ様でした！
+
+### 学んだこと
+
+1. if-elsif分岐からの脱却 - Commandパターンで拡張しやすい構造に
+2. 永続化の抽象化 - Repositoryパターンでストレージを差し替え可能に
+3. テスト容易性 - InMemoryRepositoryでファイルI/Oなしのテスト
+4. CLI引数の整理 - Getopt::Longで堅牢なオプション解析
+5. 設計原則の実践 - SRP, OCP, DIPを実際のコードで体験
+
+### 次のステップ
+
+- 他のデザインパターンを学ぶ（Strategyパターン、Observerパターンなど）
+- ファイル分割とモジュール化
+- CPANモジュールの公開
+
+「Mooで覚えるオブジェクト指向プログラミング」で学んだ知識が、実践的なアプリケーション開発に活きたことを実感できたでしょうか。
+
+ぜひ、このシリーズで学んだパターンを自分のプロジェクトに応用してみてください。
+
+ありがとうございました！
