@@ -21,7 +21,7 @@ description: "Command::Completeを追加し、Commandパターンの拡張性を
 - `Command::Add`, `Command::List` を実装
 - 各コマンドが独立したクラスになった
 
-今回は **Command::Complete** を追加し、Commandパターンの **拡張性** を体験します。
+今回は Command::Complete を追加し、Commandパターンの 拡張性 を体験します。
 
 ## Command::Complete の実装
 
@@ -462,7 +462,7 @@ Commandパターンを使うと、新機能追加は以下の3ステップで完
 2. コマンドマップにエントリを追加
 3. ヘルプにコマンドを追加（オプション）
 
-既存のCommandクラスには **一切触れません**。これが「オープン・クローズド原則」の実践です。
+既存のCommandクラスには 一切触れません。これが「オープン・クローズド原則」の実践です。
 
 ### 既存コードへの影響
 

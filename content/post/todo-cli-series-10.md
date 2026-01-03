@@ -22,7 +22,7 @@ description: "Repositoryパターンの応用演習です。既存コードを�
 - Repositoryパターン、Commandパターンの効果を確認
 - 設計原則（SRP, OCP, DIP）を実践
 
-今回は **演習** として、**SQLiteでの永続化** に挑戦します。Repositoryパターンの応用で、既存コードをほとんど変更せずにSQLite対応を追加しましょう。
+今回は 演習 として、SQLiteでの永続化 に挑戦します。Repositoryパターンの応用で、既存コードをほとんど変更せずにSQLite対応を追加しましょう。
 
 ## 演習の目標
 
@@ -336,7 +336,7 @@ $ perl todo.pl --sqlite list
 
 ### 既存コードへの影響
 
-SQLite対応を追加しても、以下のコードは **変更不要** です。
+SQLite対応を追加しても、以下のコードは 変更不要 です。
 
 - `Task` クラス
 - `TaskRepository::Role`
@@ -412,11 +412,11 @@ if ($@) {
 
 ### 学んだこと
 
-1. **if-elsif分岐からの脱却** - Commandパターンで拡張しやすい構造に
-2. **永続化の抽象化** - Repositoryパターンでストレージを差し替え可能に
-3. **テスト容易性** - InMemoryRepositoryでファイルI/Oなしのテスト
-4. **CLI引数の整理** - Getopt::Longで堅牢なオプション解析
-5. **設計原則の実践** - SRP, OCP, DIPを実際のコードで体験
+1. if-elsif分岐からの脱却 - Commandパターンで拡張しやすい構造に
+2. 永続化の抽象化 - Repositoryパターンでストレージを差し替え可能に
+3. テスト容易性 - InMemoryRepositoryでファイルI/Oなしのテスト
+4. CLI引数の整理 - Getopt::Longで堅牢なオプション解析
+5. 設計原則の実践 - SRP, OCP, DIPを実際のコードで体験
 
 ### 次のステップ
 

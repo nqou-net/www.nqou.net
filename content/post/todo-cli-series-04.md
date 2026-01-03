@@ -21,7 +21,7 @@ description: "Repositoryパターンを導入し、メインロジックから�
 - タブ区切りの問題を解決
 - 属性追加が容易になった
 
-しかし、永続化ロジック（`load_tasks` と `save_tasks`）がメインスクリプトに直接書かれていました。今回は、この永続化処理を **Repositoryパターン** で分離します。
+しかし、永続化ロジック（`load_tasks` と `save_tasks`）がメインスクリプトに直接書かれていました。今回は、この永続化処理を Repositoryパターン で分離します。
 
 ## なぜ永続化処理を分離するのか
 
@@ -103,18 +103,22 @@ classDiagram
 
 ### データアクセスを抽象化する
 
-Repositoryパターンは、**データの保存・取得のロジックを一箇所にカプセル化する** デザインパターンです。
+Repositoryパターンは、データの保存・取得のロジックを一箇所にカプセル化する デザインパターンです。
 
+```mermaid
+flowchart LR
+    subgraph Before
+        direction LR
+        A[メイン処理] <--> B[ファイル操作コード] <--> C[ファイル]
+    end
 ```
-Before:
-┌─────────────┐
-│ メイン処理  │ ←→ ファイル操作コード ←→ ファイル
-└─────────────┘
 
-After:
-┌─────────────┐     ┌──────────────┐
-│ メイン処理  │ ←→ │ Repository   │ ←→ ファイル
-└─────────────┘     └──────────────┘
+```mermaid
+flowchart LR
+    subgraph After
+        direction LR
+        D[メイン処理] <--> E[Repository] <--> F[ファイル]
+    end
 ```
 
 メイン処理はRepositoryのメソッドを呼ぶだけ。ファイル操作の詳細を知る必要がありません。
@@ -636,7 +640,7 @@ my $repository = TaskRepository::SQLite->new(dbfile => 'tasks.db');
 - テスト後のクリーンアップが必要
 - CI環境でのパス問題
 
-次回は、ファイルI/Oなしでテストできる **InMemoryRepository** を実装します。同じインターフェースで異なる実装を持つ、Repositoryパターンの真価を体感しましょう。
+次回は、ファイルI/Oなしでテストできる InMemoryRepository を実装します。同じインターフェースで異なる実装を持つ、Repositoryパターンの真価を体感しましょう。
 
 ## まとめ
 
