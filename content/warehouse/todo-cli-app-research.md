@@ -1,14 +1,17 @@
 ---
-title: "シンプルなTodo CLIアプリ - 調査ドキュメント"
 date: 2026-01-01T10:45:00+09:00
+description: シリーズ記事「シンプルなTodo CLIアプリ」作成に向けた調査結果。Commandパターン・Repositoryパターンの調査、PerlでのCLI実装方法、内部リンク候補の調査をまとめたドキュメント。
 draft: false
+epoch: 1767231900
+image: /favicon.png
+iso8601: 2026-01-01T10:45:00+09:00
 tags:
   - perl
   - command-pattern
   - repository-pattern
   - cli
   - design-patterns
-description: "シリーズ記事「シンプルなTodo CLIアプリ」作成に向けた調査結果。Commandパターン・Repositoryパターンの調査、PerlでのCLI実装方法、内部リンク候補の調査をまとめたドキュメント。"
+title: 'シンプルなTodo CLIアプリ - 調査ドキュメント'
 ---
 
 # シンプルなTodo CLIアプリ - 調査ドキュメント
