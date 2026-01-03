@@ -1,13 +1,16 @@
 ---
 date: 2025-12-30T16:14:49+09:00
 description: パスワード生成・管理ツール シリーズ記事のための調査ドキュメント。Perl乱数生成、Getopt::Long、暗号化モジュール、DBI/SQLite、デザインパターンの情報を収集。
-draft: true
-title: '調査ドキュメント - パスワード生成・管理ツール シリーズ'
+draft: false
+epoch: 1767078889
+image: /favicon.png
+iso8601: 2025-12-30T16:14:49+09:00
 tags:
   - research
   - perl
   - password-manager
   - security
+title: '調査ドキュメント - パスワード生成・管理ツール シリーズ'
 ---
 
 # 調査ドキュメント: パスワード生成・管理ツール シリーズ
