@@ -58,6 +58,53 @@ Singletonパターンは、真にグローバルなリソースを管理する�
 
 これらに共通するのは、「複数のインスタンスが存在すると問題が起きる」または「無駄である」という性質です。
 
+```mermaid
+graph LR
+    subgraph "Singletonパターンの典型的な適用例"
+        direction TB
+        
+        subgraph Example1["🗂️ ログマネージャー"]
+            Log1[唯一のインスタンス]
+            LogFile[app.log]
+            Log1 --> LogFile
+            Note1["複数のインスタンスがあると<br/>ファイルロック競合が発生"]
+        end
+        
+        subgraph Example2["⚙️ 設定管理"]
+            Config1[唯一のインスタンス]
+            ConfigFile[config.yml]
+            ConfigFile --> Config1
+            Note2["設定は1度だけ読み込み<br/>全体で共有すべき"]
+        end
+        
+        subgraph Example3["🗄️ DB接続プール"]
+            Pool1[唯一のインスタンス]
+            Conn1[接続1]
+            Conn2[接続2]
+            Conn3[接続3]
+            Pool1 --> Conn1
+            Pool1 --> Conn2
+            Pool1 --> Conn3
+            Note3["接続の効率的な管理<br/>複数プールは無駄"]
+        end
+        
+        subgraph Example4["🎲 乱数ジェネレーター"]
+            RNG1[唯一のインスタンス]
+            GlobalState[グローバル状態]
+            RNG1 --> GlobalState
+            Note4["グローバル状態を持つため<br/>複数インスタンスは問題"]
+        end
+    end
+    
+    style Log1 fill:#81c784,stroke:#2e7d32
+    style Config1 fill:#81c784,stroke:#2e7d32
+    style Pool1 fill:#81c784,stroke:#2e7d32
+    style RNG1 fill:#81c784,stroke:#2e7d32
+    style Example4 fill:#e8f5e9,stroke:#4caf50,stroke-width:3px
+```
+
+*図5: Singletonパターンの典型的な適用例 - グローバルなリソースや状態を持つクラスでは、唯一のインスタンスが必要*
+
 ## Singletonパターンの実装原理
 
 Singletonパターンを実装するには、3つの重要な要素が必要です。
@@ -111,11 +158,80 @@ sub instance {
 
 つまり、**初回呼び出し時だけ**`new()`が実行され、2回目以降は既存のインスタンスが返されます。これを**遅延初期化（lazy initialization）**と呼びます。
 
+#### instance()メソッドの動作フロー
+
+`//=`演算子の動作を詳しく見てみましょう：
+
+```mermaid
+flowchart TD
+    Start([RandomGenerator->instance 呼び出し]) --> Check{$_instance は<br/>定義済み？}
+    
+    Check -->|No<br/>初回呼び出し| Create[new を実行<br/>新しいインスタンス生成]
+    Create --> Assign[生成したインスタンスを<br/>$_instance に代入]
+    Assign --> Return1[そのインスタンスを返す]
+    Return1 --> End1([呼び出し元へ返却])
+    
+    Check -->|Yes<br/>2回目以降| Return2[既存の $_instance を返す<br/>※ new は実行しない]
+    Return2 --> End2([呼び出し元へ返却])
+    
+    style Start fill:#e3f2fd
+    style End1 fill:#e8f5e9
+    style End2 fill:#e8f5e9
+    style Create fill:#fff3e0
+    style Check fill:#f3e5f5
+    
+    Note1[初回のみ BUILD が実行され<br/>srand も1度だけ呼ばれる]
+    Note2[既存インスタンスを返すだけ<br/>高速で状態を変更しない]
+    
+    Assign -.-> Note1
+    Return2 -.-> Note2
+```
+
+*図2: instance()メソッドの動作フロー - //= 演算子により、初回のみインスタンス生成、2回目以降は既存のインスタンスを返すだけの効率的な実装*
+
 ### プライベートコンストラクタ相当の実装（Perlの場合）
 
 理想的には、`new`を直接呼べないようにすべきですが、Perl/Mooではプライベートコンストラクタの実装が難しいため、慣習として`instance()`メソッドを使うことを推奨します。
 
 ドキュメントやコメントで「`new`を直接呼ばず、`instance()`を使ってください」と明示することが重要です。
+
+### Singletonパターンの構造
+
+この3つの要素がどのように連携するかを視覚化しましょう：
+
+```mermaid
+classDiagram
+    class RandomGenerator {
+        <<Singleton>>
+        -$_instance : RandomGenerator [class variable]
+        -int seed
+        +instance()$ RandomGenerator
+        -new() RandomGenerator
+        +BUILD()
+        +get_number(max) int
+        +_reset_instance()$
+    }
+    
+    class Client1 {
+        +generate_token()
+    }
+    
+    class Client2 {
+        +generate_token()
+    }
+    
+    class Client3 {
+        +generate_token()
+    }
+    
+    RandomGenerator "1" <-- "N" Client1 : instance()で取得
+    RandomGenerator "1" <-- "N" Client2 : instance()で取得
+    RandomGenerator "1" <-- "N" Client3 : instance()で取得
+    
+    note for RandomGenerator "✓ クラス変数$_instanceで\n唯一のインスタンスを保持\n✓ instance()メソッドが\nグローバルアクセスポイント\n✓ BUILD()とsrand()は1度だけ実行"
+```
+
+*図1: Singletonパターンの構造 - クラス変数、instance()メソッド、唯一のインスタンスの3要素が連携して、1つのインスタンスだけを保証する*
 
 ## コード例1：Singleton RandomGeneratorクラス
 
@@ -208,6 +324,73 @@ package RandomGenerator {
    - 本番環境では使わない（Singletonの保証を破壊するため）
    - テストで複数のシナリオを試す際に便利
 
+### Before/After：問題と解決の対比
+
+第1回の`BadRandomGenerator`と今回の`RandomGenerator`を比較してみましょう：
+
+```mermaid
+graph TB
+    subgraph "❌ Before: BadRandomGenerator（問題あり）"
+        direction TB
+        App1[アプリケーション]
+        
+        subgraph Instances1["複数のインスタンス"]
+            Gen1A["gen1<br/>seed: 1735987200"]
+            Gen1B["gen2<br/>seed: 1735987200"]
+            Gen1C["gen3<br/>seed: 1735987200"]
+        end
+        
+        GlobalRNG1["🎲 グローバル乱数<br/>ジェネレーター"]
+        
+        App1 --> Gen1A
+        App1 --> Gen1B
+        App1 --> Gen1C
+        
+        Gen1A -->|"srand(seed)<br/>状態リセット"| GlobalRNG1
+        Gen1B -->|"srand(seed)<br/>状態リセット"| GlobalRNG1
+        Gen1C -->|"srand(seed)<br/>状態リセット"| GlobalRNG1
+        
+        GlobalRNG1 -.->|"同じ乱数列"| Gen1A
+        GlobalRNG1 -.->|"同じ乱数列"| Gen1B
+        GlobalRNG1 -.->|"同じ乱数列"| Gen1C
+        
+        Problem1["⚠️ 問題:<br/>各インスタンスがsrand()を呼び<br/>グローバル状態を同じ値で<br/>上書きしてしまう"]
+    end
+    
+    subgraph "✅ After: RandomGenerator（Singleton）"
+        direction TB
+        App2[アプリケーション]
+        
+        ClassVar["クラス変数<br/>$_instance"]
+        
+        Instance2["唯一のインスタンス<br/>RandomGenerator<br/>seed: 改善されたシード"]
+        
+        GlobalRNG2["🎲 グローバル乱数<br/>ジェネレーター"]
+        
+        App2 -->|"instance()<br/>何度呼んでも"| ClassVar
+        ClassVar -->|"常に同じ<br/>インスタンスを返す"| Instance2
+        
+        Instance2 -->|"srand(seed)<br/>初回のみ1度だけ"| GlobalRNG2
+        
+        GlobalRNG2 -.->|"連続した<br/>異なる乱数列"| Instance2
+        
+        Solution2["✨ 解決:<br/>インスタンスは1つだけ<br/>srand()も1度だけ実行<br/>連続した乱数が生成される"]
+    end
+    
+    style Gen1A fill:#ffcdd2,stroke:#c62828
+    style Gen1B fill:#ffcdd2,stroke:#c62828
+    style Gen1C fill:#ffcdd2,stroke:#c62828
+    style GlobalRNG1 fill:#ff6b6b,stroke:#c92a2a
+    style Problem1 fill:#fff3e0,stroke:#f57c00
+    
+    style ClassVar fill:#c8e6c9,stroke:#388e3c
+    style Instance2 fill:#81c784,stroke:#2e7d32
+    style GlobalRNG2 fill:#66bb6a,stroke:#2e7d32
+    style Solution2 fill:#e8f5e9,stroke:#4caf50
+```
+
+*図3: Before/After比較 - 複数インスタンスによる問題（Before）とSingletonパターンによる解決（After）。Singletonにより唯一のインスタンスが保証され、srand()も1度だけ実行される*
+
 ## 動作確認：問題が解決されたことの証明
 
 実際に動かして、Singletonパターンが機能していることを確認しましょう！
@@ -296,6 +479,62 @@ Token 3: 8d4a1f7c5e2b9068f3c4a7d1e5b2f809
 ```
 
 **問題解決！** 🎉
+
+#### 解決の仕組みを視覚化
+
+第1回の問題図（図1）と対比して、Singletonパターンでどのように解決されたかを見てみましょう：
+
+```mermaid
+sequenceDiagram
+    participant User1 as ユーザー1
+    participant User2 as ユーザー2
+    participant User3 as ユーザー3
+    participant App as アプリケーション
+    participant Class as RandomGenerator<br/>クラス
+    participant Instance as 唯一の<br/>インスタンス
+    participant RNG as グローバル<br/>乱数ジェネレーター
+    
+    User1->>App: セッション開始
+    App->>Class: instance() 呼び出し
+    Note over Class: 初回呼び出し<br/>$_instance は未定義
+    Class->>Instance: new() 実行
+    activate Instance
+    Instance->>Instance: BUILD()<br/>seed生成
+    Instance->>RNG: srand(改善されたseed)<br/>🎯 1度だけ実行！
+    Note over RNG: グローバル状態を初期化
+    Class-->>App: インスタンスを返す
+    App->>Instance: get_number(256) x16
+    Instance->>RNG: rand() 呼び出し
+    RNG-->>Instance: 乱数列: [90, 63, 137, ...]
+    Instance-->>App: Token: 5a3f89d4...
+    App-->>User1: セッション確立 ✓
+    
+    User2->>App: セッション開始
+    App->>Class: instance() 呼び出し
+    Note over Class: 2回目以降<br/>$_instance は既に定義済み
+    Class-->>App: 既存のインスタンスを返す<br/>🎯 new()は実行しない
+    App->>Instance: get_number(256) x16
+    Instance->>RNG: rand() 呼び出し
+    RNG-->>Instance: 乱数列: [178, 231, 244, ...]
+    Note over RNG: 前回の続きから<br/>異なる値が生成される
+    Instance-->>App: Token: b2e7f4c9...
+    App-->>User2: セッション確立 ✓
+    
+    User3->>App: セッション開始
+    App->>Class: instance() 呼び出し
+    Class-->>App: 既存のインスタンスを返す
+    App->>Instance: get_number(256) x16
+    Instance->>RNG: rand() 呼び出し
+    RNG-->>Instance: 乱数列: [141, 74, 31, ...]
+    Instance-->>App: Token: 8d4a1f7c...
+    App-->>User3: セッション確立 ✓
+    
+    deactivate Instance
+    
+    Note over User1,User3: 🎉 全員に異なるトークンが割り当てられた！<br/>✓ インスタンスは1つだけ<br/>✓ srand()は初回のみ1度だけ実行<br/>✓ 連続した乱数列が生成される
+```
+
+*図4: Singletonによる解決後のセッショントークン生成 - 唯一のインスタンスから連続した乱数列が生成され、各ユーザーに異なるトークンが割り当てられる（第1回の図1と対比）*
 
 ### なぜ解決したのか
 
