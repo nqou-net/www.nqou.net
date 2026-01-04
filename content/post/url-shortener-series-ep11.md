@@ -146,6 +146,18 @@ post '/shorten' => sub ($c) {
 
 コードの流れを解説します。
 
+```mermaid
+flowchart TD
+  A[Start: receive URL] --> B{Empty?}
+  B -- yes --> R[Render 400: URL is required]
+  B -- no --> C{is_http_uri or is_https_uri?}
+  C -- no --> R2[Render 400: Invalid URL]
+  C -- yes --> D[generate short_code]
+  D --> E[prepare INSERT with placeholders]
+  E --> F[execute]
+  F --> G[render result page]
+```
+
 #### モジュールのインポート
 
 ```perl

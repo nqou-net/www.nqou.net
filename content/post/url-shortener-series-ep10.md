@@ -91,6 +91,26 @@ $c->redirect_to($url);
 
 しかし、今回は302を使うので、シンプルに`redirect_to`を呼ぶだけで問題ありません。
 
+```mermaid
+sequenceDiagram
+  participant Browser
+  participant App as Mojolicious
+  participant Short as URLShortener
+  participant DB as SQLite
+
+  Browser->>App: GET /:code
+  App->>Short: resolve(code)
+  Short->>DB: SELECT original_url WHERE short_code=?
+  DB-->>Short: row | undef
+  alt found
+    Short-->>App: original_url
+    App->>Browser: 302 Redirect (Location: original_url)
+  else not found
+    Short-->>App: undef
+    App->>Browser: 404 Not Found
+  end
+```
+
 ### 存在しない短縮コードへの対応
 
 第9回で学んだとおり、データベースに存在しない短縮コードでアクセスされた場合は、404エラーを返すのが適切です。

@@ -263,6 +263,23 @@ post '/shorten' => sub ($c) {
 
 ルーティングの責務とビジネスロジックの責務が分離され、コードの見通しがよくなりました。
 
+```mermaid
+graph TD
+  Browser[User Browser]
+  App[Mojolicious App]
+  Shortener[URLShortener class]
+  DB[SQLite]
+
+  Browser -- HTTP POST /shorten --> App
+  App -- calls --> Shortener
+  Shortener -- INSERT/SELECT --> DB
+  Browser -- HTTP GET /:code --> App
+  App -- lookup --> Shortener
+  Shortener -- SELECT --> DB
+  Shortener -- returns URL --> App
+  App -- redirect_to --> Browser
+```
+
 ## シリーズを振り返る
 
 ### 全12回で学んだこと

@@ -178,6 +178,23 @@ $dbh->disconnect;
 
 コードの流れを解説します。
 
+```mermaid
+sequenceDiagram
+  participant User as Browser
+  participant App as Mojolicious
+  participant Short as URLShortener
+  participant DB as SQLite
+
+  User->>App: POST /shorten (url)
+  App->>Short: shorten(url)
+  Short->>Short: validate url
+  Short->>Short: generate code (sha1_hex -> substr)
+  Short->>DB: INSERT original_url, short_code
+  DB-->>Short: OK
+  Short-->>App: return code
+  App-->>User: render result (short URL)
+```
+
 #### データベース接続
 
 ```perl
