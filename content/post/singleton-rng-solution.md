@@ -45,6 +45,23 @@ sub getInstance {
 
 どこから呼んでも、**常に同じインスタンス**が返ってくるのがミソです！
 
+```mermaid
+flowchart TD
+    Start([getInstance呼び出し]) --> Check{インスタンスは<br/>存在する?}
+    Check -->|No<br/>初回呼び出し| Create[新しいインスタンスを生成<br/>$instance = bless ...]
+    Create --> Store[クラス変数に保存<br/>$instance //= ...]
+    Store --> Return1[インスタンスを返す]
+    Check -->|Yes<br/>2回目以降| Return2[既存のインスタンスを返す]
+    Return1 --> End([同じインスタンス])
+    Return2 --> End
+    
+    style Check fill:#ffffcc
+    style Create fill:#ccffcc
+    style Store fill:#ccffcc
+    style Return2 fill:#ccccff
+    style End fill:#ffccff
+```
+
 ## コード例1: Singleton実装版RandomGenerator
 
 では、前回の `RandomGenerator` をSingletonパターンで実装してみましょう。
@@ -173,6 +190,34 @@ Singleton     20000/s      300%        --
 ```
 
 Singleton版は毎回 `new()` 版より**300%速い**（4倍！）という結果になりました。インスタンス生成コストが1回だけになったおかげです。
+
+```mermaid
+graph LR
+    subgraph "毎回new()パターン"
+        A1[呼び出し1] -->|new| I1[インスタンス1]
+        A2[呼び出し2] -->|new| I2[インスタンス2]
+        A3[呼び出し3] -->|new| I3[インスタンス3]
+        A4[呼び出し...] -->|new| I4[インスタンス...]
+        
+        I1 -.->|GC| G1[破棄]
+        I2 -.->|GC| G2[破棄]
+        I3 -.->|GC| G3[破棄]
+        
+        style I1 fill:#ffcccc
+        style I2 fill:#ffcccc
+        style I3 fill:#ffcccc
+        style I4 fill:#ffcccc
+    end
+    
+    subgraph "Singletonパターン"
+        B1[呼び出し1] -->|getInstance| S1[唯一のインスタンス]
+        B2[呼び出し2] -->|getInstance| S1
+        B3[呼び出し3] -->|getInstance| S1
+        B4[呼び出し...] -->|getInstance| S1
+        
+        style S1 fill:#ccffcc
+    end
+```
 
 ## Singletonの注意点：知っておくべき問題
 
@@ -319,6 +364,33 @@ done_testing;
 - **テスタビリティ**: モックへの置き換えが簡単
 - **明示的な依存関係**: コンストラクタで何に依存しているか明確
 - **柔軟性**: 実行時に実装を切り替え可能
+
+```mermaid
+graph TB
+    subgraph "Singletonパターン（密結合）"
+        G1[Gameクラス] -.->|直接参照<br/>getInstance| RNG1[RandomGeneratorSingleton]
+        
+        style G1 fill:#ffcccc
+        style RNG1 fill:#ffcccc
+    end
+    
+    subgraph "DIパターン（疎結合）"
+        G2[Gameクラス] -->|注入された依存| RNG2[RNGインターフェース]
+        RNG2 -.->|実装| Real[RandomGenerator]
+        RNG2 -.->|実装| Mock[MockRNG<br/>テスト用]
+        
+        Main[メイン処理] -->|本番環境| Real
+        Main -->|new Game<br/>rng: $real| G2
+        
+        Test[テストコード] -->|テスト環境| Mock
+        Test -->|new Game<br/>rng: $mock| G2
+        
+        style G2 fill:#ccffcc
+        style RNG2 fill:#ccffcc
+        style Real fill:#cceeff
+        style Mock fill:#cceeff
+    end
+```
 
 ## モダンな代替手段
 

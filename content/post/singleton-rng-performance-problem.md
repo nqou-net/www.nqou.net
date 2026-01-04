@@ -114,6 +114,47 @@ print "ゲームループ完了\n";
 
 一見動きますが、**10フレームで1000回のインスタンス生成**が発生しています！
 
+```mermaid
+sequenceDiagram
+    participant GL as ゲームループ
+    participant E1 as 敵1
+    participant E2 as 敵2
+    participant E100 as 敵100
+    participant RNG as RandomGenerator
+
+    Note over GL: フレーム1開始
+    GL->>E1: 行動決定
+    E1->>RNG: new() #1
+    activate RNG
+    Note over RNG: メモリ確保<br/>初期化処理
+    RNG-->>E1: インスタンス
+    deactivate RNG
+    E1->>E1: roll_dice()
+    Note over E1: すぐにGC対象
+    
+    GL->>E2: 行動決定
+    E2->>RNG: new() #2
+    activate RNG
+    Note over RNG: メモリ確保<br/>初期化処理
+    RNG-->>E2: インスタンス
+    deactivate RNG
+    E2->>E2: roll_dice()
+    Note over E2: すぐにGC対象
+    
+    Note over GL,E100: ... (敵3〜99は省略)
+    
+    GL->>E100: 行動決定
+    E100->>RNG: new() #100
+    activate RNG
+    Note over RNG: メモリ確保<br/>初期化処理
+    RNG-->>E100: インスタンス
+    deactivate RNG
+    E100->>E100: roll_dice()
+    Note over E100: すぐにGC対象
+    
+    Note over GL: フレーム1完了<br/>100回の初期化が発生！
+```
+
 ## パフォーマンス測定：Benchmarkで真実を知る
 
 「本当に遅いの？」と思ったあなた、素晴らしい疑問です！感覚じゃなくて**測定**しましょう。
@@ -175,6 +216,45 @@ print "  - パーセント値：相対的な速度差\n";
 ## なぜ遅いのか：インスタンス生成コストの内訳
 
 では、なぜこんなに差が出るのでしょうか？
+
+```mermaid
+graph TB
+    subgraph "毎回new()する場合（遅い）"
+        A1[処理開始] --> B1[new呼び出し #1]
+        B1 --> C1[メモリ確保]
+        C1 --> D1[初期化処理]
+        D1 --> E1[roll_dice実行]
+        E1 --> F1[GC対象化]
+        F1 --> B2[new呼び出し #2]
+        B2 --> C2[メモリ確保]
+        C2 --> D2[初期化処理]
+        D2 --> E2[roll_dice実行]
+        E2 --> F2[GC対象化]
+        F2 --> G1[...]
+        G1 --> H1[1000回繰り返し]
+        
+        style C1 fill:#ffcccc
+        style D1 fill:#ffcccc
+        style F1 fill:#ffcccc
+        style C2 fill:#ffcccc
+        style D2 fill:#ffcccc
+        style F2 fill:#ffcccc
+    end
+    
+    subgraph "インスタンスを使い回す場合（速い）"
+        A2[処理開始] --> B3[new呼び出し]
+        B3 --> C3[メモリ確保]
+        C3 --> D3[初期化処理]
+        D3 --> E3[roll_dice実行 #1]
+        E3 --> E4[roll_dice実行 #2]
+        E4 --> E5[...]
+        E5 --> E6[roll_dice実行 #1000]
+        E6 --> H2[完了]
+        
+        style C3 fill:#ccffcc
+        style D3 fill:#ccffcc
+    end
+```
 
 ### 1. メモリアロケーション
 
