@@ -168,17 +168,17 @@ $output_dir->remove_tree if $output_dir->exists;
             $modified = 1;
         }
 
-        # ISO8601を持っていない場合はdateからISOを作成
         unless (exists $info->{iso8601}) {
 
-            # 存在しなければ今書いたことにする
+            # ISO8601を持っていない場合
+            # dateが存在しなければiso8601を現在時刻に指定する
             if (!exists $info->{date}) {
                 my $tm = Time::Moment->now->with_precision(0);
                 $date->{$tm->to_string} = 1;
                 $info->{iso8601} = $tm->to_string;
             }
 
-            # すでに変換済みであればそのまま渡す
+            # dateが存在し、すでに変換済みであればそのまま渡す
             elsif (-1 < index($info->{date}, 'T')) {
                 $info->{iso8601} = $info->{date};
             }
