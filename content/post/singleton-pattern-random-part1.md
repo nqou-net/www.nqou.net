@@ -163,6 +163,39 @@ Token 3: 5a3f89d4c1b7e2068a4d9f1c3e5b8207
 
 これは大問題です。セッショントークンは各ユーザーを識別するための重要な値なのに、複数のユーザーに同じトークンが割り当てられたら、セッションハイジャックのリスクが発生します。
 
+```mermaid
+sequenceDiagram
+    participant User1 as ユーザー1
+    participant User2 as ユーザー2
+    participant User3 as ユーザー3
+    participant App as アプリケーション
+    participant Gen1 as BadRandomGenerator#1
+    participant Gen2 as BadRandomGenerator#2
+    participant Gen3 as BadRandomGenerator#3
+    
+    User1->>App: セッション開始
+    App->>Gen1: new() [seed=1735987200]
+    Gen1->>Gen1: srand(1735987200)
+    Gen1-->>App: Token: 5a3f89d4...
+    App-->>User1: セッション確立
+    
+    User2->>App: セッション開始
+    App->>Gen2: new() [seed=1735987200]
+    Gen2->>Gen2: srand(1735987200)
+    Gen2-->>App: Token: 5a3f89d4...
+    App-->>User2: セッション確立
+    
+    User3->>App: セッション開始
+    App->>Gen3: new() [seed=1735987200]
+    Gen3->>Gen3: srand(1735987200)
+    Gen3-->>App: Token: 5a3f89d4...
+    App-->>User3: セッション確立
+    
+    Note over User1,User3: 🚨 全員に同じトークンが割り当てられた！
+```
+
+*図1: 問題の発生シーケンス - 短時間に複数のインスタンスを生成すると、全て同じシード値で初期化され、同一のトークンが生成される*
+
 でも、なぜこんなことが起きるのでしょうか？コードには一見、何の問題もないように見えます。
 
 ## 原因の調査：デバッグの旅
@@ -211,6 +244,28 @@ Token 3: 5a3f89d4c1b7e2068a4d9f1c3e5b8207
 
 これは`time()`が秒単位でしか値が変わらないためです。短時間に複数回呼び出すと、同じ秒内であれば同じ値が返ってきます。つまり、1秒以内に複数のインスタンスを生成すると、全て同じシード値で初期化されてしまうのです。
 
+```mermaid
+gantt
+    title time()関数の精度とインスタンス生成のタイミング
+    dateFormat X
+    axisFormat %L ms
+    
+    section 時刻
+    1735987200秒      :milestone, t1, 0, 0
+    1735987201秒      :milestone, t2, 1000, 0
+    
+    section インスタンス生成
+    gen1 = new()     :active, g1, 0, 10
+    gen2 = new()     :active, g2, 50, 10
+    gen3 = new()     :active, g3, 100, 10
+    
+    section seed値
+    time()=1735987200 :crit, s1, 0, 999
+    time()=1735987201 :crit, s2, 1000, 1000
+```
+
+*図2: time()の精度の限界 - 1秒以内に生成された全てのインスタンスは同じシード値を受け取る*
+
 ### 仮説3：srand()の真実
 
 しかし、ここで疑問が湧きます。「同じシード値でも、別々のインスタンスなら別々の乱数列が生成されるのでは？」
@@ -237,6 +292,43 @@ Perlの乱数生成は以下のように動作します：
 2. `srand()`はこのグローバルな乱数ジェネレーターのシード値を設定する
 3. `rand()`はこのグローバルな乱数ジェネレーターから次の値を取得する
 4. どのパッケージから呼び出しても、**同じ内部状態を共有する**
+
+```mermaid
+graph TB
+    subgraph "Perlプロセス"
+        GlobalRNG["🎲 グローバル乱数ジェネレーター<br/>(内部状態: seed値から生成)"]
+        
+        subgraph "BadRandomGeneratorインスタンス群"
+            Gen1["gen1<br/>seed: 1735987200"]
+            Gen2["gen2<br/>seed: 1735987200"]
+            Gen3["gen3<br/>seed: 1735987200"]
+        end
+        
+        subgraph "他のパッケージ"
+            PkgA["Package A"]
+            PkgB["Package B"]
+        end
+    end
+    
+    Gen1 -->|"srand(seed)"| GlobalRNG
+    Gen2 -->|"srand(seed)"| GlobalRNG
+    Gen3 -->|"srand(seed)"| GlobalRNG
+    PkgA -->|"srand()"| GlobalRNG
+    PkgB -->|"srand()"| GlobalRNG
+    
+    GlobalRNG -->|"rand()"| Gen1
+    GlobalRNG -->|"rand()"| Gen2
+    GlobalRNG -->|"rand()"| Gen3
+    GlobalRNG -->|"rand()"| PkgA
+    GlobalRNG -->|"rand()"| PkgB
+    
+    style GlobalRNG fill:#ff6b6b,stroke:#c92a2a,stroke-width:3px,color:#fff
+    style Gen1 fill:#4ecdc4,stroke:#0a9396
+    style Gen2 fill:#4ecdc4,stroke:#0a9396
+    style Gen3 fill:#4ecdc4,stroke:#0a9396
+```
+
+*図3: Perlのグローバル乱数状態 - 全てのインスタンスとパッケージが同じ乱数ジェネレーターを共有*
 
 実験で確認してみましょう：
 
@@ -309,6 +401,37 @@ my $gen2 = BadRandomGenerator->new;  # 同じ秒内なら、srand(同じtime())�
 2. `$gen2`の生成時に**再び**`srand(time())`が呼ばれ、グローバルな乱数ジェネレーターが**同じ値で再初期化される**
 3. 両方のインスタンスが同じグローバル状態から乱数を取得するため、**同じ乱数列**が生成される
 
+```mermaid
+sequenceDiagram
+    participant Code as コード
+    participant Gen1 as gen1インスタンス
+    participant Gen2 as gen2インスタンス
+    participant RNG as グローバル乱数ジェネレーター
+    
+    Code->>Gen1: new() 呼び出し
+    activate Gen1
+    Gen1->>Gen1: BUILD実行
+    Gen1->>RNG: srand(1735987200)
+    Note over RNG: 状態リセット<br/>seed=1735987200
+    Gen1->>RNG: rand(256)
+    RNG-->>Gen1: 90
+    deactivate Gen1
+    
+    Code->>Gen2: new() 呼び出し
+    activate Gen2
+    Gen2->>Gen2: BUILD実行
+    Gen2->>RNG: srand(1735987200)
+    Note over RNG: 状態リセット<br/>seed=1735987200<br/>🚨 同じ値で再初期化！
+    Gen2->>RNG: rand(256)
+    RNG-->>Gen2: 90
+    Note over Gen1,Gen2: 同じ乱数が生成される！
+    deactivate Gen2
+    
+    style RNG fill:#ff6b6b,stroke:#c92a2a,stroke-width:3px
+```
+
+*図4: 複数インスタンス化による状態リセット問題 - 各インスタンスのBUILDでsrand()が呼ばれ、グローバル状態が同じ値で再初期化される*
+
 各インスタンスは独立していると思っていましたが、実際には**全てのインスタンスが同じグローバルな乱数ジェネレーターを共有していた**のです。
 
 この問題は、Perlの乱数生成が持つ根本的な特性に起因しています。実は、この特性については{{< linkcard "/2000/10/07/135739/" >}}でも言及されており、Perlの乱数を扱う上で知っておくべき重要なポイントなのです。
@@ -344,6 +467,30 @@ my $gen2 = BadRandomGenerator->new;  # 同じ秒内なら、srand(同じtime())�
 問題の根本原因は明確です：
 
 **複数の`BadRandomGenerator`インスタンスが存在し、それぞれが`srand()`を呼んでグローバルな乱数ジェネレーターを同じ値で再初期化してしまう**
+
+```mermaid
+classDiagram
+    class BadRandomGenerator {
+        -int seed
+        +BUILD()
+        +get_number(max) int
+    }
+    
+    class GlobalRandomState {
+        <<singleton>>
+        -int current_seed
+        -int internal_state
+        +srand(seed)
+        +rand() float
+    }
+    
+    BadRandomGenerator "N" --> "1" GlobalRandomState : 全インスタンスが共有
+    
+    note for BadRandomGenerator "❌ 問題: 複数のインスタンスが存在\n各インスタンスのBUILD()で\nsrand()を呼び出してしまう"
+    note for GlobalRandomState "Perlプロセス内で唯一\nsrand()で状態がリセットされる"
+```
+
+*図5: 問題の構造 - N個のBadRandomGeneratorインスタンスが1つのグローバル状態を共有し、それぞれがsrand()を呼んで状態を上書きする*
 
 もし、乱数ジェネレーターのインスタンスが**ただ1つだけ**存在し、`srand()`が**一度だけ**呼ばれるようにできれば、この問題は解決します。
 
