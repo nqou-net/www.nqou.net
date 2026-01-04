@@ -146,6 +146,10 @@ app->start;
 
 たったこれだけで、Webアプリケーションの基本形が完成です。
 
+Perlでは、引数を受け取る場合、通常は `sub { my $c = shift; ... }` のように書きます。ですが、Perl 5.20で実験的にサブルーチンシグネチャが導入され、Mojolicious::Lite（Mojo::Baseを継承しているクラス）では`-signatures`を指定することで有効化でき、 `sub ($c) { ... };`のように引数を受け取ることができるようになります。
+
+{{< linkcard "https://perldoc.jp/docs/perl/5.42.0/perlsub.pod#Signatures" >}}
+
 ### morboで起動する
 
 作成した`app.pl`を開発サーバーで起動してみましょう。ターミナルで以下のコマンドを実行してください。
