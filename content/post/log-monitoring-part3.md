@@ -73,6 +73,65 @@ for my $handler (@handlers) {
 
 ハンドラをチェーン状に連結し、柔軟で拡張可能なパイプラインを構築します。
 
+### 連載全体の進化を可視化
+
+```mermaid
+flowchart TB
+    subgraph Part1["第1回：if/else スパゲッティ"]
+        direction TB
+        L1[ログエントリ] --> IF1{if severity >= ERROR}
+        IF1 -->|Yes| A1[PagerDuty送信]
+        A1 --> A2[Slack送信]
+        A2 --> A3[DB保存]
+        IF1 -->|No| IF2{else if severity >= WARN}
+        IF2 -->|Yes| B1[Slack送信]
+        B1 --> B2[DB保存]
+        IF2 -->|No| C1[DB保存のみ]
+        
+        style Part1 fill:#ffebee,stroke:#c62828,stroke-width:2px
+        style IF1 fill:#ff5252
+        style IF2 fill:#ff5252
+    end
+    
+    subgraph Part2["第2回：ハンドラクラスに分離"]
+        direction TB
+        L2[ログエントリ] --> Loop[for each handler]
+        Loop --> H1[PagerDutyHandler]
+        Loop --> H2[SlackHandler]
+        Loop --> H3[DatabaseHandler]
+        H1 --> Check1{notify?}
+        H2 --> Check2{notify?}
+        H3 --> Check3{notify?}
+        
+        style Part2 fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+        style Loop fill:#ffb74d
+    end
+    
+    subgraph Part3["第3回：チェーンで連結"]
+        direction LR
+        L3[ログエントリ] --> Chain1[SeverityFilter]
+        Chain1 -->|next| Chain2[PatternFilter]
+        Chain2 -->|next| Chain3[PagerDutyNotifier]
+        Chain3 -->|next| Chain4[SlackNotifier]
+        Chain4 -->|next| Chain5[DatabaseSaver]
+        
+        style Part3 fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+        style Chain1 fill:#66bb6a
+        style Chain2 fill:#66bb6a
+        style Chain3 fill:#42a5f5
+        style Chain4 fill:#42a5f5
+        style Chain5 fill:#42a5f5
+    end
+    
+    Part1 ==> Part2
+    Part2 ==> Part3
+    
+    classDef evolution fill:#fff,stroke:#333,stroke-width:1px
+```
+
+**図0: 連載全体の進化の軌跡**  
+シンプルなif/else → 独立したハンドラクラス → Chain of Responsibilityパターンへと段階的に進化していきました。
+
 ### 連載の構成（再掲）
 
 | 回数 | タイトル | 内容 |
@@ -146,6 +205,46 @@ if (is_night_shift()) {
 ```
 
 既存のコードを修正せず、設定だけで動作を変更できます。
+
+### 1.2 Chain of Responsibilityの基本動作
+
+以下の図は、Chain of Responsibilityパターンの基本的な動作フローを示しています。リクエスト（ログエントリ）が複数のハンドラを順次通過し、各ハンドラが「処理する」または「次に渡す」の判断を行います。
+
+```mermaid
+sequenceDiagram
+    participant Client as クライアント
+    participant H1 as Handler A<br/>(フィルタ)
+    participant H2 as Handler B<br/>(通知)
+    participant H3 as Handler C<br/>(保存)
+
+    Client->>H1: handle(logEntry)
+    
+    alt can_handle() = true
+        H1->>H1: process(logEntry)
+        Note over H1: ✅ 処理を実行
+    else can_handle() = false
+        Note over H1: ⏭️ スキップ
+    end
+    
+    H1->>H2: 次のハンドラへ委譲
+    
+    alt can_handle() = true
+        H2->>H2: process(logEntry)
+        Note over H2: ✅ 通知を実行
+    else can_handle() = false
+        Note over H2: ⏭️ スキップ
+    end
+    
+    H2->>H3: 次のハンドラへ委譲
+    
+    H3->>H3: process(logEntry)
+    Note over H3: ✅ 保存を実行
+    
+    H3-->>Client: 処理完了
+```
+
+**図1: Chain of Responsibilityパターンの動作フロー**  
+リクエストがチェーン状に連結されたハンドラを通過し、各ハンドラが独立して処理判断を行います。
 
 ### 1.3 if/elseとの違い
 
@@ -742,6 +841,81 @@ sub process($self, $log_entry) {
 
 それでは、全てを組み合わせて動作させましょう！
 
+### 完全なログ監視システムのアーキテクチャ
+
+```mermaid
+flowchart TD
+    subgraph Input["入力"]
+        LogFile[ログファイル<br/>/var/log/app.log]
+    end
+    
+    subgraph Parser["パースレイヤー"]
+        LP[LogParser]
+        LogFile -->|読み込み| LP
+        LP -->|パース| Entry[LogEntry<br/>timestamp/level/severity/message]
+    end
+    
+    subgraph Monitor["監視レイヤー"]
+        LM[LogMonitor]
+        Entry --> LM
+    end
+    
+    subgraph Chain["ハンドラチェーン"]
+        direction LR
+        
+        subgraph Filters["フィルタ群"]
+            SF[SeverityFilter<br/>min_severity: ERROR]
+            PF[PatternFilter<br/>pattern: /database/i]
+        end
+        
+        subgraph Notifiers["通知ハンドラ群"]
+            PD[PagerDutyNotifier<br/>severity >= ERROR]
+            SC[SlackNotifier<br/>#alerts-critical]
+            SW[SlackNotifier<br/>#alerts-warning]
+        end
+        
+        subgraph Storage["保存ハンドラ"]
+            DB[(DatabaseSaver<br/>全ログ保存)]
+        end
+        
+        SF -->|next| PF
+        PF -->|next| PD
+        PD -->|next| SC
+        SC -->|next| SW
+        SW -->|next| DB
+    end
+    
+    LM -->|handle| SF
+    
+    subgraph Flow["処理フロー例"]
+        direction TB
+        E1[ERROR + database] -->|✅ Pass| F1[SeverityFilter]
+        F1 -->|✅ Pass| F2[PatternFilter]
+        F2 -->|✅ Notify| N1[PagerDuty]
+        N1 -->|✅ Notify| N2[Slack Critical]
+        N2 -->|⏭️ Skip| N3[Slack Warning]
+        N3 -->|✅ Save| S1[Database]
+    end
+    
+    style Input fill:#e3f2fd,stroke:#1976d2
+    style Parser fill:#fff3e0,stroke:#f57c00
+    style Monitor fill:#f3e5f5,stroke:#7b1fa2
+    style Filters fill:#fff9c4,stroke:#f9a825
+    style Notifiers fill:#ffccbc,stroke:#d84315
+    style Storage fill:#c8e6c9,stroke:#388e3c
+    style Flow fill:#f5f5f5,stroke:#616161,stroke-dasharray: 5 5
+    
+    style SF fill:#ffeb3b
+    style PF fill:#ffeb3b
+    style PD fill:#ff7043
+    style SC fill:#ff7043
+    style SW fill:#ff7043
+    style DB fill:#66bb6a
+```
+
+**図2: 完全なログ監視システムのアーキテクチャ**  
+LogParser → LogMonitor → ハンドラチェーン（Filter → Notifier → Saver）という3層構造で、実際のログエントリが処理されていきます。各ハンドラが独立して判断を行い、柔軟なルーティングを実現しています。
+
 ```perl
 #!/usr/bin/env perl
 use v5.36;
@@ -859,6 +1033,61 @@ By level:
 ### 4.1 本番運用に必要なエラー処理
 
 実運用では、ネットワーク障害やAPI制限など様々なエラーが発生します。適切なエラーハンドリングが必須です。
+
+### エラーハンドリング機構の全体像
+
+```mermaid
+flowchart TD
+    subgraph Retry["リトライ機構（RetryableHandler）"]
+        direction TB
+        Start1[process開始] --> Try1{処理実行}
+        Try1 -->|成功| Success1[✅ 完了]
+        Try1 -->|失敗| Count1{リトライ回数<br/>< max_retries?}
+        Count1 -->|Yes| Wait1[指数バックオフ待機<br/>delay × retry_count]
+        Wait1 --> Try1
+        Count1 -->|No| Fail1[❌ エラー送出]
+        
+        style Start1 fill:#e3f2fd
+        style Success1 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px
+        style Fail1 fill:#ffcdd2,stroke:#c62828,stroke-width:2px
+        style Wait1 fill:#fff9c4
+    end
+    
+    subgraph Fallback["フォールバック機構（FallbackHandler）"]
+        direction TB
+        Start2[process開始] --> Primary{Primary<br/>Handler実行}
+        Primary -->|成功| Success2[✅ 完了]
+        Primary -->|失敗| Warn[⚠️ 警告ログ出力]
+        Warn --> Secondary{Fallback<br/>Handler実行}
+        Secondary -->|成功| Success3[✅ 代替手段で完了]
+        Secondary -->|失敗| Fail2[❌ 両方失敗]
+        
+        style Start2 fill:#e3f2fd
+        style Success2 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px
+        style Success3 fill:#fff59d,stroke:#f9a825,stroke-width:2px
+        style Fail2 fill:#ffcdd2,stroke:#c62828,stroke-width:2px
+        style Warn fill:#ffccbc
+    end
+    
+    subgraph Example["実運用例：PagerDuty → Slack フォールバック"]
+        direction LR
+        E1[ERRORログ検出] --> E2[PagerDuty送信試行]
+        E2 -->|障害発生| E3[⚠️ Slackへ切替]
+        E3 --> E4[Slack #alerts-critical]
+        E4 --> E5[✅ 通知完了]
+        
+        style E1 fill:#ffebee
+        style E2 fill:#ffccbc
+        style E3 fill:#fff9c4
+        style E4 fill:#bbdefb
+        style E5 fill:#c8e6c9
+    end
+    
+    Retry -.->|組み合わせ可能| Fallback
+```
+
+**図3: リトライ/フォールバック機構の動作フロー**  
+RetryableHandlerは指数バックオフで自動リトライを行い、FallbackHandlerは主系が失敗した場合に代替手段へ切り替えます。これらを組み合わせることで、本番環境でも堅牢なエラーハンドリングを実現できます。
 
 #### リトライ機能付きハンドラ
 

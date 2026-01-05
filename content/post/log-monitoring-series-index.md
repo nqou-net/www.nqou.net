@@ -169,9 +169,52 @@ $chain->handle($log_entry);
 
 ## 学習の進め方
 
-### 推奨する読み進め方
+### 📊 シリーズ全体のロードマップ
 
-このシリーズは、**段階的に理解を深める構成**になっています。
+このシリーズは、**段階的に理解を深める構成**になっています。以下の図で、全体の流れと各回で習得する内容を確認しましょう。
+
+```mermaid
+graph TD
+    Start([シリーズ開始<br/>if/elseスパゲッティの悩み]) --> Part1
+    
+    Part1[第1回：要件定義と基本設計<br/>⏱️ 30-40分]
+    Part1 --> P1Content["✅ ログ監視の要件整理<br/>✅ ログレベル設計原則<br/>✅ アラート疲労の防止<br/>✅ if/else実装とその問題点"]
+    P1Content --> Decision1{基礎理解OK?}
+    
+    Decision1 -->|はい| Part2[第2回：Mooとハンドラクラス<br/>⏱️ 45-60分]
+    Decision1 -->|復習が必要| Part1
+    
+    Part2 --> P2Content["✅ Mooの基本とクラス設計<br/>✅ Moo::Roleによる拡張性<br/>✅ リファクタリング実践<br/>✅ SOLID原則の適用"]
+    P2Content --> Decision2{設計理解OK?}
+    
+    Decision2 -->|はい| Part3[第3回：Chain of Responsibility<br/>⏱️ 60-90分]
+    Decision2 -->|復習が必要| Part2
+    
+    Part3 --> P3Content["✅ デザインパターン実装<br/>✅ ハンドラチェーン構築<br/>✅ テストとエラーハンドリング<br/>✅ 本番運用デプロイ"]
+    P3Content --> Complete([🎉 完成！<br/>本番運用可能な<br/>ログ監視システム])
+    
+    Complete --> Apply["応用展開<br/>・HTTPミドルウェア<br/>・バリデーションパイプライン<br/>・イベント処理"]
+    
+    style Start fill:#e1f5ff,stroke:#0066cc,stroke-width:2px
+    style Part1 fill:#fff4e6,stroke:#ff9800,stroke-width:3px
+    style Part2 fill:#fff4e6,stroke:#ff9800,stroke-width:3px
+    style Part3 fill:#fff4e6,stroke:#ff9800,stroke-width:3px
+    style Complete fill:#e8f5e9,stroke:#4caf50,stroke-width:3px
+    style Apply fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px
+    style P1Content fill:#e3f2fd,stroke:#2196f3,stroke-width:1px
+    style P2Content fill:#e3f2fd,stroke:#2196f3,stroke-width:1px
+    style P3Content fill:#e3f2fd,stroke:#2196f3,stroke-width:1px
+    style Decision1 fill:#fff9c4,stroke:#fbc02d,stroke-width:2px
+    style Decision2 fill:#fff9c4,stroke:#fbc02d,stroke-width:2px
+```
+
+**図の見方：**
+- 🟠 **オレンジ枠**: 各回の記事（推奨学習時間付き）
+- 🔵 **青枠**: 各回で習得する具体的なスキル
+- 🟢 **緑枠**: 最終成果物と応用展開
+- 🟡 **黄色枠**: 理解度チェックポイント
+
+### 推奨する読み進め方
 
 #### 📚 ステップ1：基礎を固める（第1回）
 
@@ -291,6 +334,83 @@ try {
 ## 連載を終えたあなたは...
 
 このシリーズを完走すると、以下のスキルが身につきます：
+
+### 📊 習得スキルマップ
+
+連載を通じて獲得できる知識とスキルを、体系的に整理しました。
+
+```mermaid
+mindmap
+  root((ログ監視と<br/>Chain of Responsibility<br/>完全習得))
+    技術スキル
+      Modern Perl 5.36+
+        シグネチャ構文
+        try/catch構文
+        strict/warnings自動有効化
+      Moo/Moo::Role
+        クラス設計の基礎
+        Roleによるインターフェース
+        属性とメソッド定義
+        オブジェクトの生成と管理
+      デザインパターン
+        Chain of Responsibility
+          ハンドラチェーン構築
+          責任の連鎖と委譲
+          動的な組み替え
+        SOLID原則
+          単一責任の原則
+          開放閉鎖の原則
+    実装スキル
+      ログ監視システム
+        ログレベル設計
+          ERROR/WARN/INFO/DEBUG
+          アラート疲労の防止
+        アラートルーティング
+          通知先の振り分け
+          条件による処理分岐
+      リファクタリング
+        if/else除去
+        クラス分割
+        コードの整理整頓
+        拡張性の向上
+    品質管理
+      テスト
+        Test2::V0の活用
+        ユニットテスト
+        統合テスト
+        モックとスタブ
+      エラーハンドリング
+        例外処理
+        リトライロジック
+        ロギングとトレース
+    本番運用
+      デプロイ
+        環境変数管理
+        設定ファイル
+        依存関係の管理
+      運用保守
+        モニタリング
+        トラブルシューティング
+        パフォーマンス最適化
+    応用展開
+      HTTPミドルウェア
+        認証チェーン
+        レート制限
+        ロギング
+      バリデーション
+        フォーマット検証
+        ビジネスルール
+        権限チェック
+      イベント処理
+        セキュリティフィルタ
+        監査ログ
+        通知システム
+```
+
+**マインドマップの読み方：**
+- **中心（緑）**: シリーズ全体のゴール
+- **第1階層**: 5つの主要スキルカテゴリ
+- **第2階層以降**: 具体的な技術要素とトピック
 
 ### 🎓 技術スキル
 
