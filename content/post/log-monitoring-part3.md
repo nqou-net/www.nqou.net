@@ -15,7 +15,7 @@ description: "Chain of Responsibilityパターンでハンドラを連結し、�
 
 # ハンドラチェーンで処理を連結する - Chain of Responsibilityパターンで作る本番運用可能なログ監視【Perl】
 
-> **この記事は「ログ監視と多段アラート判定 - Chain of Responsibilityパターン実践」シリーズの第3回（最終回）です。**  
+> この記事は「ログ監視と多段アラート判定 - Chain of Responsibilityパターン実践」シリーズの第3回（最終回）です。  
 > Perl 5.36+とMooを使って、実務で使える保守性の高いログ監視システムを完成させます。
 
 ## この記事で学べること
@@ -40,7 +40,7 @@ description: "Chain of Responsibilityパターンでハンドラを連結し、�
 
 ### これまでの進化の軌跡
 
-**第1回：要件定義と基本設計**
+第1回：要件定義と基本設計
 ```perl
 # シンプルなif/else実装
 if ($severity >= LOG_ERROR) {
@@ -52,7 +52,7 @@ if ($severity >= LOG_ERROR) {
 
 シンプルだけど、拡張性に問題がありました。
 
-**第2回：Mooでハンドラクラス実装**
+第2回：Mooでハンドラクラス実装
 ```perl
 # 各ハンドラが独立したクラスに
 my @handlers = (
@@ -69,7 +69,7 @@ for my $handler (@handlers) {
 
 責任の分離はできたけど、ハンドラ間の依存関係が表現できません。
 
-**第3回（本記事）：Chain of Responsibilityで完成！**
+第3回（本記事）：Chain of Responsibilityで完成！
 
 ハンドラをチェーン状に連結し、柔軟で拡張可能なパイプラインを構築します。
 
@@ -129,7 +129,7 @@ flowchart TB
     classDef evolution fill:#fff,stroke:#333,stroke-width:1px
 ```
 
-**図0: 連載全体の進化の軌跡**  
+図0: 連載全体の進化の軌跡  
 シンプルなif/else → 独立したハンドラクラス → Chain of Responsibilityパターンへと段階的に進化していきました。
 
 ### 連載の構成（再掲）
@@ -138,46 +138,45 @@ flowchart TB
 |-----|---------|-----|
 | 第1回 | 要件定義と基本設計 | ログレベルとアラートルーティングの基本を実装 |
 | 第2回 | Mooでハンドラクラス実装 | Moo/Moo::Roleによるクラス設計 |
-| **第3回（本記事）** | **ハンドラチェーンで処理を連結** | **Chain of Responsibility適用と実運用** |
+| 第3回（本記事） | ハンドラチェーンで処理を連結 | Chain of Responsibility適用と実運用 |
 
 ---
 
-## 1. Chain of Responsibilityパターンとは
+## Chain of Responsibilityパターンとは
 
-### 1.1 GoFデザインパターンの定義
+### GoFデザインパターンの定義
 
-**Chain of Responsibility（責任の連鎖）**は、Gang of Four（GoF）が定義した振る舞いパターンの一つです。
+Chain of Responsibility（責任の連鎖）は、Gang of Four（GoF）が定義した振る舞いパターンの一つです。
 
 #### パターンの本質
 
 > 複数のオブジェクトをチェーン状に連結し、リクエストを処理できるオブジェクトが見つかるまで順次委譲する。
 
-**キーコンセプト：**
+キーコンセプト：
 
-1. **送信者と受信者の分離**: クライアントは最初のハンドラに渡すだけ
-2. **動的な責任配分**: どのハンドラが処理するかは実行時に決まる
-3. **拡張性**: 新しいハンドラの追加が既存コード修正なしで可能
+1. 送信者と受信者の分離: クライアントは最初のハンドラに渡すだけ
+2. 動的な責任配分: どのハンドラが処理するかは実行時に決まる
+3. 拡張性: 新しいハンドラの追加が既存コード修正なしで可能
 
 #### 構成要素
 
-```
-┌────────┐      ┌─────────────┐      ┌─────────────┐
-│ Client │─────>│ Handler A   │─────>│ Handler B   │──>...
-└────────┘      │ (can handle)│      │ (skip)      │
-                └─────────────┘      └─────────────┘
-                      ↓
-                   処理実行
+```mermaid
+flowchart LR
+  Client[Client] -->|送信| HandlerA["Handler A\n(can handle)"]
+  HandlerA -->|委譲| HandlerB["Handler B\n(skip)"]
+  HandlerB --> More["..."]
+  HandlerA -->|処理実行| Process["処理実行"]
 ```
 
-- **Handler（抽象ハンドラ）**: 共通インターフェースと次ハンドラへの参照
-- **ConcreteHandler（具体ハンドラ）**: 実際の処理ロジック
-- **Client**: チェーンの先頭にリクエストを送信
+- Handler（抽象ハンドラ）: 共通インターフェースと次ハンドラへの参照
+- ConcreteHandler（具体ハンドラ）: 実際の処理ロジック
+- Client: チェーンの先頭にリクエストを送信
 
-### 1.2 なぜログ監視に適しているのか？
+### なぜログ監視に適しているのか？
 
 ログ監視はChain of Responsibilityパターンの理想的な適用例です：
 
-#### 1. 多段階のフィルタリング
+#### 多段階のフィルタリング
 
 ```
 ログエントリ → Severityチェック → パターンマッチ → 通知先選択 → 記録
@@ -185,7 +184,7 @@ flowchart TB
 
 各段階が独立したハンドラになります。
 
-#### 2. 柔軟な条件判定
+#### 柔軟な条件判定
 
 ```perl
 # 「ERROR かつ データベース関連」だけPagerDutyへ
@@ -195,7 +194,7 @@ flowchart TB
 
 ハンドラの組み合わせで複雑な条件を表現できます。
 
-#### 3. 運用中の変更が容易
+#### 運用中の変更が容易
 
 ```perl
 # 夜間はPagerDutyを無効化
@@ -206,7 +205,7 @@ if (is_night_shift()) {
 
 既存のコードを修正せず、設定だけで動作を変更できます。
 
-### 1.3 Chain of Responsibilityの基本動作
+### Chain of Responsibilityの基本動作
 
 以下の図は、Chain of Responsibilityパターンの基本的な動作フローを示しています。リクエスト（ログエントリ）が複数のハンドラを順次通過し、各ハンドラが「処理する」または「次に渡す」の判断を行います。
 
@@ -243,12 +242,12 @@ sequenceDiagram
     H3-->>Client: 処理完了
 ```
 
-**図1: Chain of Responsibilityパターンの動作フロー**  
+図1: Chain of Responsibilityパターンの動作フロー  
 リクエストがチェーン状に連結されたハンドラを通過し、各ハンドラが独立して処理判断を行います。
 
-### 1.4 if/elseとの違い
+### if/elseとの違い
 
-**従来のif/else方式：**
+従来のif/else方式：
 
 ```perl
 sub route_alert($log_entry) {
@@ -266,12 +265,12 @@ sub route_alert($log_entry) {
 }
 ```
 
-**問題点：**
+問題点：
 - ❌ 新しい条件追加で既存コードを修正
 - ❌ テストが複雑（全分岐網羅が必要）
 - ❌ どこで何が実行されるか追いづらい
 
-**Chain of Responsibility方式：**
+Chain of Responsibility方式：
 
 ```perl
 my $chain = SeverityFilter->new(min_severity => LOG_ERROR)
@@ -288,16 +287,16 @@ my $chain = SeverityFilter->new(min_severity => LOG_ERROR)
 $chain->handle($log_entry);
 ```
 
-**改善点：**
+改善点：
 - ✅ 新しいハンドラはチェーンに追加するだけ
 - ✅ 各ハンドラを個別にテスト可能
 - ✅ チェーンの流れが視覚的に明確
 
 ---
 
-## 2. チェーン構築の実装
+## チェーン構築の実装
 
-### 2.1 基底Handlerロールの定義
+### 基底Handlerロールの定義
 
 まず、全てのハンドラが従うべきインターフェースを定義します：
 
@@ -340,13 +339,13 @@ sub handle($self, $log_entry) {
 1;
 ```
 
-**設計のポイント：**
+設計のポイント：
 
-1. **`can_handle()`**: ハンドラごとの判定ロジック
-2. **`process()`**: 実際の処理（通知、保存など）
-3. **`handle()`**: 判定→処理→委譲の流れを制御
+1. `can_handle()`: ハンドラごとの判定ロジック
+2. `process()`: 実際の処理（通知、保存など）
+3. `handle()`: 判定→処理→委譲の流れを制御
 
-**Perlの魅力！** 🎯
+Perlの魅力！ 🎯
 
 ```perl
 sub set_next($self, $next_handler) {
@@ -361,7 +360,7 @@ sub set_next($self, $next_handler) {
 $handler_a->set_next($handler_b)->set_next($handler_c);
 ```
 
-### 2.2 基底Handlerクラスの実装
+### 基底Handlerクラスの実装
 
 ロールを実装する基底クラスも用意しましょう：
 
@@ -393,7 +392,7 @@ sub process($self, $log_entry) {
 
 これにより、具体的なハンドラは`BaseHandler`を継承して`can_handle()`と`process()`だけを実装すればOKです。
 
-### 2.3 具体的なフィルタハンドラの実装
+### 具体的なフィルタハンドラの実装
 
 #### SeverityFilter - ログレベルでフィルタリング
 
@@ -423,7 +422,7 @@ sub process($self, $log_entry) {
 1;
 ```
 
-**使用例：**
+使用例：
 
 ```perl
 my $error_filter = SeverityFilter->new(min_severity => 4);  # ERROR以上
@@ -466,7 +465,7 @@ sub process($self, $log_entry) {
 1;
 ```
 
-**使用例：**
+使用例：
 
 ```perl
 my $db_filter = PatternFilter->new(
@@ -480,7 +479,7 @@ my $network_filter = PatternFilter->new(
 );
 ```
 
-**正規表現のパワー！** 🚀
+正規表現のパワー！ 🚀
 
 Perlの正規表現は強力です。複雑なパターンも簡潔に記述できます：
 
@@ -494,9 +493,9 @@ pattern => qr/(?:192\.168|10\.|172\.(?:1[6-9]|2\d|3[01]))\.\d+\.\d+/
 
 ---
 
-## 3. 完全なログ監視システムの実装
+## 完全なログ監視システムの実装
 
-### 3.1 実際のログファイル処理
+### 実際のログファイル処理
 
 それでは、実際のログファイルを読み込んで処理する完全なシステムを構築しましょう。
 
@@ -630,7 +629,7 @@ sub _print_stats($self) {
 1;
 ```
 
-### 3.2 通知ハンドラの完全実装（第2回の強化版）
+### 通知ハンドラの完全実装（第2回の強化版）
 
 第2回で作成したハンドラを`BaseHandler`を継承する形に書き換えます。
 
@@ -837,7 +836,7 @@ sub process($self, $log_entry) {
 1;
 ```
 
-### 3.3 チェーン構築と実行
+### チェーン構築と実行
 
 それでは、全てを組み合わせて動作させましょう。
 
@@ -913,7 +912,7 @@ flowchart TD
     style DB fill:#66bb6a
 ```
 
-**図2: 完全なログ監視システムのアーキテクチャ**  
+図2: 完全なログ監視システムのアーキテクチャ  
 LogParser → LogMonitor → ハンドラチェーン（Filter → Notifier → Saver）という3層構造で、実際のログエントリが処理されていきます。各ハンドラが独立して判断を行い、柔軟なルーティングを実現しています。
 
 ```perl
@@ -988,7 +987,7 @@ sub main() {
 main();
 ```
 
-**実行例：**
+実行例：
 
 ```bash
 # 環境変数で動作を制御
@@ -1001,7 +1000,7 @@ export PAGERDUTY_KEY=your-integration-key
 perl log_monitor.pl /var/log/application.log
 ```
 
-**出力例：**
+出力例：
 
 ```
 === Starting Log Monitor ===
@@ -1028,9 +1027,9 @@ By level:
 
 ---
 
-## 4. エラーハンドリングと堅牢性
+## エラーハンドリングと堅牢性
 
-### 4.1 本番運用に必要なエラー処理
+### 本番運用に必要なエラー処理
 
 実運用では、ネットワーク障害やAPI制限など様々なエラーが発生します。適切なエラーハンドリングが必須です。
 
@@ -1052,7 +1051,7 @@ flowchart TD
         style Fail1 fill:#ffcdd2,stroke:#c62828,stroke-width:2px
         style Wait1 fill:#fff9c4
     end
-    
+
     subgraph Fallback["フォールバック機構（FallbackHandler）"]
         direction TB
         Start2[process開始] --> Primary{Primary<br/>Handler実行}
@@ -1068,7 +1067,11 @@ flowchart TD
         style Fail2 fill:#ffcdd2,stroke:#c62828,stroke-width:2px
         style Warn fill:#ffccbc
     end
-    
+
+    Retry -.->|組み合わせ可能| Fallback
+```
+```mermaid
+flowchart TD    
     subgraph Example["実運用例：PagerDuty → Slack フォールバック"]
         direction LR
         E1[ERRORログ検出] --> E2[PagerDuty送信試行]
@@ -1083,10 +1086,9 @@ flowchart TD
         style E5 fill:#c8e6c9
     end
     
-    Retry -.->|組み合わせ可能| Fallback
 ```
 
-**図3: リトライ/フォールバック機構の動作フロー**  
+図3: リトライ/フォールバック機構の動作フロー  
 RetryableHandlerは指数バックオフで自動リトライを行い、FallbackHandlerは主系が失敗した場合に代替手段へ切り替えます。これらを組み合わせることで、本番環境でも堅牢なエラーハンドリングを実現できます。
 
 #### リトライ機能付きハンドラ
@@ -1136,7 +1138,7 @@ around process => sub ($orig, $self, $log_entry) {
 1;
 ```
 
-**使用例：**
+使用例：
 
 ```perl
 package SlackNotifierWithRetry;
@@ -1191,7 +1193,7 @@ sub process($self, $log_entry) {
 1;
 ```
 
-**使用例：**
+使用例：
 
 ```perl
 # PagerDutyがダウンしてたらSlackで代替
@@ -1201,7 +1203,7 @@ my $critical_alert = FallbackHandler->new(
 );
 ```
 
-### 4.2 ログ処理のエラー隔離
+### ログ処理のエラー隔離
 
 1つのログエントリの処理エラーで全体が止まらないようにします：
 
@@ -1228,7 +1230,7 @@ sub monitor($self) {
 }
 ```
 
-**Perl 5.36+の魅力！** 🎉
+Perl 5.36+の魅力！ 🎉
 
 Perl 5.36以降では`try/catch`構文が標準搭載されました：
 
@@ -1246,9 +1248,9 @@ try {
 
 ---
 
-## 5. テストコードの実装
+## テストコードの実装
 
-### 5.1 ユニットテスト - 個別ハンドラのテスト
+### ユニットテスト - 個別ハンドラのテスト
 
 ```perl
 use Test2::V0;
@@ -1283,7 +1285,7 @@ subtest 'PatternFilter tests' => sub {
 done_testing;
 ```
 
-### 5.2 統合テスト - チェーン全体のテスト
+### 統合テスト - チェーン全体のテスト
 
 ```perl
 use Test2::V0;
@@ -1318,7 +1320,7 @@ subtest 'Handler chain integration' => sub {
 done_testing;
 ```
 
-### 5.3 モックを使った外部依存のテスト
+### モックを使った外部依存のテスト
 
 ```perl
 use Test2::V0;
@@ -1373,11 +1375,11 @@ subtest 'SlackNotifier failure handling' => sub {
 done_testing;
 ```
 
-**Perlのテストエコシステム！** 🧪
+Perlのテストエコシステム！ 🧪
 
-- **Test2::V0**: モダンなテストフレームワーク（Test::Moreの後継）
-- **Test2::Mock**: 柔軟なモック機能
-- **lives_ok/dies_ok**: 例外のテストが簡単
+- Test2::V0: モダンなテストフレームワーク（Test::Moreの後継）
+- Test2::Mock: 柔軟なモック機能
+- lives_ok/dies_ok: 例外のテストが簡単
 
 ```perl
 # 成功を期待
@@ -1389,9 +1391,9 @@ dies_ok { $handler->process($bad_entry) } 'Process fails';
 
 ---
 
-## 6. 実運用のポイント
+## 実運用のポイント
 
-### 6.1 デプロイメント
+### デプロイメント
 
 #### systemdサービス化
 
@@ -1462,7 +1464,7 @@ sub load_config($config_file) {
 }
 ```
 
-### 6.2 監視とアラート
+### 監視とアラート
 
 #### ヘルスチェックエンドポイント
 
@@ -1527,7 +1529,7 @@ sub get_all($self) {
 1;
 ```
 
-**使用例：**
+使用例：
 
 ```perl
 # ハンドラ内でメトリクスを記録
@@ -1542,7 +1544,7 @@ sub process($self, $log_entry) {
 }
 ```
 
-### 6.3 パフォーマンス最適化
+### パフォーマンス最適化
 
 #### バッチ処理
 
@@ -1610,11 +1612,11 @@ sub process_async($self, $log_entry) {
 
 ---
 
-## 7. 連載の振り返り：3回の進化を総括
+## 連載の振り返り：3回の進化を総括
 
-### 7.1 第1回からの成長
+### 第1回からの成長
 
-**第1回：シンプルなif/else実装**
+第1回：シンプルなif/else実装
 ```perl
 if ($severity >= LOG_ERROR) {
     send_to_pagerduty($log_entry);
@@ -1627,7 +1629,7 @@ if ($severity >= LOG_ERROR) {
 - ❌ テストが困難
 - ❌ 責任が集中
 
-**第2回：Mooでハンドラクラス化**
+第2回：Mooでハンドラクラス化
 ```perl
 my @handlers = ($pagerduty, $slack, $db_saver);
 for my $handler (@handlers) {
@@ -1640,7 +1642,7 @@ for my $handler (@handlers) {
 - ⚠️ ハンドラ間の依存関係が不明
 - ⚠️ 順序制御が難しい
 
-**第3回：Chain of Responsibilityパターン**
+第3回：Chain of Responsibilityパターン
 ```perl
 my $chain = $filter->set_next($pagerduty)
                    ->set_next($slack)
@@ -1653,31 +1655,31 @@ $chain->handle($log_entry);
 - ✅ テストが簡単
 - ✅ 本番運用可能な品質
 
-### 7.2 習得したスキルセット
+### 習得したスキルセット
 
 この連載を通じて、あなたはこれらのスキルを習得しました：
 
-#### 1. 設計スキル
+#### 設計スキル
 - 要件定義からの設計アプローチ
 - SOLID原則の実践
 - デザインパターンの適用判断
 
-#### 2. Perlスキル
+#### Perlスキル
 - Modern Perl（5.36+）の活用
 - Moo/Moo::Roleによるクラス設計
 - シグネチャ、try/catchの実践
 
-#### 3. 実装スキル
+#### 実装スキル
 - ハンドラパターンの実装
 - エラーハンドリングの設計
 - テストコードの記述
 
-#### 4. 運用スキル
+#### 運用スキル
 - systemdサービス化
 - 設定の外部化
 - 監視・メトリクス収集
 
-### 7.3 実務への応用
+### 実務への応用
 
 この連載で学んだパターンは、ログ監視以外にも応用できます：
 
@@ -1711,9 +1713,9 @@ $event_chain->handle($event);
 
 ---
 
-## 8. 発展的な話題
+## 発展的な話題
 
-### 8.1 他のデザインパターンとの組み合わせ
+### 他のデザインパターンとの組み合わせ
 
 #### Strategy + Chain of Responsibility
 
@@ -1773,14 +1775,14 @@ package ChainWithObserver {
 }
 ```
 
-### 8.2 関連パターン
+### 関連パターン
 
-- **Command**: リクエストをオブジェクト化（Chain of Responsibilityと組み合わせ可）
-- **Decorator**: 動的に機能を追加（チェーンとの類似点）
-- **Composite**: ツリー構造の処理（チェーンは直列、これは階層）
-- **Mediator**: オブジェクト間の通信を仲介（チェーンは単方向、Mediatorは多方向）
+- Command: リクエストをオブジェクト化（Chain of Responsibilityと組み合わせ可）
+- Decorator: 動的に機能を追加（チェーンとの類似点）
+- Composite: ツリー構造の処理（チェーンは直列、これは階層）
+- Mediator: オブジェクト間の通信を仲介（チェーンは単方向、Mediatorは多方向）
 
-### 8.3 さらなる学習リソース
+### さらなる学習リソース
 
 #### 書籍
 - 「Design Patterns: Elements of Reusable Object-Oriented Software」（GoF本）
@@ -1798,43 +1800,43 @@ package ChainWithObserver {
 
 ### 本記事で学んだこと
 
-1. **Chain of Responsibilityパターンの本質**
+1. Chain of Responsibilityパターンの本質
    - 送信者と受信者の分離
    - 動的な責任配分
    - 拡張性の確保
 
-2. **チェーン構築の実装**
+2. チェーン構築の実装
    - HandlerRoleの定義
    - BaseHandlerクラス
    - 具体的なフィルタと通知ハンドラ
 
-3. **完全なログ監視システム**
+3. 完全なログ監視システム
    - ログパーサー
    - LogMonitorクラス
    - 実際のログファイル処理
 
-4. **エラーハンドリング**
+4. エラーハンドリング
    - リトライ機能
    - フォールバック機構
    - エラー隔離
 
-5. **テストコード**
+5. テストコード
    - ユニットテスト
    - 統合テスト
    - モックの活用
 
-6. **実運用のポイント**
+6. 実運用のポイント
    - デプロイメント
    - 監視とアラート
    - パフォーマンス最適化
 
 ### 連載全体の成果
 
-**第1回**: 要件定義と基本設計  
-**第2回**: Mooでハンドラクラス実装  
-**第3回**: Chain of Responsibilityで完成
+第1回: 要件定義と基本設計  
+第2回: Mooでハンドラクラス実装  
+第3回: Chain of Responsibilityで完成
 
-3回の連載を通じて、**シンプルなif/elseから本番運用可能なログ監視システム**へと進化させることができました。
+3回の連載を通じて、シンプルなif/elseから本番運用可能なログ監視システムへと進化させることができました。
 
 ### あなたが手に入れたもの
 
@@ -1843,7 +1845,7 @@ package ChainWithObserver {
 - ✅ 本番投入可能な品質のコード
 - ✅ 拡張可能で保守しやすい設計
 
-**おめでとうございます。** 🎉
+おめでとうございます。 🎉
 
 あなたは今、Perlでデザインパターンを実装できるエンジニアになりました。この知識を武器に、さらなる高みを目指してください。
 
@@ -1855,7 +1857,7 @@ package ChainWithObserver {
 
 1. [ログ監視システムの要件定義と基本設計 - ログレベルとアラートルーティング【Perl】](#)（第1回）
 2. [Mooでハンドラクラスを実装する - Moo::Roleによる拡張可能な設計【Perl】](#)（第2回）
-3. **ハンドラチェーンで処理を連結する - Chain of Responsibilityパターンで作る本番運用可能なログ監視【Perl】**（本記事）
+3. ハンドラチェーンで処理を連結する - Chain of Responsibilityパターンで作る本番運用可能なログ監視【Perl】（本記事）
 
 ### 関連記事
 
@@ -1869,10 +1871,3 @@ package ChainWithObserver {
 - [Moo公式ドキュメント - MetaCPAN](https://metacpan.org/pod/Moo)
 - [Perl 5.36リリースノート](https://perldoc.perl.org/perl5360delta)
 - [Test2::Suite - MetaCPAN](https://metacpan.org/pod/Test2::Suite)
-
----
-
-**タグ**: #perl #chain-of-responsibility #デザインパターン #ログ監視 #moo #本番運用 #テスト
-
-**執筆日**: 2026-01-05  
-**カテゴリ**: Perl / デザインパターン / システム運用
