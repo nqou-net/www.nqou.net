@@ -25,6 +25,31 @@ description: "Perl/Mooで外部の設定ファイル（INI形式）を読み込�
 
 外部ファイルから設定を読み込む `load_config` メソッドを追加することで、コードを変更せずに設定を切り替えられるようになります。設定ファイルには、シンプルで広く使われているINI形式を採用します。
 
+設定ファイル読み込みの流れは以下のとおりです。
+
+```mermaid
+sequenceDiagram
+    participant Main as メインスクリプト
+    participant Config as Configクラス
+    participant File as 設定ファイル<br>(config.ini)
+
+    Main->>Config: load_config('config.ini')
+    Config->>File: ファイルを開く
+    File-->>Config: ファイルハンドル
+
+    loop 各行を処理
+        Config->>File: 1行読み込む
+        File-->>Config: "key = value"
+        Config->>Config: パースしてハッシュに格納
+    end
+
+    Config->>File: ファイルを閉じる
+    Config->>Config: new(%config)でインスタンス生成
+    Config-->>Main: Configインスタンス
+```
+
+*図1: load_configメソッドによる設定ファイル読み込みの流れ*
+
 ## INI形式の設定ファイル
 
 INI形式は、シンプルなキーと値のペアで設定を記述するフォーマットです。以下のような形式で記述します。

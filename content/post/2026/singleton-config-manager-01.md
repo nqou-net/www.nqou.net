@@ -48,6 +48,33 @@ description: "Perl/Mooで設定を管理するクラスを作成します。ハ�
 
 アプリケーションを作成する際、データベース接続情報やAPIのURLなど、さまざまな設定値が必要になります。これらの設定値をどのように管理するかは、コードの保守性に大きく影響します。
 
+今回作成するConfigクラスの構造は以下のとおりです。
+
+```mermaid
+---
+config:
+  class:
+    hideEmptyMembersBox: true
+---
+classDiagram
+    class Config {
+        +db_host : String
+        +db_port : Int
+        +db_name : String
+        +db_user : String
+        +db_pass : String
+        +api_url : String
+        +api_timeout : Int
+        +log_file : String
+        +debug_mode : Bool
+        +new() Config
+    }
+
+    note for Config "Mooで定義した設定クラス\n各属性にデフォルト値を持つ"
+```
+
+*図1: Configクラスの基本構造*
+
 ## 問題のあるコード：ハードコードされた設定
 
 まずは、問題のあるコードを見てみましょう。設定値がスクリプト内に直接書かれている例です。

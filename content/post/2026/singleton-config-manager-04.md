@@ -25,6 +25,44 @@ description: "Perl/Mooでinstance()メソッドを実装し、インスタンス
 
 アプリケーション全体で同じConfigインスタンスを共有するには、どこからでも同じインスタンスを取得できる仕組みが必要です。そのために、クラス変数を使ってインスタンスを保持し、`instance()` メソッドを通じてのみインスタンスを取得する設計を導入します。
 
+以下の図で、instance()メソッドによる単一インスタンス保証の仕組みを確認しましょう。
+
+```mermaid
+flowchart TB
+    subgraph config_class["Configクラス"]
+        instance_var["クラス変数: $instance"]
+        instance_method["instance()メソッド"]
+        load_config["load_config()メソッド"]
+    end
+
+    subgraph main["メインスクリプト"]
+        main_call["Config->load_config('config.ini')"]
+        main_get["Config->instance"]
+    end
+
+    subgraph database["Databaseモジュール"]
+        db_get["Config->instance"]
+    end
+
+    subgraph api["APIモジュール"]
+        api_get["Config->instance"]
+    end
+
+    load_config -->|"インスタンスを保持"| instance_var
+    main_call --> load_config
+    main_get --> instance_method
+    db_get --> instance_method
+    api_get --> instance_method
+    instance_method -->|"同じインスタンスを返す"| instance_var
+
+    style instance_var fill:#90EE90,stroke:#228B22
+    style instance_method fill:#87CEEB,stroke:#4169E1
+```
+
+*図1: instance()メソッドによる単一インスタンス共有の仕組み*
+
+どのモジュールから呼び出しても、同じインスタンスが返されることがポイントです。
+
 ## ファイル構成
 
 前回と同じファイル構成を使用しますが、`Config.pm` と `Database.pm` を修正します。

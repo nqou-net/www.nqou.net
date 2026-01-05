@@ -25,6 +25,36 @@ description: "複数のモジュールから設定を参照する際に発生す
 
 アプリケーションが成長すると、データベース処理、API通信、ログ出力など、機能ごとにモジュールを分割することになります。それぞれのモジュールで設定値を参照したい場合、どのようにConfigクラスを使えばよいのでしょうか。
 
+現在のコードで発生する問題を図で確認しましょう。
+
+```mermaid
+flowchart TB
+    subgraph main["メインスクリプト (app.pl)"]
+        load["Config->load_config('config.ini')"]
+        config1["$config インスタンス A"]
+        load --> config1
+        config1 -.- value1["db_host = 'dev-db.example.com'"]
+    end
+
+    subgraph database["Databaseモジュール"]
+        new["Config->new"]
+        config2["$config インスタンス B"]
+        new --> config2
+        config2 -.- value2["db_host = 'localhost'<br>(デフォルト値)"]
+    end
+
+    main -.->|"Database->connect()を呼び出し"| database
+
+    style config1 fill:#90EE90,stroke:#228B22
+    style config2 fill:#FFB6C1,stroke:#DC143C
+    style value1 fill:#90EE90,stroke:#228B22
+    style value2 fill:#FFB6C1,stroke:#DC143C
+```
+
+*図1: 複数インスタンス問題 - 各モジュールが別々のConfigインスタンスを持ってしまう*
+
+この図のように、メインスクリプトとDatabaseモジュールで別々のインスタンスが作成されてしまうことが問題です。
+
 ## ファイル構成
 
 今回は、以下のようにファイルを分割して実装します。

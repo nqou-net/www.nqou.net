@@ -39,6 +39,41 @@ Singletonパターンの目的は、**クラスのインスタンスが1つし�
 
 これはまさに、私たちが第3回で直面した問題を解決するために、第4回で実装した仕組みそのものです。
 
+以下がSingletonパターンのクラス図です（GoFスタイル）。
+
+```mermaid
+---
+config:
+  class:
+    hideEmptyMembersBox: true
+---
+classDiagram
+    class Singleton {
+        -instance$ : Singleton
+        -Singleton()
+        +instance()$ Singleton
+    }
+
+    class Client1 {
+    }
+
+    class Client2 {
+    }
+
+    class Client3 {
+    }
+
+    Client1 ..> Singleton : instance()で取得
+    Client2 ..> Singleton : instance()で取得
+    Client3 ..> Singleton : instance()で取得
+
+    note for Singleton "staticなinstance変数に\n唯一のインスタンスを保持\n\n-: private（外部からnewできない）\n+: public（外部からアクセス可能）\n$: static（クラスメソッド/変数）"
+```
+
+*図1: Singletonパターンのクラス図（GoFスタイル）*
+
+どのクライアント（利用者）も `instance()` メソッドを通じて同じインスタンスにアクセスします。
+
 ## パターンの構成要素
 
 Singletonパターンは、以下の3つの要素で構成されます。
