@@ -1,6 +1,6 @@
 ---
 title: "シリーズ目次 - ログ監視と多段アラート判定 - Chain of Responsibilityパターン実践【Perl】"
-draft: true
+draft: false
 tags:
   - series
   - log-monitoring

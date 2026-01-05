@@ -1,6 +1,6 @@
 ---
 title: "Mooでハンドラクラスを実装する - Moo::Roleによる拡張可能な設計【Perl】"
-draft: true
+draft: false
 tags:
   - moo
   - moo-role
