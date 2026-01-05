@@ -1,5 +1,5 @@
 ---
-title: "publish()が複雑すぎる！Facadeパターンで解決へ - 問題の整理と設計方針"
+title: "Facadeパターン #5：publish()が複雑すぎる！ - 問題の整理と設計方針"
 draft: true
 tags:
 - "facade-pattern"

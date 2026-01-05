@@ -1,5 +1,5 @@
 ---
-title: "Facadeパターンで解決する - PublishFacadeクラスの実装"
+title: "Facadeパターン #6：Facadeパターンで解決する - PublishFacadeクラスの実装"
 draft: true
 tags:
 - "facade-pattern"

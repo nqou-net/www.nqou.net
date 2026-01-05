@@ -1,5 +1,5 @@
 ---
-title: "Facadeパターンで機能拡張が簡単に - 下書き保存機能の追加"
+title: "Facadeパターン #8：機能拡張が簡単に - 下書き保存機能の追加"
 draft: true
 tags:
 - "facade-pattern"

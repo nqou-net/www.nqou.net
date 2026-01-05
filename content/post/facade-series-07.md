@@ -1,5 +1,5 @@
 ---
-title: "Facadeパターンでテストしやすくなった！ - モック化とテスト戦略"
+title: "Facadeパターン #7：テストしやすくなった！ - モック化とテスト戦略"
 draft: true
 tags:
 - "facade-pattern"
