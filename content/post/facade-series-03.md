@@ -128,6 +128,36 @@ has validator => (
 
 バリデーション処理を`Validator`クラスに分離したのと同じように、画像処理も専用のクラスに分離します。
 
+以下は画像処理のフローを示した図です：
+
+```mermaid
+flowchart TD
+    Start([resize_images 開始]) --> HasImages{画像が<br/>ある?}
+    HasImages -->|No| End1([何もせず終了])
+    HasImages -->|Yes| Loop[各画像をループ処理]
+    
+    Loop --> FileExists{ファイルが<br/>存在する?}
+    FileExists -->|No| Warn[警告を出力] --> Next
+    FileExists -->|Yes| LoadImage[画像を読み込み]
+    
+    LoadImage --> CheckSize{サイズが<br/>大きい?}
+    CheckSize -->|No| UseOriginal[元の画像を使用]
+    CheckSize -->|Yes| Resize[リサイズ実行]
+    
+    Resize --> SaveResized[リサイズ画像を保存]
+    SaveResized --> Next[次の画像へ]
+    UseOriginal --> Next
+    
+    Next --> MoreImages{まだ画像が<br/>ある?}
+    MoreImages -->|Yes| Loop
+    MoreImages -->|No| End2([処理済みパスを返す])
+    
+    style Start fill:#e1f5e1
+    style End1 fill:#e1f5e1
+    style End2 fill:#e1f5e1
+    style Resize fill:#fff4e1
+```
+
 ### コード例1：ImageProcessorクラスの定義
 
 ```perl
@@ -226,6 +256,38 @@ sub resize_images {
 - **エラーハンドリング**: ファイルが見つからない場合は警告を出して続行
 
 ## publish()メソッドに画像処理を統合する
+
+### クラス構成の進化
+
+画像処理機能を追加することで、クラスの関係はさらに複雑になります：
+
+```mermaid
+classDiagram
+    class Article {
+        +String title
+        +String content
+        +String author
+        +Array images
+        +Validator validator
+        +ImageProcessor image_processor
+        +publish() String
+    }
+    
+    class Validator {
+        +validate(Article) Boolean
+    }
+    
+    class ImageProcessor {
+        +Integer max_width
+        +Integer max_height
+        +resize_images(Article) Array
+    }
+    
+    Article --> Validator : バリデーション
+    Article --> ImageProcessor : 画像処理
+    
+    note for Article "3つのサブシステムを管理"
+```
 
 ### コード例2：resize_images()で画像処理
 

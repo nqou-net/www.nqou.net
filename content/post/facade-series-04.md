@@ -78,6 +78,27 @@ WordPressやはてなブログなど、多くのブログプラットフォー�
 
 これまでと同様に、メール通知機能も専用のクラスに分離します。単一責任の原則を守るためです。
 
+以下は、メール通知処理のフローを示した図です：
+
+```mermaid
+flowchart TD
+    Start([send_notification 開始]) --> GenSubject[件名を生成]
+    GenSubject --> GenBody[本文を生成]
+    GenBody --> CreateEmail[メールオブジェクトを作成]
+    CreateEmail --> TrySend{メール送信を<br/>試みる}
+    
+    TrySend -->|成功| LogSuccess[送信成功をログ出力]
+    TrySend -->|失敗| LogError[エラーを警告出力]
+    
+    LogSuccess --> ReturnTrue([true を返す])
+    LogError --> ReturnFalse([false を返す])
+    
+    style Start fill:#e1f5e1
+    style ReturnTrue fill:#e1f5e1
+    style ReturnFalse fill:#ffe1e1
+    style CreateEmail fill:#fff4e1
+```
+
 ### コード例1：Notifierクラスの定義
 
 ```perl
@@ -179,6 +200,47 @@ sub send_notification {
 しかし、この判断が常に正しいとは限りません。重要な通知の場合は、失敗時に例外を投げる設計も考えられます。
 
 ## publish()メソッドに通知機能を統合する
+
+### 複雑化するクラス構成
+
+メール通知機能を追加することで、クラスの関係はさらに複雑になります：
+
+```mermaid
+classDiagram
+    class Article {
+        +String title
+        +String content
+        +String author
+        +Array images
+        +Validator validator
+        +ImageProcessor image_processor
+        +Notifier notifier
+        +publish() String
+    }
+    
+    class Validator {
+        +validate(Article) Boolean
+    }
+    
+    class ImageProcessor {
+        +resize_images(Article) Array
+    }
+    
+    class Notifier {
+        +String recipient
+        +String sender
+        +send_notification(Article) Boolean
+    }
+    
+    Article --> Validator : 1. バリデーション
+    Article --> ImageProcessor : 2. 画像処理
+    Article --> Notifier : 4. メール通知
+    Article ..> PathTiny : 3. ファイル保存
+    
+    note for Article "4つのサブシステムを<br/>順番に呼び出す"
+```
+
+この図からわかるように、`Article`クラスは4つの異なるサブシステムを管理するようになりました。
 
 ### コード例2：send_notification()でメール送信
 

@@ -205,6 +205,44 @@ sub publish {
 
 ### 問題点を可視化する
 
+現状の`publish()`メソッドの構造を視覚化してみましょう：
+
+```mermaid
+flowchart TD
+    Start([publish メソッド開始]) --> Step1[ステップ1: バリデーション]
+    Step1 --> Step2[ステップ2: 画像処理]
+    Step2 --> Step3[ステップ3: ファイル保存]
+    Step3 --> Step4[ステップ4: メール通知]
+    Step4 --> End([終了])
+    
+    Step1 -.-> Problem1[問題1: 4つの異なる責任]
+    Step2 -.-> Problem2[問題2: 条件分岐が埋め込まれている]
+    Step3 -.-> Problem3[問題3: 処理が直接書かれている]
+    Step4 -.-> Problem4[問題4: エラー処理が不統一]
+    
+    style Start fill:#e1f5e1
+    style End fill:#e1f5e1
+    style Problem1 fill:#ffe1e1
+    style Problem2 fill:#ffe1e1
+    style Problem3 fill:#ffe1e1
+    style Problem4 fill:#ffe1e1
+```
+
+さらに、複雑さを数値で可視化してみましょう：
+
+```mermaid
+graph LR
+    subgraph "publish()メソッドの複雑さ"
+        A[約35行のコード] --> B[4つの処理ステップ]
+        B --> C[6つの依存クラス]
+        C --> D[複数の条件分岐]
+        D --> E[不統一なエラー処理]
+    end
+    
+    style A fill:#ffe1e1
+    style E fill:#ffe1e1
+```
+
 現状の`publish()`メソッドの問題点をコメントで可視化してみましょう：
 
 ```perl
@@ -366,6 +404,29 @@ sub publish {
 ```
 
 たった1行です！すべての複雑さは`publish_facade`の中に隠蔽されています。
+
+以下の図は、現状の設計と理想的な設計を比較したものです：
+
+```mermaid
+graph TB
+    subgraph "現状: 複雑な publish()"
+        A1[Article] --> B1[Validator]
+        A1 --> B2[ImageProcessor]
+        A1 --> B3[Notifier]
+        A1 --> B4[Path::Tiny]
+        style A1 fill:#ffe1e1
+    end
+    
+    subgraph "理想: シンプルな publish()"
+        A2[Article] --> Facade[PublishFacade]
+        Facade --> C1[Validator]
+        Facade --> C2[ImageProcessor]
+        Facade --> C3[Notifier]
+        Facade --> C4[Path::Tiny]
+        style A2 fill:#e1f5e1
+        style Facade fill:#e1f5ff
+    end
+```
 
 この設計には、以下のメリットがあります：
 

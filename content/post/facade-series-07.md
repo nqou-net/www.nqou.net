@@ -50,6 +50,30 @@ sub publish {
 
 Facadeパターンを適用する前の`publish()`メソッドをテストするには、すべてのサブシステムを準備する必要がありました：
 
+以下の図は、テスト時の依存関係を示しています：
+
+```mermaid
+graph TD
+    subgraph "Facadeパターン適用前のテスト"
+        Test[統合テスト] --> Article
+        Article --> V[Validator<br/>実物が必要]
+        Article --> I[ImageProcessor<br/>実物が必要]
+        Article --> N[Notifier<br/>実物が必要]
+        Article --> F[FileSystem<br/>実物が必要]
+        
+        V --> Setup1[セットアップ: 複雑]
+        I --> Setup2[セットアップ: 複雑]
+        N --> Setup3[セットアップ: 複雑]
+        F --> Setup4[セットアップ: 複雑]
+    end
+    
+    style Test fill:#ffe1e1
+    style Setup1 fill:#ffe1e1
+    style Setup2 fill:#ffe1e1
+    style Setup3 fill:#ffe1e1
+    style Setup4 fill:#ffe1e1
+```
+
 ```perl
 # Facadeパターン適用前のテスト（統合テストになってしまう）
 use strict;
@@ -99,6 +123,28 @@ done_testing;
 ### Test::MockObjectを使う
 
 Facadeパターン適用後は、`PublishFacade`をモックに差し替えることで、単体テストが書けるようになります。
+
+以下の図は、モックを使ったテスト構造を示しています：
+
+```mermaid
+graph TD
+    subgraph "Facadeパターン適用後のテスト"
+        Test[単体テスト] --> Article
+        Article --> Mock[PublishFacade<br/>モック]
+        
+        Mock -.->|実際には呼ばない| V[Validator]
+        Mock -.->|実際には呼ばない| I[ImageProcessor]
+        Mock -.->|実際には呼ばない| N[Notifier]
+        
+        Test --> Fast[高速: 一瞬で完了]
+        Test --> Simple[シンプル: セットアップ不要]
+    end
+    
+    style Test fill:#e1f5e1
+    style Mock fill:#e1f5ff
+    style Fast fill:#e1f5e1
+    style Simple fill:#e1f5e1
+```
 
 Perlでは、`Test::MockObject`モジュールを使ってモックオブジェクトを作ります：
 
@@ -280,16 +326,29 @@ done_testing;
 
 良いテスト戦略は、**テストピラミッド**の形になります：
 
+```mermaid
+graph TD
+    subgraph "テストピラミッド"
+        E2E["E2Eテスト<br/>少数・遅い・高コスト"]
+        INT["統合テスト<br/>中程度"]
+        UNIT["単体テスト<br/>多数・高速・低コスト"]
+    end
+    
+    E2E --> INT
+    INT --> UNIT
+    
+    style E2E fill:#ffe1e1
+    style INT fill:#fff4e1
+    style UNIT fill:#e1f5e1
 ```
-      /\
-     /統\      ← 少数の統合テスト（E2E）
-    /合 \
-   /テス\
-  /ト   \
- /--------\
-/  単体    \   ← 多数の単体テスト
-/  テスト   \
-/____________\
+
+テストの理想的な構成：
+
+```mermaid
+pie title テストの分布（理想）
+    "単体テスト" : 70
+    "統合テスト" : 20
+    "E2Eテスト" : 10
 ```
 
 - **単体テスト（多数）**: 個々のクラス・メソッドをテスト（モックを使用）

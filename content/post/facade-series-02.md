@@ -144,6 +144,31 @@ sub publish {
 
 そこで、バリデーション処理を専用のクラスに分離します。`Article::Validator`というクラスを作りましょう。
 
+以下の図は、バリデーションの処理フローを示しています：
+
+```mermaid
+flowchart TD
+    Start([validate 開始]) --> CheckTitle{タイトルは<br/>空でない?}
+    CheckTitle -->|No| AddError1[エラー追加:<br/>タイトルが空]
+    CheckTitle -->|Yes| CheckContent{本文は<br/>空でない?}
+    AddError1 --> CheckContent
+    
+    CheckContent -->|No| AddError2[エラー追加:<br/>本文が空]
+    CheckContent -->|Yes| CheckAuthor{著者は<br/>空でない?}
+    AddError2 --> CheckAuthor
+    
+    CheckAuthor -->|No| AddError3[エラー追加:<br/>著者が空]
+    CheckAuthor -->|Yes| HasErrors{エラーが<br/>ある?}
+    AddError3 --> HasErrors
+    
+    HasErrors -->|Yes| ThrowError[例外を投げる]
+    HasErrors -->|No| Success([成功を返す])
+    
+    style Start fill:#e1f5e1
+    style Success fill:#e1f5e1
+    style ThrowError fill:#ffe1e1
+```
+
 ### コード例1：Validatorクラスの定義
 
 ```perl
@@ -199,6 +224,30 @@ sub validate {
 複数のエラーを一度に表示できるのが良いですね！
 
 ## Validatorを使ってpublish()を改善する
+
+### クラス構成の変化
+
+バリデーション機能を追加することで、クラスの関係は以下のように変わります：
+
+```mermaid
+classDiagram
+    class Article {
+        +String title
+        +String content
+        +String author
+        +Validator validator
+        +publish() String
+    }
+    
+    class Validator {
+        +validate(Article) Boolean
+    }
+    
+    Article --> Validator : 使用する
+    
+    note for Article "記事のデータと公開処理を担当"
+    note for Validator "バリデーション処理を担当"
+```
 
 ### コード例2：validate()メソッドでチェック
 

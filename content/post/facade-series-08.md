@@ -55,6 +55,26 @@ WordPressやはてなブログなど、ほとんどのブログシステムに�
 
 下書き保存と公開では、必要な処理が異なります：
 
+```mermaid
+graph LR
+    subgraph "公開処理 (publish)"
+        P1[バリデーション<br/>厳格] --> P2[画像処理<br/>実行]
+        P2 --> P3[ファイル保存<br/>articles/]
+        P3 --> P4[メール通知<br/>送信]
+    end
+    
+    subgraph "下書き保存 (save_draft)"
+        D1[バリデーション<br/>緩い] --> D2[ファイル保存<br/>drafts/]
+    end
+    
+    style P1 fill:#e1f5e1
+    style P2 fill:#fff4e1
+    style P3 fill:#e1f5ff
+    style P4 fill:#ffe1f5
+    style D1 fill:#fffde1
+    style D2 fill:#e1f5ff
+```
+
 | 処理 | 公開 (publish) | 下書き保存 (save_draft) |
 |------|--------------|----------------------|
 | バリデーション | ✅ 必須 | △ 緩い（タイトルのみなど） |
@@ -225,6 +245,36 @@ sub _save_article_file {
 
 次に、`Article`クラスに`save_draft()`メソッドを追加します：
 
+拡張後のクラス構成を見てみましょう：
+
+```mermaid
+classDiagram
+    class Article {
+        +String title
+        +String content
+        +String author
+        +Array images
+        +PublishFacade publish_facade
+        +publish() String
+        +save_draft() String
+    }
+    
+    class PublishFacade {
+        +execute(Article) String
+        +save_draft(Article) String
+        -_validate_article(Article)
+        -_validate_draft(Article)
+        -_process_images(Article)
+        -_save_article_file(Article, dir) String
+        -_send_notification(Article, filename)
+    }
+    
+    Article --> PublishFacade : 使用
+    
+    note for Article "新メソッド追加:<br/>save_draft() のみ"
+    note for PublishFacade "新機能を内部で実装:<br/>既存メソッドは変更なし"
+```
+
 ```perl
 # Article.pm（下書き保存機能追加版）
 # Perl: v5.26以上推奨
@@ -367,6 +417,28 @@ if ($@) {
 3. **既存機能の再利用**: ファイル保存ロジックを共通化
 4. **開放閉鎖の原則**: 既存のメソッド（`execute()`）を変更せず、新しいメソッド（`save_draft()`）を追加
 
+以下の図は、Facadeパターンによる拡張性の高さを示しています：
+
+```mermaid
+graph TD
+    subgraph "機能拡張の容易さ"
+        A[新機能の要件] --> B{Facadeパターン<br/>使用?}
+        
+        B -->|No| C1[Articleクラスを直接変更]
+        C1 --> C2[複雑なロジックを追加]
+        C2 --> C3[テストも複雑化]
+        C3 --> C4[保守性低下]
+        
+        B -->|Yes| D1[PublishFacadeに<br/>メソッド追加]
+        D1 --> D2[Articleには<br/>1行追加のみ]
+        D2 --> D3[既存テストは<br/>そのまま動く]
+        D3 --> D4[保守性維持]
+    end
+    
+    style C4 fill:#ffe1e1
+    style D4 fill:#e1f5e1
+```
+
 ### 他の拡張例
 
 Facadeパターンがあれば、他の機能も簡単に追加できます：
@@ -413,6 +485,34 @@ Facadeクラスに新しいメソッドを追加するだけで、様々な機�
 - **第4回**: メール通知追加（`Article::Notifier`）
 
 各機能を別クラスに分離したことで、単一責任の原則は守られました。しかし、`publish()`メソッドが複雑化しました。
+
+以下の図は、連載全体の流れを示しています：
+
+```mermaid
+timeline
+    title Facadeパターン学習の旅
+    section 第1-4回 : 機能追加フェーズ
+        第1回 : シンプルな実装
+              : Article + publish()
+        第2回 : バリデーション追加
+              : Validator導入
+        第3回 : 画像処理追加
+              : ImageProcessor導入
+        第4回 : メール通知追加
+              : Notifier導入
+              : publish()が35行に肥大化
+    section 第5-6回 : リファクタリングフェーズ
+        第5回 : 問題の認識と分析
+              : 6つの問題点を整理
+        第6回 : Facadeパターン導入
+              : PublishFacade作成
+              : publish()が3行に!
+    section 第7-8回 : 効果の実感フェーズ
+        第7回 : テスト容易性向上
+              : モック化による単体テスト
+        第8回 : 拡張性の体験
+              : save_draft()を簡単に追加
+```
 
 ### 第5回：問題の認識
 

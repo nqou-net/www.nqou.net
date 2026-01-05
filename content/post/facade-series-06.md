@@ -53,6 +53,40 @@ description: "Facadeパターンを使ったリファクタリング実践。Pub
 
 **複雑なサブシステムをまとめて、シンプルな窓口（Facade）を提供する**
 
+以下の図は、Facadeパターンの基本的な構造を示しています：
+
+```mermaid
+classDiagram
+    class Client {
+        +useSystem()
+    }
+    
+    class Facade {
+        +operation1()
+        +operation2()
+    }
+    
+    class SubSystemA {
+        +methodA()
+    }
+    
+    class SubSystemB {
+        +methodB()
+    }
+    
+    class SubSystemC {
+        +methodC()
+    }
+    
+    Client --> Facade : 使用する
+    Facade --> SubSystemA
+    Facade --> SubSystemB
+    Facade --> SubSystemC
+    
+    note for Client "シンプルなインターフェースで<br/>システムを利用"
+    note for Facade "複雑さを隠蔽する窓口"
+```
+
 ### 建築用語からの由来
 
 「Facade」は建築用語で「建物の正面」という意味です。建物の裏側には複雑な配管や配線がありますが、正面（Facade）からはそれらが見えません。美しくシンプルな外観だけが見えます。
@@ -75,6 +109,40 @@ Facadeパターンは、以下のような場合に有効です：
 ### Facadeクラスを作る
 
 では、`Article::PublishFacade`クラスを作成しましょう。このクラスは、記事公開に関するすべての処理を統一インターフェースで提供します。
+
+まず、PublishFacadeの内部構造を見てみましょう：
+
+```mermaid
+classDiagram
+    class PublishFacade {
+        -Validator validator
+        -ImageProcessor image_processor
+        -Notifier notifier
+        +execute(Article) String
+        -_validate_article(Article)
+        -_process_images(Article)
+        -_save_article_file(Article) String
+        -_send_notification(Article, filename)
+    }
+    
+    class Validator {
+        +validate(Article) Boolean
+    }
+    
+    class ImageProcessor {
+        +resize_images(Article) Array
+    }
+    
+    class Notifier {
+        +send_notification(Article) Boolean
+    }
+    
+    PublishFacade --> Validator : 保持
+    PublishFacade --> ImageProcessor : 保持
+    PublishFacade --> Notifier : 保持
+    
+    note for PublishFacade "複雑な処理を<br/>内部メソッドで整理"
+```
 
 ```perl
 # Article/PublishFacade.pm
@@ -309,6 +377,47 @@ sub publish {
     return $self->publish_facade->execute($self);
 }
 # 3行！
+```
+
+この劇的な変化を図で見てみましょう：
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant A as Article
+    participant F as PublishFacade
+    participant V as Validator
+    participant I as ImageProcessor
+    participant N as Notifier
+    
+    C->>A: publish()
+    A->>F: execute(self)
+    
+    rect rgb(230, 245, 230)
+        Note over F,V: 1. バリデーション
+        F->>V: validate(article)
+        V-->>F: OK
+    end
+    
+    rect rgb(255, 244, 230)
+        Note over F,I: 2. 画像処理
+        F->>I: resize_images(article)
+        I-->>F: resized_paths
+    end
+    
+    rect rgb(230, 240, 255)
+        Note over F: 3. ファイル保存
+        F->>F: _save_article_file()
+    end
+    
+    rect rgb(255, 230, 245)
+        Note over F,N: 4. メール通知
+        F->>N: send_notification(article)
+        N-->>F: success
+    end
+    
+    F-->>A: filename
+    A-->>C: filename
 ```
 
 ## 問題はどう解決されたか？
