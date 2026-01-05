@@ -91,11 +91,123 @@ description: "プロダクション環境で必要なログ監視の要件を整
    - 通常の変動範囲を学習し、本当の異常時のみアラート
    - 静的閾値（例：常に90%でアラート）は過剰反応を招く
 
+#### アラート疲労の問題を視覚化
+
+不適切な設定と適切な設定を比較してみましょう：
+
+```mermaid
+graph TB
+    subgraph bad[❌ 不適切な設定 - アラート疲労の原因]
+        BadStart([全てのログ]) --> BadRoute{単一ルート}
+        BadRoute --> BadPD[📟 PagerDuty]
+        BadRoute --> BadSlack[💬 Slack]
+        BadRoute --> BadDB[(💾 DB)]
+        
+        BadPD --> BadResult1[深夜に大量アラート 😵]
+        BadSlack --> BadResult2[重要な通知が埋もれる 😓]
+        BadDB --> BadResult3[DB肥大化 💥]
+        
+        style BadStart fill:#ff9999
+        style BadRoute fill:#ff6666
+        style BadResult1 fill:#cc0000,color:#fff
+        style BadResult2 fill:#cc0000,color:#fff
+        style BadResult3 fill:#cc0000,color:#fff
+    end
+    
+    subgraph good[✅ 適切な設定 - 効率的なアラート運用]
+        GoodStart([ログレベルで分類]) --> GoodError[ERROR]
+        GoodStart --> GoodWarn[WARN]
+        GoodStart --> GoodInfo[INFO]
+        
+        GoodError --> GoodPD[📟 PagerDuty<br/>即座に対応]
+        GoodError --> GoodSlackC[💬 Slack Critical]
+        
+        GoodWarn --> GoodSlackW[💬 Slack Warning<br/>営業時間内確認]
+        
+        GoodInfo --> GoodDB[(💾 DB保存のみ<br/>通知なし)]
+        
+        GoodPD --> GoodResult1[緊急時のみ対応 ✨]
+        GoodSlackC --> GoodResult2[重要度が明確 👍]
+        GoodSlackW --> GoodResult2
+        GoodDB --> GoodResult3[必要な記録は保持 📊]
+        
+        style GoodStart fill:#ccffcc
+        style GoodError fill:#ffcccc
+        style GoodWarn fill:#fff4cc
+        style GoodInfo fill:#e6f7ff
+        style GoodResult1 fill:#00cc00,color:#fff
+        style GoodResult2 fill:#00cc00,color:#fff
+        style GoodResult3 fill:#00cc00,color:#fff
+    end
+```
+
+**図2: アラート疲労の問題と解決策の比較**
+
+この図から以下が理解できます：
+
+| 設定タイプ | 結果 | 問題点/利点 |
+|----------|------|-----------|
+| **不適切な設定** | すべてのログで通知 | ・深夜に大量アラート<br/>・重要な通知が埋もれる<br/>・対応コストが増大 |
+| **適切な設定** | ログレベルで通知先を分離 | ・緊急時のみ即座に対応<br/>・重要度が明確<br/>・担当者の負担軽減 |
+
 ---
 
 ## 2. ログレベルの理解と実装
 
-### 2.1 ログレベルの定義
+### 2.1 ログレベルとアラートフローの全体像
+
+まず、ログレベルごとにどのように通知がルーティングされるかを視覚化してみましょう：
+
+```mermaid
+flowchart TD
+    Start([ログエントリ受信]) --> Parse[ログをパース]
+    Parse --> CheckLevel{ログレベル判定}
+    
+    CheckLevel -->|ERROR<br/>severity=4| ErrorFlow[ERROR処理]
+    CheckLevel -->|WARN<br/>severity=3| WarnFlow[WARN処理]
+    CheckLevel -->|INFO<br/>severity=2| InfoFlow[INFO処理]
+    CheckLevel -->|DEBUG<br/>severity=1| DebugFlow[DEBUG処理]
+    
+    ErrorFlow --> PagerDuty[📟 PagerDuty通知]
+    ErrorFlow --> SlackCritical[💬 Slack #alerts-critical]
+    ErrorFlow --> DB1[(💾 DB保存)]
+    
+    WarnFlow --> SlackWarning[💬 Slack #alerts-warning]
+    WarnFlow --> DB2[(💾 DB保存)]
+    
+    InfoFlow --> DB3[(💾 DB保存のみ)]
+    
+    DebugFlow -->|本番環境| Skip[何もしない]
+    DebugFlow -->|開発環境| DB4[(💾 DB保存)]
+    
+    PagerDuty --> End([処理完了])
+    SlackCritical --> End
+    SlackWarning --> End
+    DB1 --> End
+    DB2 --> End
+    DB3 --> End
+    DB4 --> End
+    Skip --> End
+    
+    style ErrorFlow fill:#ffcccc,stroke:#cc0000,stroke-width:3px
+    style WarnFlow fill:#fff4cc,stroke:#cc9900,stroke-width:2px
+    style InfoFlow fill:#ccffcc,stroke:#00cc00,stroke-width:2px
+    style DebugFlow fill:#e6e6e6,stroke:#666666,stroke-width:1px
+    style PagerDuty fill:#ff6b6b,color:#fff
+    style SlackCritical fill:#ff6b6b,color:#fff
+    style SlackWarning fill:#ffd93d
+```
+
+**図1: ログレベル別アラートルーティングフロー**
+
+この図から、以下の重要なポイントが理解できます：
+
+- **ERROR（赤色）**: 最も重要度が高く、PagerDuty・Slack・DBの3つに通知
+- **WARN（黄色）**: 中程度の重要度で、Slack・DBの2つに通知
+- **INFO（緑色）**: 通知は不要で、記録のみ（DB保存）
+- **DEBUG（グレー）**: 本番環境では何もせず、開発環境のみDB保存
+
+### 2.2 ログレベルの定義
 
 Modern Perlらしく、まずはログレベルを定数として定義しましょう：
 

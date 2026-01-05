@@ -180,6 +180,56 @@ subtest 'CODE-5xxx error routing' => sub {
 
 ネストが深くなり、**どのパスで何が実行されるか**が直感的に分かりません。新しく参加したメンバーは読解に時間がかかります。
 
+### 1.3 Before/After設計の比較図
+
+以下の図は、if/elseスパゲッティからハンドラクラス設計へのリファクタリングによる構造の変化を示しています：
+
+```mermaid
+graph TB
+    subgraph "Before: if/else スパゲッティ"
+        A[route_alert関数] --> B{severity >= ERROR?}
+        B -->|Yes| C[PagerDuty送信]
+        B -->|Yes| D[Slack送信 #critical]
+        B -->|Yes| E[DB保存]
+        B -->|No| F{severity >= WARN?}
+        F -->|Yes| G[Slack送信 #warning]
+        F -->|Yes| H[DB保存]
+        F -->|No| I{severity >= INFO?}
+        I -->|Yes| J[DB保存]
+        
+        style A fill:#ff6b6b,stroke:#c92a2a,color:#fff
+        style B fill:#ffd43b,stroke:#fab005
+        style F fill:#ffd43b,stroke:#fab005
+        style I fill:#ffd43b,stroke:#fab005
+    end
+    
+    subgraph "After: ハンドラクラス設計"
+        K[process_log関数] --> L[ハンドラリストループ]
+        L --> M[PagerDutyNotifier<br/>can_handle & notify]
+        L --> N[SlackNotifier<br/>can_handle & notify]
+        L --> O[DatabaseSaver<br/>can_handle & notify]
+        
+        M -.-> M1[自己判断:<br/>ERROR以上のみ処理]
+        N -.-> N1[自己判断:<br/>WARN以上のみ処理]
+        O -.-> O1[自己判断:<br/>全て処理]
+        
+        style K fill:#51cf66,stroke:#2f9e44,color:#fff
+        style L fill:#51cf66,stroke:#2f9e44,color:#fff
+        style M fill:#74c0fc,stroke:#1c7ed6,color:#fff
+        style N fill:#74c0fc,stroke:#1c7ed6,color:#fff
+        style O fill:#74c0fc,stroke:#1c7ed6,color:#fff
+    end
+```
+
+**図の見方：**
+
+- **Before（上段）**: 1つの関数内に全ての判定ロジックと処理が詰め込まれ、複雑な条件分岐が発生
+- **After（下段）**: シンプルなループ処理で、各ハンドラが自己判断して処理を実行
+- **赤系**: 問題のある設計（単一責任違反、拡張性低）
+- **緑/青系**: 改善された設計（責任分離、拡張性高）
+
+この設計変更により、新しい通知先の追加は「リストに追加するだけ」となり、既存コードの修正が不要になります。
+
 ---
 
 ## 2. Mooとは：Perlの軽量OOPシステム
@@ -347,6 +397,75 @@ with 'RetryableRole';     # リトライ機能
 ```
 
 継承だと単一の親クラスしか持てませんが、Roleなら複数の振る舞いを組み合わせられます。
+
+### 3.4 Moo::Roleとハンドラクラスの関係図
+
+以下のクラス図は、Moo::Roleによるインターフェース定義と、各ハンドラクラスの実装関係を示しています：
+
+```mermaid
+classDiagram
+    class NotifierRole {
+        <<interface>>
+        +enabled: bool
+        +notify(log_entry)* 
+        +should_notify(log_entry): bool
+        +can_handle(log_entry): bool
+    }
+    
+    class SlackNotifier {
+        +webhook_url: string
+        +channel: string
+        +http_client: HTTP::Tiny
+        +notify(log_entry): bool
+        +can_handle(log_entry): bool
+        +format_message(log_entry): string
+    }
+    
+    class PagerDutyNotifier {
+        +integration_key: string
+        +api_endpoint: string
+        +http_client: HTTP::Tiny
+        +notify(log_entry): bool
+        +can_handle(log_entry): bool
+        +map_severity(severity): string
+    }
+    
+    class DatabaseSaver {
+        +dsn: string
+        +username: string
+        +password: string
+        +dbh: DBI
+        +notify(log_entry): bool
+        +can_handle(log_entry): bool
+    }
+    
+    class TeamsNotifier {
+        <<future>>
+        +webhook_url: string
+        +notify(log_entry): bool
+        +can_handle(log_entry): bool
+    }
+    
+    NotifierRole <|.. SlackNotifier : implements (with)
+    NotifierRole <|.. PagerDutyNotifier : implements (with)
+    NotifierRole <|.. DatabaseSaver : implements (with)
+    NotifierRole <|.. TeamsNotifier : implements (with)
+    
+    note for NotifierRole "requires 'notify'で\nメソッド実装を強制"
+    note for SlackNotifier "severity >= 3\n(WARN以上)を処理"
+    note for PagerDutyNotifier "severity >= 4\n(ERROR以上)を処理"
+    note for DatabaseSaver "全てのログを\n処理（保存）"
+    note for TeamsNotifier "拡張例:\n新ハンドラ追加が容易"
+```
+
+**図の見方：**
+
+- **NotifierRole（インターフェース）**: `requires 'notify'`により、全てのハンドラクラスが`notify()`メソッドの実装を強制される
+- **点線矢印（implements）**: Moo::Roleの`with`キーワードによる実装関係
+- **各ハンドラクラス**: NotifierRoleを実装し、独自の属性と処理ロジックを持つ
+- **TeamsNotifier（破線）**: 将来の拡張例。新しいハンドラも同じインターフェースに従うだけで追加可能
+
+この設計により、**全てのハンドラが統一されたインターフェース**を持ち、コードの一貫性と拡張性が保証されます。
 
 ---
 
@@ -877,6 +996,74 @@ sub notify($self, $log_entry) {
 ```
 
 通知の成功/失敗を呼び出し側に返すことで、リトライ処理や別の通知手段へのフォールバックが可能になります。
+
+### 6.5 ハンドラの拡張性を示す設計図
+
+以下の図は、Open/Closed原則に基づいた拡張可能な設計を示しています：
+
+```mermaid
+graph LR
+    subgraph "コア設計（変更不要）"
+        A[NotifierRole<br/>インターフェース] -.defines.-> B[notify<br/>can_handle<br/>should_notify]
+        C[process_log<br/>メインロジック] --> D[ハンドラリスト<br/>@handlers]
+    end
+    
+    subgraph "既存ハンドラ（変更不要）"
+        E1[PagerDutyNotifier]
+        E2[SlackNotifier]
+        E3[DatabaseSaver]
+    end
+    
+    subgraph "新規追加ハンドラ（拡張）"
+        F1[TeamsNotifier]:::new
+        F2[EmailNotifier]:::new
+        F3[JiraNotifier]:::new
+    end
+    
+    A -.-> E1
+    A -.-> E2
+    A -.-> E3
+    A -.-> F1
+    A -.-> F2
+    A -.-> F3
+    
+    D --> E1
+    D --> E2
+    D --> E3
+    D -.add to list.-> F1
+    D -.add to list.-> F2
+    D -.add to list.-> F3
+    
+    style A fill:#845ef7,stroke:#5f3dc4,color:#fff
+    style C fill:#51cf66,stroke:#2f9e44,color:#fff
+    style D fill:#51cf66,stroke:#2f9e44,color:#fff
+    style E1 fill:#74c0fc,stroke:#1c7ed6,color:#fff
+    style E2 fill:#74c0fc,stroke:#1c7ed6,color:#fff
+    style E3 fill:#74c0fc,stroke:#1c7ed6,color:#fff
+    
+    classDef new fill:#ffd43b,stroke:#fab005,color:#000
+```
+
+**Open/Closed原則の実践：**
+
+1. **拡張に対して開いている**:
+   - 新しいハンドラクラス（TeamsNotifier、EmailNotifier、JiraNotifier）を作成
+   - NotifierRoleを`with`で実装するだけ
+   - `@handlers`リストに追加するだけ
+
+2. **修正に対して閉じている**:
+   - コア設計（NotifierRole、process_log）は変更不要
+   - 既存ハンドラ（PagerDutyNotifier、SlackNotifier、DatabaseSaver）も変更不要
+   - テストコードも既存部分は修正不要
+
+3. **実装の容易さ**:
+   ```perl
+   # 新しいハンドラを追加する場合
+   my $email = EmailNotifier->new(...);
+   push @handlers, $email;  # たったこれだけ！
+   ```
+
+この設計により、**システムの成長に応じて機能を追加しても、既存コードの品質を保ちながら拡張できます**。
 
 ---
 
