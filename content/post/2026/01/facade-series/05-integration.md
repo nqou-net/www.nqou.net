@@ -1,0 +1,228 @@
+---
+title: '第5回-全部つなげてみよう - レポート生成ツールを作ってみよう'
+draft: true
+tags:
+  - perl
+  - moo
+  - class-integration
+  - code-complexity
+  - refactoring
+description: 3つのクラスを連携させてレポートを生成。クラス間の呼び出しが複雑になる問題を体験し、解決の糸口を探ります。
+image: /favicon.png
+---
+
+[@nqounet](https://x.com/nqounet)です。
+
+「レポート生成ツールを作ってみよう」シリーズの第5回です。
+
+前回は、テキスト形式でレポートを出力する `ReportWriter` クラスを作成しました。まだ読んでいない方は、先にこちらをご覧ください。
+
+(前回のリンク)
+
+今回は、3つのクラスを連携させてレポートを生成するメインスクリプトを見直します。
+
+## 今回のゴール
+
+今回は、複数のクラスを連携させる際の問題点を体験します。クラスが増えるにつれて、呼び出しコードが複雑になることを実感しましょう。
+
+新しい概念は「クラスの連携」です。複数のクラスを組み合わせて1つの機能を実現する方法を学びます。
+
+## 現状のメイン処理を確認する
+
+前回までに作成した3つのクラスを使うメイン処理を見てみましょう。
+
+**言語・バージョン**: Perl v5.36以降  
+**外部依存**: Moo, List::Util（コアモジュール）
+
+```perl
+# メイン処理
+package main;
+
+my $reader = DataReader->new(file_path => 'data.csv');
+my $raw_data = $reader->read;
+
+my $processor = DataProcessor->new;
+my $processed = $processor->process($raw_data);
+
+my $writer = ReportWriter->new(title => '成績レポート');
+my $report = $writer->write($processed);
+
+say $report;
+```
+
+このコードは動作しますが、いくつかの問題があります。
+
+## 問題点を考える
+
+### 問題1: 呼び出し順序を覚える必要がある
+
+レポートを生成するには、以下の順序でクラスを呼び出す必要があります。
+
+1. `DataReader` でデータを読み込む
+2. `DataProcessor` でデータを加工する
+3. `ReportWriter` でレポートを出力する
+
+この順序を間違えると、プログラムは正しく動作しません。使う側がこの順序を知っている必要があります。
+
+### 問題2: 複数箇所で同じコードを書く必要がある
+
+もし別の場所でもレポートを生成したい場合、同じような呼び出しコードを書く必要があります。
+
+```perl
+# 場所A
+my $reader = DataReader->new(file_path => 'data1.csv');
+my $raw_data = $reader->read;
+my $processor = DataProcessor->new;
+my $processed = $processor->process($raw_data);
+my $writer = ReportWriter->new(title => 'レポートA');
+my $report = $writer->write($processed);
+
+# 場所B（ほぼ同じコード）
+my $reader2 = DataReader->new(file_path => 'data2.csv');
+my $raw_data2 = $reader2->read;
+my $processor2 = DataProcessor->new;
+my $processed2 = $processor2->process($raw_data2);
+my $writer2 = ReportWriter->new(title => 'レポートB');
+my $report2 = $writer2->write($processed2);
+```
+
+同じパターンのコードが繰り返されています。これは DRY（Don't Repeat Yourself）の原則に反しています。
+
+### 問題3: 内部の構造を知らないと使えない
+
+レポートを生成したいだけなのに、3つのクラスの存在と、それぞれの使い方を知っている必要があります。
+
+「CSVファイルを渡したら、レポートを返してほしい」というシンプルな要求に対して、現状のコードは複雑すぎます。
+
+## 理想の使い方を考える
+
+もし、こんな風に書けたらどうでしょうか。
+
+```perl
+my $report = generate_report('data.csv', '成績レポート');
+say $report;
+```
+
+たった2行でレポートが生成できます。内部で何が起きているかを知らなくても使えます。
+
+これを実現する方法を、次回で考えます。
+
+## 完成コード
+
+今回のスクリプト全体を示します。内容は前回と同じですが、問題点を意識しながら眺めてみてください。
+
+**言語・バージョン**: Perl v5.36以降  
+**外部依存**: Moo, List::Util（コアモジュール）
+
+```perl
+#!/usr/bin/env perl
+use v5.36;
+use Moo;
+use List::Util qw(sum);
+
+# DataReaderクラス
+package DataReader {
+    use Moo;
+    use v5.36;
+
+    has file_path => (is => 'ro', required => 1);
+
+    sub read($self) {
+        open my $fh, '<', $self->file_path
+            or die "Cannot open file: $!";
+
+        my $header_line = <$fh>;
+        chomp $header_line;
+        my @headers = split /,/, $header_line;
+
+        my @data;
+        while (my $line = <$fh>) {
+            chomp $line;
+            my @values = split /,/, $line;
+            my %row;
+            for my $i (0 .. $#headers) {
+                $row{$headers[$i]} = $values[$i];
+            }
+            push @data, \%row;
+        }
+
+        close $fh;
+        return \@data;
+    }
+}
+
+# DataProcessorクラス
+package DataProcessor {
+    use Moo;
+    use v5.36;
+    use List::Util qw(sum);
+
+    sub process($self, $data) {
+        my @sorted = sort { $b->{score} <=> $a->{score} } @$data;
+
+        my $total = sum(map { $_->{score} } @sorted);
+        my $average = $total / scalar(@sorted);
+
+        return {
+            records => \@sorted,
+            average => $average,
+            count   => scalar(@sorted),
+        };
+    }
+}
+
+# ReportWriterクラス
+package ReportWriter {
+    use Moo;
+    use v5.36;
+
+    has title => (is => 'ro', default => '成績レポート');
+
+    sub write($self, $processed_data) {
+        my @lines;
+
+        push @lines, "=== " . $self->title . " ===";
+        push @lines, '';
+
+        for my $row (@{$processed_data->{records}}) {
+            push @lines, "$row->{name}: $row->{score}点";
+        }
+
+        push @lines, '';
+        push @lines, sprintf("平均点: %.1f点", $processed_data->{average});
+        push @lines, "受験者数: $processed_data->{count}名";
+        push @lines, '';
+        push @lines, '=== レポート終了 ===';
+
+        return join("\n", @lines);
+    }
+}
+
+# メイン処理
+package main;
+
+# 使う側は、この順序と詳細を知っている必要がある
+my $reader = DataReader->new(file_path => 'data.csv');
+my $raw_data = $reader->read;
+
+my $processor = DataProcessor->new;
+my $processed = $processor->process($raw_data);
+
+my $writer = ReportWriter->new(title => '成績レポート');
+my $report = $writer->write($processed);
+
+say $report;
+```
+
+## まとめ
+
+- 3つのクラスを連携させてレポートを生成する仕組みを確認した
+- 呼び出し順序を覚える必要がある、という問題点を発見した
+- 同じコードを繰り返し書く必要がある、という問題点を発見した
+- 内部構造を知らないと使えない、という問題点を発見した
+
+## 次回予告
+
+次回は、これらの問題を解決するための `ReportGenerator` クラスを作成します。1つのメソッドを呼ぶだけでレポートが生成できるようになります。お楽しみに。
+
+(次回のリンク)
