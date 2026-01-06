@@ -1,0 +1,461 @@
+---
+title: "第2回-【Perl】検証ルール追加でif文が複雑化 - バリデーションの課題"
+draft: true
+tags:
+  - perl
+  - moo
+  - code-smell
+  - nested-conditionals
+  - refactoring
+description: "パスワード強度や確認一致など検証ルール追加でif文がネスト化。保守困難なコードの問題点を体験し、リファクタリングの必要性を学びます。"
+---
+
+[@nqounet](https://x.com/nqounet)です。
+
+「ユーザー登録バリデータで学ぶ責任の連鎖」シリーズの第2回です。
+
+前回は、名前とメールアドレスの検証をシンプルなif文で実装しました。
+
+<!-- TODO: 公開時にlinkcardを設定 form-validation-01.md -->
+
+今回は、パスワード強度、確認パスワードの一致、利用規約への同意、年齢制限など、実際のWebアプリケーションで必要となる検証ルールを追加していきます。そして、検証ルールが増えることでコードがどのように複雑化していくかを体験しましょう。
+
+## ユーザー登録フォームの要件追加
+
+プロダクトマネージャーから、以下の追加要件が届きました。
+
+1. **パスワード必須**: パスワードを入力必須にする
+2. **パスワード強度**: パスワードは8文字以上、大文字・小文字・数字を含むこと
+3. **確認パスワード一致**: パスワードと確認用パスワードが一致すること
+4. **利用規約同意**: 利用規約に同意していること
+5. **年齢制限**: 18歳以上であること
+
+前回のコードに、これらの検証ルールを追加してみましょう。
+
+## 検証ルールを追加したコード
+
+前回の`validate_user`関数に、新しい検証ルールを追加します。
+
+```perl
+# validate_user_complex.pl
+# Perl v5.36+, 外部依存なし
+
+use v5.36;
+use utf8;
+use warnings;
+binmode STDOUT, ':utf8';
+
+sub validate_user ($input) {
+    my %errors;
+
+    # ===== 名前の検証 =====
+    my $name = $input->{name} // '';
+    if ($name eq '') {
+        $errors{name} = '名前を入力してください';
+    }
+
+    # ===== メールアドレスの検証 =====
+    my $email = $input->{email} // '';
+    if ($email eq '') {
+        $errors{email} = 'メールアドレスを入力してください';
+    }
+    elsif ($email !~ /\A[^@\s]+\@[^@\s]+\.[^@\s]+\z/) {
+        $errors{email} = 'メールアドレスの形式が正しくありません';
+    }
+
+    # ===== パスワードの検証 =====
+    my $password = $input->{password} // '';
+    if ($password eq '') {
+        $errors{password} = 'パスワードを入力してください';
+    }
+    else {
+        # パスワード強度チェック
+        if (length($password) < 8) {
+            $errors{password} = 'パスワードは8文字以上で入力してください';
+        }
+        elsif ($password !~ /[A-Z]/) {
+            $errors{password} = 'パスワードには大文字を含めてください';
+        }
+        elsif ($password !~ /[a-z]/) {
+            $errors{password} = 'パスワードには小文字を含めてください';
+        }
+        elsif ($password !~ /[0-9]/) {
+            $errors{password} = 'パスワードには数字を含めてください';
+        }
+        else {
+            # パスワード強度OKの場合のみ確認パスワードをチェック
+            my $password_confirm = $input->{password_confirm} // '';
+            if ($password_confirm eq '') {
+                $errors{password_confirm} = '確認用パスワードを入力してください';
+            }
+            elsif ($password ne $password_confirm) {
+                $errors{password_confirm} = 'パスワードが一致しません';
+            }
+        }
+    }
+
+    # ===== 利用規約の検証 =====
+    my $agreed_terms = $input->{agreed_terms} // 0;
+    if (!$agreed_terms) {
+        $errors{agreed_terms} = '利用規約に同意してください';
+    }
+
+    # ===== 年齢の検証 =====
+    my $age = $input->{age};
+    if (!defined $age || $age eq '') {
+        $errors{age} = '年齢を入力してください';
+    }
+    elsif ($age !~ /\A[0-9]+\z/) {
+        $errors{age} = '年齢は数値で入力してください';
+    }
+    elsif ($age < 18) {
+        $errors{age} = '18歳以上の方のみ登録できます';
+    }
+
+    # 結果を返す
+    if (%errors) {
+        return { ok => 0, errors => \%errors };
+    }
+
+    return {
+        ok   => 1,
+        data => {
+            name     => $name,
+            email    => $email,
+            password => $password,
+            age      => $age,
+        }
+    };
+}
+
+# === テスト実行 ===
+my @test_cases = (
+    {
+        name             => '山田太郎',
+        email            => 'yamada@example.com',
+        password         => 'Password123',
+        password_confirm => 'Password123',
+        agreed_terms     => 1,
+        age              => 25,
+    },
+    {
+        name             => '',
+        email            => 'invalid',
+        password         => 'weak',
+        password_confirm => 'mismatch',
+        agreed_terms     => 0,
+        age              => 15,
+    },
+);
+
+for my $i (0 .. $#test_cases) {
+    say "=== テスト" . ($i + 1) . " ===";
+    my $result = validate_user($test_cases[$i]);
+
+    if ($result->{ok}) {
+        say "検証成功: $result->{data}{name}";
+    }
+    else {
+        say "検証失敗:";
+        for my $field (sort keys $result->{errors}->%*) {
+            say "  - $field: $result->{errors}{$field}";
+        }
+    }
+    say "";
+}
+```
+
+実行すると、以下のような結果が表示されます。
+
+```
+=== テスト1 ===
+検証成功: 山田太郎
+
+=== テスト2 ===
+検証失敗:
+  - age: 18歳以上の方のみ登録できます
+  - agreed_terms: 利用規約に同意してください
+  - email: メールアドレスの形式が正しくありません
+  - name: 名前を入力してください
+  - password: パスワードは8文字以上で入力してください
+```
+
+動作は正しいのですが、コードを見てください。問題が見えてきませんか。
+
+## if文ネストの問題点
+
+先ほどのコードには、いくつかの問題があります。
+
+### 1. ネストが深くなっている
+
+パスワードの検証部分を見てみましょう。
+
+```perl
+if ($password eq '') {
+    $errors{password} = 'パスワードを入力してください';
+}
+else {
+    if (length($password) < 8) {
+        $errors{password} = 'パスワードは8文字以上で入力してください';
+    }
+    elsif ($password !~ /[A-Z]/) {
+        $errors{password} = 'パスワードには大文字を含めてください';
+    }
+    elsif ($password !~ /[a-z]/) {
+        $errors{password} = 'パスワードには小文字を含めてください';
+    }
+    elsif ($password !~ /[0-9]/) {
+        $errors{password} = 'パスワードには数字を含めてください';
+    }
+    else {
+        my $password_confirm = $input->{password_confirm} // '';
+        if ($password_confirm eq '') {
+            $errors{password_confirm} = '確認用パスワードを入力してください';
+        }
+        elsif ($password ne $password_confirm) {
+            $errors{password_confirm} = 'パスワードが一致しません';
+        }
+    }
+}
+```
+
+`if`の中に`if`、その中にさらに`if`...。これは「ネストが深い」状態です。現時点で3段階のネストがありますが、要件が増えるとさらに深くなります。
+
+### 2. 検証ルール間の依存関係が暗黙的
+
+確認パスワードのチェックは、パスワード強度チェックを通過した場合のみ実行されます。この依存関係はコードの構造に埋め込まれており、一目ではわかりません。
+
+### 3. 新しい検証ルールの追加が困難
+
+たとえば「パスワードにはユーザー名を含めてはいけない」というルールを追加する場合、どこに書けばよいでしょうか。既存の`elsif`チェーンに追加すると、さらにネストが深くなります。
+
+### 4. テストが困難
+
+この関数をテストするには、すべての分岐パターンを網羅する必要があります。
+
+- 名前が空の場合
+- メールアドレスが空の場合
+- メールアドレスの形式が不正な場合
+- パスワードが空の場合
+- パスワードが8文字未満の場合
+- パスワードに大文字がない場合
+- パスワードに小文字がない場合
+- パスワードに数字がない場合
+- 確認パスワードが空の場合
+- 確認パスワードが一致しない場合
+- 利用規約に同意していない場合
+- 年齢が空の場合
+- 年齢が数値でない場合
+- 年齢が18歳未満の場合
+- すべて正常な場合
+
+15パターン以上のテストケースが必要です。そして、新しい検証ルールを追加するたびに、テストケースは指数的に増えていきます。
+
+### 5. 修正時の影響範囲が不明確
+
+「パスワードの最小文字数を8文字から10文字に変更してほしい」という要望が来たとします。変更自体は1行で済みますが、その変更が他の検証ルールに影響しないことを確認するのは容易ではありません。
+
+## これは「コードの臭い」である
+
+このような問題を抱えたコードは「コードの臭い（Code Smell）」と呼ばれます。動作はするものの、保守性が低く、バグを生みやすい状態です。
+
+今回のコードには、以下のコードの臭いが含まれています。
+
+| コードの臭い | 該当箇所 |
+|-------------|---------|
+| 深いネスト（Deep Nesting） | パスワード検証の3段ネスト |
+| 長いメソッド（Long Method） | validate_user関数が80行以上 |
+| 複雑な条件分岐（Complex Conditionals） | if/elsif/elseの連鎖 |
+| 責任の集中（God Function） | 1つの関数が全検証を担当 |
+
+## どうすればよいのか
+
+ここまで読んで、「これはまずい」と感じた方も多いのではないでしょうか。実際、このままでは以下のような問題が発生します。
+
+- **新機能追加のたびにバグが発生する**
+- **修正のたびに他の部分が壊れる**
+- **新しいメンバーが理解するのに時間がかかる**
+- **テストを書くのが億劫になり、テストが書かれなくなる**
+
+では、どうすればこの問題を解決できるのでしょうか。
+
+次回は、この複雑化したコードをリファクタリングし、保守性の高い設計に変更する方法を学びます。
+
+## まとめ
+
+- 検証ルールが増えると、if/elseのネストが深くなる
+- ネストが深いコードは読みにくく、保守が困難である
+- 検証ルール間の依存関係が暗黙的だと、変更時の影響範囲がわからない
+- 1つの関数に全ての検証を詰め込むと「God Function」になる
+- このような状態は「コードの臭い」と呼ばれ、リファクタリングが必要である
+
+## 次回予告
+
+次回は、この複雑化したバリデーションコードを「Chain of Responsibility」パターンでリファクタリングします。各検証ルールを独立したクラスに分離し、柔軟に組み合わせられる設計に変更していきましょう。
+
+## 完成コード
+
+この回の完成コード（複雑化した問題コード）を1つのスクリプトにまとめました。
+
+```perl
+#!/usr/bin/env perl
+# form-validation-02.pl
+# ユーザー登録バリデーション（複雑化版）
+# Perl v5.36+, 外部依存なし
+#
+# 注意: このコードは「問題のあるコード」の例です。
+# 次回のリファクタリング対象となります。
+
+use v5.36;
+use utf8;
+use warnings;
+binmode STDOUT, ':utf8';
+
+sub validate_user ($input) {
+    my %errors;
+
+    # ===== 名前の検証 =====
+    my $name = $input->{name} // '';
+    if ($name eq '') {
+        $errors{name} = '名前を入力してください';
+    }
+
+    # ===== メールアドレスの検証 =====
+    my $email = $input->{email} // '';
+    if ($email eq '') {
+        $errors{email} = 'メールアドレスを入力してください';
+    }
+    elsif ($email !~ /\A[^@\s]+\@[^@\s]+\.[^@\s]+\z/) {
+        $errors{email} = 'メールアドレスの形式が正しくありません';
+    }
+
+    # ===== パスワードの検証 =====
+    my $password = $input->{password} // '';
+    if ($password eq '') {
+        $errors{password} = 'パスワードを入力してください';
+    }
+    else {
+        # パスワード強度チェック
+        if (length($password) < 8) {
+            $errors{password} = 'パスワードは8文字以上で入力してください';
+        }
+        elsif ($password !~ /[A-Z]/) {
+            $errors{password} = 'パスワードには大文字を含めてください';
+        }
+        elsif ($password !~ /[a-z]/) {
+            $errors{password} = 'パスワードには小文字を含めてください';
+        }
+        elsif ($password !~ /[0-9]/) {
+            $errors{password} = 'パスワードには数字を含めてください';
+        }
+        else {
+            # パスワード強度OKの場合のみ確認パスワードをチェック
+            my $password_confirm = $input->{password_confirm} // '';
+            if ($password_confirm eq '') {
+                $errors{password_confirm} = '確認用パスワードを入力してください';
+            }
+            elsif ($password ne $password_confirm) {
+                $errors{password_confirm} = 'パスワードが一致しません';
+            }
+        }
+    }
+
+    # ===== 利用規約の検証 =====
+    my $agreed_terms = $input->{agreed_terms} // 0;
+    if (!$agreed_terms) {
+        $errors{agreed_terms} = '利用規約に同意してください';
+    }
+
+    # ===== 年齢の検証 =====
+    my $age = $input->{age};
+    if (!defined $age || $age eq '') {
+        $errors{age} = '年齢を入力してください';
+    }
+    elsif ($age !~ /\A[0-9]+\z/) {
+        $errors{age} = '年齢は数値で入力してください';
+    }
+    elsif ($age < 18) {
+        $errors{age} = '18歳以上の方のみ登録できます';
+    }
+
+    # 結果を返す
+    if (%errors) {
+        return { ok => 0, errors => \%errors };
+    }
+
+    return {
+        ok   => 1,
+        data => {
+            name     => $name,
+            email    => $email,
+            password => $password,
+            age      => $age,
+        }
+    };
+}
+
+# === 実行例 ===
+my @test_cases = (
+    # テスト1: すべて正常
+    {
+        name             => '山田太郎',
+        email            => 'yamada@example.com',
+        password         => 'Password123',
+        password_confirm => 'Password123',
+        agreed_terms     => 1,
+        age              => 25,
+    },
+    # テスト2: 複数のエラー
+    {
+        name             => '',
+        email            => 'invalid',
+        password         => 'weak',
+        password_confirm => 'mismatch',
+        agreed_terms     => 0,
+        age              => 15,
+    },
+    # テスト3: パスワードに大文字がない
+    {
+        name             => '鈴木花子',
+        email            => 'suzuki@example.com',
+        password         => 'password123',
+        password_confirm => 'password123',
+        agreed_terms     => 1,
+        age              => 30,
+    },
+    # テスト4: 確認パスワードが不一致
+    {
+        name             => '佐藤次郎',
+        email            => 'sato@example.com',
+        password         => 'Password123',
+        password_confirm => 'Password456',
+        agreed_terms     => 1,
+        age              => 22,
+    },
+    # テスト5: 年齢が数値でない
+    {
+        name             => '田中三郎',
+        email            => 'tanaka@example.com',
+        password         => 'Password123',
+        password_confirm => 'Password123',
+        agreed_terms     => 1,
+        age              => 'twenty',
+    },
+);
+
+for my $i (0 .. $#test_cases) {
+    say "=== テスト" . ($i + 1) . " ===";
+    my $result = validate_user($test_cases[$i]);
+
+    if ($result->{ok}) {
+        say "検証成功: $result->{data}{name} ($result->{data}{email})";
+    }
+    else {
+        say "検証失敗:";
+        for my $field (sort keys $result->{errors}->%*) {
+            say "  - $field: $result->{errors}{$field}";
+        }
+    }
+    say "";
+}
+```
