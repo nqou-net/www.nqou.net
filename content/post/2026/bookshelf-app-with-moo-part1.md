@@ -42,6 +42,23 @@ description: "Perl入門者向けにMooを使った本棚アプリの作り方�
 
 プログラムを書いていると、同じ種類のオブジェクトを複数まとめて管理したい場面がよくあります。
 
+今回作成するクラス構成を先に示します。
+
+```mermaid
+classDiagram
+    class Book {
+        +title
+        +author
+    }
+    class BookShelf {
+        -books
+        +add_book(book)
+        +get_book_at(index)
+        +get_length()
+    }
+    BookShelf "1" o-- "*" Book : contains
+```
+
 例えば、本棚には複数の本があります。音楽プレイヤーにはプレイリストがあり、その中には複数の曲が入っています。掲示板には複数の投稿があります。
 
 このように、**複数の要素をまとめて管理するオブジェクト**のことを「集合体（Aggregate）」と呼びます。

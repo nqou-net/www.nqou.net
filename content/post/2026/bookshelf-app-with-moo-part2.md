@@ -48,6 +48,14 @@ for my $book ($shelf->books->@*) {
 
 オブジェクト指向プログラミングにおける「カプセル化」とは、オブジェクトの内部構造を隠蔽し、外部には必要なインターフェースだけを公開する考え方です。
 
+```mermaid
+flowchart LR
+    subgraph 問題のあるアプローチ
+        Client1[利用者コード] -->|"$shelf->books->@*"| Internal[内部配列に直接アクセス]
+        Internal -->|カプセル化の破壊| BookShelf1[BookShelf]
+    end
+```
+
 上記のコードの問題点を整理します。
 
 - `BookShelf`の内部が「配列」であることを外部から知っている必要がある
@@ -89,6 +97,14 @@ for my $i (0 .. $shelf->get_length - 1) {
 - 「インデックスでアクセスできる」という内部構造への依存が残っている
 - ループの書き方（0から始まる、lengthを使う）を利用側が意識している
 - 巡回のロジックが利用側に散らばる
+
+```mermaid
+flowchart LR
+    subgraph 改善版でも残る依存
+        Client2[利用者コード] -->|"get_length() + get_book_at(i)"| Index[インデックス操作の知識が必要]
+        Index --> BookShelf2[BookShelf]
+    end
+```
 
 本棚の実装が「配列」から「連結リスト」や「データベース」に変わった場合、この書き方は使えなくなる可能性があります。
 

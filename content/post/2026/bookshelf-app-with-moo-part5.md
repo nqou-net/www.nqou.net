@@ -68,6 +68,34 @@ Iteratorパターンは、まさにこの問題を解決するためのパター
 
 Iteratorパターンは、以下の4つの要素（登場人物）で構成されます。
 
+```mermaid
+classDiagram
+    class Iterator {
+        <<interface>>
+        +has_next()*
+        +next()*
+    }
+    class ConcreteIterator {
+        -aggregate
+        -index
+        +has_next()
+        +next()
+    }
+    class Aggregate {
+        <<interface>>
+        +iterator()*
+    }
+    class ConcreteAggregate {
+        -elements
+        +iterator()
+    }
+
+    Iterator <|.. ConcreteIterator : implements
+    Aggregate <|.. ConcreteAggregate : implements
+    ConcreteAggregate ..> ConcreteIterator : creates
+    ConcreteIterator --> ConcreteAggregate : references
+```
+
 | 要素 | 役割 | 本棚アプリでの実装 |
 |------|------|-------------------|
 | **Iterator（反復子）** | 走査のインターフェースを定義する | `BookIteratorRole` |
@@ -136,6 +164,49 @@ package BookShelf {
 ## 応用例：逆順イテレータの実装
 
 Iteratorパターンの強力な点は、異なる走査方法を簡単に追加できることです。例として、本棚を逆順に巡回する`ReverseBookShelfIterator`を実装してみましょう。
+
+以下は、逆順イテレータを追加した後の最終的なクラス構成です。
+
+```mermaid
+classDiagram
+    class Book {
+        +title
+        +author
+    }
+    class BookIteratorRole {
+        <<role>>
+        +has_next()*
+        +next()*
+    }
+    class BookShelfIterator {
+        -bookshelf
+        -index
+        +has_next()
+        +next()
+    }
+    class ReverseBookShelfIterator {
+        -bookshelf
+        -index
+        +has_next()
+        +next()
+    }
+    class BookShelf {
+        -books
+        +add_book(book)
+        +get_book_at(index)
+        +get_length()
+        +iterator()
+        +reverse_iterator()
+    }
+
+    BookIteratorRole <|.. BookShelfIterator : with
+    BookIteratorRole <|.. ReverseBookShelfIterator : with
+    BookShelf "1" o-- "*" Book : contains
+    BookShelf ..> BookShelfIterator : creates
+    BookShelf ..> ReverseBookShelfIterator : creates
+    BookShelfIterator --> BookShelf : references
+    ReverseBookShelfIterator --> BookShelf : references
+```
 
 ```perl
 # Perl v5.36以降 / Moo

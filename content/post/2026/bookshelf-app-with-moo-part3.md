@@ -35,6 +35,31 @@ Iteratorとは、集合体の要素を順番に取り出すための専用オブ
 
 ## BookIteratorRoleを定義する
 
+今回作成するクラス構成を以下に示します。
+
+```mermaid
+classDiagram
+    class BookIteratorRole {
+        <<role>>
+        +has_next()*
+        +next()*
+    }
+    class BookShelfIterator {
+        -bookshelf
+        -index
+        +has_next()
+        +next()
+    }
+    class BookShelf {
+        -books
+        +add_book(book)
+        +get_book_at(index)
+        +get_length()
+    }
+    BookIteratorRole <|.. BookShelfIterator : with
+    BookShelfIterator --> BookShelf : references
+```
+
 まず、Iteratorが持つべきインターフェースをロールとして定義します。
 
 ```perl

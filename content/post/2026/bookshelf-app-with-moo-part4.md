@@ -44,6 +44,27 @@ my $iterator = BookShelfIterator->new(bookshelf => $shelf);
 
 ## BookShelfにiterator()メソッドを追加する
 
+今回の変更により、以下のような関係になります。利用者は`BookShelf`の`iterator()`メソッドを呼ぶだけで、走査オブジェクトを取得できます。
+
+```mermaid
+sequenceDiagram
+    participant Client as 利用者コード
+    participant Shelf as BookShelf
+    participant Iterator as BookShelfIterator
+
+    Client->>Shelf: iterator()
+    Shelf->>Iterator: new(bookshelf => $self)
+    Shelf-->>Client: $iterator
+    loop has_next() が真の間
+        Client->>Iterator: has_next()
+        Iterator-->>Client: true/false
+        Client->>Iterator: next()
+        Iterator->>Shelf: get_book_at(index)
+        Shelf-->>Iterator: $book
+        Iterator-->>Client: $book
+    end
+```
+
 `BookShelf`クラスに`iterator`メソッドを追加します。
 
 ```perl
