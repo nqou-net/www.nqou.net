@@ -2,7 +2,9 @@
 date: 2026-01-07T04:33:00+09:00
 description: Chain of Responsibilityパターンを学ぶシリーズ記事のテーマ候補5案（入力バリデーション、HTTPミドルウェア、ファイル処理、承認ワークフロー、イベント処理）の調査・分析結果と最適テーマの推薦
 draft: false
+epoch: 1767727980
 image: /favicon.png
+iso8601: 2026-01-07T04:33:00+09:00
 tags:
   - chain-of-responsibility
   - design-patterns
@@ -10,7 +12,7 @@ tags:
   - moo
   - form-validation
   - research
-title: 調査ドキュメント - Chain of Responsibilityパターン代替テーマ調査
+title: '調査ドキュメント - Chain of Responsibilityパターン代替テーマ調査'
 ---
 
 # 調査ドキュメント：Chain of Responsibilityパターン代替テーマ調査
