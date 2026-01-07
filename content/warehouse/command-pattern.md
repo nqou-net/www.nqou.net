@@ -807,7 +807,6 @@ package JobQueue {
 |-------------|-----------|------|--------|
 | `/content/warehouse/design-patterns-research.md` | warehouse | GoF 23パターン概要調査 | 中 |
 | `/content/warehouse/solid-principles.md` | warehouse | SOLID原則詳細調査 | 高 |
-| `/content/post/2025/solid-principles-ai-era.md` | ドラフト記事 | AI時代のSOLID原則 | 高 |
 
 ---
 
