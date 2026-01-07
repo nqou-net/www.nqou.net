@@ -43,6 +43,44 @@ AI時代の開発フローは以下のように進化すべきです。
 
 つまり、開発者の役割は「コーダー」から「アーキテクト」「レビュアー」へとシフトしています。AIにコードを書かせつつ、設計品質を守るのが現代のエンジニアリングです。
 
+**AI生成コードの典型的な問題パターン**:
+
+```mermaid
+graph LR
+    subgraph "AI生成コードの問題"
+        P1[神クラス<br/>責任の混在]
+        P2[if-else地獄<br/>条件分岐の増殖]
+        P3[継承の誤用<br/>置換不可能]
+        P4[太ったIF<br/>未使用メソッド]
+        P5[密結合<br/>具象依存]
+    end
+    
+    subgraph "SOLID原則での解決"
+        S1[S: 単一責任<br/>クラス分割]
+        S2[O: 開放/閉鎖<br/>Strategy適用]
+        S3[L: リスコフ置換<br/>コンポジション]
+        S4[I: IF分離<br/>Role細分化]
+        S5[D: 依存性逆転<br/>DI導入]
+    end
+    
+    P1 -.修正.-> S1
+    P2 -.修正.-> S2
+    P3 -.修正.-> S3
+    P4 -.修正.-> S4
+    P5 -.修正.-> S5
+    
+    style P1 fill:#ffcccc
+    style P2 fill:#ffcccc
+    style P3 fill:#ffcccc
+    style P4 fill:#ffcccc
+    style P5 fill:#ffcccc
+    style S1 fill:#ccffcc
+    style S2 fill:#ccffcc
+    style S3 fill:#ccffcc
+    style S4 fill:#ccffcc
+    style S5 fill:#ccffcc
+```
+
 ## SOLID原則の基礎知識
 
 ### 5つの原則の概要とAI時代の意義
@@ -58,6 +96,31 @@ SOLID原則は、Robert C. Martin（Uncle Bob）が2000年代初頭に体系化�
 | **D** | Dependency Inversion | 抽象に依存し、具象に依存しない | テスタブルで柔軟な設計 |
 
 これらの原則は、**保守性**・**拡張性**・**テスト容易性**を高めるための指針であり、AIが生成したコードの品質を評価する基準としても機能します。
+
+```mermaid
+mindmap
+  root((SOLID原則))
+    S[単一責任原則<br/>Single Responsibility]
+      1つのクラスは1つの責任
+      変更理由は1つだけ
+      神クラスを分割
+    O[開放/閉鎖原則<br/>Open/Closed]
+      拡張に開いている
+      修正に閉じている
+      Strategyパターン
+    L[リスコフ置換原則<br/>Liskov Substitution]
+      基底クラスと置換可能
+      契約を守る
+      継承よりコンポジション
+    I[インターフェース分離<br/>Interface Segregation]
+      小さく特化したRole
+      使わないメソッド排除
+      クライアント最適化
+    D[依存性逆転原則<br/>Dependency Inversion]
+      抽象に依存
+      具象を注入
+      テスタブル設計
+```
 
 ### Robert C. Martinの設計思想と現代的解釈
 
@@ -247,6 +310,36 @@ sub register_user {
 - `AuditLogger`: 監査要件変更時のみ修正
 - `UserRegistrationService`: ユーザー登録フロー変更時のみ修正
 
+**クラス構造の比較図**:
+
+```mermaid
+graph TB
+    subgraph "改善前：単一責任原則違反"
+        UM[UserManager<br/>神クラス]
+        UM -->|責任1| DB[(DB操作)]
+        UM -->|責任2| MAIL[メール送信]
+        UM -->|責任3| LOG[ログ出力]
+        UM -->|責任4| AUDIT[監査記録]
+    end
+    
+    subgraph "改善後：責任の分離"
+        URS[UserRegistrationService<br/>ユースケース調整]
+        UR[UserRepository<br/>DB操作]
+        ES[EmailService<br/>メール送信]
+        AL[AuditLogger<br/>監査記録]
+        
+        URS -->|委譲| UR
+        URS -->|委譲| ES
+        URS -->|委譲| AL
+    end
+    
+    style UM fill:#ffcccc
+    style URS fill:#ccffcc
+    style UR fill:#e6f3ff
+    style ES fill:#e6f3ff
+    style AL fill:#e6f3ff
+```
+
 ### O：開放/閉鎖の原則
 
 #### AI生成のif-else地獄からStrategyパターンへ
@@ -384,6 +477,45 @@ my $final_price = $calculator->calculate(10000);  # 8000円
 
 これで**拡張には開き、修正には閉じている**設計が実現できました。新しい割引ルール（例: `SeasonalDiscount`）を追加する際、既存のクラスを一切触る必要がありません。
 
+**Strategyパターンの構造図**:
+
+```mermaid
+classDiagram
+    class DiscountStrategy {
+        <<Role>>
+        +calculate(price) int
+    }
+    
+    class RegularDiscount {
+        +calculate(price) int
+    }
+    
+    class PremiumDiscount {
+        +calculate(price) int
+    }
+    
+    class VIPDiscount {
+        +calculate(price) int
+    }
+    
+    class StudentDiscount {
+        +calculate(price) int
+    }
+    
+    class DiscountCalculator {
+        -DiscountStrategy strategy
+        +calculate(price) int
+    }
+    
+    DiscountStrategy <|.. RegularDiscount : implements
+    DiscountStrategy <|.. PremiumDiscount : implements
+    DiscountStrategy <|.. VIPDiscount : implements
+    DiscountStrategy <|.. StudentDiscount : implements
+    DiscountCalculator o-- DiscountStrategy : uses
+    
+    note for DiscountStrategy "新しい割引タイプは<br/>新しいクラスとして追加<br/>（既存コード変更なし）"
+```
+
 ### L：リスコフの置換原則
 
 #### AI生成継承階層の罠
@@ -517,6 +649,32 @@ print_area($square);  # Area: 9
 ```
 
 これで`Rectangle`と`Square`は**契約（Shape Role）に従った置換可能なオブジェクト**になりました。継承ではなく**コンポジション**（Roleによる合成）を使うことで、LSPを自然に満たせます。
+
+**継承 vs コンポジションの比較図**:
+
+```mermaid
+graph TB
+    subgraph "❌ LSP違反：継承の誤用"
+        R1[Rectangle<br/>width, height]
+        S1[Square<br/>継承]
+        R1 -->|extends| S1
+        S1 -.->|問題| PROB1["width/heightを同期<br/>契約違反<br/>置換不可能"]
+    end
+    
+    subgraph "✅ LSP準拠：コンポジション"
+        SHAPE[Shape Role<br/>area]
+        R2[Rectangle<br/>width, height<br/>area]
+        S2[Square<br/>side<br/>area]
+        
+        SHAPE -->|with| R2
+        SHAPE -->|with| S2
+        R2 -.->|利点| OK["独立したクラス<br/>契約を守る<br/>置換可能"]
+    end
+    
+    style PROB1 fill:#ffcccc
+    style OK fill:#ccffcc
+    style SHAPE fill:#e6f3ff
+```
 
 ### I：インターフェース分離の原則
 
@@ -654,6 +812,49 @@ use_printer(MultiFunctionDevice->new);    # OK
 ```
 
 各クライアントは**必要最小限のインターフェースにのみ依存**します。これにより、変更の影響範囲が限定され、疎結合が実現できます。
+
+**インターフェース分離の構造図**:
+
+```mermaid
+classDiagram
+    class Printable {
+        <<Role>>
+        +print_document(doc)
+    }
+    
+    class Scannable {
+        <<Role>>
+        +scan_document(doc)
+    }
+    
+    class Faxable {
+        <<Role>>
+        +fax_document(doc)
+    }
+    
+    class SimplePrinter {
+        +print_document(doc)
+    }
+    
+    class Scanner {
+        +scan_document(doc)
+    }
+    
+    class MultiFunctionDevice {
+        +print_document(doc)
+        +scan_document(doc)
+        +fax_document(doc)
+    }
+    
+    Printable <|.. SimplePrinter : implements
+    Scannable <|.. Scanner : implements
+    Printable <|.. MultiFunctionDevice : implements
+    Scannable <|.. MultiFunctionDevice : implements
+    Faxable <|.. MultiFunctionDevice : implements
+    
+    note for SimplePrinter "必要なRoleのみ実装<br/>使わないメソッドなし"
+    note for MultiFunctionDevice "複数Roleを組み合わせ<br/>全機能を提供"
+```
 
 ### D：依存性逆転の原則
 
@@ -823,7 +1024,72 @@ done_testing;
 - テスト時に簡単にモックへ置き換え可能
 - DB実装の切り替えが容易
 
+**依存性逆転の原則の図解**:
+
+```mermaid
+graph TB
+    subgraph "❌ 依存性逆転原則違反"
+        HL1[OrderProcessor<br/>高レベル]
+        LL1[MySQLOrderRepository<br/>低レベル]
+        HL1 -->|直接依存| LL1
+        LL1 -.->|問題| PROB["テスト困難<br/>DB実装変更時に修正<br/>密結合"]
+    end
+    
+    subgraph "✅ 依存性逆転原則準拠"
+        HL2[OrderProcessor<br/>高レベル]
+        ABS[OrderRepository Role<br/>抽象インターフェース]
+        LL2A[MySQLOrderRepository<br/>低レベル]
+        LL2B[PostgreSQLOrderRepository<br/>低レベル]
+        MOCK[MockOrderRepository<br/>テスト用]
+        
+        HL2 -->|依存| ABS
+        ABS <-.実装.-|implements| LL2A
+        ABS <-.実装.-|implements| LL2B
+        ABS <-.実装.-|implements| MOCK
+        HL2 -.->|利点| OK["テスタブル<br/>実装切り替え容易<br/>疎結合"]
+    end
+    
+    style PROB fill:#ffcccc
+    style OK fill:#ccffcc
+    style ABS fill:#e6f3ff
+```
+
 ## AI支援開発でSOLIDを守るワークフロー
+
+**AI支援開発のワークフロー図**:
+
+```mermaid
+flowchart TD
+    START([開発開始]) --> COPILOT[GitHub Copilot/<br/>ChatGPTで<br/>初期コード生成]
+    COPILOT --> HUMAN_REVIEW{人間による<br/>SOLIDレビュー}
+    
+    HUMAN_REVIEW -->|S違反| FIX_S[責任を分離<br/>クラス分割]
+    HUMAN_REVIEW -->|O違反| FIX_O[Strategyパターン<br/>適用]
+    HUMAN_REVIEW -->|L違反| FIX_L[継承を<br/>コンポジションへ]
+    HUMAN_REVIEW -->|I違反| FIX_I[Roleを<br/>小さく分割]
+    HUMAN_REVIEW -->|D違反| FIX_D[依存性注入<br/>導入]
+    HUMAN_REVIEW -->|OK| STATIC[静的解析<br/>Perl::Critic]
+    
+    FIX_S --> REFACTOR[AI支援<br/>リファクタリング]
+    FIX_O --> REFACTOR
+    FIX_L --> REFACTOR
+    FIX_I --> REFACTOR
+    FIX_D --> REFACTOR
+    
+    REFACTOR --> HUMAN_REVIEW
+    
+    STATIC --> TEST[テスト実行<br/>カバレッジ確認]
+    TEST -->|失敗| HUMAN_REVIEW
+    TEST -->|成功| COMMIT[コミット]
+    COMMIT --> CI[CI/CD<br/>パイプライン]
+    CI --> END([リリース])
+    
+    style START fill:#e1f5e1
+    style END fill:#e1f5e1
+    style HUMAN_REVIEW fill:#fff4e6
+    style REFACTOR fill:#e6f3ff
+    style COMMIT fill:#ccffcc
+```
 
 ### GitHub Copilot使用時のチェックリスト
 
