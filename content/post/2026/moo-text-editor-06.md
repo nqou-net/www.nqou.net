@@ -116,6 +116,39 @@ Undo/Redo機能を実現するには、以下の動作が必要です。
 
 Undoした操作を覚えておかないと、Redoできません。そのため、`redo_stack`が必要になります。
 
+```mermaid
+flowchart LR
+    subgraph before["Undo前"]
+        direction TB
+        subgraph undo_stack_before["undo_stack"]
+            US1["cmd1"]
+            US2["cmd2"]
+            US3["cmd3 ←top"]
+        end
+        subgraph redo_stack_before["redo_stack"]
+            RS0["(空)"]
+        end
+    end
+    
+    subgraph after["Undo後"]
+        direction TB
+        subgraph undo_stack_after["undo_stack"]
+            USA1["cmd1"]
+            USA2["cmd2 ←top"]
+        end
+        subgraph redo_stack_after["redo_stack"]
+            RSA1["cmd3 ←top"]
+        end
+    end
+    
+    before -->|"cmd3.undo()"| after
+    
+    style undo_stack_before fill:#e1f5fe
+    style undo_stack_after fill:#e1f5fe
+    style redo_stack_before fill:#fff3e0
+    style redo_stack_after fill:#fff3e0
+```
+
 ```
 execute_command → undo_stackにpush
 undo           → undo_stackからpop → redo_stackにpush
@@ -167,6 +200,31 @@ package History {
 これは、エディタの一般的な動作に合わせています。多くのエディタでは、Undoした後に新しい操作を行うと、Redo履歴がクリアされます。
 
 たとえば、以下のシナリオを考えてみましょう。
+
+```mermaid
+flowchart TD
+    subgraph Step1["1. 「A」を入力"]
+        US1_1["undo: [A]"]
+        RS1_1["redo: []"]
+    end
+    
+    subgraph Step2["2. 「B」を入力"]
+        US2_1["undo: [A, B]"]
+        RS2_1["redo: []"]
+    end
+    
+    subgraph Step3["3. Undo（Bを取消）"]
+        US3_1["undo: [A]"]
+        RS3_1["redo: [B]"]
+    end
+    
+    subgraph Step4["4. 「C」を入力 ← redo_stackクリア"]
+        US4_1["undo: [A, C]"]
+        RS4_1["redo: [] ⚠️"]
+    end
+    
+    Step1 --> Step2 --> Step3 --> Step4
+```
 
 1. 「A」を入力 → undo_stack: [A]
 2. 「B」を入力 → undo_stack: [A, B]

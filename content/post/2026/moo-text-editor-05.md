@@ -75,6 +75,35 @@ $undo_cmd->undo;  # ここでエラー！「Can't locate object method "undo"」
 
 この問題を解決するのが`Moo::Role`の`requires`機能です。
 
+```mermaid
+classDiagram
+    class Command_Role {
+        <<Moo::Role>>
+        +execute()*
+        +undo()*
+    }
+    class InsertCommand {
+        -editor
+        -position
+        -string
+        +execute()
+        +undo()
+    }
+    class DeleteCommand {
+        -editor
+        -position
+        -length
+        +execute()
+        +undo()
+    }
+    
+    Command_Role <|.. InsertCommand : with
+    Command_Role <|.. DeleteCommand : with
+    
+    note for Command_Role "requires で
+必須メソッドを宣言"
+```
+
 `Moo::Role`については、前シリーズで詳しく解説しました。
 
 {{< linkcard "/2025/12/30/163818/" >}}

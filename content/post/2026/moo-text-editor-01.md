@@ -53,6 +53,19 @@ title: '第1回-簡易エディタを作ろう - テキストを編集する - M
 
 ## Editorクラスを作る
 
+まず、今回作成する`Editor`クラスの構造を確認しましょう。
+
+```mermaid
+classDiagram
+    class Editor {
+        -text: String
+        +insert(position, string)
+        +delete(position, length)
+    }
+    note for Editor "テキストを保持し、
+挿入・削除操作を提供する"
+```
+
 では、テキストを編集するための`Editor`クラスを作成しましょう。
 
 ```perl
@@ -93,6 +106,19 @@ package Editor {
 `text`属性には、エディタで編集中のテキストが格納されます。初期値は空文字列です。
 
 ## 動作確認
+
+以下のフローで、テキストの挿入と削除がどのように動作するか見てみましょう。
+
+```mermaid
+flowchart LR
+    subgraph 挿入操作
+        A1["text: ''"] -->|"insert(0, 'Hello')"| A2["text: 'Hello'"]
+        A2 -->|"insert(5, ' World')"| A3["text: 'Hello World'"]
+    end
+    subgraph 削除操作
+        A3 -->|"delete(5, 6)"| A4["text: 'Hello'"]
+    end
+```
 
 このEditorクラスを使って、実際にテキストを編集してみましょう。
 

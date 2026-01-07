@@ -75,6 +75,23 @@ Undoするたびに配列から1つ前の状態を取り出せば、何回でも
 
 **操作そのものをオブジェクト（クラスのインスタンス）として扱う**のです。
 
+```mermaid
+classDiagram
+    class InsertCommand {
+        -editor: Editor
+        -position: Int
+        -string: String
+        +execute()
+    }
+    class Editor {
+        -text: String
+    }
+    
+    InsertCommand --> Editor : 操作対象
+    note for InsertCommand "「位置0に'A'を挿入する」
+という操作自体がオブジェクト"
+```
+
 「位置0に'A'を挿入する」という操作を、1つのオブジェクトとして表現します。このオブジェクトは、以下の情報を持ちます。
 
 - どの位置に挿入するか（`position`）
@@ -219,6 +236,20 @@ say "操作2後: " . $editor->text;  # Hello World
 ## 操作を配列に保存する
 
 操作をオブジェクトにしたことで、**操作を配列に保存**できるようになりました。
+
+```mermaid
+flowchart LR
+    subgraph 履歴配列 @history
+        direction TB
+        H1["[0] InsertCommand<br/>position:0, string:'A'"]
+        H2["[1] InsertCommand<br/>position:1, string:'B'"]
+        H3["[2] InsertCommand<br/>position:2, string:'C'"]
+    end
+    
+    CMD1["操作1実行"] -->|push| H1
+    CMD2["操作2実行"] -->|push| H2
+    CMD3["操作3実行"] -->|push| H3
+```
 
 ```perl
 # Perl v5.36 以降

@@ -229,6 +229,23 @@ Undo2回後: AB
 
 操作の流れを追ってみましょう。
 
+```mermaid
+flowchart TD
+    subgraph 問題の図解
+        direction TB
+        S1["初期状態<br/>text: '', previous_text: ''"]
+        S2["insert(0,'A')<br/>text: 'A', previous_text: ''"]
+        S3["insert(1,'B')<br/>text: 'AB', previous_text: 'A'"]
+        S4["insert(2,'C')<br/>text: 'ABC', previous_text: 'AB'"]
+        S5["undo 1回目<br/>text: 'AB', previous_text: 'AB'"]
+        S6["undo 2回目<br/>text: 'AB' ❌<br/>previous_text: 'AB'"]
+        
+        S1 --> S2 --> S3 --> S4 --> S5 --> S6
+        
+        S6 -.->|"'A'の情報は<br/>すでに失われている"| Lost["消失"]
+    end
+```
+
 | 操作 | text | previous_text |
 |------|------|---------------|
 | 初期状態 | '' | '' |
@@ -247,6 +264,20 @@ Undo2回後: AB
 ## 考察：何が足りないのか
 
 この問題を解決するには、**すべての操作の履歴を保存する**必要があります。
+
+```mermaid
+flowchart TD
+    subgraph 理想的な履歴管理
+        direction TB
+        H1["履歴[0]: text=''（操作1の前）"]
+        H2["履歴[1]: text='A'（操作2の前）"]
+        H3["履歴[2]: text='AB'（操作3の前）"]
+        
+        H1 -.->|"undo 3回"| Target["元に戻れる！"]
+        H2 -.->|"undo 2回"| Target
+        H3 -.->|"undo 1回"| Target
+    end
+```
 
 直前の状態だけでなく、操作の順番に応じて過去の状態を遡れるようにしなければなりません。
 

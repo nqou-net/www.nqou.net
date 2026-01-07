@@ -47,6 +47,21 @@ Undoを実現するための考え方はシンプルです。
 - 「挿入」の逆は「削除」
 - 「削除」の逆は「挿入」
 
+```mermaid
+flowchart LR
+    subgraph InsertCommand
+        direction LR
+        E1["execute()<br/>位置0に'A'を挿入"] 
+        U1["undo()<br/>位置0から1文字削除"]
+        E1 <-->|対称| U1
+    end
+    
+    subgraph テキストの変化
+        T1["text: ''"] -->|execute| T2["text: 'A'"]
+        T2 -->|undo| T1
+    end
+```
+
 たとえば、「位置0に'A'を挿入した」操作を元に戻すには、「位置0から1文字を削除する」という逆の操作を実行すればよいのです。
 
 ```
@@ -382,6 +397,26 @@ undo後: Hello World
 これで`InsertCommand`と`DeleteCommand`の両方に`undo`メソッドが追加されました。
 
 履歴配列から操作を取り出して`undo`を呼べば、複数回のUndoができるはずです。
+
+```mermaid
+flowchart TD
+    subgraph 履歴スタック
+        direction TB
+        H1["[0] cmd1: insert 'A'"]
+        H2["[1] cmd2: insert 'B'"]
+        H3["[2] cmd3: insert 'C'"]
+    end
+    
+    subgraph Undo操作
+        U1["pop → cmd3"] -->|"cmd3->undo()"| R1["text: 'ABC'→'AB'"]
+        U2["pop → cmd2"] -->|"cmd2->undo()"| R2["text: 'AB'→'A'"]
+        U3["pop → cmd1"] -->|"cmd1->undo()"| R3["text: 'A'→''"]
+    end
+    
+    H3 --> U1
+    H2 --> U2
+    H1 --> U3
+```
 
 ```perl
 # Perl v5.36 以降
