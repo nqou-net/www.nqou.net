@@ -1,0 +1,293 @@
+---
+title: '第2回-状態を増やすと大変！条件分岐の悩み - Mooを使って自動販売機シミュレーターを作ってみよう'
+description: 「払い出し中」「売り切れ」を追加したらコードが複雑に…。if/elseの肥大化問題を体感し、リファクタリングの必要性を理解します。
+iso8601: 2026-01-09T23:58:23+09:00
+draft: true
+tags:
+  - perl
+  - moo
+  - refactoring
+  - code-smell
+  - conditional-complexity
+---
+
+[@nqounet](https://x.com/nqounet)です。
+
+前回は、if/elseを使って「待機中」と「コイン投入済み」の2つの状態を管理する自動販売機を作りました。
+
+今回は、より現実的な自動販売機を目指して、状態を追加してみましょう。
+
+## 状態を増やしたい
+
+実際の自動販売機には、もう少し多くの状態があります。
+
+- **待機中（waiting）**: コインが投入されるのを待っている
+- **コイン投入済み（coin_inserted）**: コインが入っていて、商品を選べる状態
+- **払い出し中（dispensing）**: 商品を払い出している最中
+- **売り切れ（sold_out）**: 在庫がなくなった状態
+
+これらの状態を追加すると、コードはどうなるでしょうか？
+
+## if/elseを増やしてみる
+
+前回のコードに「払い出し中」と「売り切れ」の状態を追加してみます。
+
+```perl
+#!/usr/bin/env perl
+use v5.36;
+use Moo;
+
+package VendingMachine {
+    use Moo;
+
+    has state => (
+        is      => 'rw',
+        default => sub { 'waiting' },
+    );
+
+    has stock => (
+        is      => 'rw',
+        default => sub { 5 },
+    );
+
+    sub insert_coin ($self) {
+        if ($self->state eq 'waiting') {
+            say "コインを受け付けました";
+            $self->state('coin_inserted');
+        }
+        elsif ($self->state eq 'coin_inserted') {
+            say "すでにコインが入っています";
+        }
+        elsif ($self->state eq 'dispensing') {
+            say "払い出し中です。お待ちください";
+        }
+        elsif ($self->state eq 'sold_out') {
+            say "売り切れです。コインを受け付けられません";
+        }
+    }
+
+    sub select_product ($self) {
+        if ($self->state eq 'waiting') {
+            say "先にコインを入れてください";
+        }
+        elsif ($self->state eq 'coin_inserted') {
+            if ($self->stock > 0) {
+                say "商品を選択しました。払い出しを開始します";
+                $self->state('dispensing');
+            }
+            else {
+                say "申し訳ありません。売り切れです";
+                say "コインを返却します";
+                $self->state('sold_out');
+            }
+        }
+        elsif ($self->state eq 'dispensing') {
+            say "払い出し中です。お待ちください";
+        }
+        elsif ($self->state eq 'sold_out') {
+            say "売り切れです";
+        }
+    }
+
+    sub dispense ($self) {
+        if ($self->state eq 'waiting') {
+            say "払い出す商品がありません";
+        }
+        elsif ($self->state eq 'coin_inserted') {
+            say "先に商品を選択してください";
+        }
+        elsif ($self->state eq 'dispensing') {
+            say "商品を払い出しました";
+            $self->stock($self->stock - 1);
+            say "残り在庫: " . $self->stock . "個";
+            if ($self->stock > 0) {
+                $self->state('waiting');
+            }
+            else {
+                say "在庫がなくなりました";
+                $self->state('sold_out');
+            }
+        }
+        elsif ($self->state eq 'sold_out') {
+            say "売り切れです。払い出せません";
+        }
+    }
+}
+
+# 動作確認
+my $vm = VendingMachine->new(stock => 2);
+
+say "=== 自動販売機シミュレーター（在庫2個）===";
+say "";
+
+# 1回目の購入
+say "[操作] コインを投入";
+$vm->insert_coin;
+say "[操作] 商品を選択";
+$vm->select_product;
+say "[操作] 払い出し";
+$vm->dispense;
+say "";
+
+# 2回目の購入
+say "[操作] コインを投入";
+$vm->insert_coin;
+say "[操作] 商品を選択";
+$vm->select_product;
+say "[操作] 払い出し";
+$vm->dispense;
+say "";
+
+# 売り切れ後
+say "[操作] コインを投入";
+$vm->insert_coin;
+```
+
+## 問題点を整理しよう
+
+このコードを見て、何か気づくことはありませんか？
+
+問題点を整理してみましょう。
+
+- 各メソッドに同じ状態チェックのパターンが繰り返されている
+- 状態が4つあるので、各メソッドに4つの分岐がある
+- 新しい状態を追加するたびに、すべてのメソッドを修正する必要がある
+- どの状態でどんな処理をするのか、全体像が把握しにくい
+- 状態の追加を忘れると、バグが発生する可能性がある
+
+これは**コードスメル（code smell）**と呼ばれる、良くない兆候です。
+
+## 状態が増えるとさらに大変
+
+もし「メンテナンス中」「返金中」といった状態をさらに追加したらどうなるでしょうか？
+
+- 各メソッドのif/elseがさらに長くなる
+- コードの見通しがますます悪くなる
+- テストも複雑になる
+- バグが入り込みやすくなる
+
+この問題をどう解決すればよいでしょうか？
+
+次回、この問題を解決するための第一歩として、「状態ごとにクラスを作る」アプローチを試してみましょう。
+
+## 今回の完成コード
+
+```perl
+#!/usr/bin/env perl
+use v5.36;
+use Moo;
+
+package VendingMachine {
+    use Moo;
+
+    has state => (
+        is      => 'rw',
+        default => sub { 'waiting' },
+    );
+
+    has stock => (
+        is      => 'rw',
+        default => sub { 5 },
+    );
+
+    sub insert_coin ($self) {
+        if ($self->state eq 'waiting') {
+            say "コインを受け付けました";
+            $self->state('coin_inserted');
+        }
+        elsif ($self->state eq 'coin_inserted') {
+            say "すでにコインが入っています";
+        }
+        elsif ($self->state eq 'dispensing') {
+            say "払い出し中です。お待ちください";
+        }
+        elsif ($self->state eq 'sold_out') {
+            say "売り切れです。コインを受け付けられません";
+        }
+    }
+
+    sub select_product ($self) {
+        if ($self->state eq 'waiting') {
+            say "先にコインを入れてください";
+        }
+        elsif ($self->state eq 'coin_inserted') {
+            if ($self->stock > 0) {
+                say "商品を選択しました。払い出しを開始します";
+                $self->state('dispensing');
+            }
+            else {
+                say "申し訳ありません。売り切れです";
+                say "コインを返却します";
+                $self->state('sold_out');
+            }
+        }
+        elsif ($self->state eq 'dispensing') {
+            say "払い出し中です。お待ちください";
+        }
+        elsif ($self->state eq 'sold_out') {
+            say "売り切れです";
+        }
+    }
+
+    sub dispense ($self) {
+        if ($self->state eq 'waiting') {
+            say "払い出す商品がありません";
+        }
+        elsif ($self->state eq 'coin_inserted') {
+            say "先に商品を選択してください";
+        }
+        elsif ($self->state eq 'dispensing') {
+            say "商品を払い出しました";
+            $self->stock($self->stock - 1);
+            say "残り在庫: " . $self->stock . "個";
+            if ($self->stock > 0) {
+                $self->state('waiting');
+            }
+            else {
+                say "在庫がなくなりました";
+                $self->state('sold_out');
+            }
+        }
+        elsif ($self->state eq 'sold_out') {
+            say "売り切れです。払い出せません";
+        }
+    }
+}
+
+# 動作確認
+my $vm = VendingMachine->new(stock => 2);
+
+say "=== 自動販売機シミュレーター（在庫2個）===";
+say "";
+
+# 1回目の購入
+say "[操作] コインを投入";
+$vm->insert_coin;
+say "[操作] 商品を選択";
+$vm->select_product;
+say "[操作] 払い出し";
+$vm->dispense;
+say "";
+
+# 2回目の購入
+say "[操作] コインを投入";
+$vm->insert_coin;
+say "[操作] 商品を選択";
+$vm->select_product;
+say "[操作] 払い出し";
+$vm->dispense;
+say "";
+
+# 売り切れ後
+say "[操作] コインを投入";
+$vm->insert_coin;
+```
+
+## まとめ
+
+- 「払い出し中」「売り切れ」の状態を追加したら、if/elseが肥大化しました
+- 状態が増えるほど、各メソッドの条件分岐が複雑になります
+- 新しい状態を追加するたびに、すべてのメソッドを修正する必要があります
+- これは「コードスメル」と呼ばれる、リファクタリングが必要なサインです
+
+次回「第3回-状態ごとにクラスを作ろう」では、この問題を解決するために状態をクラスとして分離します。お楽しみに！
