@@ -217,9 +217,9 @@ classDiagram
     VendingMachineState <|.. DispensingState : with
 ```
 
-- **VendingMachine（Context）**: 現在の状態を保持し、操作を状態に委譲
-- **VendingMachineState（Role）**: すべての状態クラスのインターフェース
-- **IdleState、CoinInsertedState、DispensingState**: 各状態の具体的な振る舞い
+- **VendingMachine（Context）**: 現在の状態を保持し、操作を状態に委譲する
+- **VendingMachineState（Role）**: すべての状態クラスのインターフェースを定義する
+- **IdleState、CoinInsertedState、DispensingState**: 各状態の具体的な振る舞いを実装する
 
 ## 今回の完成コード
 
@@ -361,8 +361,8 @@ $machine->select_item;
 
 ## まとめ
 
-- VendingMachineクラス（Context）を作成し、状態を一元管理した
-- `has state`で現在の状態オブジェクトを保持した
+- VendingMachineクラス（Context）を作成し、状態を一元管理する
+- `has state`で現在の状態オブジェクトを保持する
 - 操作メソッドは状態オブジェクトに処理を委譲する
 - 状態クラス内で`$machine->state(...)`を使って状態遷移を行う
 - 「商品排出中」状態（DispensingState）を追加した

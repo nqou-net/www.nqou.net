@@ -400,8 +400,8 @@ $machine->select_item;
 ## まとめ
 
 - 「売り切れ」状態（SoldOutState）を新しく追加した
-- 既存の状態クラス（IdleState、CoinInsertedState）は変更不要だった
-- VendingMachineクラス（Context）も変更不要だった（在庫追加を除く）
+- 既存の状態クラス（IdleState、CoinInsertedState）は変更不要である
+- VendingMachineクラス（Context）も変更不要である（在庫追加を除く）
 - この性質を「開放閉鎖原則（OCP）」と呼ぶ
 - if/else版と比べて、変更箇所が大幅に少ない
 
