@@ -1,13 +1,16 @@
 ---
 date: 2026-01-08T13:16:00+09:00
+description: Stateパターン（状態パターン）に関する調査結果。定義、ユースケース、実装例、競合記事分析、内部リンク調査
 draft: false
+epoch: 1767845760
+image: /favicon.png
+iso8601: 2026-01-08T13:16:00+09:00
 tags:
   - state-pattern
   - design-patterns
   - gof
   - perl
   - moo
-description: Stateパターン（状態パターン）に関する調査結果。定義、ユースケース、実装例、競合記事分析、内部リンク調査
 title: Stateパターン調査ドキュメント
 ---
 
