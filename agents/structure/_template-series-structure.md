@@ -1,9 +1,6 @@
 ---
-date: YYYY-MM-DDTHH:MM:SS+09:00
 description: シリーズ記事「タイトル」の連載構造案3つ（案A/B/C）
 draft: true
-epoch: 
-image: /favicon.png
 iso8601: YYYY-MM-DDTHH:MM:SS+09:00
 title: '連載構造案 - タイトル（全N回）'
 ---
@@ -136,7 +133,7 @@ title: '連載構造案 - タイトル（全N回）'
 ## 付記
 
 - 各タイトルは「第N回-」で始める形式を推奨
-- 推奨タグは3つ程度、英語小文字・ハイフン形式
+- 推奨タグは5個まで、英語小文字・ハイフン形式
 - 全N回を通じて、○○が完成するストーリーを意識
 
 **作成日**: YYYY年MM月DD日  
