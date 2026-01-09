@@ -283,17 +283,25 @@ $weekly->generate_and_save(
 
 ## 処理の流れを図解
 
-```
-基底クラス (ReportGenerator)
-├── generate_and_save($title, $filename)
-│   ├── 1. $self->create_report($title)  ← サブクラスがオーバーライド
-│   ├── 2. $report->generate()
-│   ├── 3. 画面に表示
-│   └── 4. ファイルに保存
-│
-サブクラス (MonthlyReportGenerator など)
-└── create_report($title)
-    └── return MonthlyReport->new(title => $title)
+```mermaid
+sequenceDiagram
+    participant Main as メイン処理
+    participant Generator as ReportGenerator<br/>(サブクラス)
+    participant Report as Report
+
+    Main->>Generator: generate_and_save(title, filename)
+    Note over Generator: 1. レポートを生成
+    Generator->>Generator: create_report(title)
+    Generator->>Report: new(title)
+    Report-->>Generator: report
+    Note over Generator: 2. 内容を取得
+    Generator->>Report: generate()
+    Report-->>Generator: content
+    Note over Generator: 3. 画面に表示
+    Generator->>Generator: say content
+    Note over Generator: 4. ファイルに保存
+    Generator->>Generator: ファイル書き込み
+    Generator-->>Main: report
 ```
 
 基底クラスが「処理の骨格」を定義し、サブクラスが「具体的な部品」を提供する。この構造により、共通処理と個別処理を綺麗に分離できます。

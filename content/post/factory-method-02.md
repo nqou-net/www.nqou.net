@@ -158,6 +158,24 @@ $generator->generate_and_print('weekly', "2026年1月第1週 売上レポート"
 
 一見うまくいっているように見えますが、問題があります。
 
+```mermaid
+flowchart TD
+    A[create_report呼び出し] --> B{type の値は?}
+    B -->|monthly| C[MonthlyReport を生成]
+    B -->|weekly| D[WeeklyReport を生成]
+    B -->|daily| E[DailyReport を生成]
+    B -->|quarterly| F[QuarterlyReport を生成]
+    B -->|yearly| G[YearlyReport を生成]
+    B -->|その他| H[エラー: Unknown type]
+
+    style B fill:#ffcccc
+    style E fill:#ffffcc
+    style F fill:#ffffcc
+    style G fill:#ffffcc
+```
+
+この図のように、種別が増えるたびに分岐が増えていきます。
+
 例えば、さらに「日次レポート」「四半期レポート」「年次レポート」が必要になったらどうなるでしょうか？
 
 ```perl

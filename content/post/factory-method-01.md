@@ -52,6 +52,22 @@ description: "月次レポートを生成するReportGeneratorクラスを作成
 
 シンプルな構成ですが、これが今後の発展の土台になります。
 
+```mermaid
+classDiagram
+    class MonthlyReport {
+        +title
+        +period
+        +generate()
+    }
+    class ReportGenerator {
+        +create_report(title)
+        +generate_and_print(title)
+    }
+    ReportGenerator ..> MonthlyReport : creates
+```
+
+この図は、今回作成する2つのクラスの関係を示しています。`ReportGenerator`が`MonthlyReport`を生成する、シンプルな構造です。
+
 ## ストーリー設定
 
 あなたは、会社の業務システムを開発するプログラマーです。

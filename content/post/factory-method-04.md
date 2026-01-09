@@ -35,6 +35,26 @@ description: "if/elseの肥大化問題を継承で解決！Mooのextendsを使�
 
 これにより、if/elseを使わずにレポートの種類を切り替えられるようになります。
 
+```mermaid
+classDiagram
+    class ReportGenerator {
+        +create_report(title)*
+        +generate_and_print(title)
+    }
+    class MonthlyReportGenerator {
+        +create_report(title)
+    }
+    class WeeklyReportGenerator {
+        +create_report(title)
+    }
+    ReportGenerator <|-- MonthlyReportGenerator : extends
+    ReportGenerator <|-- WeeklyReportGenerator : extends
+    MonthlyReportGenerator ..> MonthlyReport : creates
+    WeeklyReportGenerator ..> WeeklyReport : creates
+```
+
+この図は、`ReportGenerator`基底クラスを継承（`extends`）した2つのサブクラスが、それぞれ対応するレポートを生成する構造を示しています。
+
 ## ストーリー設定
 
 if/elseが増えてきて、コードが読みにくくなってきました。

@@ -330,6 +330,72 @@ $quarterly->generate_and_print("2026年度Q1 業績レポート");
 
 ## 開放閉鎖原則（OCP）の実証
 
+```mermaid
+classDiagram
+    class ReportRole {
+        <<Role>>
+        +generate()*
+        +get_period()*
+    }
+    class ReportGenerator {
+        +create_report(title)*
+        +create_validated_report(title)
+        +generate_and_print(title)
+        +generate_and_save(title, filename)
+    }
+
+    class MonthlyReport {
+        +title
+        +generate()
+        +get_period()
+    }
+    class WeeklyReport {
+        +title
+        +generate()
+        +get_period()
+    }
+    class DailyReport {
+        +title
+        +generate()
+        +get_period()
+    }
+    class QuarterlyReport {
+        +title
+        +quarter
+        +generate()
+        +get_period()
+    }
+
+    class MonthlyReportGenerator {
+        +create_report(title)
+    }
+    class WeeklyReportGenerator {
+        +create_report(title)
+    }
+    class DailyReportGenerator {
+        +create_report(title)
+    }
+    class QuarterlyReportGenerator {
+        +quarter
+        +create_report(title)
+    }
+
+    ReportRole <|.. MonthlyReport
+    ReportRole <|.. WeeklyReport
+    ReportRole <|.. DailyReport
+    ReportRole <|.. QuarterlyReport
+
+    ReportGenerator <|-- MonthlyReportGenerator
+    ReportGenerator <|-- WeeklyReportGenerator
+    ReportGenerator <|-- DailyReportGenerator
+    ReportGenerator <|-- QuarterlyReportGenerator
+
+    MonthlyReportGenerator ..> MonthlyReport : creates
+    WeeklyReportGenerator ..> WeeklyReport : creates
+    DailyReportGenerator ..> DailyReport : creates
+    QuarterlyReportGenerator ..> QuarterlyReport : creates
+```
+
 今回、四半期レポートを追加しましたが、**既存のコードは一切修正していません**。
 
 修正していないクラス/コード:

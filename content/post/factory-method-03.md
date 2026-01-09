@@ -35,6 +35,29 @@ description: "レポートに共通のルールを定義しましょう。Moo::R
 
 これにより、新しいレポートクラスを作成するときに「何を実装すべきか」が明確になります。
 
+```mermaid
+classDiagram
+    class ReportRole {
+        <<Role>>
+        +generate()*
+        +get_period()*
+    }
+    class MonthlyReport {
+        +title
+        +generate()
+        +get_period()
+    }
+    class WeeklyReport {
+        +title
+        +generate()
+        +get_period()
+    }
+    ReportRole <|.. MonthlyReport : with
+    ReportRole <|.. WeeklyReport : with
+```
+
+この図は、`ReportRole`がインターフェースとして機能し、各レポートクラスがそのロールを適用（`with`）している関係を示しています。
+
 ## ストーリー設定
 
 上司から「レポートのフォーマットを統一したい」と言われました。

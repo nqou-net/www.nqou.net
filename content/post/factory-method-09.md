@@ -371,38 +371,77 @@ say "=" x 50;
 
 ## 設計の振り返り
 
-完成したシステムの構造を図で表すと、以下のようになります。
+完成したシステムの構造をMermaid図で表すと、以下のようになります。
 
+```mermaid
+classDiagram
+    class ReportRole {
+        <<Role>>
+        +generate()*
+        +get_period()*
+    }
+
+    class MonthlyReport {
+        +title
+        +generate()
+        +get_period()
+    }
+    class WeeklyReport {
+        +title
+        +generate()
+        +get_period()
+    }
+    class DailyReport {
+        +title
+        +generate()
+        +get_period()
+    }
+    class QuarterlyReport {
+        +title
+        +quarter
+        +generate()
+        +get_period()
+    }
+
+    ReportRole <|.. MonthlyReport : with
+    ReportRole <|.. WeeklyReport : with
+    ReportRole <|.. DailyReport : with
+    ReportRole <|.. QuarterlyReport : with
 ```
-┌─────────────────────────────────────────────────────────┐
-│                      ReportRole                          │
-│                  (requires 'generate')                   │
-│                 (requires 'get_period')                  │
-└─────────────────────────────────────────────────────────┘
-        ▲                   ▲                   ▲
-        │                   │                   │
-  ┌─────┴─────┐       ┌─────┴─────┐       ┌─────┴─────┐
-  │MonthlyReport│     │WeeklyReport │     │DailyReport │ ...
-  └───────────┘       └─────────────┘     └────────────┘
 
+```mermaid
+classDiagram
+    class ReportGenerator {
+        <<abstract>>
+        +create_report(title)*
+        +create_validated_report(title)
+        +generate_and_print(title)
+        +generate_and_save(title, filename)
+    }
 
-┌─────────────────────────────────────────────────────────┐
-│                   ReportGenerator                        │
-│              - create_report() ← 抽象メソッド            │
-│              - create_validated_report()                 │
-│              - generate_and_print()                      │
-│              - generate_and_save()                       │
-└─────────────────────────────────────────────────────────┘
-        ▲                   ▲                   ▲
-        │                   │                   │
-  ┌─────┴──────┐      ┌─────┴──────┐      ┌─────┴──────┐
-  │Monthly     │      │Weekly      │      │Daily       │ ...
-  │Report      │      │Report      │      │Report      │
-  │Generator   │      │Generator   │      │Generator   │
-  └────────────┘      └────────────┘      └────────────┘
-        │                   │                   │
-        ▼                   ▼                   ▼
-  MonthlyReport       WeeklyReport        DailyReport
+    class MonthlyReportGenerator {
+        +create_report(title)
+    }
+    class WeeklyReportGenerator {
+        +create_report(title)
+    }
+    class DailyReportGenerator {
+        +create_report(title)
+    }
+    class QuarterlyReportGenerator {
+        +quarter
+        +create_report(title)
+    }
+
+    ReportGenerator <|-- MonthlyReportGenerator : extends
+    ReportGenerator <|-- WeeklyReportGenerator : extends
+    ReportGenerator <|-- DailyReportGenerator : extends
+    ReportGenerator <|-- QuarterlyReportGenerator : extends
+
+    MonthlyReportGenerator ..> MonthlyReport : creates
+    WeeklyReportGenerator ..> WeeklyReport : creates
+    DailyReportGenerator ..> DailyReport : creates
+    QuarterlyReportGenerator ..> QuarterlyReport : creates
 ```
 
 **ポイント**

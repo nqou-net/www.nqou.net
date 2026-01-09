@@ -303,6 +303,20 @@ if ($@) {
 
 ## 型チェックのメリット
 
+```mermaid
+flowchart TD
+    A[create_report 呼び出し] --> B[report オブジェクト取得]
+    B --> C{blessed?}
+    C -->|No| E[エラー: オブジェクトではない]
+    C -->|Yes| D{does ReportRole?}
+    D -->|No| F[エラー: ReportRole を持たない]
+    D -->|Yes| G[検証成功: report を返す]
+
+    style E fill:#ffcccc
+    style F fill:#ffcccc
+    style G fill:#ccffcc
+```
+
 この型チェックには以下のメリットがあります。
 
 **1. バグの早期発見**

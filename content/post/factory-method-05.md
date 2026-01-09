@@ -239,6 +239,29 @@ $daily->generate_and_print("2026年1月9日 売上レポート");
 
 この設計のポイントは以下の通りです。
 
+```mermaid
+sequenceDiagram
+    participant Main as メイン処理
+    participant Generator as MonthlyReportGenerator
+    participant Base as ReportGenerator
+    participant Report as MonthlyReport
+
+    Main->>Generator: new()
+    Main->>Generator: generate_and_print(title)
+    Generator->>Base: generate_and_print(title)
+    Note over Base: 基底クラスの処理
+    Base->>Generator: create_report(title)
+    Note over Generator: オーバーライドされた<br/>メソッドが呼ばれる
+    Generator->>Report: new(title)
+    Report-->>Generator: MonthlyReport
+    Generator-->>Base: report
+    Base->>Report: generate()
+    Report-->>Base: レポート内容
+    Base-->>Main: report
+```
+
+この図は、`generate_and_print`を呼び出したときの処理の流れを示しています。基底クラスの`generate_and_print`内で`create_report`が呼ばれると、オーバーライドされたサブクラスのメソッドが実行されます。
+
 **基底クラス（ReportGenerator）**
 
 - `create_report`メソッドは「サブクラスで実装してね」という宣言
