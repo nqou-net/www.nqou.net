@@ -4,7 +4,6 @@ draft: true
 tags:
 - "example-tag"
 description: "記事の短い説明（2行程度）"
-image: /public_images/2025/YYYYMMDDHHMMSS-image.jpg
 ---
 
 <!--
