@@ -4,8 +4,7 @@ draft: true
 tags:
   - perl
   - moo
-  - open-closed
-  - ocp
+  - open-closed-principle
   - solid
 description: "四半期レポートを追加してみましょう。既存コードを一切修正せず、新しいクラスを追加するだけ！開放閉鎖原則（OCP）の威力を体験します。"
 ---

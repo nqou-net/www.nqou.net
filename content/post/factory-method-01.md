@@ -6,7 +6,7 @@ tags:
   - moo
   - report
   - class
-  - oop
+  - object-oriented
 description: "月次レポートを生成するReportGeneratorクラスを作成します。Mooを使ったオブジェクト生成の基本を学び、シリーズの土台となるコードを書いていきましょう。"
 ---
 
@@ -37,6 +37,13 @@ description: "月次レポートを生成するReportGeneratorクラスを作成
 - 基本的なPerlの文法（v5.36以降の機能を使用します）
 
 これらの基礎は「Mooで覚えるオブジェクト指向プログラミング」シリーズで学べます。まだ読んでいない方は、ぜひ先にこちらをご覧ください。
+
+### 動作環境
+
+本シリーズのコード例は、以下の環境で動作確認しています。
+
+- Perl v5.36以降
+- Moo 2.x系
 
 {{< linkcard "https://www.nqou.net/2021/10/31/191008/" >}}
 
