@@ -455,7 +455,10 @@ package Command::Delete {
 # 抽象（Command Role）に依存
 has command => (
     is   => 'ro',
-    does => 'Command::Role',  # 具体的なクラスではなく、Roleに依存
+    isa => sub { # 具体的なクラスではなく、Roleに依存
+        my $value = shift;
+        die "exporter must does Command::Role" unless $value->does('Command::Role')
+    },
 );
 
 # テスト時にモックコマンドを注入可能

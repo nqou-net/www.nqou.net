@@ -89,7 +89,7 @@ title: '連載構造案 - Strategyパターン新シリーズ（全10〜12回）
 | 第4回 | 共通の約束を決めよう | requires（Moo::Role） | 各エクスポータークラスに「必ずexportメソッドを持つ」という約束をRoleで定義 | ExporterRoleの作成（requires 'export'） | エクスポータークラスでのwith適用 | perl, moo-role, interface |
 | 第5回 | エクスポーターを管理するクラスを作ろう | Contextクラス | エクスポーターを保持するDataExporterクラス（Context）を作成 | DataExporterクラスとhas exporter定義 | export_dataメソッドの実装 | perl, moo, context |
 | 第6回 | 実行時に形式を切り替えよう | 動的切り替え（is => 'rw'） | 実行時にCSV→JSON→YAMLと切り替える機能を追加 | set_exporterメソッドの追加 | 動的切り替えのデモコード | perl, moo, dynamic |
-| 第7回 | 型チェックでバグを防ごう | does制約 | 間違ったオブジェクトが設定されないよう、does制約を追加 | does => 'ExporterRole'の追加 | 型エラーのデモと対処 | perl, moo, type-check |
+| 第7回 | 型チェックでバグを防ごう | isa | 間違ったオブジェクトが設定されないよう、isaを追加 | isa => sub { die unless shift->does('ExporterRole')} の追加 | 型エラーのデモと対処 | perl, moo, type-check |
 | 第8回 | 形式名から自動で選ぼう | Factory的生成 | "csv"、"json"などの文字列から自動でエクスポーターを選択する仕組み | exporter_forメソッドの実装 | 形式名からエクスポーター選択 | perl, moo, factory |
 | 第9回 | 完成！データエクスポーター | 統合と完成 | 全機能を統合してエクスポーターを完成。動作確認とテスト | 完成したDataExporterクラス全体 | 各形式での出力確認 | perl, moo, exporter |
 | 第10回 | これがデザインパターンだ！ | Strategyパターン | 作ってきたものが「Strategyパターン」だったことを明かす。SOLID原則との関係も解説 | Strategyパターンの構造図解 | 他のパターンへの展望 | perl, design-patterns, strategy |
@@ -135,7 +135,7 @@ title: '連載構造案 - Strategyパターン新シリーズ（全10〜12回）
 | 第4回 | 共通の約束を決めよう | requires（Moo::Role） | 各フォーマッタークラスに共通のformatメソッドを定義 | FormatterRoleの作成（requires 'format'） | フォーマッタークラスでのwith適用 | perl, moo-role, interface |
 | 第5回 | フォーマッターを管理するクラスを作ろう | Contextクラス | TextFormatterクラス（Context）を作成 | TextFormatterクラスとhas formatter定義 | format_textメソッドの実装 | perl, moo, context |
 | 第6回 | 実行時に形式を切り替えよう | 動的切り替え（is => 'rw'） | 実行時にHTML→Markdown→プレーンと切り替え | set_formatterメソッドの追加 | 動的切り替えのデモコード | perl, moo, dynamic |
-| 第7回 | 型チェックでバグを防ごう | does制約 | 間違ったオブジェクトが設定されないよう制約を追加 | does => 'FormatterRole'の追加 | 型エラーのデモと対処 | perl, moo, type-check |
+| 第7回 | 型チェックでバグを防ごう | isa | 間違ったオブジェクトが設定されないよう制約を追加 | isa => sub { die unless shift->does('FormatterRole')} | 型エラーのデモと対処 | perl, moo, type-check |
 | 第8回 | 形式名から自動で選ぼう | Factory的生成 | "html"、"markdown"などの文字列から自動でフォーマッターを選択 | formatter_forメソッドの実装 | 形式名からフォーマッター選択 | perl, moo, factory |
 | 第9回 | 完成！テキストフォーマッター | 統合と完成 | 全機能を統合してフォーマッターを完成 | 完成したTextFormatterクラス全体 | 各形式での変換確認 | perl, moo, formatter |
 | 第10回 | これがデザインパターンだ！ | Strategyパターン | 作ってきたものが「Strategyパターン」だったことを明かす | Strategyパターンの構造図解 | 他のパターンへの展望 | perl, design-patterns, strategy |
@@ -182,7 +182,7 @@ title: '連載構造案 - Strategyパターン新シリーズ（全10〜12回）
 | 第4回 | 共通の約束を決めよう | requires（Moo::Role） | 各通知クラスに「必ずnotifyメソッドを持つ」という約束をRoleで定義 | NotifierRoleの作成（requires 'notify'） | 通知クラスでのwith適用 | perl, moo-role, interface |
 | 第5回 | 通知を管理するクラスを作ろう | Contextクラス | NotificationServiceクラス（Context）を作成 | NotificationServiceクラスとhas notifier定義 | send_notificationメソッドの実装 | perl, moo, context |
 | 第6回 | 実行時に通知方法を切り替えよう | 動的切り替え（is => 'rw'） | 実行時にコンソール→ファイル→メールと切り替え | set_notifierメソッドの追加 | 動的切り替えのデモコード | perl, moo, dynamic |
-| 第7回 | 型チェックでバグを防ごう | does制約 | 間違ったオブジェクトが設定されないよう制約を追加 | does => 'NotifierRole'の追加 | 型エラーのデモと対処 | perl, moo, type-check |
+| 第7回 | 型チェックでバグを防ごう | isa | 間違ったオブジェクトが設定されないよう制約を追加 | isa => sub { die unless shift->does('NotifierRole')}の追加 | 型エラーのデモと対処 | perl, moo, type-check |
 | 第8回 | 複数の方法で同時に通知しよう | 複数Strategy保持 | コンソールとファイルの両方に同時通知する機能を追加 | notifiersを配列で保持 | 複数通知のループ処理 | perl, moo, multi-strategy |
 | 第9回 | 通知方法を自動で選ぼう | Factory的生成 | "console"、"file"などの文字列から自動で通知クラスを選択 | notifier_forメソッドの実装 | 通知方法名からクラス選択 | perl, moo, factory |
 | 第10回 | 開発と本番で切り替えよう | 環境による切り替え | 開発環境ではコンソール、本番環境ではメール通知に切り替え | 環境変数による切り替え | 設定ファイルによる切り替え | perl, moo, environment |

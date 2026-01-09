@@ -701,10 +701,10 @@ with 'Logger';   # ロール適用
 sub log { ... }
 
 package Application;
-use Moose;
+use Moo;
 has 'logger' => (
     is => 'ro',
-    does => 'Logger',  # 抽象に依存（DIP）
+    isa => sub { die unless shift->does('Logger')},  # 抽象に依存（DIP）
 );
 ```
 

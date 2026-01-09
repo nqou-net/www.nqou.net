@@ -505,7 +505,7 @@ MooでのStrategyパターン実装には以下の利点がある：
 | ConcreteStrategy | `with 'RoleName'`でRole消費 | インターフェースの実装保証 |
 | Context | `has strategy => (...)`で属性定義 | 柔軟なStrategy保持 |
 | 動的切り替え | `is => 'rw'`でセッター生成 | 実行時のStrategy変更 |
-| 型制約 | `does => 'RoleName'`またはType::Tiny | 不正なオブジェクト防止 |
+| 型制約 | `isa => sub { die unless shift->does('RoleName') }`またはType::Tiny | 不正なオブジェクト防止 |
 | 委譲 | `handles => [qw(method1 method2)]` | Contextからの直接呼び出し |
 
 **発展的な実装**:
@@ -610,7 +610,7 @@ package AllSorter {
 # 抽象（Strategy Role）に依存
 has strategy => (
     is   => 'rw',
-    does => 'PaymentStrategy',  # 具体的なクラスではなく、Roleに依存
+    isa => sub { die unless shift->does('PaymentStrategy') } # 具体的なクラスではなく、Roleに依存
 );
 
 # テスト時にモックを注入可能
@@ -810,7 +810,7 @@ function ProductDisplay({ viewType, products }) {
 package EnemyAI;
 use Moo;
 
-has behavior_strategy => (is => 'rw', does => 'BehaviorStrategy');
+has behavior_strategy => (is => 'rw',  isa => sub { die unless shift->does('BehaviorStrategy')});
 
 sub act ($self) {
     $self->behavior_strategy->execute($self);
@@ -824,7 +824,7 @@ if ($player_nearby) {
 }
 ```
 
-**信頼度**: ★★★★☆
+**信頼度**: ★★★☆☆
 
 ---
 

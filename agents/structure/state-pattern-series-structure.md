@@ -104,7 +104,7 @@ title: '連載構造案 - Stateパターンシリーズ（全10〜12回）'
 | 第4回 | 共通の約束を決めよう | requires（Moo::Role） | 各状態クラスに「必ずinsert_coin、select_product、dispenseメソッドを持つ」という約束をRoleで定義 | VendingMachineStateロールの作成 | 各状態クラスでのwith適用 | perl, moo, moo-role, interface |
 | 第5回 | 状態を管理するクラスを作ろう | Contextクラス | 現在の状態を保持するVendingMachineクラス（Context）を作成し、操作を委譲 | VendingMachineクラスとhas state定義 | 操作メソッドの実装（委譲） | perl, moo, context, delegation |
 | 第6回 | 状態の中から次の状態へ遷移しよう | 状態遷移（StateがContextを参照） | StateクラスがContext（VendingMachine）への参照を受け取り、自ら次の状態へ遷移する | StateメソッドでContext参照を受け取る | set_stateによる状態遷移の実装 | perl, moo, state-transition |
-| 第7回 | 型チェックでバグを防ごう | does制約 | 間違ったオブジェクトが状態として設定されないよう、does制約を追加 | does => 'VendingMachineState'の追加 | 型エラーのデモと対処 | perl, moo, type-check, validation |
+| 第7回 | 型チェックでバグを防ごう | isa | 間違ったオブジェクトが状態として設定されないよう、を追加 | isa => sub { die unless shift->does('VendingMachineState')} の追加 | 型エラーのデモと対処 | perl, moo, type-check, validation |
 | 第8回 | 売り切れ状態を追加しよう | 状態追加の容易さ（OCP） | SoldOutStateを追加。既存クラスを変更せずに新しい状態を追加できることを体感 | SoldOutStateクラスの作成 | 在庫管理ロジックの追加 | perl, moo, open-closed-principle |
 | 第9回 | 完成！自動販売機シミュレーター | 統合と完成 | 全機能を統合して自動販売機シミュレーターを完成。対話的なCLIで動作確認 | 完成したVendingMachineクラス全体 | 対話的な操作デモ | perl, moo, vending-machine, tutorial |
 | 第10回 | これがStateパターンだ！ | Stateパターン | 作ってきたものが「Stateパターン」だったことを明かす。StrategyパターンとSOLID原則との関係も解説 | Stateパターンの構造図解 | Strategyパターンとの比較、他のパターンへの展望 | perl, moo, design-patterns, state-pattern |
@@ -151,7 +151,7 @@ title: '連載構造案 - Stateパターンシリーズ（全10〜12回）'
 | 第4回 | 共通の約束を決めよう | requires（Moo::Role） | 各状態クラスに「必ずplay、stop、pauseメソッドを持つ」という約束をRoleで定義 | PlayerStateロールの作成 | 各状態クラスでのwith適用 | perl, moo, moo-role, interface |
 | 第5回 | プレイヤーを管理するクラスを作ろう | Contextクラス | 現在の状態を保持するMusicPlayerクラス（Context）を作成し、操作を委譲 | MusicPlayerクラスとhas state定義 | 操作メソッドの実装（委譲） | perl, moo, context, delegation |
 | 第6回 | 状態の中から次の状態へ遷移しよう | 状態遷移（StateがContextを参照） | StateクラスがContext（MusicPlayer）への参照を受け取り、自ら次の状態へ遷移する | StateメソッドでContext参照を受け取る | set_stateによる状態遷移の実装 | perl, moo, state-transition |
-| 第7回 | 型チェックでバグを防ごう | does制約 | 間違ったオブジェクトが状態として設定されないよう、does制約を追加 | does => 'PlayerState'の追加 | 型エラーのデモと対処 | perl, moo, type-check, validation |
+| 第7回 | 型チェックでバグを防ごう | doesisa制約 | 間違ったオブジェクトが状態として設定されないよう、isaを追加 | isa => sub { die unless shift->does('PlayerState')} の追加 | 型エラーのデモと対処 | perl, moo, type-check, validation |
 | 第8回 | リピートモードを追加しよう | 状態追加の容易さ（OCP） | RepeatingStateを追加。既存クラスを変更せずに新しい状態を追加できることを体感 | RepeatingStateクラスの作成 | モード切り替えロジックの追加 | perl, moo, open-closed-principle |
 | 第9回 | 完成！音楽プレイヤー | 統合と完成 | 全機能を統合して音楽プレイヤーを完成。対話的なCLIで動作確認 | 完成したMusicPlayerクラス全体 | 対話的な操作デモ | perl, moo, music-player, tutorial |
 | 第10回 | これがStateパターンだ！ | Stateパターン | 作ってきたものが「Stateパターン」だったことを明かす。StrategyパターンとSOLID原則との関係も解説 | Stateパターンの構造図解 | Strategyパターンとの比較、他のパターンへの展望 | perl, moo, design-patterns, state-pattern |
@@ -198,7 +198,7 @@ title: '連載構造案 - Stateパターンシリーズ（全10〜12回）'
 | 第4回 | 共通の約束を決めよう | requires（Moo::Role） | 各状態クラスに「必ずsubmit、approve、publish、rejectメソッドを持つ」という約束をRoleで定義 | DocumentStateロールの作成 | 各状態クラスでのwith適用 | perl, moo, moo-role, interface |
 | 第5回 | ドキュメントを管理するクラスを作ろう | Contextクラス | 現在の状態を保持するDocumentクラス（Context）を作成し、操作を委譲 | Documentクラスとhas state定義 | 操作メソッドの実装（委譲） | perl, moo, context, delegation |
 | 第6回 | 状態の中から次の状態へ遷移しよう | 状態遷移（StateがContextを参照） | StateクラスがContext（Document）への参照を受け取り、自ら次の状態へ遷移する | StateメソッドでContext参照を受け取る | set_stateによる状態遷移の実装 | perl, moo, state-transition |
-| 第7回 | 型チェックでバグを防ごう | does制約 | 間違ったオブジェクトが状態として設定されないよう、does制約を追加 | does => 'DocumentState'の追加 | 型エラーのデモと対処 | perl, moo, type-check, validation |
+| 第7回 | 型チェックでバグを防ごう | isa | 間違ったオブジェクトが状態として設定されないよう、isaを追加 | isa => sub { die unless shift->does('DocumentState')} の追加 | 型エラーのデモと対処 | perl, moo, type-check, validation |
 | 第8回 | 差し戻し機能を実装しよう | 逆方向の状態遷移 | レビュー中から下書きへの差し戻し、承認取り消しなど逆方向の遷移を実装 | reject操作による差し戻し | 状態遷移図の更新 | perl, moo, workflow, state-transition |
 | 第9回 | 状態遷移の履歴を残そう | 状態履歴の記録 | 誰がいつ状態を変更したかの履歴を記録する機能を追加 | 履歴配列の実装 | 履歴表示機能 | perl, moo, history, audit-log |
 | 第10回 | 無効な操作をわかりやすく伝えよう | 例外処理とメッセージ | 無効な操作（下書き状態で公開など）時にわかりやすいエラーメッセージを返す | 例外クラスの作成 | ユーザーフレンドリーなエラー表示 | perl, moo, error-handling, exceptions |
