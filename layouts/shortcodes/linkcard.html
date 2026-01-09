@@ -1,4 +1,3 @@
-<link rel="stylesheet" href="/css/linkcard.css">
 {{- $url := .Get "url" | default (.Get 0) -}}
 {{- if not $url -}}
   {{- errorf "linkcard shortcode requires a 'url' parameter" -}}
@@ -9,59 +8,50 @@
 {{- $image := "" -}}
 {{- $siteName := "" -}}
 {{- $favicon := "" -}}
-{{- $isInternal := false -}}
 
-{{/* Check if this is an internal link (starts with /) */}}
+{{- /* Reject internal links outright */ -}}
 {{- if hasPrefix $url "/" -}}
-  {{- $isInternal = true -}}
-  {{- $page := false -}}
-  {{- $cleanURL := strings.TrimSuffix "/" $url -}}
-  {{- range site.RegularPages -}}
-    {{- $pageURL := strings.TrimSuffix "/" .RelPermalink -}}
-    {{- if or (eq $pageURL $cleanURL) (eq .RelPermalink $url) -}}
-      {{- $page = . -}}
-    {{- end -}}
-  {{- end -}}
-  {{- if $page -}}
-    {{- $title = $page.Title -}}
-    {{- $description = $page.Description | default $page.Summary -}}
-    {{- $image = $page.Params.image -}}
+  {{- errorf "linkcard: internal links are not allowed: %s" $url -}}
+{{- end -}}
+
+{{- /* Validate URL protocol for security */ -}}
+{{- if not (or (hasPrefix $url "http://") (hasPrefix $url "https://")) -}}
+  {{- errorf "linkcard shortcode only supports http://, https:// URLs, got: %s" $url -}}
+{{- end -}}
+
+{{- /* opt-out param for dangerous fetches */ -}}
+{{- $nofetch := .Get "nofetch" | default "true" -}}
+
+{{- $parsedURL := urls.Parse $url -}}
+{{- $domain := $parsedURL.Host -}}
+{{- $favicon = printf "%s://%s/favicon.ico" $parsedURL.Scheme $domain -}}
+
+{{- /* same-origin / self-reference detection */ -}}
+{{- $parsedSite := urls.Parse site.BaseURL -}}
+{{- $sameHost := eq $parsedURL.Host $parsedSite.Host -}}
+{{- $isSelf := false -}}
+{{- if or (eq $url .Page.Permalink) (eq $parsedURL.Path .Page.RelPermalink) -}}
+  {{- $isSelf = true -}}
+{{- end -}}
+
+{{- /* If requested to nofetch, or if target is same-origin or self, skip remote fetch to avoid recursion */ -}}
+{{- if or (eq $nofetch "true") $sameHost $isSelf -}}
+  {{- /* Provide a safe fallback without performing resources.GetRemote */ -}}
+  {{- if $sameHost -}}
     {{- $siteName = site.Title -}}
   {{- else -}}
-    {{- warnf "linkcard: internal page not found: %s" $url -}}
-    {{- $title = $url -}}
-    {{- $siteName = site.Title -}}
+    {{- $siteName = $domain -}}
   {{- end -}}
+  {{- $title = $url -}}
 {{- else -}}
-  {{/* Validate URL protocol for security */}}
-  {{- if not (or (hasPrefix $url "http://") (hasPrefix $url "https://")) -}}
-    {{- errorf "linkcard shortcode only supports http://, https:// URLs or internal paths (starting with /), got: %s" $url -}}
-  {{- end -}}
-
-  {{- $parsedURL := urls.Parse $url -}}
-  {{- $domain := $parsedURL.Host -}}
-  {{- $favicon = printf "%s://%s/favicon.ico" $parsedURL.Scheme $domain -}}
-  {{- $parsedURL := urls.Parse $url -}}
-  {{- $domain := $parsedURL.Host -}}
-  {{- $favicon = printf "%s://%s/favicon.ico" $parsedURL.Scheme $domain -}}
-
   {{- with try (resources.GetRemote $url) -}}
     {{- with .Err -}}
       {{- warnf "linkcard: failed to fetch %s: %s" $url . -}}
     {{- else with .Value -}}
       {{- $content := .Content -}}
 
-      {{/* Extract og:title - handles both quote types in content values */}}
-      {{- $ogTitleMatch := findRE `<meta[^>]*property=["']og:title["'][^>]*content="([^"]*)"[^>]*>` $content 1 -}}
-      {{- if not $ogTitleMatch -}}
-        {{- $ogTitleMatch = findRE `<meta[^>]*property=["']og:title["'][^>]*content='([^']*)'[^>]*>` $content 1 -}}
-      {{- end -}}
-      {{- if not $ogTitleMatch -}}
-        {{- $ogTitleMatch = findRE `<meta[^>]*content="([^"]*)"[^>]*property=["']og:title["'][^>]*>` $content 1 -}}
-      {{- end -}}
-      {{- if not $ogTitleMatch -}}
-        {{- $ogTitleMatch = findRE `<meta[^>]*content='([^']*)'[^>]*property=["']og:title["'][^>]*>` $content 1 -}}
-      {{- end -}}
+      {{/* Extract og:title */}}
+      {{- $ogTitleMatch := findRE `(?i)<meta[^>]*(?:property|name)=["']og:title["'][^>]*content=["']([^"']+)["'][^>]*>` $content 1 -}}
       {{- range $ogTitleMatch -}}
         {{- $title = replaceRE `.*content=["']([^"']*)["'].*` "$1" . -}}
       {{- end -}}
@@ -74,89 +64,49 @@
         {{- end -}}
       {{- end -}}
 
-      {{/* Extract og:description - handles both quote types in content values */}}
-      {{- $ogDescMatch := findRE `<meta[^>]*property=["']og:description["'][^>]*content="([^"]*)"[^>]*>` $content 1 -}}
-      {{- if not $ogDescMatch -}}
-        {{- $ogDescMatch = findRE `<meta[^>]*property=["']og:description["'][^>]*content='([^']*)'[^>]*>` $content 1 -}}
-      {{- end -}}
-      {{- if not $ogDescMatch -}}
-        {{- $ogDescMatch = findRE `<meta[^>]*content="([^"]*)"[^>]*property=["']og:description["'][^>]*>` $content 1 -}}
-      {{- end -}}
-      {{- if not $ogDescMatch -}}
-        {{- $ogDescMatch = findRE `<meta[^>]*content='([^']*)'[^>]*property=["']og:description["'][^>]*>` $content 1 -}}
-      {{- end -}}
+      {{/* Extract og:description */}}
+      {{- $ogDescMatch := findRE `(?i)<meta[^>]*(?:property|name)=["']og:description["'][^>]*content=["']([^"']+)["'][^>]*>` $content 1 -}}
       {{- range $ogDescMatch -}}
         {{- $description = replaceRE `.*content=["']([^"']*)["'].*` "$1" . -}}
       {{- end -}}
 
-      {{/* Fallback to meta description if og:description not found - handles both quote types */}}
+      {{/* Fallback to meta description if og:description not found */}}
       {{- if not $description -}}
-        {{- $descMatch := findRE `<meta[^>]*name=["']description["'][^>]*content="([^"]*)"[^>]*>` $content 1 -}}
-        {{- if not $descMatch -}}
-          {{- $descMatch = findRE `<meta[^>]*name=["']description["'][^>]*content='([^']*)'[^>]*>` $content 1 -}}
-        {{- end -}}
-        {{- if not $descMatch -}}
-          {{- $descMatch = findRE `<meta[^>]*content="([^"]*)"[^>]*name=["']description["'][^>]*>` $content 1 -}}
-        {{- end -}}
-        {{- if not $descMatch -}}
-          {{- $descMatch = findRE `<meta[^>]*content='([^']*)'[^>]*name=["']description["'][^>]*>` $content 1 -}}
-        {{- end -}}
+        {{- $descMatch := findRE `(?i)<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["'][^>]*>` $content 1 -}}
         {{- range $descMatch -}}
           {{- $description = replaceRE `.*content=["']([^"']*)["'].*` "$1" . -}}
         {{- end -}}
       {{- end -}}
 
-      {{/* Extract og:image - handles both quote types in content values */}}
-      {{- $ogImageMatch := findRE `<meta[^>]*property=["']og:image["'][^>]*content="([^"]*)"[^>]*>` $content 1 -}}
-      {{- if not $ogImageMatch -}}
-        {{- $ogImageMatch = findRE `<meta[^>]*property=["']og:image["'][^>]*content='([^']*)'[^>]*>` $content 1 -}}
-      {{- end -}}
-      {{- if not $ogImageMatch -}}
-        {{- $ogImageMatch = findRE `<meta[^>]*content="([^"]*)"[^>]*property=["']og:image["'][^>]*>` $content 1 -}}
-      {{- end -}}
-      {{- if not $ogImageMatch -}}
-        {{- $ogImageMatch = findRE `<meta[^>]*content='([^']*)'[^>]*property=["']og:image["'][^>]*>` $content 1 -}}
-      {{- end -}}
+      {{/* Extract og:image */}}
+      {{- $ogImageMatch := findRE `(?i)<meta[^>]*(?:property|name)=["']og:image["'][^>]*content=["']([^"']+)["'][^>]*>` $content 1 -}}
       {{- range $ogImageMatch -}}
         {{- $image = replaceRE `.*content=["']([^"']*)["'].*` "$1" . -}}
       {{- end -}}
 
-      {{/* Extract og:site_name - handles both quote types in content values */}}
-      {{- $ogSiteMatch := findRE `<meta[^>]*property=["']og:site_name["'][^>]*content="([^"]*)"[^>]*>` $content 1 -}}
-      {{- if not $ogSiteMatch -}}
-        {{- $ogSiteMatch = findRE `<meta[^>]*property=["']og:site_name["'][^>]*content='([^']*)'[^>]*>` $content 1 -}}
-      {{- end -}}
-      {{- if not $ogSiteMatch -}}
-        {{- $ogSiteMatch = findRE `<meta[^>]*content="([^"]*)"[^>]*property=["']og:site_name["'][^>]*>` $content 1 -}}
-      {{- end -}}
-      {{- if not $ogSiteMatch -}}
-        {{- $ogSiteMatch = findRE `<meta[^>]*content='([^']*)'[^>]*property=["']og:site_name["'][^>]*>` $content 1 -}}
-      {{- end -}}
+      {{/* Extract og:site_name */}}
+      {{- $ogSiteMatch := findRE `(?i)<meta[^>]*(?:property|name)=["']og:site_name["'][^>]*content=["']([^"']+)["'][^>]*>` $content 1 -}}
       {{- range $ogSiteMatch -}}
         {{- $siteName = replaceRE `.*content=["']([^"']*)["'].*` "$1" . -}}
       {{- end -}}
 
     {{- end -}}
   {{- end -}}
+{{- end -}}
 
-  {{- if not $title -}}
-    {{- $title = $url -}}
-  {{- end -}}
+{{- if not $title -}}
+  {{- $title = $url -}}
+{{- end -}}
 
-  {{- if not $siteName -}}
-    {{- $siteName = $domain -}}
-  {{- end -}}
+{{- if not $siteName -}}
+  {{- $siteName = $domain -}}
 {{- end -}}
 
 <div class="linkcard">
-  {{- if $isInternal -}}
-  <a class="linkcard-a" href="{{ $url | relURL }}">
-  {{- else -}}
-  <a class="linkcard-a" href="{{ $url }}" target="_blank" rel="noopener noreferrer">
-  {{- end -}}
+  <a class="linkcard-a" href="{{ $url }}" target="_blank" rel="noopener noreferrer nofollow" title="{{ $title | plainify }}" aria-label="{{ $title | plainify }}">
     {{- if and $image (or (hasPrefix $image "http://") (hasPrefix $image "https://") (hasPrefix $image "/")) }}
     <div class="linkcard-image">
-      {{- if $isInternal -}}
+      {{- if hasPrefix $image "/" -}}
       <img src="{{ $image | relURL }}" alt="{{ $title | plainify }}" loading="lazy" />
       {{- else -}}
       <img src="{{ $image }}" alt="{{ $title | plainify }}" loading="lazy" />
