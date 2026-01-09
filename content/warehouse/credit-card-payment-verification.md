@@ -2,6 +2,9 @@
 date: 2026-01-08T22:31:00+09:00
 description: Chain of Responsibilityパターン学習シリーズ「クレジットカード決済の多段審査処理」作成のための調査・情報収集結果
 draft: false
+epoch: 1767879060
+image: /favicon.png
+iso8601: 2026-01-08T22:31:00+09:00
 tags:
   - chain-of-responsibility
   - design-patterns

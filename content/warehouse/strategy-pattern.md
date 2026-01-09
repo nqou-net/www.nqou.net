@@ -1,8 +1,10 @@
 ---
 date: 2026-01-07T16:47:00+09:00
-description: Strategyパターン（GoFデザインパターン）の徹底調査 - 基本から実装、SOLID原則との関係、類似パターンとの比較、Perl/Mooでの実装まで
+description: 'Strategyパターン（GoFデザインパターン）の徹底調査 - 基本から実装、SOLID原則との関係、類似パターンとの比較、Perl/Mooでの実装まで'
 draft: false
+epoch: 1767772020
 image: /favicon.png
+iso8601: 2026-01-07T16:47:00+09:00
 tags:
   - research
   - design-patterns
