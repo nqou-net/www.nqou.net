@@ -331,7 +331,7 @@ constraint_summary: 1記事1概念、コード例2つまで、完成コードは
 **必須リンク（各回共通）:**
 
 ```markdown
-{{< linkcard "/2026/01/02/233311/" >}}
+{{< linkcard "https://www.nqou.net/2026/01/02/233311/" >}}
 ```
 → Moo OOPシリーズ目次（前提知識ページとして全回で参照）
 
@@ -350,7 +350,7 @@ constraint_summary: 1記事1概念、コード例2つまで、完成コードは
 
 同じChain of Responsibilityパターンを別のドメインで学べます：
 
-{{< linkcard "/2026/01/09/100200/" >}}
+{{< linkcard "https://www.nqou.net/2026/01/09/100200/" >}}
 ```
 
 **シリーズ目次ページの構成提案:**
@@ -359,11 +359,11 @@ constraint_summary: 1記事1概念、コード例2つまで、完成コードは
 ## 関連シリーズ
 
 - ユーザー登録バリデータで学ぶ責任の連鎖
-  - {{< linkcard "/2026/01/09/100300/" >}}
+  - {{< linkcard "https://www.nqou.net/2026/01/09/100300/" >}}
   - 同じChain of Responsibilityパターンをフォーム検証ドメインで学べます
 
 - シンプルなTodo CLIアプリ
-  - {{< linkcard "/2026/01/04/011443/" >}}
+  - {{< linkcard "https://www.nqou.net/2026/01/04/011443/" >}}
   - Commandパターンで設計を学ぶ実践シリーズ
 ```
 

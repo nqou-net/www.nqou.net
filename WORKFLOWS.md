@@ -100,7 +100,7 @@
   - 公開日時は、最終回の**123秒後**とする
   - タイトルは「【目次】シリーズ名（全N回）」形式を推奨
   - シリーズ全体の概要と対象読者を記載
-  - 各回へのリンクは`{{< linkcard "/YYYY/MM/DD/HHMMSS/" >}}`形式で記載
+  - 各回へのリンクは`{{< linkcard "https://www.nqou.net/YYYY/MM/DD/HHMMSS/" >}}`形式で記載
 
 4. 各記事の校正（proofreaderエージェント）
 
