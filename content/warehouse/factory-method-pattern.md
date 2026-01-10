@@ -1,13 +1,17 @@
 ---
-title: Factory Methodパターン調査ドキュメント
+date: 2026-01-10T23:15:41+09:00
 description: Factory Methodパターンに関する調査結果（GoFデザインパターン）
 draft: true
+epoch: 1768054541
+image: /favicon.png
+iso8601: 2026-01-10T23:15:41+09:00
 tags:
   - design-patterns
   - factory-method
   - creational-patterns
   - perl
   - moo
+title: Factory Methodパターン調査ドキュメント
 ---
 
 # Factory Methodパターン調査ドキュメント
