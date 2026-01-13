@@ -1,0 +1,1234 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="スナップショットからプレイヤーの状態を復元。restore_from_snapshotメソッドを実装し、セーブ→ダメージ→ロードの流れを確認します。"><title>第4回-保存した状態から復元しよう - Mooを使ってゲームのセーブ機能を作ってみよう</title><link rel=canonical href=https://www.nqou.net/2026/01/13/232315/><link rel=stylesheet href=/scss/style.min.6a692fd055deae459f2a9767f57f3855ba80cafd5041317f24f7360f6ca47cdf.css><meta property='og:title' content="第4回-保存した状態から復元しよう - Mooを使ってゲームのセーブ機能を作ってみよう"><meta property='og:description' content="スナップショットからプレイヤーの状態を復元。restore_from_snapshotメソッドを実装し、セーブ→ダメージ→ロードの流れを確認します。"><meta property='og:url' content='https://www.nqou.net/2026/01/13/232315/'><meta property='og:site_name' content='nqou.net'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='perl'><meta property='article:tag' content='moo'><meta property='article:tag' content='restore'><meta property='article:tag' content='game-save'><meta property='article:tag' content='moo-game-save'><meta property='article:published_time' content='2026-01-13T23:23:15+09:00'><meta property='article:modified_time' content='2026-01-13T23:23:15+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/memento-pattern-series-image.jpg'><meta name=twitter:title content="第4回-保存した状態から復元しよう - Mooを使ってゲームのセーブ機能を作ってみよう"><meta name=twitter:description content="スナップショットからプレイヤーの状態を復元。restore_from_snapshotメソッドを実装し、セーブ→ダメージ→ロードの流れを確認します。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/memento-pattern-series-image.jpg'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/nqounet201703.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar>
+</a><span class=emoji>🥃</span></figure><div class=site-meta><h1 class=site-name><a href=/>nqou.net</a></h1><h2 class=site-description>Whisky, Perl, Kansai.pm</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/warehouse/><svg class="icon icon-tabler icon-tabler-warehouse" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 10l9-6 9 6"/><rect x="5" y="10" width="14" height="10" rx="2"/><rect x="10" y="14" width="4" height="6" rx="1"/><path d="M7 20v-4h2v4"/><path d="M15 20v-4h2v4"/></svg>
+<span>Warehouse</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#前回の振り返り>前回の振り返り</a><ol><li><a href=#前回作成したもの>前回作成したもの</a></li><li><a href=#解決できたことできていないこと>解決できたこと、できていないこと</a></li></ol></li><li><a href=#今回のゴール>今回のゴール</a></li><li><a href=#restore_from_snapshotメソッドの設計>restore_from_snapshotメソッドの設計</a><ol><li><a href=#なぜplayerクラスにメソッドを追加するのか>なぜPlayerクラスにメソッドを追加するのか</a></li></ol></li><li><a href=#コード例1restore_from_snapshotメソッドの実装>コード例1：restore_from_snapshotメソッドの実装</a><ol><li><a href=#ポイント1スナップショットの読み取り>ポイント1：スナップショットの読み取り</a></li><li><a href=#ポイント2playerの属性は書き込み可能>ポイント2：Playerの属性は書き込み可能</a></li><li><a href=#ポイント3参照のコピーitems>ポイント3：参照のコピー（items）</a><ol><li><a href=#なぜそのまま代入してはいけないのか>なぜそのまま代入してはいけないのか？</a></li><li><a href=#正しいやり方デリファレンスして新しい配列を作る>正しいやり方：デリファレンスして新しい配列を作る</a></li></ol></li><li><a href=#save_snapshotとrestore_from_snapshotの対称性>save_snapshotとrestore_from_snapshotの対称性</a></li></ol></li><li><a href=#コード例2セーブダメージロードのデモ>コード例2：セーブ→ダメージ→ロードのデモ</a></li><li><a href=#セーブロードの流れを可視化>セーブ・ロードの流れを可視化</a></li><li><a href=#設計の利点>設計の利点</a><ol><li><a href=#1-カプセル化の維持>1. カプセル化の維持</a></li><li><a href=#2-将来の拡張に強い>2. 将来の拡張に強い</a></li><li><a href=#3-責任の明確化>3. 責任の明確化</a></li></ol></li><li><a href=#まだできていないこと>まだできていないこと</a></li><li><a href=#今回作成した完成コード>今回作成した完成コード</a></li><li><a href=#まとめ>まとめ</a></li><li><a href=#次回予告>次回予告</a></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/01/13/232315/><img src=/public_images/2026/memento-pattern-series-image.jpg loading=lazy alt="Featured image of post 第4回-保存した状態から復元しよう - Mooを使ってゲームのセーブ機能を作ってみよう"></a></div><div class=article-details><div class=article-title-wrapper><h2 class=article-title><a href=/2026/01/13/232315/>第4回-保存した状態から復元しよう - Mooを使ってゲームのセーブ機能を作ってみよう</a></h2><h3 class=article-subtitle>スナップショットからプレイヤーの状態を復元。restore_from_snapshotメソッドを実装し、セーブ→ダメージ→ロードの流れを確認します。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>1月 13, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 16分</time></div></footer></div></header><section class=article-content><p><a class=link href=https://x.com/nqounet target=_blank rel=noopener>@nqounet</a>です。</p><h2 id=前回の振り返り>前回の振り返り</h2><div class=linkcard><a class=linkcard-a href=https://www.nqou.net/2026/01/13/232112/ target=_blank rel="noopener noreferrer nofollow" title=https://www.nqou.net/2026/01/13/232112/ aria-label=https://www.nqou.net/2026/01/13/232112/><div class=linkcard-content><div class=linkcard-title>https://www.nqou.net/2026/01/13/232112/</div><div class=linkcard-meta><img class=linkcard-favicon src=https://www.nqou.net/favicon.ico alt onerror='this.style.display="none"'><span class=linkcard-domain>nqou.net</span></div></div></a></div><p>前回は、プレイヤーの状態を1つのオブジェクトにまとめて保存する<code>PlayerSnapshot</code>クラスを作成しました。<code>is => 'ro'</code>で不変性を保証し、カプセル化を維持しながら状態を保存できるようになりました。</p><h3 id=前回作成したもの>前回作成したもの</h3><ul><li><code>PlayerSnapshot</code>クラス — すべての属性が<code>is => 'ro'</code>で不変</li><li><code>save_snapshot</code>メソッド — <code>Player</code>の状態からスナップショットを作成</li></ul><h3 id=解決できたことできていないこと>解決できたこと、できていないこと</h3><p>解決できたこと:</p><ul><li>参照コピーの罠を回避</li><li>カプセル化を維持した状態保存</li><li>不変性の保証</li></ul><p>まだできていないこと:</p><ul><li>スナップショットから復元する機能</li><li>複数のスナップショット管理</li><li>自動的な保存</li></ul><p>今回は、「スナップショットから復元する機能」を実装します。</p><h2 id=今回のゴール>今回のゴール</h2><p>今回のゴールは、保存したスナップショットから、プレイヤーの状態を復元することです。</p><ul><li><code>restore_from_snapshot</code>メソッドを実装する</li><li>セーブ→ダメージ→ロードの流れを完成させる</li><li>復元が正しく動作することを確認する</li></ul><p>これで、ゲームのセーブ・ロード機能の基本が完成します。</p><h2 id=restore_from_snapshotメソッドの設計>restore_from_snapshotメソッドの設計</h2><p>スナップショットから状態を復元する方法を考えましょう。</p><pre class=mermaid>
+	sequenceDiagram
+    participant P as Player
+    participant S as PlayerSnapshot
+    
+    Note over P: HP:0, 金:50, アイテム:[薬草, 毒消し]
+    Note over S: HP:70, 金:50, アイテム:[薬草]
+    P-&gt;&gt;P: restore_from_snapshot(snapshot)
+    P-&gt;&gt;S: hp(), gold(), position(), items()
+    S--&gt;&gt;P: 70, 50, &#39;森&#39;, [&#39;薬草&#39;]
+    P-&gt;&gt;P: 属性を更新
+    Note over P: HP:70, 金:50, アイテム:[薬草]
+</pre><p><code>restore_from_snapshot</code>メソッドは、スナップショットの値を読み取り、自分の属性を更新します。</p><h3 id=なぜplayerクラスにメソッドを追加するのか>なぜPlayerクラスにメソッドを追加するのか</h3><p>復元機能を<code>Player</code>クラスに追加する理由は、カプセル化を維持するためです。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># 悪い例：外部で属性を直接更新（カプセル化の破壊）</span>
+</span></span><span class=line><span class=cl><span class=nv>$player</span><span class=o>-&gt;</span><span class=n>hp</span><span class=p>(</span><span class=nv>$snapshot</span><span class=o>-&gt;</span><span class=n>hp</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$player</span><span class=o>-&gt;</span><span class=n>gold</span><span class=p>(</span><span class=nv>$snapshot</span><span class=o>-&gt;</span><span class=n>gold</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$player</span><span class=o>-&gt;</span><span class=n>position</span><span class=p>(</span><span class=nv>$snapshot</span><span class=o>-&gt;</span><span class=n>position</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 良い例：Playerクラスのメソッドで復元（カプセル化を維持）</span>
+</span></span><span class=line><span class=cl><span class=nv>$player</span><span class=o>-&gt;</span><span class=n>restore_from_snapshot</span><span class=p>(</span><span class=nv>$snapshot</span><span class=p>);</span>
+</span></span></code></pre></td></tr></table></div></div><p>外部から属性を直接更新すると、<code>Player</code>クラスの内部構造を知る必要があります。もし将来、属性が増えたり、復元時に特別な処理が必要になったりしたら、外部のコードをすべて修正しなければなりません。</p><p><code>restore_from_snapshot</code>メソッドを用意することで、復元の責任を<code>Player</code>クラスに集約できます。</p><h2 id=コード例1restore_from_snapshotメソッドの実装>コード例1：restore_from_snapshotメソッドの実装</h2><p>それでは、<code>Player</code>クラスに<code>restore_from_snapshot</code>メソッドを追加しましょう。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span><span class=lnt>51
+</span><span class=lnt>52
+</span><span class=lnt>53
+</span><span class=lnt>54
+</span><span class=lnt>55
+</span><span class=lnt>56
+</span><span class=lnt>57
+</span><span class=lnt>58
+</span><span class=lnt>59
+</span><span class=lnt>60
+</span><span class=lnt>61
+</span><span class=lnt>62
+</span><span class=lnt>63
+</span><span class=lnt>64
+</span><span class=lnt>65
+</span><span class=lnt>66
+</span><span class=lnt>67
+</span><span class=lnt>68
+</span><span class=lnt>69
+</span><span class=lnt>70
+</span><span class=lnt>71
+</span><span class=lnt>72
+</span><span class=lnt>73
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># Perl v5.36 以降</span>
+</span></span><span class=line><span class=cl><span class=c1># 外部依存: Moo</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Player</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>hp</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>is</span>      <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>default</span> <span class=o>=&gt;</span> <span class=mi>100</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>gold</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>is</span>      <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>default</span> <span class=o>=&gt;</span> <span class=mi>0</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>position</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>is</span>      <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>default</span> <span class=o>=&gt;</span> <span class=s>&#39;町&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>items</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>is</span>      <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=o>[]</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>take_damage</span> <span class=p>($self, $amount) {</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>hp</span><span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>hp</span> <span class=o>-</span> <span class=nv>$amount</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>hp</span> <span class=o>&lt;</span> <span class=mi>0</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>hp</span><span class=p>(</span><span class=mi>0</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>earn_gold</span> <span class=p>($self, $amount) {</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>gold</span><span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>gold</span> <span class=o>+</span> <span class=nv>$amount</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>move_to</span> <span class=p>($self, $location) {</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>position</span><span class=p>(</span><span class=nv>$location</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>is_alive</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>hp</span> <span class=o>&gt;</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>show_status</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>        <span class=n>say</span> <span class=s>&#34;HP: &#34;</span> <span class=o>.</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>hp</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=n>say</span> <span class=s>&#34;所持金: &#34;</span> <span class=o>.</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>gold</span> <span class=o>.</span> <span class=s>&#34;G&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=n>say</span> <span class=s>&#34;位置: &#34;</span> <span class=o>.</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>position</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$items</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>items</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$items_str</span> <span class=o>=</span> <span class=p>(</span><span class=nv>$items</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>)</span> <span class=p>?</span> <span class=nb>join</span><span class=p>(</span><span class=s>&#39;, &#39;</span><span class=p>,</span> <span class=nv>$items</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>)</span> <span class=p>:</span> <span class=s>&#39;なし&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=n>say</span> <span class=s>&#34;所持品: &#34;</span> <span class=o>.</span> <span class=nv>$items_str</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=n>say</span> <span class=s>&#34;&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>save_snapshot</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nn>PlayerSnapshot</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=n>hp</span>       <span class=o>=&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>hp</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>gold</span>     <span class=o>=&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>gold</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>position</span> <span class=o>=&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>position</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>items</span>    <span class=o>=&gt;</span> <span class=p>[</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>items</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*]</span><span class=p>,</span> <span class=c1># 新しい配列リファレンスを作成（参照コピー対策）</span>
+</span></span><span class=line><span class=cl>        <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>restore_from_snapshot</span> <span class=p>($self, $snapshot) {</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>hp</span><span class=p>(</span><span class=nv>$snapshot</span><span class=o>-&gt;</span><span class=n>hp</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>gold</span><span class=p>(</span><span class=nv>$snapshot</span><span class=o>-&gt;</span><span class=n>gold</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>position</span><span class=p>(</span><span class=nv>$snapshot</span><span class=o>-&gt;</span><span class=n>position</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>items</span><span class=p>([</span><span class=nv>$snapshot</span><span class=o>-&gt;</span><span class=nn>items</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*]</span><span class=p>);</span> <span class=c1># 新しい配列リファレンスを作成（参照コピー対策）</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>restore_from_snapshot</code>メソッドは、スナップショットを受け取り、その値で自分の属性を更新します。</p><p>実装はシンプルですが、重要なポイントがあります。</p><h3 id=ポイント1スナップショットの読み取り>ポイント1：スナップショットの読み取り</h3><p>スナップショットの属性は<code>is => 'ro'</code>なので、読み取りしかできません。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=nv>$snapshot</span><span class=o>-&gt;</span><span class=n>hp</span><span class=p>;</span>        <span class=c1># OK: 読み取り</span>
+</span></span><span class=line><span class=cl><span class=nv>$snapshot</span><span class=o>-&gt;</span><span class=n>hp</span><span class=p>(</span><span class=mi>100</span><span class=p>);</span>   <span class=c1># エラー: 書き込みはできない</span>
+</span></span></code></pre></td></tr></table></div></div><p>これは正しい設計です。スナップショットは「過去の記録」なので、読み取ることはできても書き換えることはできません。</p><h3 id=ポイント2playerの属性は書き込み可能>ポイント2：Playerの属性は書き込み可能</h3><p>一方、<code>Player</code>の属性は<code>is => 'rw'</code>なので、読み書きできます。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>hp</span><span class=p>(</span><span class=nv>$snapshot</span><span class=o>-&gt;</span><span class=n>hp</span><span class=p>);</span>  <span class=c1># OK: 自分の属性は更新できる</span>
+</span></span></code></pre></td></tr></table></div></div><p>これも正しい設計です。<code>Player</code>は「今遊んでいるゲーム」なので、状態が変化します。</p><h3 id=ポイント3参照のコピーitems>ポイント3：参照のコピー（items）</h3><p><code>items</code>は配列リファレンスなので、特に注意が必要です。ここは参照を持つデータ構造を扱う際の重要なポイントです。</p><h4 id=なぜそのまま代入してはいけないのか>なぜそのまま代入してはいけないのか？</h4><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># 悪い例：参照先を共有してしまう</span>
+</span></span><span class=line><span class=cl><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>items</span><span class=p>(</span><span class=nv>$snapshot</span><span class=o>-&gt;</span><span class=n>items</span><span class=p>);</span>
+</span></span></code></pre></td></tr></table></div></div><p>Perlの配列リファレンスは、「データそのもの」ではなく「データの置き場所（住所）」を指しています。
+もし上記のようにそのまま代入すると、<code>Player</code>と<code>Snapshot</code>が同じ配列（同じ住所）を共有してしまいます。</p><p>これの何が問題かというと、復元した後でアイテムを使ったときに、スナップショットの中身まで消えてしまうのです。</p><p>悪い例の動作イメージ:</p><ol><li>復元直後: <code>Player</code>も<code>Snapshot</code>も、同じ <code>ref_A</code>（中身は「薬草」）を見ている。</li><li>プレイヤーが薬草を使う（削除する）。</li><li><code>ref_A</code>の中身が空になる。</li><li><code>Snapshot</code>はまだ <code>ref_A</code> を見ているので、スナップショットの薬草も消えている！</li></ol><pre class=mermaid>
+	graph TD
+    subgraph &#34;悪い例：参照の共有（エイリアス）&#34;
+        P[Player] --&gt;|items| RefA[配列 ref_A]
+        S[Snapshot] --&gt;|items| RefA
+        
+        RefA --&gt; Content[&#34;[ &#39;薬草&#39; ]&#34;]
+    end
+    
+    style RefA fill:#f99
+</pre><p>これでは、「セーブデータからやり直そうとしたら、セーブデータのアイテムも空になっていた」という最悪のバグになります。</p><h4 id=正しいやり方デリファレンスして新しい配列を作る>正しいやり方：デリファレンスして新しい配列を作る</h4><p>これを防ぐために、中身を取り出して、新しい配列（新しい住所）に移し替える必要があります。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># 良い例：新しい配列リファレンスを作成（コピー）</span>
+</span></span><span class=line><span class=cl><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>items</span><span class=p>([</span><span class=nv>$snapshot</span><span class=o>-&gt;</span><span class=nn>items</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*]</span><span class=p>);</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>$snapshot->items->@*</code> で配列の要素を一度すべてリスト（バラバラの値）として展開し、<code>[...]</code> でそれを新しい無名配列リファレンスに格納しています。</p><p>良い例の動作イメージ:</p><ol><li>復元時: <code>Snapshot</code>の <code>ref_A</code> の中身（薬草）をコピーして、新しい <code>ref_B</code> を作る。</li><li><code>Player</code> は <code>ref_B</code> を見る。</li><li>プレイヤーが薬草を使う（<code>ref_B</code>から削除）。</li><li><code>ref_B</code> は空になるが、<code>ref_A</code>（スナップショット）は無傷のまま。</li></ol><pre class=mermaid>
+	graph TD
+    subgraph &#34;良い例：独立したコピー&#34;
+        S[Snapshot] --&gt;|items| RefA[配列 ref_A]
+        RefA --&gt; ContentA[&#34;[ &#39;薬草&#39; ]&#34;]
+        
+        P[Player] --&gt;|items| RefB[配列 ref_B]
+        RefB --&gt; ContentB[&#34;[ &#39;薬草&#39; ]&#34;]
+    end
+    
+    style RefA fill:#9f9
+    style RefB fill:#9f9
+</pre><p><code>Player</code>と<code>Snapshot</code>が独立した配列を持つことで、安全にゲームを進めることができます。</p><h3 id=save_snapshotとrestore_from_snapshotの対称性>save_snapshotとrestore_from_snapshotの対称性</h3><p>2つのメソッドを並べて見てみましょう。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># 保存：Playerの状態 → PlayerSnapshot</span>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>save_snapshot</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nn>PlayerSnapshot</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>hp</span>       <span class=o>=&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>hp</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>gold</span>     <span class=o>=&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>gold</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>position</span> <span class=o>=&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>position</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>items</span>    <span class=o>=&gt;</span> <span class=p>[</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>items</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*]</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 復元：PlayerSnapshot → Playerの状態</span>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>restore_from_snapshot</span> <span class=p>($self, $snapshot) {</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>hp</span><span class=p>(</span><span class=nv>$snapshot</span><span class=o>-&gt;</span><span class=n>hp</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>gold</span><span class=p>(</span><span class=nv>$snapshot</span><span class=o>-&gt;</span><span class=n>gold</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>position</span><span class=p>(</span><span class=nv>$snapshot</span><span class=o>-&gt;</span><span class=n>position</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>items</span><span class=p>([</span><span class=nv>$snapshot</span><span class=o>-&gt;</span><span class=nn>items</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*]</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>保存は、自分の属性を読み取ってスナップショットを作成します。</p><p>復元は、スナップショットの属性を読み取って自分の属性を更新します。</p><p>この対称性が美しいですね！</p><pre class=mermaid>
+	graph LR
+    A[&#34;Player
+    hp, gold, position&#34;] --&gt;|&#34;save_snapshot()&#34;| B[&#34;PlayerSnapshot
+    hp, gold, position&#34;]
+    B --&gt;|&#34;restore_from_snapshot()&#34;| A
+    
+    style B fill:#9f9
+</pre><h2 id=コード例2セーブダメージロードのデモ>コード例2：セーブ→ダメージ→ロードのデモ</h2><p>それでは、完全なセーブ・ロード機能を動かしてみましょう。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>  1
+</span><span class=lnt>  2
+</span><span class=lnt>  3
+</span><span class=lnt>  4
+</span><span class=lnt>  5
+</span><span class=lnt>  6
+</span><span class=lnt>  7
+</span><span class=lnt>  8
+</span><span class=lnt>  9
+</span><span class=lnt> 10
+</span><span class=lnt> 11
+</span><span class=lnt> 12
+</span><span class=lnt> 13
+</span><span class=lnt> 14
+</span><span class=lnt> 15
+</span><span class=lnt> 16
+</span><span class=lnt> 17
+</span><span class=lnt> 18
+</span><span class=lnt> 19
+</span><span class=lnt> 20
+</span><span class=lnt> 21
+</span><span class=lnt> 22
+</span><span class=lnt> 23
+</span><span class=lnt> 24
+</span><span class=lnt> 25
+</span><span class=lnt> 26
+</span><span class=lnt> 27
+</span><span class=lnt> 28
+</span><span class=lnt> 29
+</span><span class=lnt> 30
+</span><span class=lnt> 31
+</span><span class=lnt> 32
+</span><span class=lnt> 33
+</span><span class=lnt> 34
+</span><span class=lnt> 35
+</span><span class=lnt> 36
+</span><span class=lnt> 37
+</span><span class=lnt> 38
+</span><span class=lnt> 39
+</span><span class=lnt> 40
+</span><span class=lnt> 41
+</span><span class=lnt> 42
+</span><span class=lnt> 43
+</span><span class=lnt> 44
+</span><span class=lnt> 45
+</span><span class=lnt> 46
+</span><span class=lnt> 47
+</span><span class=lnt> 48
+</span><span class=lnt> 49
+</span><span class=lnt> 50
+</span><span class=lnt> 51
+</span><span class=lnt> 52
+</span><span class=lnt> 53
+</span><span class=lnt> 54
+</span><span class=lnt> 55
+</span><span class=lnt> 56
+</span><span class=lnt> 57
+</span><span class=lnt> 58
+</span><span class=lnt> 59
+</span><span class=lnt> 60
+</span><span class=lnt> 61
+</span><span class=lnt> 62
+</span><span class=lnt> 63
+</span><span class=lnt> 64
+</span><span class=lnt> 65
+</span><span class=lnt> 66
+</span><span class=lnt> 67
+</span><span class=lnt> 68
+</span><span class=lnt> 69
+</span><span class=lnt> 70
+</span><span class=lnt> 71
+</span><span class=lnt> 72
+</span><span class=lnt> 73
+</span><span class=lnt> 74
+</span><span class=lnt> 75
+</span><span class=lnt> 76
+</span><span class=lnt> 77
+</span><span class=lnt> 78
+</span><span class=lnt> 79
+</span><span class=lnt> 80
+</span><span class=lnt> 81
+</span><span class=lnt> 82
+</span><span class=lnt> 83
+</span><span class=lnt> 84
+</span><span class=lnt> 85
+</span><span class=lnt> 86
+</span><span class=lnt> 87
+</span><span class=lnt> 88
+</span><span class=lnt> 89
+</span><span class=lnt> 90
+</span><span class=lnt> 91
+</span><span class=lnt> 92
+</span><span class=lnt> 93
+</span><span class=lnt> 94
+</span><span class=lnt> 95
+</span><span class=lnt> 96
+</span><span class=lnt> 97
+</span><span class=lnt> 98
+</span><span class=lnt> 99
+</span><span class=lnt>100
+</span><span class=lnt>101
+</span><span class=lnt>102
+</span><span class=lnt>103
+</span><span class=lnt>104
+</span><span class=lnt>105
+</span><span class=lnt>106
+</span><span class=lnt>107
+</span><span class=lnt>108
+</span><span class=lnt>109
+</span><span class=lnt>110
+</span><span class=lnt>111
+</span><span class=lnt>112
+</span><span class=lnt>113
+</span><span class=lnt>114
+</span><span class=lnt>115
+</span><span class=lnt>116
+</span><span class=lnt>117
+</span><span class=lnt>118
+</span><span class=lnt>119
+</span><span class=lnt>120
+</span><span class=lnt>121
+</span><span class=lnt>122
+</span><span class=lnt>123
+</span><span class=lnt>124
+</span><span class=lnt>125
+</span><span class=lnt>126
+</span><span class=lnt>127
+</span><span class=lnt>128
+</span><span class=lnt>129
+</span><span class=lnt>130
+</span><span class=lnt>131
+</span><span class=lnt>132
+</span><span class=lnt>133
+</span><span class=lnt>134
+</span><span class=lnt>135
+</span><span class=lnt>136
+</span><span class=lnt>137
+</span><span class=lnt>138
+</span><span class=lnt>139
+</span><span class=lnt>140
+</span><span class=lnt>141
+</span><span class=lnt>142
+</span><span class=lnt>143
+</span><span class=lnt>144
+</span><span class=lnt>145
+</span><span class=lnt>146
+</span><span class=lnt>147
+</span><span class=lnt>148
+</span><span class=lnt>149
+</span><span class=lnt>150
+</span><span class=lnt>151
+</span><span class=lnt>152
+</span><span class=lnt>153
+</span><span class=lnt>154
+</span><span class=lnt>155
+</span><span class=lnt>156
+</span><span class=lnt>157
+</span><span class=lnt>158
+</span><span class=lnt>159
+</span><span class=lnt>160
+</span><span class=lnt>161
+</span><span class=lnt>162
+</span><span class=lnt>163
+</span><span class=lnt>164
+</span><span class=lnt>165
+</span><span class=lnt>166
+</span><span class=lnt>167
+</span><span class=lnt>168
+</span><span class=lnt>169
+</span><span class=lnt>170
+</span><span class=lnt>171
+</span><span class=lnt>172
+</span><span class=lnt>173
+</span><span class=lnt>174
+</span><span class=lnt>175
+</span><span class=lnt>176
+</span><span class=lnt>177
+</span><span class=lnt>178
+</span><span class=lnt>179
+</span><span class=lnt>180
+</span><span class=lnt>181
+</span><span class=lnt>182
+</span><span class=lnt>183
+</span><span class=lnt>184
+</span><span class=lnt>185
+</span><span class=lnt>186
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># Perl v5.36 以降</span>
+</span></span><span class=line><span class=cl><span class=c1># 外部依存: Moo</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>PlayerSnapshot</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>hp</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>gold</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>position</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>items</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Player</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>hp</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>is</span>      <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>default</span> <span class=o>=&gt;</span> <span class=mi>100</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>gold</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>is</span>      <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>default</span> <span class=o>=&gt;</span> <span class=mi>0</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>position</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>is</span>      <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>default</span> <span class=o>=&gt;</span> <span class=s>&#39;町&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>items</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>is</span>      <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=o>[]</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>take_damage</span> <span class=p>($self, $amount) {</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>hp</span><span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>hp</span> <span class=o>-</span> <span class=nv>$amount</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>hp</span> <span class=o>&lt;</span> <span class=mi>0</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>hp</span><span class=p>(</span><span class=mi>0</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>earn_gold</span> <span class=p>($self, $amount) {</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>gold</span><span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>gold</span> <span class=o>+</span> <span class=nv>$amount</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>move_to</span> <span class=p>($self, $location) {</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>position</span><span class=p>(</span><span class=nv>$location</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>is_alive</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>hp</span> <span class=o>&gt;</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>add_item</span> <span class=p>($self, $item) {</span>
+</span></span><span class=line><span class=cl>        <span class=nb>push</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>items</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>,</span> <span class=nv>$item</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>remove_item</span> <span class=p>($self, $item) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>@new</span> <span class=o>=</span> <span class=nb>grep</span> <span class=p>{</span> <span class=nv>$_</span> <span class=ow>ne</span> <span class=nv>$item</span> <span class=p>}</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>items</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*;</span>
+</span></span><span class=line><span class=cl>        <span class=err>$</span><span class=nv>self</span><span class=o>-&gt;</span><span class=n>items</span><span class=p>(</span><span class=o>\</span><span class=nv>@new</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>show_status</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>        <span class=n>say</span> <span class=s>&#34;HP: &#34;</span> <span class=o>.</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>hp</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=n>say</span> <span class=s>&#34;所持金: &#34;</span> <span class=o>.</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>gold</span> <span class=o>.</span> <span class=s>&#34;G&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=n>say</span> <span class=s>&#34;位置: &#34;</span> <span class=o>.</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>position</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$items</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>items</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$items_str</span> <span class=o>=</span> <span class=p>(</span><span class=nv>$items</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>)</span> <span class=p>?</span> <span class=nb>join</span><span class=p>(</span><span class=s>&#39;, &#39;</span><span class=p>,</span> <span class=nv>$items</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>)</span> <span class=p>:</span> <span class=s>&#39;なし&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=n>say</span> <span class=s>&#34;所持品: &#34;</span> <span class=o>.</span> <span class=nv>$items_str</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=n>say</span> <span class=s>&#34;&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>save_snapshot</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nn>PlayerSnapshot</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=n>hp</span>       <span class=o>=&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>hp</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>gold</span>     <span class=o>=&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>gold</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>position</span> <span class=o>=&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>position</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>items</span>    <span class=o>=&gt;</span> <span class=p>[</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>items</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*]</span><span class=p>,</span> <span class=c1># 新しい配列リファレンスを作成（参照コピー対策）</span>
+</span></span><span class=line><span class=cl>        <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>restore_from_snapshot</span> <span class=p>($self, $snapshot) {</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>hp</span><span class=p>(</span><span class=nv>$snapshot</span><span class=o>-&gt;</span><span class=n>hp</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>gold</span><span class=p>(</span><span class=nv>$snapshot</span><span class=o>-&gt;</span><span class=n>gold</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>position</span><span class=p>(</span><span class=nv>$snapshot</span><span class=o>-&gt;</span><span class=n>position</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>items</span><span class=p>([</span><span class=nv>$snapshot</span><span class=o>-&gt;</span><span class=nn>items</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*]</span><span class=p>);</span> <span class=c1># 新しい配列リファレンスを作成（参照コピー対策）</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># ゲームループのデモ</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$player</span> <span class=o>=</span> <span class=nn>Player</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>say</span> <span class=s>&#34;=== ゲーム開始 ===&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=nv>$player</span><span class=o>-&gt;</span><span class=n>show_status</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>say</span> <span class=s>&#34;森へ移動...&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=nv>$player</span><span class=o>-&gt;</span><span class=n>move_to</span><span class=p>(</span><span class=s>&#39;森&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$player</span><span class=o>-&gt;</span><span class=n>show_status</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>say</span> <span class=s>&#34;スライムと戦闘！&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=nv>$player</span><span class=o>-&gt;</span><span class=n>take_damage</span><span class=p>(</span><span class=mi>30</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>say</span> <span class=s>&#34;30のダメージを受けた！&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=nv>$player</span><span class=o>-&gt;</span><span class=n>show_status</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>if</span> <span class=p>(</span><span class=nv>$player</span><span class=o>-&gt;</span><span class=n>is_alive</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=s>&#34;スライムを倒した！&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$player</span><span class=o>-&gt;</span><span class=n>earn_gold</span><span class=p>(</span><span class=mi>50</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=s>&#34;50Gを手に入れた！&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$player</span><span class=o>-&gt;</span><span class=n>add_item</span><span class=p>(</span><span class=s>&#34;薬草&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=s>&#34;薬草を手に入れた！&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$player</span><span class=o>-&gt;</span><span class=n>show_status</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># セーブポイント</span>
+</span></span><span class=line><span class=cl><span class=n>say</span> <span class=s>&#34;=== セーブポイント ===&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$snapshot</span> <span class=o>=</span> <span class=nv>$player</span><span class=o>-&gt;</span><span class=n>save_snapshot</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>say</span> <span class=s>&#34;状態を保存しました&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>say</span> <span class=s>&#34;保存された状態:&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=s>&#34;HP: &#34;</span> <span class=o>.</span> <span class=nv>$snapshot</span><span class=o>-&gt;</span><span class=n>hp</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=s>&#34;所持金: &#34;</span> <span class=o>.</span> <span class=nv>$snapshot</span><span class=o>-&gt;</span><span class=n>gold</span> <span class=o>.</span> <span class=s>&#34;G&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=s>&#34;位置: &#34;</span> <span class=o>.</span> <span class=nv>$snapshot</span><span class=o>-&gt;</span><span class=n>position</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$items</span> <span class=o>=</span> <span class=nv>$snapshot</span><span class=o>-&gt;</span><span class=n>items</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$items_str</span> <span class=o>=</span> <span class=p>(</span><span class=nv>$items</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>)</span> <span class=p>?</span> <span class=nb>join</span><span class=p>(</span><span class=s>&#39;, &#39;</span><span class=p>,</span> <span class=nv>$items</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>)</span> <span class=p>:</span> <span class=s>&#39;なし&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=s>&#34;所持品: &#34;</span> <span class=o>.</span> <span class=nv>$items_str</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=s>&#34;&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>say</span> <span class=s>&#34;洞窟へ移動...&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=nv>$player</span><span class=o>-&gt;</span><span class=n>move_to</span><span class=p>(</span><span class=s>&#39;洞窟&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$player</span><span class=o>-&gt;</span><span class=n>add_item</span><span class=p>(</span><span class=s>&#34;毒消し草&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>say</span> <span class=s>&#34;毒消し草を手に入れた！&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=nv>$player</span><span class=o>-&gt;</span><span class=n>show_status</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>say</span> <span class=s>&#34;ドラゴンと戦闘！&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=nv>$player</span><span class=o>-&gt;</span><span class=n>take_damage</span><span class=p>(</span><span class=mi>80</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>say</span> <span class=s>&#34;80のダメージを受けた！&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=nv>$player</span><span class=o>-&gt;</span><span class=n>show_status</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># スナップショットの内容は変わっていないことを確認</span>
+</span></span><span class=line><span class=cl><span class=n>say</span> <span class=s>&#34;=== スナップショットの確認 ===&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>say</span> <span class=s>&#34;保存された状態は変わっていない:&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=s>&#34;HP: &#34;</span> <span class=o>.</span> <span class=nv>$snapshot</span><span class=o>-&gt;</span><span class=n>hp</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=s>&#34;所持金: &#34;</span> <span class=o>.</span> <span class=nv>$snapshot</span><span class=o>-&gt;</span><span class=n>gold</span> <span class=o>.</span> <span class=s>&#34;G&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=s>&#34;位置: &#34;</span> <span class=o>.</span> <span class=nv>$snapshot</span><span class=o>-&gt;</span><span class=n>position</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$items</span> <span class=o>=</span> <span class=nv>$snapshot</span><span class=o>-&gt;</span><span class=n>items</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$items_str</span> <span class=o>=</span> <span class=p>(</span><span class=nv>$items</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>)</span> <span class=p>?</span> <span class=nb>join</span><span class=p>(</span><span class=s>&#39;, &#39;</span><span class=p>,</span> <span class=nv>$items</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>)</span> <span class=p>:</span> <span class=s>&#39;なし&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=s>&#34;所持品: &#34;</span> <span class=o>.</span> <span class=nv>$items_str</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=s>&#34;&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>if</span> <span class=p>(</span><span class=o>!</span><span class=nv>$player</span><span class=o>-&gt;</span><span class=n>is_alive</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=s>&#34;=== GAME OVER ===&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=s>&#34;セーブポイントから復元します...&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=s>&#34;&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=c1># スナップショットから復元</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$player</span><span class=o>-&gt;</span><span class=n>restore_from_snapshot</span><span class=p>(</span><span class=nv>$snapshot</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=s>&#34;=== 復元完了 ===&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$player</span><span class=o>-&gt;</span><span class=n>show_status</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=nv>$player</span><span class=o>-&gt;</span><span class=n>is_alive</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>say</span> <span class=s>&#34;プレイヤーは復活しました！&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=n>say</span> <span class=s>&#34;ゲームを続行できます。&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>実行結果は以下のようになります。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span><span class=lnt>51
+</span><span class=lnt>52
+</span><span class=lnt>53
+</span><span class=lnt>54
+</span><span class=lnt>55
+</span><span class=lnt>56
+</span><span class=lnt>57
+</span><span class=lnt>58
+</span><span class=lnt>59
+</span><span class=lnt>60
+</span><span class=lnt>61
+</span><span class=lnt>62
+</span><span class=lnt>63
+</span><span class=lnt>64
+</span><span class=lnt>65
+</span><span class=lnt>66
+</span><span class=lnt>67
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>=== ゲーム開始 ===
+</span></span><span class=line><span class=cl>HP: 100
+</span></span><span class=line><span class=cl>所持金: 0G
+</span></span><span class=line><span class=cl>位置: 町
+</span></span><span class=line><span class=cl>所持品: なし
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>森へ移動...
+</span></span><span class=line><span class=cl>HP: 100
+</span></span><span class=line><span class=cl>所持金: 0G
+</span></span><span class=line><span class=cl>位置: 森
+</span></span><span class=line><span class=cl>所持品: なし
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>スライムと戦闘！
+</span></span><span class=line><span class=cl>30のダメージを受けた！
+</span></span><span class=line><span class=cl>HP: 70
+</span></span><span class=line><span class=cl>所持金: 0G
+</span></span><span class=line><span class=cl>位置: 森
+</span></span><span class=line><span class=cl>所持品: なし
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>スライムを倒した！
+</span></span><span class=line><span class=cl>50Gを手に入れた！
+</span></span><span class=line><span class=cl>薬草を手に入れた！
+</span></span><span class=line><span class=cl>HP: 70
+</span></span><span class=line><span class=cl>所持金: 50G
+</span></span><span class=line><span class=cl>位置: 森
+</span></span><span class=line><span class=cl>所持品: 薬草
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>=== セーブポイント ===
+</span></span><span class=line><span class=cl>状態を保存しました
+</span></span><span class=line><span class=cl>保存された状態:
+</span></span><span class=line><span class=cl>HP: 70
+</span></span><span class=line><span class=cl>所持金: 50G
+</span></span><span class=line><span class=cl>位置: 森
+</span></span><span class=line><span class=cl>所持品: 薬草
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>洞窟へ移動...
+</span></span><span class=line><span class=cl>毒消し草を手に入れた！
+</span></span><span class=line><span class=cl>HP: 70
+</span></span><span class=line><span class=cl>所持金: 50G
+</span></span><span class=line><span class=cl>位置: 洞窟
+</span></span><span class=line><span class=cl>所持品: 薬草, 毒消し草
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>ドラゴンと戦闘！
+</span></span><span class=line><span class=cl>80のダメージを受けた！
+</span></span><span class=line><span class=cl>HP: 0
+</span></span><span class=line><span class=cl>所持金: 50G
+</span></span><span class=line><span class=cl>位置: 洞窟
+</span></span><span class=line><span class=cl>所持品: 薬草, 毒消し草
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>=== スナップショットの確認 ===
+</span></span><span class=line><span class=cl>保存された状態は変わっていない:
+</span></span><span class=line><span class=cl>HP: 70
+</span></span><span class=line><span class=cl>所持金: 50G
+</span></span><span class=line><span class=cl>位置: 森
+</span></span><span class=line><span class=cl>所持品: 薬草
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>=== GAME OVER ===
+</span></span><span class=line><span class=cl>セーブポイントから復元します...
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>=== 復元完了 ===
+</span></span><span class=line><span class=cl>HP: 70
+</span></span><span class=line><span class=cl>所持金: 50G
+</span></span><span class=line><span class=cl>位置: 森
+</span></span><span class=line><span class=cl>所持品: 薬草
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>プレイヤーは復活しました！
+</span></span><span class=line><span class=cl>ゲームを続行できます。
+</span></span></code></pre></td></tr></table></div></div><p>完璧に動きました！ドラゴンに負けた後、森でのセーブポイントに戻り、ゲームを続行できます。</p><h2 id=セーブロードの流れを可視化>セーブ・ロードの流れを可視化</h2><p>今回実装したセーブ・ロードの仕組みを、時系列で可視化してみましょう。</p><pre class=mermaid>
+	flowchart TB
+    A[&#34;ゲーム開始
+    HP:100 / 所持金:0G / 位置:町&#34;] --&gt; B[&#34;森で戦闘
+    HP:70 / 所持金:50G / 位置:森&#34;]
+    B --&gt; C[&#34;save_snapshot()
+    スナップショット作成&#34;]
+    C --&gt; D[&#34;洞窟へ移動
+    HP:70 / 所持金:50G / 位置:洞窟&#34;]
+    D --&gt; E[&#34;ドラゴンと戦闘
+    HP:0 → ゲームオーバー&#34;]
+    E --&gt; F[&#34;restore_from_snapshot()
+    スナップショットから復元&#34;]
+    F --&gt; G[&#34;復元完了
+    HP:70 / 所持金:50G / 位置:森&#34;]
+    G --&gt; H[&#34;ゲーム続行可能&#34;]
+    
+    style C fill:#9f9
+    style F fill:#9f9
+    style E fill:#f99
+</pre><p>この流れで、ゲームのセーブ・ロード機能が実現できました。</p><h2 id=設計の利点>設計の利点</h2><p>今回の設計には、いくつかの重要な利点があります。</p><h3 id=1-カプセル化の維持>1. カプセル化の維持</h3><p>復元の処理が<code>Player</code>クラスの中に隠蔽されているため、外部のコードは内部実装を知る必要がありません。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># 内部実装を知らなくても使える</span>
+</span></span><span class=line><span class=cl><span class=nv>$player</span><span class=o>-&gt;</span><span class=n>restore_from_snapshot</span><span class=p>(</span><span class=nv>$snapshot</span><span class=p>);</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=2-将来の拡張に強い>2. 将来の拡張に強い</h3><p>もし将来、<code>Player</code>クラスに新しい属性（例えば<code>level</code>や<code>experience</code>）を追加しても、<code>save_snapshot</code>と<code>restore_from_snapshot</code>の中を修正するだけで済みます。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># 将来の拡張例</span>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>save_snapshot</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nn>PlayerSnapshot</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>hp</span>         <span class=o>=&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>hp</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>gold</span>       <span class=o>=&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>gold</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>position</span>   <span class=o>=&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>position</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>items</span>      <span class=o>=&gt;</span> <span class=p>[</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>items</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*]</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>level</span>      <span class=o>=&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>level</span><span class=p>,</span>      <span class=c1># 追加</span>
+</span></span><span class=line><span class=cl>        <span class=n>experience</span> <span class=o>=&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>experience</span><span class=p>,</span> <span class=c1># 追加</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>restore_from_snapshot</span> <span class=p>($self, $snapshot) {</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>hp</span><span class=p>(</span><span class=nv>$snapshot</span><span class=o>-&gt;</span><span class=n>hp</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>gold</span><span class=p>(</span><span class=nv>$snapshot</span><span class=o>-&gt;</span><span class=n>gold</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>position</span><span class=p>(</span><span class=nv>$snapshot</span><span class=o>-&gt;</span><span class=n>position</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>items</span><span class=p>([</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>items</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*]</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>level</span><span class=p>(</span><span class=nv>$snapshot</span><span class=o>-&gt;</span><span class=n>level</span><span class=p>);</span>           <span class=c1># 追加</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>experience</span><span class=p>(</span><span class=nv>$snapshot</span><span class=o>-&gt;</span><span class=n>experience</span><span class=p>);</span> <span class=c1># 追加</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>外部のコードは変更不要です。これが、カプセル化のメリットです。</p><h3 id=3-責任の明確化>3. 責任の明確化</h3><p>状態の保存・復元の責任が<code>Player</code>クラスに集約されています。</p><pre class=mermaid>
+	graph TB
+    subgraph &#34;Player クラスの責任&#34;
+        A[&#34;自分の状態を管理する&#34;]
+        B[&#34;状態を保存する
+        save_snapshot&#34;]
+        C[&#34;状態を復元する
+        restore_from_snapshot&#34;]
+    end
+    
+    D[&#34;外部コード&#34;] --&gt; B
+    D --&gt; C
+    
+    style A fill:#9f9
+    style B fill:#9f9
+    style C fill:#9f9
+</pre><p>この設計により、「状態の保存・復元に関する処理はPlayerクラスを見ればわかる」という明確さが生まれます。</p><h2 id=まだできていないこと>まだできていないこと</h2><p>今回の実装で、基本的なセーブ・ロード機能は完成しました。しかし、まだいくつかの課題があります。</p><ol><li>複数のセーブスロットがない — 1つのスナップショットしか保存できない</li><li>セーブスロットの管理機能がない — どのスナップショットをロードするか選べない</li><li>自動セーブ機能がない — 手動で<code>save_snapshot</code>を呼ぶ必要がある</li></ol><p>次回は、複数のセーブポイントを管理する仕組みを作ります。<code>GameManager</code>クラスを導入し、セーブスロット機能を実装していきます。</p><h2 id=今回作成した完成コード>今回作成した完成コード</h2><p>以下が今回作成した完成コードです。1つのスクリプトファイルとして動作します。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>  1
+</span><span class=lnt>  2
+</span><span class=lnt>  3
+</span><span class=lnt>  4
+</span><span class=lnt>  5
+</span><span class=lnt>  6
+</span><span class=lnt>  7
+</span><span class=lnt>  8
+</span><span class=lnt>  9
+</span><span class=lnt> 10
+</span><span class=lnt> 11
+</span><span class=lnt> 12
+</span><span class=lnt> 13
+</span><span class=lnt> 14
+</span><span class=lnt> 15
+</span><span class=lnt> 16
+</span><span class=lnt> 17
+</span><span class=lnt> 18
+</span><span class=lnt> 19
+</span><span class=lnt> 20
+</span><span class=lnt> 21
+</span><span class=lnt> 22
+</span><span class=lnt> 23
+</span><span class=lnt> 24
+</span><span class=lnt> 25
+</span><span class=lnt> 26
+</span><span class=lnt> 27
+</span><span class=lnt> 28
+</span><span class=lnt> 29
+</span><span class=lnt> 30
+</span><span class=lnt> 31
+</span><span class=lnt> 32
+</span><span class=lnt> 33
+</span><span class=lnt> 34
+</span><span class=lnt> 35
+</span><span class=lnt> 36
+</span><span class=lnt> 37
+</span><span class=lnt> 38
+</span><span class=lnt> 39
+</span><span class=lnt> 40
+</span><span class=lnt> 41
+</span><span class=lnt> 42
+</span><span class=lnt> 43
+</span><span class=lnt> 44
+</span><span class=lnt> 45
+</span><span class=lnt> 46
+</span><span class=lnt> 47
+</span><span class=lnt> 48
+</span><span class=lnt> 49
+</span><span class=lnt> 50
+</span><span class=lnt> 51
+</span><span class=lnt> 52
+</span><span class=lnt> 53
+</span><span class=lnt> 54
+</span><span class=lnt> 55
+</span><span class=lnt> 56
+</span><span class=lnt> 57
+</span><span class=lnt> 58
+</span><span class=lnt> 59
+</span><span class=lnt> 60
+</span><span class=lnt> 61
+</span><span class=lnt> 62
+</span><span class=lnt> 63
+</span><span class=lnt> 64
+</span><span class=lnt> 65
+</span><span class=lnt> 66
+</span><span class=lnt> 67
+</span><span class=lnt> 68
+</span><span class=lnt> 69
+</span><span class=lnt> 70
+</span><span class=lnt> 71
+</span><span class=lnt> 72
+</span><span class=lnt> 73
+</span><span class=lnt> 74
+</span><span class=lnt> 75
+</span><span class=lnt> 76
+</span><span class=lnt> 77
+</span><span class=lnt> 78
+</span><span class=lnt> 79
+</span><span class=lnt> 80
+</span><span class=lnt> 81
+</span><span class=lnt> 82
+</span><span class=lnt> 83
+</span><span class=lnt> 84
+</span><span class=lnt> 85
+</span><span class=lnt> 86
+</span><span class=lnt> 87
+</span><span class=lnt> 88
+</span><span class=lnt> 89
+</span><span class=lnt> 90
+</span><span class=lnt> 91
+</span><span class=lnt> 92
+</span><span class=lnt> 93
+</span><span class=lnt> 94
+</span><span class=lnt> 95
+</span><span class=lnt> 96
+</span><span class=lnt> 97
+</span><span class=lnt> 98
+</span><span class=lnt> 99
+</span><span class=lnt>100
+</span><span class=lnt>101
+</span><span class=lnt>102
+</span><span class=lnt>103
+</span><span class=lnt>104
+</span><span class=lnt>105
+</span><span class=lnt>106
+</span><span class=lnt>107
+</span><span class=lnt>108
+</span><span class=lnt>109
+</span><span class=lnt>110
+</span><span class=lnt>111
+</span><span class=lnt>112
+</span><span class=lnt>113
+</span><span class=lnt>114
+</span><span class=lnt>115
+</span><span class=lnt>116
+</span><span class=lnt>117
+</span><span class=lnt>118
+</span><span class=lnt>119
+</span><span class=lnt>120
+</span><span class=lnt>121
+</span><span class=lnt>122
+</span><span class=lnt>123
+</span><span class=lnt>124
+</span><span class=lnt>125
+</span><span class=lnt>126
+</span><span class=lnt>127
+</span><span class=lnt>128
+</span><span class=lnt>129
+</span><span class=lnt>130
+</span><span class=lnt>131
+</span><span class=lnt>132
+</span><span class=lnt>133
+</span><span class=lnt>134
+</span><span class=lnt>135
+</span><span class=lnt>136
+</span><span class=lnt>137
+</span><span class=lnt>138
+</span><span class=lnt>139
+</span><span class=lnt>140
+</span><span class=lnt>141
+</span><span class=lnt>142
+</span><span class=lnt>143
+</span><span class=lnt>144
+</span><span class=lnt>145
+</span><span class=lnt>146
+</span><span class=lnt>147
+</span><span class=lnt>148
+</span><span class=lnt>149
+</span><span class=lnt>150
+</span><span class=lnt>151
+</span><span class=lnt>152
+</span><span class=lnt>153
+</span><span class=lnt>154
+</span><span class=lnt>155
+</span><span class=lnt>156
+</span><span class=lnt>157
+</span><span class=lnt>158
+</span><span class=lnt>159
+</span><span class=lnt>160
+</span><span class=lnt>161
+</span><span class=lnt>162
+</span><span class=lnt>163
+</span><span class=lnt>164
+</span><span class=lnt>165
+</span><span class=lnt>166
+</span><span class=lnt>167
+</span><span class=lnt>168
+</span><span class=lnt>169
+</span><span class=lnt>170
+</span><span class=lnt>171
+</span><span class=lnt>172
+</span><span class=lnt>173
+</span><span class=lnt>174
+</span><span class=lnt>175
+</span><span class=lnt>176
+</span><span class=lnt>177
+</span><span class=lnt>178
+</span><span class=lnt>179
+</span><span class=lnt>180
+</span><span class=lnt>181
+</span><span class=lnt>182
+</span><span class=lnt>183
+</span><span class=lnt>184
+</span><span class=lnt>185
+</span><span class=lnt>186
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># Perl v5.36 以降</span>
+</span></span><span class=line><span class=cl><span class=c1># 外部依存: Moo</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>PlayerSnapshot</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>hp</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>gold</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>position</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>items</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Player</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>hp</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>is</span>      <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>default</span> <span class=o>=&gt;</span> <span class=mi>100</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>gold</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>is</span>      <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>default</span> <span class=o>=&gt;</span> <span class=mi>0</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>position</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>is</span>      <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>default</span> <span class=o>=&gt;</span> <span class=s>&#39;町&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>items</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>is</span>      <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=o>[]</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>take_damage</span> <span class=p>($self, $amount) {</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>hp</span><span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>hp</span> <span class=o>-</span> <span class=nv>$amount</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>hp</span> <span class=o>&lt;</span> <span class=mi>0</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>hp</span><span class=p>(</span><span class=mi>0</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>earn_gold</span> <span class=p>($self, $amount) {</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>gold</span><span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>gold</span> <span class=o>+</span> <span class=nv>$amount</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>move_to</span> <span class=p>($self, $location) {</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>position</span><span class=p>(</span><span class=nv>$location</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>is_alive</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>hp</span> <span class=o>&gt;</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>add_item</span> <span class=p>($self, $item) {</span>
+</span></span><span class=line><span class=cl>        <span class=nb>push</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>items</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>,</span> <span class=nv>$item</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>remove_item</span> <span class=p>($self, $item) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>@new</span> <span class=o>=</span> <span class=nb>grep</span> <span class=p>{</span> <span class=nv>$_</span> <span class=ow>ne</span> <span class=nv>$item</span> <span class=p>}</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>items</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*;</span>
+</span></span><span class=line><span class=cl>        <span class=err>$</span><span class=nv>self</span><span class=o>-&gt;</span><span class=n>items</span><span class=p>(</span><span class=o>\</span><span class=nv>@new</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>show_status</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>        <span class=n>say</span> <span class=s>&#34;HP: &#34;</span> <span class=o>.</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>hp</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=n>say</span> <span class=s>&#34;所持金: &#34;</span> <span class=o>.</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>gold</span> <span class=o>.</span> <span class=s>&#34;G&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=n>say</span> <span class=s>&#34;位置: &#34;</span> <span class=o>.</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>position</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$items</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>items</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$items_str</span> <span class=o>=</span> <span class=p>(</span><span class=nv>$items</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>)</span> <span class=p>?</span> <span class=nb>join</span><span class=p>(</span><span class=s>&#39;, &#39;</span><span class=p>,</span> <span class=nv>$items</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>)</span> <span class=p>:</span> <span class=s>&#39;なし&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=n>say</span> <span class=s>&#34;所持品: &#34;</span> <span class=o>.</span> <span class=nv>$items_str</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=n>say</span> <span class=s>&#34;&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>save_snapshot</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nn>PlayerSnapshot</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=n>hp</span>       <span class=o>=&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>hp</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>gold</span>     <span class=o>=&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>gold</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>position</span> <span class=o>=&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>position</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>items</span>    <span class=o>=&gt;</span> <span class=p>[</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>items</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*]</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>restore_from_snapshot</span> <span class=p>($self, $snapshot) {</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>hp</span><span class=p>(</span><span class=nv>$snapshot</span><span class=o>-&gt;</span><span class=n>hp</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>gold</span><span class=p>(</span><span class=nv>$snapshot</span><span class=o>-&gt;</span><span class=n>gold</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>position</span><span class=p>(</span><span class=nv>$snapshot</span><span class=o>-&gt;</span><span class=n>position</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>items</span><span class=p>([</span><span class=nv>$snapshot</span><span class=o>-&gt;</span><span class=nn>items</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*]</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># ゲームループのデモ</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$player</span> <span class=o>=</span> <span class=nn>Player</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>say</span> <span class=s>&#34;=== ゲーム開始 ===&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=nv>$player</span><span class=o>-&gt;</span><span class=n>show_status</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>say</span> <span class=s>&#34;森へ移動...&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=nv>$player</span><span class=o>-&gt;</span><span class=n>move_to</span><span class=p>(</span><span class=s>&#39;森&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$player</span><span class=o>-&gt;</span><span class=n>show_status</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>say</span> <span class=s>&#34;スライムと戦闘！&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=nv>$player</span><span class=o>-&gt;</span><span class=n>take_damage</span><span class=p>(</span><span class=mi>30</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>say</span> <span class=s>&#34;30のダメージを受けた！&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=nv>$player</span><span class=o>-&gt;</span><span class=n>show_status</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>if</span> <span class=p>(</span><span class=nv>$player</span><span class=o>-&gt;</span><span class=n>is_alive</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=s>&#34;スライムを倒した！&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$player</span><span class=o>-&gt;</span><span class=n>earn_gold</span><span class=p>(</span><span class=mi>50</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=s>&#34;50Gを手に入れた！&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$player</span><span class=o>-&gt;</span><span class=n>add_item</span><span class=p>(</span><span class=s>&#34;薬草&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=s>&#34;薬草を手に入れた！&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$player</span><span class=o>-&gt;</span><span class=n>show_status</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># セーブポイント</span>
+</span></span><span class=line><span class=cl><span class=n>say</span> <span class=s>&#34;=== セーブポイント ===&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$snapshot</span> <span class=o>=</span> <span class=nv>$player</span><span class=o>-&gt;</span><span class=n>save_snapshot</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>say</span> <span class=s>&#34;状態を保存しました&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>say</span> <span class=s>&#34;保存された状態:&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=s>&#34;HP: &#34;</span> <span class=o>.</span> <span class=nv>$snapshot</span><span class=o>-&gt;</span><span class=n>hp</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=s>&#34;所持金: &#34;</span> <span class=o>.</span> <span class=nv>$snapshot</span><span class=o>-&gt;</span><span class=n>gold</span> <span class=o>.</span> <span class=s>&#34;G&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=s>&#34;位置: &#34;</span> <span class=o>.</span> <span class=nv>$snapshot</span><span class=o>-&gt;</span><span class=n>position</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$items</span> <span class=o>=</span> <span class=nv>$snapshot</span><span class=o>-&gt;</span><span class=n>items</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$items_str</span> <span class=o>=</span> <span class=p>(</span><span class=nv>$items</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>)</span> <span class=p>?</span> <span class=nb>join</span><span class=p>(</span><span class=s>&#39;, &#39;</span><span class=p>,</span> <span class=nv>$items</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>)</span> <span class=p>:</span> <span class=s>&#39;なし&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=s>&#34;所持品: &#34;</span> <span class=o>.</span> <span class=nv>$items_str</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=s>&#34;&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>say</span> <span class=s>&#34;洞窟へ移動...&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=nv>$player</span><span class=o>-&gt;</span><span class=n>move_to</span><span class=p>(</span><span class=s>&#39;洞窟&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$player</span><span class=o>-&gt;</span><span class=n>add_item</span><span class=p>(</span><span class=s>&#34;毒消し草&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>say</span> <span class=s>&#34;毒消し草を手に入れた！&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=nv>$player</span><span class=o>-&gt;</span><span class=n>show_status</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>say</span> <span class=s>&#34;ドラゴンと戦闘！&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=nv>$player</span><span class=o>-&gt;</span><span class=n>take_damage</span><span class=p>(</span><span class=mi>80</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>say</span> <span class=s>&#34;80のダメージを受けた！&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=nv>$player</span><span class=o>-&gt;</span><span class=n>show_status</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># スナップショットの内容は変わっていないことを確認</span>
+</span></span><span class=line><span class=cl><span class=n>say</span> <span class=s>&#34;=== スナップショットの確認 ===&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>say</span> <span class=s>&#34;保存された状態は変わっていない:&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=s>&#34;HP: &#34;</span> <span class=o>.</span> <span class=nv>$snapshot</span><span class=o>-&gt;</span><span class=n>hp</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=s>&#34;所持金: &#34;</span> <span class=o>.</span> <span class=nv>$snapshot</span><span class=o>-&gt;</span><span class=n>gold</span> <span class=o>.</span> <span class=s>&#34;G&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=s>&#34;位置: &#34;</span> <span class=o>.</span> <span class=nv>$snapshot</span><span class=o>-&gt;</span><span class=n>position</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$items</span> <span class=o>=</span> <span class=nv>$snapshot</span><span class=o>-&gt;</span><span class=n>items</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$items_str</span> <span class=o>=</span> <span class=p>(</span><span class=nv>$items</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>)</span> <span class=p>?</span> <span class=nb>join</span><span class=p>(</span><span class=s>&#39;, &#39;</span><span class=p>,</span> <span class=nv>$items</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>)</span> <span class=p>:</span> <span class=s>&#39;なし&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=s>&#34;所持品: &#34;</span> <span class=o>.</span> <span class=nv>$items_str</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=s>&#34;&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>if</span> <span class=p>(</span><span class=o>!</span><span class=nv>$player</span><span class=o>-&gt;</span><span class=n>is_alive</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=s>&#34;=== GAME OVER ===&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=s>&#34;セーブポイントから復元します...&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=s>&#34;&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=c1># スナップショットから復元</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$player</span><span class=o>-&gt;</span><span class=n>restore_from_snapshot</span><span class=p>(</span><span class=nv>$snapshot</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=s>&#34;=== 復元完了 ===&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$player</span><span class=o>-&gt;</span><span class=n>show_status</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=nv>$player</span><span class=o>-&gt;</span><span class=n>is_alive</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>say</span> <span class=s>&#34;プレイヤーは復活しました！&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=n>say</span> <span class=s>&#34;ゲームを続行できます。&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><h2 id=まとめ>まとめ</h2><p>今回は、保存したスナップショットから、プレイヤーの状態を復元する機能を実装しました。</p><p>作成したもの:</p><ul><li><code>restore_from_snapshot</code>メソッドで、スナップショットから状態を復元できるようにした</li><li>セーブ→ダメージ→ロードの完全な流れを実現した</li><li>カプセル化を維持しながら、復元機能を実装した</li></ul><p>確認できたこと:</p><ul><li><code>save_snapshot</code>と<code>restore_from_snapshot</code>の対称性</li><li>スナップショットの不変性（<code>is => 'ro'</code>）による安全性</li><li>カプセル化を維持した状態管理の実現</li></ul><p>設計の利点:</p><ul><li>将来の拡張に強い設計</li><li>責任の明確化（状態管理はPlayerクラスの責任）</li><li>外部コードがPlayerの内部実装を知る必要がない</li></ul><p>基本的なセーブ・ロード機能が完成しました！次回は、複数のセーブスロットを管理する仕組みを作ります。</p><h2 id=次回予告>次回予告</h2><p>今回、セーブ・ロード機能の基本が完成しました。</p><p>しかし、現状では1つのスナップショットしか保存できません。複数のセーブポイントを管理したり、どのセーブデータをロードするか選んだりする機能がありません。</p><p>次回は、複数のセーブポイントを管理する<code>GameManager</code>クラスを作成します。セーブスロット機能を実装し、複数の状態を保存・管理できるようにします。</p><p>第5回のテーマ: セーブデータを管理しよう（履歴機能）</p><p>お楽しみに。</p></section><footer class=article-footer><section class=article-tags><a href=/tags/perl/>Perl</a>
+<a href=/tags/moo/>Moo</a>
+<a href=/tags/restore/>Restore</a>
+<a href=/tags/game-save/>Game-Save</a>
+<a href=/tags/moo-game-save/>Moo-Game-Save</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/01/13/233127/><div class=article-image><img src=/public_images/2026/memento-pattern-series-image.jpg loading=lazy data-key data-hash=/public_images/2026/memento-pattern-series-image.jpg></div><div class=article-details><h2 class=article-title>第8回-セーブスロットを増やそう - Mooを使ってゲームのセーブ機能を作ってみよう</h2></div></a></article><article class=has-image><a href=/2026/01/13/232518/><div class=article-image><img src=/public_images/2026/memento-pattern-series-image.jpg loading=lazy data-key data-hash=/public_images/2026/memento-pattern-series-image.jpg></div><div class=article-details><h2 class=article-title>第5回-セーブデータを管理しよう（履歴機能） - Mooを使ってゲームのセーブ機能を作ってみよう</h2></div></a></article><article class=has-image><a href=/2026/01/13/231909/><div class=article-image><img src=/public_images/2026/memento-pattern-series-image.jpg loading=lazy data-key data-hash=/public_images/2026/memento-pattern-series-image.jpg></div><div class=article-details><h2 class=article-title>第2回-ゲームオーバーで最初から？状態保存の必要性 - Mooを使ってゲームのセーブ機能を作ってみよう</h2></div></a></article><article class=has-image><a href=/2026/01/13/233736/><div class=article-image><img src=/public_images/2026/memento-pattern-series-image.jpg loading=lazy data-key data-hash=/public_images/2026/memento-pattern-series-image.jpg></div><div class=article-details><h2 class=article-title>【目次】Mooを使ってゲームのセーブ機能を作ってみよう（全10回）</h2></div></a></article><article class=has-image><a href=/2026/01/13/233533/><div class=article-image><img src=/public_images/2026/memento-pattern-series-image.jpg loading=lazy data-key data-hash=/public_images/2026/memento-pattern-series-image.jpg></div><div class=article-details><h2 class=article-title>第10回-これがMementoパターンだ！ - Mooを使ってゲームのセーブ機能を作ってみよう</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 nqou.net</section><section class=powerby><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>
