@@ -45,6 +45,8 @@
 
 ## シリーズ記事（連載記事）のプランニング
 
+> **テンプレート**: 作業前に `agents/templates/` 配下のテンプレートを確認すること（[warehouse.md](agents/templates/warehouse.md), [structure.md](agents/templates/structure.md)）
+
 1. 調査・情報収集（investigative-researchエージェント）
   - キーワード、テーマに関する情報収集
   - 競合記事の分析、内部リンク候補の調査
@@ -73,6 +75,8 @@
   - 選定理由を文書化
 
 ## シリーズ記事（連載記事）のライティング
+
+> **テンプレート**: 作業前に `agents/templates/post.md` を確認すること
 
 1. 各記事の原稿作成（各専門家エージェント）
   - 連載構造案を理解して、各記事の原稿を作成すること
