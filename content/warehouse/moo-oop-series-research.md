@@ -46,7 +46,7 @@ title: '調査ドキュメント - Mooで覚えるオブジェクト指向プロ
 - https://perlmaven.com/oop-with-moo (Perl Maven チュートリアル)
 - https://islandinthenet.com/revisiting-perl-object-oriented-programming-oop-in-2025/ (2025年のPerl OOP最新情報)
 
-**信頼度**: 高（公式ドキュメントおよび著名なチュートリアルサイト）
+**信頼度**: 9/10（公式ドキュメントおよび著名なチュートリアルサイト）
 
 ---
 
@@ -74,7 +74,7 @@ title: '調査ドキュメント - Mooで覚えるオブジェクト指向プロ
 - https://perldoc.perl.org/perlootut (perlootut - Object-Oriented Programming in Perl Tutorial)
 - https://www.geeksforgeeks.org/perl/perl-inheritance-in-oops/
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -102,7 +102,7 @@ title: '調査ドキュメント - Mooで覚えるオブジェクト指向プロ
 - https://metacpan.org/pod/Moo (handles属性の説明)
 - https://www.modernperlbooks.com/mt/2009/05/perl-roles-versus-inheritance.html (Modern Perl Programming)
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -126,7 +126,7 @@ title: '調査ドキュメント - Mooで覚えるオブジェクト指向プロ
 - https://theweeklychallenge.org/blog/roles-in-perl/
 - https://mvp.kablamo.org/oo/roles/
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -149,7 +149,7 @@ title: '調査ドキュメント - Mooで覚えるオブジェクト指向プロ
 - https://metacpan.org/pod/Moo
 - https://perlmaven.com/oop-with-moo
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -169,7 +169,7 @@ title: '調査ドキュメント - Mooで覚えるオブジェクト指向プロ
 
 - https://metacpan.org/pod/Moo
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -192,7 +192,7 @@ title: '調査ドキュメント - Mooで覚えるオブジェクト指向プロ
 - https://techgym.jp/column/object-orient/
 - https://programmer-beginner-blog.com/object/
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -215,7 +215,7 @@ title: '調査ドキュメント - Mooで覚えるオブジェクト指向プロ
 - 内部記事: `/2000/10/07/133116/`（フォームからの入力）
 - 内部記事: `/2015/09/17/072209/`（よなべPerlでの掲示板題材の言及）
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 

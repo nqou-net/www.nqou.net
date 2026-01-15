@@ -46,7 +46,7 @@ GoF（Gang of Four）デザインパターンの振る舞いパターンに分�
 - Spring Framework Guru: Interpreter Pattern - https://springframework.guru/gang-of-four-design-patterns/interpreter-pattern/
 - Visual Paradigm Tutorials: Interpreter Pattern Tutorial - https://tutorials.visual-paradigm.com/interpreter-pattern-tutorial/
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -85,7 +85,7 @@ Client ────────────────────────�
 - GeeksforGeeks: Interpreter Design Pattern - https://www.geeksforgeeks.org/system-design/interpreter-design-pattern/
 - Visual Paradigm Tutorials - https://tutorials.visual-paradigm.com/interpreter-pattern-tutorial/
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -117,7 +117,7 @@ Interpreterパターンは以下のような場面で適用される。
 - ScholarHat: Interpreter Design Pattern - https://www.scholarhat.com/tutorial/designpatterns/interpreter-design-pattern
 - Reactive Programming: Interpreter - https://reactiveprogramming.io/blog/en/design-patterns/interpreter
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -141,7 +141,7 @@ Interpreterパターンは以下のような場面で適用される。
 - Software Particles: Design Patterns – Interpreter - https://softwareparticles.com/design-patterns-interpreter/
 - Software System Design: Interpreter Pattern - https://softwaresystemdesign.com/design-pattern/behavioral-patterns/interpreter/
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -249,7 +249,7 @@ public class InterpreterDemo {
 - Baeldung: Interpreter Design Pattern in Java - https://www.baeldung.com/java-interpreter-pattern
 - BigBoxCode: Design Pattern: Interpreter Pattern in Java - https://bigboxcode.com/design-pattern-interpreter-pattern-java
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -312,7 +312,7 @@ if __name__ == "__main__":
 
 - GitHub: RefactoringGuru/design-patterns-python - https://github.com/RefactoringGuru/design-patterns-python
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -351,7 +351,7 @@ if __name__ == "__main__":
 - ScholarHat: Interpreter Design Pattern - https://www.scholarhat.com/tutorial/designpatterns/interpreter-design-pattern
 - DevelopersVoice: Interpreter Design Pattern in C# - https://developersvoice.com/blog/behavioral-design-patterns/design-pattern-interpreter/
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -371,7 +371,7 @@ if __name__ == "__main__":
 - W3Reference: The Benefits and Drawbacks of Using the Interpreter Pattern - https://www.w3reference.com/software-design-patterns/the-benefits-and-drawbacks-of-using-the-interpreter-pattern/
 - Software System Design: Interpreter Pattern - https://softwaresystemdesign.com/design-pattern/behavioral-patterns/interpreter/
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -402,7 +402,7 @@ if __name__ == "__main__":
 - Refactoring Guru: Design Patterns - https://refactoring.guru/design-patterns
 - GeeksforGeeks: Interpreter Design Pattern - https://www.geeksforgeeks.org/system-design/interpreter-design-pattern/
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -424,7 +424,7 @@ if __name__ == "__main__":
 - Baeldung: Interpreter Design Pattern in Java - https://www.baeldung.com/java-interpreter-pattern
 - Java Design Patterns: Interpreter - https://java-design-patterns.com/patterns/interpreter/
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 

@@ -44,7 +44,7 @@ title: デザインパターン調査ドキュメント
 - Wikipedia: Design Patterns - https://en.wikipedia.org/wiki/Design_Patterns
 - DigitalOcean: Gang of 4 Design Patterns Explained - https://www.digitalocean.com/community/tutorials/gangs-of-four-gof-design-patterns
 
-**信頼度**: 高（公式書籍および著名な技術サイト）
+**信頼度**: 9/10（公式書籍および著名な技術サイト）
 
 ---
 
@@ -71,7 +71,7 @@ title: デザインパターン調査ドキュメント
 - Wikipedia: Design Patterns - https://en.wikipedia.org/wiki/Design_Patterns
 - Software Patterns Lexicon: History of Design Patterns - https://softwarepatternslexicon.com/object-oriented/introduction-to-object-oriented-design-patterns/history-of-design-patterns/
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -96,7 +96,7 @@ GoFパターンは目的に応じて3つのカテゴリに分類される：
 
 - GeeksforGeeks: Gang of Four (GOF) Design Patterns - https://www.geeksforgeeks.org/system-design/gang-of-four-gof-design-patterns/
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -135,7 +135,7 @@ GoFパターンは目的に応じて3つのカテゴリに分類される：
 - Qiita: デザインパターンの概要まとめ - https://qiita.com/nozomi2025/items/5a1fdb34fbf38644db17
 - ITQ Techpedia: デザインパターン - https://tech.itq.co.jp/technology/4-development-technology/12-system-develop-tech/2-design/design-patterns/
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -158,7 +158,7 @@ GoFパターンは目的に応じて3つのカテゴリに分類される：
 - JavaTechOnline: 23 GoF Design Patterns Explained - https://javatechonline.com/23-gof-design-patterns-explained-with-simple-analogy/
 - Techoral: Gang of Four Design Patterns in Java - https://techoral.com/design/gang-of-four-design-patterns.html
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -180,7 +180,7 @@ GoFパターンは目的に応じて3つのカテゴリに分類される：
 
 - SeaCode: 23 GoF Design Patterns - https://seacode.uk/design/gof-design-patterns
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -206,7 +206,7 @@ GoFパターンは目的に応じて3つのカテゴリに分類される：
 
 - dev.to: The Gang of Four Design Patterns: A Developer's Guide - https://dev.to/lovestaco/the-gang-of-four-gof-design-patterns-a-developers-guide-473a
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -236,7 +236,7 @@ GoFパターンは目的に応じて3つのカテゴリに分類される：
 - LogRocket: A guide to React design patterns - https://blog.logrocket.com/react-design-patterns/
 - UXPin: The Best React Design Patterns to Know About - https://www.uxpin.com/studio/blog/react-design-patterns/
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -264,7 +264,7 @@ GoFパターンは目的に応じて3つのカテゴリに分類される：
 - GeeksforGeeks: Design Patterns Used in Spring Framework - https://www.geeksforgeeks.org/system-design/design-patterns-used-in-spring-framework/
 - StackInterface: Mastering Coding Design Patterns - https://stackinterface.com/coding-design-patterns/
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -297,7 +297,7 @@ GoFパターンは目的に応じて3つのカテゴリに分類される：
 - IAS Research: Design Patterns for Embedded Systems in C - https://www.ias-research.com/explore/iot-architecture/design-patterns-for-embedded-systems-in-c-a-comprehensive-guide
 - GeeksforGeeks: Design Patterns for Embedded Systems in C - https://www.geeksforgeeks.org/system-design/design-patterns-for-embedded-systems-in-c/
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -335,7 +335,7 @@ GoFパターンは目的に応じて3つのカテゴリに分類される：
 - Baeldung: Saga Pattern in Microservices - https://www.baeldung.com/cs/saga-pattern-microservices
 - Java Guides: Top 10 Microservices Design Patterns - https://www.javaguides.net/2025/03/top-10-microservices-design-patterns.html
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -354,7 +354,7 @@ GoFパターンは目的に応じて3つのカテゴリに分類される：
 
 - FinestCoder: Modern Design Patterns for Web and Mobile Development - https://finestcoder.com/modern-design-patterns-for-web-and-mobile-development/
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -441,7 +441,7 @@ GoFパターンは目的に応じて3つのカテゴリに分類される：
 - GitHub Topics: design-patterns - https://github.com/topics/design-patterns
 - Refactoring Guru: Code Examples - https://refactoring.guru/design-patterns/examples
 
-**信頼度**: 高（GitHub公式トピックおよび著名リポジトリ）
+**信頼度**: 9/10（GitHub公式トピックおよび著名リポジトリ）
 
 ---
 

@@ -54,7 +54,7 @@ title: Observerパターン調査ドキュメント
 - GeeksforGeeks: Observer Design Pattern - https://www.geeksforgeeks.org/system-design/observer-pattern-set-1-introduction/
 - IONOS: Observer design pattern - https://www.ionos.co.uk/digitalguide/websites/web-development/what-is-the-observer-pattern/
 
-**信頼度**: ★★★★★（GoF原典および複数の信頼できる技術サイト）
+**信頼度**: 9/10（GoF原典および複数の信頼できる技術サイト）
 
 ---
 
@@ -125,7 +125,7 @@ classDiagram
 - TutorialsPoint: Observer Pattern - https://www.tutorialspoint.com/design_pattern/observer_pattern.htm
 - DEV Community: GoF-Observer Pattern - https://dev.to/binoy123/gof-observer-pattern-aol
 
-**信頼度**: ★★★★★
+**信頼度**: 9/10
 
 ---
 
@@ -163,7 +163,7 @@ classDiagram
 - Zenn: デザインパターンを学ぶ #4 Observer（オブザーバー） - https://zenn.dev/tajicode/articles/67c1949627e9ac
 - tamotech.blog: 「Observer」パターンとは？ - https://tamotech.blog/2025/05/07/observer/
 
-**信頼度**: ★★★★★
+**信頼度**: 9/10
 
 ---
 
@@ -186,7 +186,7 @@ classDiagram
 - 同期的な処理が必須で、非同期的な通知が許容されない場合
 - シンプルなコールバック関数で十分な場合
 
-**信頼度**: ★★★★★
+**信頼度**: 9/10
 
 ---
 
@@ -220,7 +220,7 @@ classDiagram
 - Stack Overflow: Difference between Observer, Pub/Sub, and Data Binding - https://stackoverflow.com/questions/15594905/difference-between-observer-pub-sub-and-data-binding
 - MomentsLog: Observer vs. Pub-Sub - https://www.momentslog.com/development/design-pattern/observer-vs-pub-sub-choosing-the-right-event-handling-model
 
-**信頼度**: ★★★★★
+**信頼度**: 9/10
 
 ---
 
@@ -249,7 +249,7 @@ classDiagram
 - Stack Overflow: Mediator Vs Observer - https://stackoverflow.com/questions/9226479/mediator-vs-observer-object-oriented-design-patterns
 - SourceMaking: Mediator Design Pattern - https://sourcemaking.com/design_patterns/mediator
 
-**信頼度**: ★★★★★
+**信頼度**: 9/10
 
 ---
 
@@ -279,7 +279,7 @@ Observerパターンは**イベント駆動プログラミングの基盤**と�
 - bugfree.ai: Observer Pattern: Decoupling with Event-Driven Design - https://bugfree.ai/knowledge-hub/observer-pattern-event-driven-design
 - KindaTechnical: A Guide to Event-Driven Programming - Observer Pattern - https://kindatechnical.com/event-driven-processing/lesson-8-observer-pattern.html
 
-**信頼度**: ★★★★★
+**信頼度**: 9/10
 
 ---
 
@@ -375,7 +375,7 @@ class EmailSubscriber implements Observer {
 - TutorialsPoint: Observer Pattern - https://www.tutorialspoint.com/design_pattern/observer_pattern.htm
 - Software Patterns Lexicon: Observer Pattern in Go - https://softwarepatternslexicon.com/go/classic-gang-of-four-gof-design-patterns-in-go/behavioral-patterns/observer/
 
-**信頼度**: ★★★★★
+**信頼度**: 9/10
 
 ---
 
@@ -523,7 +523,7 @@ has subject => (
 - Perl Maven: Moo - https://perlmaven.com/moo
 - 本リポジトリ記事: `/2025/12/06/172847/`（PerlのScalar::Util::weaken完全ガイド）
 
-**信頼度**: ★★★★★
+**信頼度**: 9/10
 
 ---
 
@@ -560,7 +560,7 @@ has subject => (
 4. **メモリリーク対策**: `weaken`の使用例を含む
 5. **実践的な題材**: 通知システム、ゲーム、データ監視など具体的な例
 
-**信頼度**: ★★★★★
+**信頼度**: 9/10
 
 ---
 

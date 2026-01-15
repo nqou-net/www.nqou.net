@@ -53,7 +53,7 @@ title: Stateパターン調査ドキュメント
 - GeeksforGeeks: State Design Pattern - https://www.geeksforgeeks.org/system-design/state-pattern-set-1/
 - Qiita: デザインパターン Stateパターン - https://qiita.com/AsahinaKei/items/ce8e5d7bc375af23c719
 
-**信頼度**: ★★★★★（GoF原典および複数の信頼できる技術サイト）
+**信頼度**: 9/10（GoF原典および複数の信頼できる技術サイト）
 
 ---
 
@@ -111,7 +111,7 @@ classDiagram
 - IT専科: State パターン - https://www.itsenka.com/contents/development/designpattern/state.html
 - Refactoring Guru: State - https://refactoring.guru/ja/design-patterns/state
 
-**信頼度**: ★★★★★
+**信頼度**: 9/10
 
 ---
 
@@ -146,7 +146,7 @@ classDiagram
 - Qiita: GoF 23パターン State編 - https://qiita.com/Pentaro256/items/752f28aa425c4295b13d
 - Zenn: デザインパターンを学ぶ #17 ステート（State） - https://zenn.dev/tajicode/articles/aa18feba9a570f
 
-**信頼度**: ★★★★★
+**信頼度**: 9/10
 
 ---
 
@@ -168,7 +168,7 @@ classDiagram
 - 状態遷移ルールがシンプルで固定的
 - 追加クラスによる複雑さがメリットを上回る
 
-**信頼度**: ★★★★★
+**信頼度**: 9/10
 
 ---
 
@@ -203,7 +203,7 @@ classDiagram
 - Zenn: Strategy Pattern と State Pattern - https://zenn.dev/waffledog/scraps/4eb0b97454b07a
 - ソフトライム: StrategyパターンとStateパターンの違い - https://soft-rime.com/post-18061/
 
-**信頼度**: ★★★★★
+**信頼度**: 9/10
 
 ---
 
@@ -216,7 +216,7 @@ classDiagram
 | **Observer** | 状態変化の通知に併用可能 | 状態変化を外部に通知したい場合に組み合わせ |
 | **Template Method** | 継承ベースでアルゴリズムの骨格を定義 | 骨格固定でステップ変更→Template Method |
 
-**信頼度**: ★★★★★
+**信頼度**: 9/10
 
 ---
 
@@ -292,7 +292,7 @@ public class TrafficLight {
 - Qiita: Stateパターン - https://qiita.com/Yankaji777/items/c70afa09f3c1cc2de0b6
 - tamotech.blog: 「State」パターンとは？ - https://tamotech.blog/2025/05/13/state/
 
-**信頼度**: ★★★★★
+**信頼度**: 9/10
 
 ---
 
@@ -425,7 +425,7 @@ $machine->select_product;   # 先にコインを入れてください
 - Perl Maven: OOP with Moo - https://perlmaven.com/oop-with-moo
 - Moose::Manual::Concepts - https://perldoc.jp/pod/Moose::Manual::Concepts
 
-**信頼度**: ★★★★★
+**信頼度**: 9/10
 
 ---
 
@@ -460,7 +460,7 @@ $machine->select_product;   # 先にコインを入れてください
 4. **段階的な学習**: 「Mooで覚えるオブジェクト指向プログラミング」からの継続性
 5. **実践的な題材**: 自動販売機など身近な例
 
-**信頼度**: ★★★★★
+**信頼度**: 9/10
 
 ---
 

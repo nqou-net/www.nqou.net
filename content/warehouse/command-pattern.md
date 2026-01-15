@@ -62,7 +62,7 @@ title: 'Commandパターン調査ドキュメント'
 - Refactoring Guru: Command - https://refactoring.guru/design-patterns/command
 - GeeksforGeeks: Command Design Pattern - https://www.geeksforgeeks.org/system-design/command-pattern/
 
-**信頼度**: ★★★★★（GoF原典および複数の信頼できる技術サイト）
+**信頼度**: 10/10（GoF原典および複数の信頼できる技術サイト）
 
 ---
 
@@ -115,7 +115,7 @@ classDiagram
 - ソフトウェア開発日記: Commandパターンとは - https://lightgauge.net/journal/object-oriented/command-pattern
 - tamotech.blog: Commandパターン解説 - https://tamotech.blog/2024/09/25/command/
 
-**信頼度**: ★★★★★
+**信頼度**: 10/10
 
 ---
 
@@ -145,7 +145,7 @@ classDiagram
 - ITDic: Commandパターン - https://itdic.com/designpattern/gof/command/
 - SourceMaking: Command Design Pattern - https://sourcemaking.com/design_patterns/command
 
-**信頼度**: ★★★★★
+**信頼度**: 10/10
 
 ---
 
@@ -167,7 +167,7 @@ Commandパターンは以下のようなシーンで効果的：
 - Refactoring Guru: Command - https://refactoring.guru/design-patterns/command
 - Qiita: コマンドラインツールの拡張性を高める - https://qiita.com/Tadataka_Takahashi/items/a0891500e2c302b209b7
 
-**信頼度**: ★★★★★
+**信頼度**: 10/10
 
 ---
 
@@ -265,7 +265,7 @@ package Command::Complete {
 - MetaCPAN: Moo::Role - https://metacpan.org/pod/Moo::Role
 - Perl School: Design Patterns in Modern Perl - https://perlschool.com/books/design-patterns/
 
-**信頼度**: ★★★★★
+**信頼度**: 10/10
 
 ---
 
@@ -301,7 +301,7 @@ sub execute ($self) {
 
 - perldoc: perlsub - https://perldoc.perl.org/perlsub#Signatures
 
-**信頼度**: ★★★★★
+**信頼度**: 10/10
 
 ---
 
@@ -363,7 +363,7 @@ package TodoApp {
 }
 ```
 
-**信頼度**: ★★★★☆（実践的な実装例）
+**信頼度**: 8/10（実践的な実装例）
 
 ---
 
@@ -398,7 +398,7 @@ package TodoCommands {
 
 - Baeldung: Single Responsibility Principle - https://www.baeldung.com/java-single-responsibility-principle
 
-**信頼度**: ★★★★★
+**信頼度**: 10/10
 
 ---
 
@@ -437,7 +437,7 @@ package Command::Delete {
 - 新規コマンド追加時に既存のCommand::Add等を修正する必要がない
 - Invokerのディスパッチテーブルへの追加のみで対応
 
-**信頼度**: ★★★★★
+**信頼度**: 10/10
 
 ---
 
@@ -471,7 +471,7 @@ $invoker->command($mock_command);
 - Invokerは具体的なコマンドクラスを知る必要がない
 - テスト時にモックを注入しやすい設計
 
-**信頼度**: ★★★★★
+**信頼度**: 10/10
 
 ---
 
@@ -504,7 +504,7 @@ todo help              -> ヘルプ表示
 - Qiita: CLIツールとCommandパターン - https://qiita.com/Tadataka_Takahashi/items/a0891500e2c302b209b7
 - Zenn: Node.jsでCLIツールを作ろう - https://zenn.dev/takuh/articles/20661cfd3cd337
 
-**信頼度**: ★★★★★
+**信頼度**: 10/10
 
 ---
 
@@ -575,7 +575,7 @@ package Command::InsertText {
 - Qiita: Commandパターン Mementoを添えて - https://qiita.com/GU39/items/c01228a83fe02d33b5a0
 - Zenn: デザインパターン：Commandパターン - https://zenn.dev/tokyo_inc/articles/0506a440bb6ae4
 
-**信頼度**: ★★★★★
+**信頼度**: 10/10
 
 ---
 
@@ -618,7 +618,7 @@ $macro->add_command(Command::InsertText->new(...));
 $macro->execute;  # 複数のコマンドを一括実行
 ```
 
-**信頼度**: ★★★★☆
+**信頼度**: 8/10
 
 ---
 
@@ -654,7 +654,7 @@ package JobQueue {
 }
 ```
 
-**信頼度**: ★★★★☆
+**信頼度**: 8/10
 
 ---
 
@@ -712,7 +712,7 @@ package JobQueue {
 - Qiita: Command vs Strategy - https://qiita.com/nozomi2025/items/102511ea70259184632e
 - GeeksforGeeks: Difference between Strategy and Command - https://www.geeksforgeeks.org/system-design/difference-between-strategy-pattern-and-command-pattern/
 
-**信頼度**: ★★★★★
+**信頼度**: 10/10
 
 ---
 
@@ -819,13 +819,13 @@ package JobQueue {
 
 | リソース名 | URL | 特徴 | 信頼度 |
 |-----------|-----|------|--------|
-| Refactoring Guru - Command | https://refactoring.guru/design-patterns/command | 視覚的な図解、多言語コード例 | ★★★★★ |
-| Refactoring Guru - Command（日本語） | https://refactoring.guru/ja/design-patterns/command | 日本語訳版 | ★★★★★ |
-| Wikipedia - Command パターン（日本語） | https://ja.wikipedia.org/wiki/Command_%E3%83%91%E3%82%BF%E3%83%BC%E3%83%B3 | 正式な定義 | ★★★★★ |
-| GeeksforGeeks - Command Pattern | https://www.geeksforgeeks.org/system-design/command-pattern/ | 網羅的な解説 | ★★★★☆ |
-| MetaCPAN - Moo | https://metacpan.org/pod/Moo | Perl Moo公式 | ★★★★★ |
-| MetaCPAN - Moo::Role | https://metacpan.org/pod/Moo::Role | Perl Moo::Role公式 | ★★★★★ |
-| Perl School - Design Patterns | https://perlschool.com/books/design-patterns/ | PerlでのGoFパターン実装 | ★★★★☆ |
+| Refactoring Guru - Command | https://refactoring.guru/design-patterns/command | 視覚的な図解、多言語コード例 | 10/10 |
+| Refactoring Guru - Command（日本語） | https://refactoring.guru/ja/design-patterns/command | 日本語訳版 | 10/10 |
+| Wikipedia - Command パターン（日本語） | https://ja.wikipedia.org/wiki/Command_%E3%83%91%E3%82%BF%E3%83%BC%E3%83%B3 | 正式な定義 | 10/10 |
+| GeeksforGeeks - Command Pattern | https://www.geeksforgeeks.org/system-design/command-pattern/ | 網羅的な解説 | 8/10 |
+| MetaCPAN - Moo | https://metacpan.org/pod/Moo | Perl Moo公式 | 10/10 |
+| MetaCPAN - Moo::Role | https://metacpan.org/pod/Moo::Role | Perl Moo::Role公式 | 10/10 |
+| Perl School - Design Patterns | https://perlschool.com/books/design-patterns/ | PerlでのGoFパターン実装 | 8/10 |
 
 ---
 

@@ -46,7 +46,7 @@ title: 'シンプルなTodo CLIアプリ - 調査ドキュメント'
 - GeeksforGeeks: Command Design Pattern - https://www.geeksforgeeks.org/system-design/command-pattern/
 - Wikipedia: Command pattern - https://en.wikipedia.org/wiki/Command_pattern
 
-**信頼度**: 高（GoF原典および複数の信頼できる技術サイト）
+**信頼度**: 9/10（GoF原典および複数の信頼できる技術サイト）
 
 ---
 
@@ -94,7 +94,7 @@ classDiagram
 | **Invoker** | コマンドの実行を依頼するオブジェクト | CLIアプリのメインルーチン |
 | **Client** | ConcreteCommandオブジェクトを生成し、設定 | コマンドライン引数の解析部分 |
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -121,7 +121,7 @@ classDiagram
 - SourceMaking: Command Design Pattern - https://sourcemaking.com/design_patterns/command
 - Alchemists: Command Pattern - https://www.alchemists.io/articles/command_pattern/
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -150,7 +150,7 @@ todo complete 1        -> Command::Complete->execute()
 - Moments Log: Using the Command Pattern in CLI - https://www.momentslog.com/development/design-pattern/using-the-command-pattern-in-command-line-interfaces-for-task-execution
 - Optique Cookbook: CLI patterns - https://optique.dev/cookbook
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -236,7 +236,7 @@ package Command::Complete {
 - `requires`で必須メソッドを宣言でき、実装漏れを防げる
 - 継承ではなく合成で機能を追加できる（「Mooで覚えるオブジェクト指向プログラミング」第10回で学習済み）
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -260,7 +260,7 @@ package Command::Complete {
 - GeeksforGeeks: Repository Design Pattern - https://www.geeksforgeeks.org/system-design/repository-design-pattern/
 - DeepWiki: Repository Pattern - https://deepwiki.com/domain-driven-design/ddd-microservices/5.1-repository-pattern
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -321,7 +321,7 @@ classDiagram
 | **ConcreteRepository** | 具体的なストレージへのアクセスを実装 | `FileRepository`, `InMemoryRepository`, `SQLiteRepository` |
 | **Entity** | 管理対象のドメインオブジェクト | `Task` |
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -347,7 +347,7 @@ classDiagram
 
 - GeeksforGeeks: Repository Design Pattern - https://www.geeksforgeeks.org/system-design/repository-design-pattern/
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -489,7 +489,7 @@ package TaskRepository::File {
 }
 ```
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -576,7 +576,7 @@ classDiagram
     InMemoryRepository --> Task : manages
 ```
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -652,7 +652,7 @@ else {
 - Stack Overflow: What are the best-practices for implementing a CLI tool in Perl? - https://stackoverflow.com/questions/1183876/what-are-the-best-practices-for-implementing-a-cli-tool-in-perl
 - Perl Maven: Advanced usage of Getopt::Long - https://perlmaven.com/advanced-usage-of-getopt-long-accepting-command-line-arguments
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -708,7 +708,7 @@ sub load_from_json {
 - Perl Maven: JSON in Perl - https://perlmaven.com/json
 - TheLinuxCode: Using JSON for Effective Data Interchange in Perl - https://thelinuxcode.com/json-with-perl/
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -769,7 +769,7 @@ $dbh->disconnect;
 - TutorialsPoint: SQLite - Perl - https://www.tutorialspoint.com/sqlite/sqlite_perl.htm
 - MetaCPAN: DBD::SQLite - https://metacpan.org/pod/DBD::SQLite
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
