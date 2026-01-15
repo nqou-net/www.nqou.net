@@ -2,7 +2,9 @@
 date: 2026-01-12T15:02:45+09:00
 description: Observerパターンに関する調査結果
 draft: false
+epoch: 1768197765
 image: /favicon.png
+iso8601: 2026-01-12T15:02:45+09:00
 tags:
   - observer-pattern
   - design-patterns
