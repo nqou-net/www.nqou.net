@@ -53,7 +53,7 @@ title: '調査ドキュメント - Mooを使ってディスパッチャーを作
 - https://www.geeksforgeeks.org/system-design/strategy-pattern-set-1/ （GeeksforGeeks）
 - https://www.freecodecamp.org/news/a-beginners-guide-to-the-strategy-design-pattern/ （FreeCodeCamp）
 
-**信頼度**: 高（複数の著名な技術解説サイトで一致した説明）
+**信頼度**: 9/10（複数の著名な技術解説サイトで一致した説明）
 
 ---
 
@@ -82,7 +82,7 @@ title: '調査ドキュメント - Mooを使ってディスパッチャーを作
 - https://metacpan.org/pod/Router::Simple （Router::Simple）
 - 内部記事: `/2015/11/16/083646/`（JSON::RPC::Specでのディスパッチャー）
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -139,7 +139,7 @@ sub pay {
 - https://github.com/jmcveigh/p5-moose-design-patterns （GitHub実装例）
 - https://github.com/jeffa/DesignPatterns-Perl （GitHub実装例）
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -167,7 +167,7 @@ sub pay {
 - https://metacpan.org/pod/JSON::RPC::Spec （JSON::RPC::Spec）
 - 内部記事: `/2014/08/14/221829/`（JSON::RPC::Specでのルーティング）
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -198,7 +198,7 @@ sub pay {
 - https://codingtechroom.com/question/-refactor-if-else-to-strategy-pattern （CodingTechRoom）
 - https://stackoverflow.com/questions/28049094/replacing-if-else-statement-with-pattern （StackOverflow）
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -226,7 +226,7 @@ sub pay {
 - https://refactoring.guru/design-patterns/command （Refactoring Guru）
 - https://www.in-com.com/blog/refactoring-repetitive-logic-let-the-command-pattern-take-over/ （In-Com）
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -254,7 +254,7 @@ sub pay {
 - https://refactoring.guru/design-patterns/factory-method （Refactoring Guru）
 - https://adityam31.github.io/posts/designpatterns-strategy-factory-pattern/ （Aditya M Blog）
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -278,7 +278,7 @@ sub pay {
 - https://metacpan.org/pod/Router::Simple （Router::Simple）
 - https://metacpan.org/pod/Router::Boom （Router::Boom）
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -396,78 +396,9 @@ sub pay {
 
 ---
 
-## 5. 連載構造の提案材料
+## 5. 付録：調査中に発見した有用な情報
 
-### 5.1 前シリーズとの接続
-
-前シリーズ「Mooで覚えるオブジェクト指向プログラミング」（全12回）では以下を学習済み:
-
-- `has`と`sub`でクラスを定義
-- `new`でオブジェクト生成
-- `is => 'ro'/'rw'`でアクセス制御
-- `required`と`default`
-- カプセル化
-- 複数クラスの連携
-- `extends`による継承
-- オーバーライド
-- `Moo::Role`と`with`によるロール
-- `handles`による委譲
-- `isa`による型制約
-
-**接続ポイント**: 前シリーズで作った掲示板BBSには、投稿一覧表示、投稿フォーム、スレッド表示など複数の機能がある。これらの機能を切り替えるためにif/elseを使い始めたところから本シリーズがスタート。
-
-### 5.2 ストーリー展開案
-
-1. **問題の発生**: 機能追加のたびにif/elseが増え、コードが見づらくなる
-2. **小さな改善**: ハッシュテーブルでの振り分けを試みる
-3. **抽象化の導入**: 処理をクラスに切り出す
-4. **パターンの発見**: 「これってデザインパターンでは？」と気づく
-5. **Strategyパターンの習得**: 正式な名前と構造を学ぶ
-6. **応用**: より複雑なディスパッチャーの構築
-
-### 5.3 学習順序の推奨
-
-以下の順序でStrategy パターンを習得するのが効果的:
-
-1. **問題認識**: if/elseの肥大化を体験
-2. **ディスパッチテーブル**: ハッシュでの振り分け
-3. **コードリファレンス**: 関数をデータとして扱う
-4. **クラスへの抽出**: 処理をオブジェクトに
-5. **インターフェースの導入**: Moo::Roleでrequires
-6. **Strategy パターン完成**: Context + Strategy構造
-7. **Factory的生成**: どのStrategyを使うか決める仕組み
-8. **応用と発展**: 実用的なディスパッチャー構築
-
-### 5.4 各回の概念マッピング案
-
-| 回 | 新しい概念 | 前シリーズとの関連 |
-|---|-----------|------------------|
-| 1 | 問題認識（if/elseの肥大化） | 前シリーズの振り返り |
-| 2 | ディスパッチテーブル（ハッシュ） | hasでハッシュを持つ |
-| 3 | コードリファレンス | subを変数に入れる |
-| 4 | ハンドラークラスへの抽出 | クラスを増やす |
-| 5 | 共通インターフェース（requires） | Moo::Roleの応用 |
-| 6 | Strategy パターンの構造 | 委譲（handles）の応用 |
-| 7 | Contextクラスの実装 | has + 委譲 |
-| 8 | 動的なStrategy切り替え | is => 'rw' |
-| 9 | Factory的なStrategy生成 | new + 条件分岐 |
-| 10 | URLベースのルーティング | 正規表現マッチング |
-| 11 | 完成したディスパッチャー | 全体統合 |
-| 12 | まとめとデザインパターン入門 | 次への展望 |
-
-### 5.5 制約の確認
-
-- 毎回コード例は2つまで ✓
-- 新しい概念は1記事あたり1つまで ✓
-- トーンは入門者向けの優しい感じ ✓
-- 図解を含めたわかりやすさ ✓
-- ゆっくりと少しずつ進める ✓
-
----
-
-## 6. 付録：調査中に発見した有用な情報
-
-### 6.1 Perl特有の実装ポイント
+### 5.1 Perl特有の実装ポイント
 
 **コードリファレンス**:
 - Perlではサブルーチンを変数に代入可能: `my $handler = sub { ... };`
@@ -480,40 +411,12 @@ sub pay {
 **handlesとの組み合わせ**:
 - Contextクラスからの委譲をhandlesで簡潔に記述可能
 
-### 6.2 読者が陥りやすい落とし穴
+### 5.2 読者が陥りやすい落とし穴
 
 1. **過剰なパターン適用**: シンプルなif/elseで十分な場面でパターンを使いすぎる
 2. **クラス爆発**: 各条件に対して1クラス作ることへの抵抗感
 3. **抽象化のタイミング**: いつリファクタリングすべきかの判断
 
-### 6.3 次シリーズへの展望
-
-本シリーズ完了後の発展として:
-- Commandパターン
-- Chain of Responsibilityパターン
-- 本格的なWebフレームワークでのMVC実装
-
----
-
-## 7. 調査結果のサマリー
-
-### 成功要因
-
-1. **前シリーズとの連続性**: 同じBBS題材で学習の継続性を確保
-2. **問題駆動**: if/elseの問題を体験してから解決策を学ぶ
-3. **段階的難易度**: 1記事1概念の厳密な制約
-4. **Perl/Moo特化**: 日本語で丁寧な解説の差別化
-
-### リスクと対策
-
-| リスク | 対策 |
-|-------|------|
-| デザインパターンが抽象的に感じる | 毎回BBSの具体的なユースケースで説明 |
-| 前シリーズとの難易度ギャップ | 第1回で丁寧に前シリーズを振り返る |
-| コードリファレンスの理解 | 図解とステップバイステップの説明 |
-| パターンの名前を先に出しすぎる | 「実装→気づき」の順序で構成 |
-
 ---
 
 **調査完了**: 2025年12月30日
-**次のステップ**: 各専門家エージェントによる連載構造案の作成

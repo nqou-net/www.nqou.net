@@ -70,7 +70,7 @@ Chain of Responsibilityパターンを学ぶシリーズ記事「クレジット
 - https://www.gmo-pg.com/blog/articles/article-0173/（GMOペイメントゲートウェイ）
 - https://stripe.com/jp/resources/more/credit-card-payment-authorization-and-transaction-settlement-process（Stripe公式）
 
-**信頼度**: 高（複数の決済代行会社の公式ドキュメント）
+**信頼度**: 9/10（複数の決済代行会社の公式ドキュメント）
 
 ---
 
@@ -97,7 +97,7 @@ Chain of Responsibilityパターンを学ぶシリーズ記事「クレジット
 - https://www.veritrans.co.jp/docs/mdk_guide/flow_diagram.html（DGフィナンシャルテクノロジー）
 - https://www.robotpayment.co.jp/blog/creditcard/5722/（ロボットペイメント）
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -132,7 +132,7 @@ ECサイトの決済審査で一般的にチェックされる項目：
 - https://theapps.jp/media/3396（審査項目）
 - https://www.gmo-pg.com/blog/articles/article-0173/（不正対策）
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -167,7 +167,7 @@ ECサイトの決済審査で一般的にチェックされる項目：
 - https://theapps.jp/media/3396（エラー原因）
 - https://www.gmo-pg.com/blog/articles/article-0173/（エラー対応）
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -214,7 +214,7 @@ ECサイトの決済審査で一般的にチェックされる項目：
 - 各チェッカーは独立したハンドラとして実装
 - チェーンの順序は変更可能
 
-**信頼度**: 高（設計は著者による提案）
+**信頼度**: 9/10（設計は著者による提案）
 
 ---
 
@@ -243,7 +243,7 @@ Chain of Responsibilityパターンが決済審査に適している理由：
 - https://www.geeksforgeeks.org/system-design/chain-responsibility-design-pattern/
 - https://readmedium.com/chain-of-responsibility-design-pattern-the-validation-scenario-7e7235fd05a2
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -287,7 +287,7 @@ Chain of Responsibilityパターンの基本構造：
 - https://refactoring.guru/design-patterns/chain-of-responsibility
 - https://www.tutorialspoint.com/design_pattern/chain_of_responsibility_pattern.htm
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -322,7 +322,7 @@ Chain of Responsibilityパターンの基本構造：
 - https://softwarepatternslexicon.com/mastering-design-patterns/behavioral-design-patterns/chain-of-responsibility-pattern/
 - https://thelinuxcode.com/mastering-the-chain-of-responsibility-design-pattern-a-comprehensive-guide-for-developers-and-architects/
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -352,7 +352,7 @@ Chain of Responsibilityパターンの基本構造：
 - https://dev.to/syridit118/understanding-the-chain-of-responsibility-design-pattern-in-backend-development-p2f
 - https://andrewhalil.com/2024/06/06/using-design-patterns-in-net-core-part-8-chain-of-responsibility-pattern/
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -380,7 +380,7 @@ Chain of Responsibilityパターンの基本構造：
 - https://dotnettutorials.net/lesson/real-time-examples-of-chain-of-responsibility-design-pattern/（C#）
 - https://www.geeksforgeeks.org/system-design/chain-responsibility-design-pattern/（Java）
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -402,7 +402,7 @@ Chain of Responsibilityパターンの基本構造：
 - この希少性は差別化の大きな強みとなる
 - 日本語でPerl/Mooを使った決済審査パターンの記事は「初」の可能性が高い
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -422,7 +422,7 @@ Chain of Responsibilityパターンの基本構造：
 - 競合記事分析の結果
 - 既存シリーズとの比較
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -461,69 +461,9 @@ Chain of Responsibilityパターンの基本構造：
 
 ---
 
-## 5. 連載構造の提案
+## 5. 技術的詳細
 
-### 5.1 シリーズタイトル案
-
-「架空ECサイトで学ぶ決済審査の責任チェーン」
-
-### 5.2 連載構造（3回構成）
-
-| 回 | タイトル | 新しい概念 | コード例1 | コード例2 |
-|----|---------|-----------|----------|----------|
-| 第1回 | 決済審査をif文で実装してみる | 決済審査の基本と条件分岐 | カード有効期限・金額上限のif文チェック | 審査項目追加でコードが複雑化 |
-| 第2回 | 審査ロジックをチェッカーに分離する | Chain of Responsibilityパターンの適用 | 基底PaymentCheckerクラスの定義 | ExpiryChecker, LimitCheckerの実装 |
-| 第3回 | 拡張可能な決済審査システムを完成させる | チェーンの動的構築と結果オブジェクト | BlacklistChecker, BalanceCheckerの追加 | 完成版：架空EC決済審査スクリプト |
-
-### 5.3 各回の詳細ストーリー
-
-#### 第1回：決済審査をif文で実装してみる
-
-**ストーリー**:
-
-架空のECサイト「ペルマート」の決済システムを作成することに。最初はシンプルにif文で審査ロジックを実装するが、審査項目が増えるにつれてコードが複雑化し、保守が困難になる問題を体験する。
-
-**学習目標**:
-
-- 決済審査の基本概念（有効期限、金額上限等）を理解
-- 条件分岐が増えると保守性が低下する問題を実感
-
-**コード例1**: カード有効期限チェックと金額上限チェックの基本実装
-**コード例2**: ブラックリスト、残高確認を追加してネストが深くなる問題
-
-#### 第2回：審査ロジックをチェッカーに分離する
-
-**ストーリー**:
-
-第1回の複雑なif文をリファクタリング。各審査ロジックを独立した「チェッカー」クラスに分離し、チェーン構造で連結する。Chain of Responsibilityパターンの基本を学ぶ。
-
-**学習目標**:
-
-- Chain of Responsibilityパターンの構造を理解
-- Mooで基底クラスと具象ハンドラを実装
-
-**コード例1**: `PaymentChecker`基底クラス（`next_handler`属性と`check`メソッド）
-**コード例2**: `ExpiryChecker`と`LimitChecker`の具体的な実装
-
-#### 第3回：拡張可能な決済審査システムを完成させる
-
-**ストーリー**:
-
-実用的な決済審査システムを完成。新しいチェッカーの追加方法、結果オブジェクトの設計、チェーンの動的構築を学ぶ。架空のECサイト決済フローを完成させる。
-
-**学習目標**:
-
-- パターンの拡張性を実感（新しいチェッカーを追加）
-- 完成したシステムの全体像を理解
-
-**コード例1**: `BlacklistChecker`と`BalanceChecker`の追加
-**コード例2**: 完成版スクリプト（架空EC決済審査システム）
-
----
-
-## 6. 技術的詳細
-
-### 6.1 Perl/Mooでの実装イメージ
+### 5.1 Perl/Mooでの実装イメージ
 
 ```perl
 # 基底チェッカークラスのイメージ
@@ -571,11 +511,11 @@ sub check ($self, $request) {
 }
 ```
 
-**信頼度**: 高（著者による設計）
+**信頼度**: 9/10（著者による設計）
 
 ---
 
-### 6.2 決済リクエストオブジェクトの設計
+### 5.2 決済リクエストオブジェクトの設計
 
 ```perl
 # 決済リクエストのイメージ
@@ -591,13 +531,13 @@ my $request = {
 };
 ```
 
-**信頼度**: 高（著者による設計）
+**信頼度**: 9/10（著者による設計）
 
 ---
 
-## 7. リスクと対策
+## 6. リスクと対策
 
-### 7.1 想定されるリスク
+### 6.1 想定されるリスク
 
 | リスク | 対策 |
 |-------|------|
@@ -608,48 +548,5 @@ my $request = {
 
 ---
 
-## 8. 推奨タグ
-
-### シリーズ全体
-
-- `chain-of-responsibility`
-- `design-patterns`
-- `perl`
-- `moo`
-- `payment-processing`
-- `e-commerce`
-- `oop`
-
-### 各回固有
-
-| 回 | 追加タグ |
-|----|---------|
-| 第1回 | `credit-card`, `validation`, `code-smell`, `nested-conditionals` |
-| 第2回 | `handler-pattern`, `refactoring`, `single-responsibility` |
-| 第3回 | `extensibility`, `open-closed-principle`, `best-practices` |
-
----
-
-## 9. 結論
-
-### 最終推薦
-
-「クレジットカード決済の多段審査処理」は、Chain of Responsibilityパターンを学ぶ題材として以下の理由で最適である：
-
-1. **既存シリーズとの明確な差別化**: Eコマース・金融ドメインは、フォーム検証（Web開発）やログ監視（インフラ）とは異なる領域
-2. **実践的なドメイン**: ECサイトでの買い物経験がある読者には身近なテーマ
-3. **パターンとの高い適合性**: 多段階審査はChain of Responsibilityの典型的なユースケース
-4. **日本語Perl記事としての希少性**: 競合がほぼ存在しない
-5. **段階的学習が可能**: 問題体験→パターン適用→拡張という流れで学習効果が高い
-
-### 次のステップ
-
-1. 本調査ドキュメントに基づき連載構造案を作成
-2. 各回のアウトラインを詳細化
-3. 第1回の記事執筆を開始
-
----
-
 **調査完了日**: 2026年1月8日
 **調査者**: 調査・情報収集専門家
-**次のステップ**: 連載構造案の作成（`agents/structure/credit-card-payment-series-structure.md`）

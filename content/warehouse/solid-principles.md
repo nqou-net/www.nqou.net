@@ -48,7 +48,7 @@ tags:
 - TDD Buddy - SOLID Principles Explained (https://tddbuddy.com/references/solid-explained.html)
 - Wikipedia - Single-responsibility principle (https://en.wikipedia.org/wiki/Single-responsibility_principle)
 
-**信頼度**: 高（公式文献および著名な技術サイト）
+**信頼度**: 9/10（公式文献および著名な技術サイト）
 
 ---
 
@@ -72,7 +72,7 @@ tags:
 - SOLID - ソリッド｜ジョセフ (https://note.com/liellison/n/nf0d7db1753ab)
 - SOLID原則とは | SOLIDの原則 (https://shuji-bonji.github.io/Notes-on-SOLID-Principle/solid-principles.html)
 
-**信頼度**: 高（業界で広く認知された事実）
+**信頼度**: 9/10（業界で広く認知された事実）
 
 ---
 
@@ -138,7 +138,7 @@ class EmailService:
 - SOLID原則について - Zenn (https://zenn.dev/tsutani2828/articles/solid_principle)
 - SOLID原則を理解しよう！ - Qiita (https://qiita.com/NewJeans000/items/1be05fea3da7616e6939)
 
-**信頼度**: 高（公式定義および多数の実践例）
+**信頼度**: 9/10（公式定義および多数の実践例）
 
 ---
 
@@ -209,7 +209,7 @@ public class SeniorDiscount implements DiscountStrategy {
 - 設計力の基礎を鍛え直す！SOLID原則×リファクタリング完全ガイド (https://tamotech.blog/2025/06/06/solid/)
 - SOLID原則とは？5つの設計原則をやさしく解説 (https://code-culture.com/articles/solid-principles)
 
-**信頼度**: 高（歴史的文献および実践的ガイド）
+**信頼度**: 9/10（歴史的文献および実践的ガイド）
 
 ---
 
@@ -286,7 +286,7 @@ public class Square implements Shape {
 - SOLID Design Principles Explained - Stackify (https://stackify.com/solid-design-liskov-substitution-principle/)
 - SOLID Series: Liskov Substitution Principle (https://blog.logrocket.com/liskov-substitution-principle-lsp/)
 
-**信頼度**: 高（学術的背景と実践的検証）
+**信頼度**: 9/10（学術的背景と実践的検証）
 
 ---
 
@@ -361,7 +361,7 @@ public class MultiFunctionDevice implements IPrinter, IScanner, IFax {
 - SOLID Principles: Importance, Examples & Common Mistakes (https://intellipaat.com/blog/solid-principles/)
 - SOLID原則について - Zenn (https://zenn.dev/tsutani2828/articles/solid_principle)
 
-**信頼度**: 高（理論と実践の両面で検証済み）
+**信頼度**: 9/10（理論と実践の両面で検証済み）
 
 ---
 
@@ -450,7 +450,7 @@ public class Switch {
 - System Design: Dependency Inversion Principle - Baeldung (https://www.baeldung.com/cs/dip)
 - Dependency inversion principle - Wikipedia (https://en.wikipedia.org/wiki/Dependency_inversion_principle)
 
-**信頼度**: 高（広く実践され、フレームワークに組み込まれている）
+**信頼度**: 9/10（広く実践され、フレームワークに組み込まれている）
 
 ---
 
@@ -477,7 +477,7 @@ public class Switch {
 - Top 20 Software Development Trends in 2026 - intelegain.com (https://www.intelegain.com/top-20-software-development-trends-in-2026/)
 - 10 Software Development Trends That Will Shape 2026 (https://setronica.com/media/blog/10-software-development-trends-that-will-shape-2026/)
 
-**信頼度**: 高（複数の2024-2026年技術トレンドレポート）
+**信頼度**: 9/10（複数の2024-2026年技術トレンドレポート）
 
 ---
 
@@ -501,7 +501,7 @@ public class Switch {
 - 10 key software development trends in 2026 - orienteed.com (https://orienteed.com/en/10-software-development-trends-2026/)
 - Top 20 Software Development Trends Shaping 2026 for Businesses (https://businessinfopro.com/blogs/it-blogs/top-20-software-development-trends-in-2026/)
 
-**信頼度**: 高（業界動向レポートと規制動向）
+**信頼度**: 9/10（業界動向レポートと規制動向）
 
 ---
 
@@ -524,7 +524,7 @@ public class Switch {
 
 - Top Software Development Trends for 2026 | Future Insights (https://www.genicsolutions.com/software-development-trends-2026/)
 
-**信頼度**: 中（新興トレンドのため実績蓄積中）
+**信頼度**: 7/10（新興トレンドのため実績蓄積中）
 
 ---
 
@@ -548,7 +548,7 @@ public class Switch {
 - Top Software Development Trends for 2026 | Future Insights (https://www.genicsolutions.com/software-development-trends-2026/)
 - Top 20 Software Development Trends Shaping 2026 for Businesses (https://businessinfopro.com/blogs/it-blogs/top-20-software-development-trends-in-2026/)
 
-**信頼度**: 高（DevOpsコミュニティで広く認知）
+**信頼度**: 9/10（DevOpsコミュニティで広く認知）
 
 ---
 
@@ -575,7 +575,7 @@ public class Switch {
 - Review AI-generated code - GitHub Docs (https://docs.github.com/en/copilot/tutorials/review-ai-generated-code)
 - Can AI Understand Design Patterns? (https://karpado.com/can-ai-understand-design-patterns-exploring-github-copilots-role-in-clean-code-and-architecture-for-java-developers/)
 
-**信頼度**: 高（実践的な調査と学術研究）
+**信頼度**: 9/10（実践的な調査と学術研究）
 
 ---
 
@@ -607,7 +607,7 @@ public class Switch {
 - GITHUB COPILOT AND CHATGPT COMPARISON (https://lutpub.lut.fi/bitstream/handle/10024/168459/mastersthesis_kongas_kitta.pdf?sequence=1)
 - GitHub - ai-code-review-prompts (https://github.com/fluidfocuschannel/ai-code-review-prompts)
 
-**信頼度**: 高（比較研究と実践的ガイド）
+**信頼度**: 9/10（比較研究と実践的ガイド）
 
 ---
 
@@ -635,7 +635,7 @@ public class Switch {
 - Top 20 Software Development Trends in 2026 (https://www.intelegain.com/top-20-software-development-trends-in-2026/)
 - The latest software development trends in 2025 and 2026 (https://www.orientsoftware.com/blog/latest-software-development-trends/)
 
-**信頼度**: 中〜高（トレンド分析に基づく推測を含む）
+**信頼度**: 8/10（トレンド分析に基づく推測を含む）
 
 ---
 
@@ -662,7 +662,7 @@ public class Switch {
 - Moo - Minimalist Object Orientation (https://metacpan.org/pod/Moo)
 - Object Oriented Programming in Perl (https://perl-begin.org/topics/object-oriented/)
 
-**信頼度**: 高（公式ドキュメント）
+**信頼度**: 9/10（公式ドキュメント）
 
 ---
 
@@ -717,7 +717,7 @@ has 'logger' => (
 
 - Moose - A postmodern object system for Perl 5 (https://metacpan.org/pod/Moose)
 
-**信頼度**: 高（公式ドキュメントとベストプラクティス）
+**信頼度**: 9/10（公式ドキュメントとベストプラクティス）
 
 ---
 
@@ -763,7 +763,7 @@ sub walk { ... }   # リスコフ置換を満たす実装
 - Moo - Minimalist Object Orientation (https://metacpan.org/pod/Moo)
 - OOP with Moo - Perl Maven (https://perlmaven.com/oop-with-moo)
 
-**信頼度**: 高（公式ドキュメントとコミュニティ実績）
+**信頼度**: 9/10（公式ドキュメントとコミュニティ実績）
 
 ---
 
@@ -820,7 +820,7 @@ class Square {
 
 - Object::Pad - CPAN Documentation
 
-**信頼度**: 中（新しいため実績蓄積中）
+**信頼度**: 6/10（新しいため実績蓄積中）
 
 ---
 
@@ -846,7 +846,7 @@ class Square {
 
 - 各ツールの特性と適用実績
 
-**信頼度**: 高（コミュニティのコンセンサス）
+**信頼度**: 9/10（コミュニティのコンセンサス）
 
 ---
 
@@ -921,7 +921,7 @@ class Square {
 - 内容の関連性が高い
 - 読者の理解を深める補完的な情報
 
-**信頼度**: 高（内部コンテンツの確認済み）
+**信頼度**: 9/10（内部コンテンツの確認済み）
 
 ---
 
@@ -983,7 +983,7 @@ SOLID原則記事（メイン）
 - Are the SOLID Principles problematic? (https://florian-kraemer.net/software-architecture/2025/02/24/Are-the-SOLID-Principles-problematic.html)
 - When to *not* use SOLID principles (https://softwareengineering.stackexchange.com/questions/447532/when-to-not-use-solid-principles)
 
-**信頼度**: 高（実践的な批判と学術的議論）
+**信頼度**: 9/10（実践的な批判と学術的議論）
 
 ---
 
@@ -1018,7 +1018,7 @@ SOLID原則記事（メイン）
 - A Fresh Perspective: Pragmatic and Adaptive Approaches to SOLID (https://dev.to/selcukyildirim/a-fresh-perspective-pragmatic-and-adaptive-approaches-to-solid-principles-57d7)
 - SOLID - is it still relevant? (https://dunnhq.com/posts/2021/solid-relevance/)
 
-**信頼度**: 高（多様な視点のバランス）
+**信頼度**: 9/10（多様な視点のバランス）
 
 ---
 
@@ -1041,7 +1041,7 @@ SOLID原則記事（メイン）
 4. AI生成コードのレビューにSOLIDを活用
 5. リファクタリング時の指針として使用
 
-**信頼度**: 高（調査全体の統合）
+**信頼度**: 9/10（調査全体の統合）
 
 ---
 
@@ -1059,7 +1059,7 @@ SOLID原則記事（メイン）
 
 - これらの領域は今後さらに重要性が増すと予想
 
-**信頼度**: 中（未調査領域の推測）
+**信頼度**: 6/10（未調査領域の推測）
 
 ---
 

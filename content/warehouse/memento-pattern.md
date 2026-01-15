@@ -47,7 +47,7 @@ Mementoパターン（メメントパターン）について包括的に調査�
 - GeeksforGeeks: Memento Design Pattern - https://www.geeksforgeeks.org/system-design/memento-design-pattern/
 - Wikipedia: Memento pattern - https://en.wikipedia.org/wiki/Memento_pattern
 
-**信頼度**: 高（GoF公式定義および複数の権威あるソース）
+**信頼度**: 9/10（GoF公式定義および複数の権威あるソース）
 
 ---
 
@@ -70,7 +70,7 @@ Mementoパターン（メメントパターン）について包括的に調査�
 - GoF Pattern: Memento Pattern - https://www.gofpattern.com/behavioral/patterns/memento-pattern.php
 - Grokipedia: Memento pattern - https://grokipedia.com/page/Memento_pattern
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -96,7 +96,7 @@ Mementoパターンは以下の問題を解決する：
 - SourceMaking: Memento Design Pattern - https://sourcemaking.com/design_patterns/memento
 - dPatterns: Memento Design Pattern - https://dpatterns.com/behavioral/memento/
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -125,7 +125,7 @@ Mementoパターンは以下の問題を解決する：
 - AlgoMaster: Memento - https://algomaster.io/learn/lld/memento
 - Software Patterns Lexicon: Use Cases and Examples - https://softwarepatternslexicon.com/java/behavioral-patterns/memento-pattern/use-cases-and-examples/
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -154,7 +154,7 @@ Mementoパターンは以下の問題を解決する：
 - DEV Community: Memento Design Pattern - https://dev.to/sajjadali/memento-design-pattern-4b64
 - MomentsLog: Memento Pattern in Text Editors - https://www.momentslog.com/development/design-pattern/memento-pattern-in-text-editors-undo-redo-history-management
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -181,7 +181,7 @@ Mementoパターンの適用を推奨する条件：
 - PMI: The Memento Pattern - https://www.pmi.org/disciplined-agile/the-design-patterns-repository/the-memento-pattern
 - Software Patterns Lexicon: Memento Pattern - https://softwarepatternslexicon.com/mastering-design-patterns/behavioral-design-patterns/memento-pattern/
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -212,7 +212,7 @@ Mementoパターンの適用を避けるべき条件：
 - Grokipedia: Memento pattern - https://grokipedia.com/page/Memento_pattern
 - Refactoring Guru: Memento - https://refactoring.guru/design-patterns/memento
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -261,7 +261,7 @@ Mementoパターンは3つの主要な役割（参加者）から構成される
 - TutorialsPoint: Memento Pattern - https://www.tutorialspoint.com/design_pattern/memento_pattern.htm
 - Software Patterns Lexicon: Originator, Memento, and Caretaker Roles - https://softwarepatternslexicon.com/java/behavioral-patterns/memento-pattern/originator-memento-and-caretaker-roles/
 
-**信頼度**: 高（GoF公式定義）
+**信頼度**: 9/10（GoF公式定義）
 
 ---
 
@@ -310,7 +310,7 @@ Mementoパターンの典型的な動作シーケンス：
 - GeeksforGeeks: Memento Design Pattern - https://www.geeksforgeeks.org/system-design/memento-design-pattern/
 - CodingTechRoom: Mastering the Memento Pattern - https://codingtechroom.com/tutorial/java-memento-pattern-java-tutorial
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -458,7 +458,7 @@ unless ($history->is_empty()) {
 - Perl Maven: OOP with Moo - https://perlmaven.com/oop-with-moo
 - Perl Begin: Object Oriented Programming - https://perl-begin.org/topics/object-oriented/
 
-**信頼度**: 高（公式ドキュメントおよび実績あるソース）
+**信頼度**: 9/10（公式ドキュメントおよび実績あるソース）
 
 ---
 
@@ -539,7 +539,7 @@ __PACKAGE__->meta->make_immutable;
 - MetaCPAN: Moose - https://metacpan.org/pod/Moose
 - Kablamo: How to Moo - http://kablamo.org/slides-intro-to-moo/
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -643,7 +643,7 @@ sub add_memento {
 
 - MomentsLog: Implementing Undo/Redo Functionality - https://www.momentslog.com/development/design-pattern/implementing-undo-redo-functionality-with-the-memento-pattern
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -690,7 +690,7 @@ sub add_memento {
 - HackerNoon: Memento Design Pattern Overview - https://hackernoon.com/memento-design-pattern-overview-4r7p3wol
 - Scaler Topics: Memento Design Pattern - https://www.scaler.com/topics/memento-design-pattern/
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -745,7 +745,7 @@ sub add_memento {
 - Molecular Sciences: Memento Design Pattern Explanation - https://molecularsciences.org/content/detailed-explanation-of-memento-design-pattern/
 - PMI: The Memento Pattern - https://www.pmi.org/disciplined-agile/the-design-patterns-repository/the-memento-pattern
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -791,7 +791,7 @@ sub add_memento {
 - CodingTechRoom: Differences Between Memento and Command - https://codingtechroom.com/question/understanding-differences-memento-command-design-patterns
 - Microsoft Learn: Command/Memento - https://learn.microsoft.com/en-us/shows/Visual-Studio-Toolbox/Design-Patterns-CommandMemento
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -821,7 +821,7 @@ sub add_memento {
 
 - GoF Pattern: Memento Pattern - https://www.gofpattern.com/behavioral/patterns/memento-pattern.php
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -855,7 +855,7 @@ sub add_memento {
 - Springer: Behavioral Patterns - https://link.springer.com/content/pdf/10.1007/978-1-4842-1848-8_8.pdf
 - Wikibooks: Memento - https://en.wikibooks.org/wiki/Computer_Science_Design_Patterns/Memento
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -881,7 +881,7 @@ sub add_memento {
 
 - 既存の`design-patterns-research.md`の内部リンク調査セクションを参考
 
-**信頼度**: 高（実際のファイルパス調査に基づく）
+**信頼度**: 9/10（実際のファイルパス調査に基づく）
 
 ---
 

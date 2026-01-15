@@ -190,11 +190,6 @@ pie
 - MermaidはMarkdownに自然に組み込めるため、記事やドキュメントに図を入れるのに有用
 - HugoではCDNを使ってクライアント側でレンダリングするのが手軽で設定も少ない
 
-## 次のステップ（提案）
-
-- サイトに組み込むなら [layouts/partials/head.html](layouts/partials/head.html) に上記スクリプトを追加して、既存のページで表示を確認
-- VSCodeで `mermaid-js.mermaid-vscode` をインストールして、手元でサンプルを編集・プレビュー
-
 ---
 
 **調査ログ**
