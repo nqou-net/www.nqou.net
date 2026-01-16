@@ -53,7 +53,7 @@ title: '調査ドキュメント - Mooを使ってディスパッチャーを作
 - https://www.geeksforgeeks.org/system-design/strategy-pattern-set-1/ （GeeksforGeeks）
 - https://www.freecodecamp.org/news/a-beginners-guide-to-the-strategy-design-pattern/ （FreeCodeCamp）
 
-**信頼度**: 高（複数の著名な技術解説サイトで一致した説明）
+**信頼度**: 9/10（複数の著名な技術解説サイトで一致した説明）
 
 ---
 
@@ -82,7 +82,7 @@ title: '調査ドキュメント - Mooを使ってディスパッチャーを作
 - https://metacpan.org/pod/Router::Simple （Router::Simple）
 - 内部記事: `/2015/11/16/083646/`（JSON::RPC::Specでのディスパッチャー）
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -139,7 +139,7 @@ sub pay {
 - https://github.com/jmcveigh/p5-moose-design-patterns （GitHub実装例）
 - https://github.com/jeffa/DesignPatterns-Perl （GitHub実装例）
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -167,7 +167,7 @@ sub pay {
 - https://metacpan.org/pod/JSON::RPC::Spec （JSON::RPC::Spec）
 - 内部記事: `/2014/08/14/221829/`（JSON::RPC::Specでのルーティング）
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -198,7 +198,7 @@ sub pay {
 - https://codingtechroom.com/question/-refactor-if-else-to-strategy-pattern （CodingTechRoom）
 - https://stackoverflow.com/questions/28049094/replacing-if-else-statement-with-pattern （StackOverflow）
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -226,7 +226,7 @@ sub pay {
 - https://refactoring.guru/design-patterns/command （Refactoring Guru）
 - https://www.in-com.com/blog/refactoring-repetitive-logic-let-the-command-pattern-take-over/ （In-Com）
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -254,7 +254,7 @@ sub pay {
 - https://refactoring.guru/design-patterns/factory-method （Refactoring Guru）
 - https://adityam31.github.io/posts/designpatterns-strategy-factory-pattern/ （Aditya M Blog）
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -278,7 +278,7 @@ sub pay {
 - https://metacpan.org/pod/Router::Simple （Router::Simple）
 - https://metacpan.org/pod/Router::Boom （Router::Boom）
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 

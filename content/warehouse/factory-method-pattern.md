@@ -55,7 +55,7 @@ title: Factory Methodパターン調査ドキュメント
 - GeeksforGeeks: Factory method Design Pattern - https://www.geeksforgeeks.org/system-design/factory-method-for-designing-pattern/
 - Baeldung: Factory Method vs. Factory vs. Abstract Factory - https://www.baeldung.com/cs/factory-method-vs-factory-vs-abstract-factory
 
-**信頼度**: ★★★★★（GoF原典および複数の信頼できる技術サイト）
+**信頼度**: 9/10（GoF原典および複数の信頼できる技術サイト）
 
 ---
 
@@ -83,7 +83,7 @@ Factory Methodは、GoFの23パターンのうち**生成パターン（Creation
 - 内部warehouse: `/content/warehouse/design-patterns-overview.md`
 - GeeksforGeeks: Creational Design Patterns - https://www.geeksforgeeks.org/system-design/creational-design-pattern/
 
-**信頼度**: ★★★★★
+**信頼度**: 9/10
 
 ---
 
@@ -135,7 +135,7 @@ sub create_shape {
 - Stack Overflow: Design Patterns: Factory vs Factory method vs Abstract Factory - https://stackoverflow.com/questions/13029261/design-patterns-factory-vs-factory-method-vs-abstract-factory
 - Dev.to: Factory Method vs Abstract Factory - https://dev.to/buildwithhicham/factory-method-vs-abstract-factory-whats-the-difference-glb
 
-**信頼度**: ★★★★★
+**信頼度**: 9/10
 
 ---
 
@@ -160,7 +160,7 @@ sub create_shape {
 - GeeksforGeeks: Differences Between Abstract Factory and Factory Design Patterns - https://www.geeksforgeeks.org/system-design/differences-between-abstract-factory-and-factory-design-patterns/
 - C# Corner: Factory Pattern vs Abstract Factory Pattern - https://www.c-sharpcorner.com/blogs/factory-pattern-vs-abstract-factory-pattern
 
-**信頼度**: ★★★★★
+**信頼度**: 9/10
 
 ---
 
@@ -173,7 +173,7 @@ sub create_shape {
 | **生成結果** | 異なるクラスのインスタンス | 同じクラスの異なる構成 |
 | **典型例** | createDocument() → PDF/Word | build().setTitle().setBody().create() |
 
-**信頼度**: ★★★★★
+**信頼度**: 9/10
 
 ---
 
@@ -185,7 +185,7 @@ sub create_shape {
 | **使用場面** | クラス階層に基づく生成 | 既存オブジェクトをベースにした生成 |
 | **典型例** | createShape() | $prototype->clone() |
 
-**信頼度**: ★★★★★
+**信頼度**: 9/10
 
 ---
 
@@ -255,7 +255,7 @@ classDiagram
 +------------------+   +------------------+
 ```
 
-**信頼度**: ★★★★★
+**信頼度**: 9/10
 
 ---
 
@@ -285,7 +285,7 @@ classDiagram
 - UMLBoard: The Factory Method Design Pattern - https://www.umlboard.com/design-patterns/factory-method.html
 - System Overflow: What is the Factory Method Pattern? - https://www.systemoverflow.com/learn/creational-patterns/factory-method-pattern/what-is-the-factory-method-pattern
 
-**信頼度**: ★★★★★
+**信頼度**: 9/10
 
 ---
 
@@ -313,7 +313,7 @@ classDiagram
 - The Morning Dev: Factory Method Pattern Explained - https://themorningdev.com/factory-method-pattern/
 - Software Pattern Lexicon: Factory Method Pattern - https://softwarepatternslexicon.com/mastering-design-patterns/creational-design-patterns/factory-method-pattern/
 
-**信頼度**: ★★★★★
+**信頼度**: 9/10
 
 ---
 
@@ -336,7 +336,7 @@ classDiagram
 - GeeksforGeeks: Factory method Design Pattern - https://www.geeksforgeeks.org/system-design/factory-method-for-designing-pattern/
 - Software Pattern Lexicon: Factory Method Pattern - https://softwarepatternslexicon.com/mastering-design-patterns/creational-design-patterns/factory-method-pattern/
 
-**信頼度**: ★★★★★
+**信頼度**: 9/10
 
 ---
 
@@ -369,7 +369,7 @@ classDiagram
 - GeeksforGeeks: Factory method Design Pattern - https://www.geeksforgeeks.org/system-design/factory-method-for-designing-pattern/
 - Software Pattern Lexicon: Factory Method Pattern - https://softwarepatternslexicon.com/mastering-design-patterns/creational-design-patterns/factory-method-pattern/
 
-**信頼度**: ★★★★★
+**信頼度**: 9/10
 
 ---
 
@@ -389,7 +389,7 @@ classDiagram
 4. **動的に製品タイプを追加する必要がない場合**
    - 静的なファクトリメソッドで十分
 
-**信頼度**: ★★★★★
+**信頼度**: 9/10
 
 ---
 
@@ -402,7 +402,7 @@ classDiagram
 | **Factory Method内での分岐** | ファクトリメソッド内でif/elseを使用 | Simple Factoryと混同しないよう注意 |
 | **創造と使用の混在** | Creatorが製品の使用ロジックも持ちすぎる | 適切な責任分離 |
 
-**信頼度**: ★★★★☆
+**信頼度**: 7/10
 
 ---
 
@@ -587,7 +587,7 @@ $html_creator->generate_report("Webレポート");
 - The Weekly Challenge: Design Pattern Factory - https://theweeklychallenge.org/blog/design-pattern-factory/
 - Perl Maven: OOP with Moo - https://perlmaven.com/oop-with-moo
 
-**信頼度**: ★★★★★
+**信頼度**: 9/10
 
 ---
 
@@ -719,7 +719,7 @@ class PdfCreator extends DocumentCreator {
 | **Python** | `ABC` + `@abstractmethod` | `ABC`を継承 | `@abstractmethod` |
 | **TypeScript** | `interface` | `abstract class` | `abstract` キーワード |
 
-**信頼度**: ★★★★★
+**信頼度**: 9/10
 
 ---
 
@@ -740,7 +740,7 @@ class PdfCreator extends DocumentCreator {
 - Baeldung: Creating Spring Beans Through Factory Methods - https://www.baeldung.com/spring-beans-factory-methods
 - GeeksforGeeks: Spring Dependency Injection with Factory Method - https://www.geeksforgeeks.org/springboot/spring-dependency-injection-with-factory-method/
 
-**信頼度**: ★★★★★
+**信頼度**: 9/10
 
 ---
 
@@ -751,7 +751,7 @@ class PdfCreator extends DocumentCreator {
 - ActiveRecordの接続アダプターはFactory Method的な構造
 - 接続管理が抽象化され、DBドライバに応じた具象クラスを返す
 
-**信頼度**: ★★★★☆
+**信頼度**: 7/10
 
 ---
 
@@ -773,7 +773,7 @@ class PdfCreator extends DocumentCreator {
 
 - GitHub: fullstacksmith/Design-Patterns - https://github.com/fullstacksmith/Design-Patterns
 
-**信頼度**: ★★★★★
+**信頼度**: 9/10
 
 ---
 
@@ -789,7 +789,7 @@ class PdfCreator extends DocumentCreator {
 
 - Software Pattern Lexicon: Factory Method Pattern Use Cases - https://softwarepatternslexicon.com/java/creational-patterns/factory-method-pattern/use-cases-and-examples/
 
-**信頼度**: ★★★★★
+**信頼度**: 9/10
 
 ---
 
@@ -806,7 +806,7 @@ class PdfCreator extends DocumentCreator {
 - AlgoMaster.io: Factory Method - https://algomaster.io/learn/lld/factory-method
 - Java Guides: Java Factory Pattern with Real-World Examples - https://www.javaguides.net/2025/06/java-factory-pattern-with-real-world-examples.html
 
-**信頼度**: ★★★★★
+**信頼度**: 9/10
 
 ---
 
@@ -823,7 +823,7 @@ class PdfCreator extends DocumentCreator {
 - WindowsButtonCreator、MacButtonCreator
 - Material UIボタン、iOS風ボタン
 
-**信頼度**: ★★★★☆
+**信頼度**: 7/10
 
 ---
 
@@ -855,7 +855,7 @@ class PdfCreator extends DocumentCreator {
 - Stack Exchange: "Factory Method is a specialization of Template Method" - https://softwareengineering.stackexchange.com/questions/340099/factory-method-is-a-specialization-of-template-method-how
 - Baeldung: Factory Method vs. Factory vs. Abstract Factory - https://www.baeldung.com/cs/factory-method-vs-factory-vs-abstract-factory
 
-**信頼度**: ★★★★★
+**信頼度**: 9/10
 
 ---
 
@@ -881,7 +881,7 @@ flowchart LR
 
 - Software Pattern Lexicon: Abstract Factory vs Factory Method - https://softwarepatternslexicon.com/java/creational-patterns/abstract-factory-pattern/abstract-factory-vs-factory-method/
 
-**信頼度**: ★★★★★
+**信頼度**: 9/10
 
 ---
 
@@ -902,7 +902,7 @@ flowchart LR
 | 製品タイプが増える可能性がある | Factory Method |
 | 設定やプラグインで製品を追加したい | Factory Method + 登録機構 |
 
-**信頼度**: ★★★★★
+**信頼度**: 9/10
 
 ---
 
@@ -933,7 +933,7 @@ flowchart LR
 4. **Perl/Moo特化**: v5.36対応のモダンPerl記法
 5. **生成パターンの体系的理解**: 他の生成パターンとの違いを明確に
 
-**信頼度**: ★★★★★
+**信頼度**: 9/10
 
 ---
 

@@ -85,6 +85,7 @@ say "Hello, World!";
 
 - 英語小文字（例: `perl`, `moo`）
 - ハイフン区切り（例: `design-patterns`, `object-oriented`）
+- 命名規則に従う、シリーズ名を示すタグ（例: `mass-producing-monsters`）は必須（数量制限から除外して良い）
 - 5個以内を推奨
 
 ### よく使うタグ例

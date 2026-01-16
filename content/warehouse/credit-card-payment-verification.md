@@ -70,7 +70,7 @@ Chain of Responsibilityパターンを学ぶシリーズ記事「クレジット
 - https://www.gmo-pg.com/blog/articles/article-0173/（GMOペイメントゲートウェイ）
 - https://stripe.com/jp/resources/more/credit-card-payment-authorization-and-transaction-settlement-process（Stripe公式）
 
-**信頼度**: 高（複数の決済代行会社の公式ドキュメント）
+**信頼度**: 9/10（複数の決済代行会社の公式ドキュメント）
 
 ---
 
@@ -97,7 +97,7 @@ Chain of Responsibilityパターンを学ぶシリーズ記事「クレジット
 - https://www.veritrans.co.jp/docs/mdk_guide/flow_diagram.html（DGフィナンシャルテクノロジー）
 - https://www.robotpayment.co.jp/blog/creditcard/5722/（ロボットペイメント）
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -132,7 +132,7 @@ ECサイトの決済審査で一般的にチェックされる項目：
 - https://theapps.jp/media/3396（審査項目）
 - https://www.gmo-pg.com/blog/articles/article-0173/（不正対策）
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -167,7 +167,7 @@ ECサイトの決済審査で一般的にチェックされる項目：
 - https://theapps.jp/media/3396（エラー原因）
 - https://www.gmo-pg.com/blog/articles/article-0173/（エラー対応）
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -214,7 +214,7 @@ ECサイトの決済審査で一般的にチェックされる項目：
 - 各チェッカーは独立したハンドラとして実装
 - チェーンの順序は変更可能
 
-**信頼度**: 高（設計は著者による提案）
+**信頼度**: 9/10（設計は著者による提案）
 
 ---
 
@@ -243,7 +243,7 @@ Chain of Responsibilityパターンが決済審査に適している理由：
 - https://www.geeksforgeeks.org/system-design/chain-responsibility-design-pattern/
 - https://readmedium.com/chain-of-responsibility-design-pattern-the-validation-scenario-7e7235fd05a2
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -287,7 +287,7 @@ Chain of Responsibilityパターンの基本構造：
 - https://refactoring.guru/design-patterns/chain-of-responsibility
 - https://www.tutorialspoint.com/design_pattern/chain_of_responsibility_pattern.htm
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -322,7 +322,7 @@ Chain of Responsibilityパターンの基本構造：
 - https://softwarepatternslexicon.com/mastering-design-patterns/behavioral-design-patterns/chain-of-responsibility-pattern/
 - https://thelinuxcode.com/mastering-the-chain-of-responsibility-design-pattern-a-comprehensive-guide-for-developers-and-architects/
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -352,7 +352,7 @@ Chain of Responsibilityパターンの基本構造：
 - https://dev.to/syridit118/understanding-the-chain-of-responsibility-design-pattern-in-backend-development-p2f
 - https://andrewhalil.com/2024/06/06/using-design-patterns-in-net-core-part-8-chain-of-responsibility-pattern/
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -380,7 +380,7 @@ Chain of Responsibilityパターンの基本構造：
 - https://dotnettutorials.net/lesson/real-time-examples-of-chain-of-responsibility-design-pattern/（C#）
 - https://www.geeksforgeeks.org/system-design/chain-responsibility-design-pattern/（Java）
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -402,7 +402,7 @@ Chain of Responsibilityパターンの基本構造：
 - この希少性は差別化の大きな強みとなる
 - 日本語でPerl/Mooを使った決済審査パターンの記事は「初」の可能性が高い
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -422,7 +422,7 @@ Chain of Responsibilityパターンの基本構造：
 - 競合記事分析の結果
 - 既存シリーズとの比較
 
-**信頼度**: 高
+**信頼度**: 9/10
 
 ---
 
@@ -511,7 +511,7 @@ sub check ($self, $request) {
 }
 ```
 
-**信頼度**: 高（著者による設計）
+**信頼度**: 9/10（著者による設計）
 
 ---
 
@@ -531,7 +531,7 @@ my $request = {
 };
 ```
 
-**信頼度**: 高（著者による設計）
+**信頼度**: 9/10（著者による設計）
 
 ---
 
