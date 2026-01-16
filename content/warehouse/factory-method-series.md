@@ -144,7 +144,7 @@ sub render_widget ($self) {
 }
 
 sub create_widget ($self) {
-    die 'override required';
+    die 'create_widget method must be overridden in subclass';
 }
 
 package ButtonFactory;
