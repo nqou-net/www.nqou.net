@@ -42,11 +42,11 @@ title: '連載構造案 - Proxyパターン新シリーズ（全5回）'
 
 ### シリーズ名案
 
-**「ゴーストギャラリー・ビューワを作ろう」**（全5回）
+**「Mooで作るゴーストギャラリー・ビューワ」**（全5回）
 
 ### 特徴・アプローチ
 
-呪いの高解像度アートを「覗き見」できるギャラリーを作る。最初は画像を全部読み込んで固まる→遅延初期化→アクセス制御→キャッシュ→監査ログと段階的に「代理」役を増やし、Proxyパターンを一気に体感する。見た目が派手でデモに強いのが特徴。
+呪いの高解像度アートを「覗き見」できるギャラリーを作る。最初は画像を全部読み込んで固まる→遅延初期化→アクセス制御→キャッシュ→監査ログと段階的に「代理」役を増やし、Proxyパターンを一気に体感する。各回で「手持ち知識で動かす→追加で破綻→Proxy導入→完成コード提示」を明示し、見た目が派手でデモに強いのが特徴。
 
 ### USP（独自の価値提案）
 
@@ -72,11 +72,11 @@ title: '連載構造案 - Proxyパターン新シリーズ（全5回）'
 
 | 回 | タイトル | 新しい概念 | ストーリー | コード例1 | コード例2 | 推奨タグ |
 |---|---------|-----------|-----------|----------|----------|---------|
-| 第1回 | 第1回-高解像度で画面が固まる - ゴーストギャラリー・ビューワ | 遅延初期化（Virtual Proxy） | 全画像ロードでフリーズ→プレビュー追加で破綻→Proxyで必要時にロード→完成コード提示 | 全件ロード版 | ImageProxy | perl, moo, design-patterns, proxy-pattern, lazy-loading |
-| 第2回 | 第2回-呪いの絵は誰でも見ていい？ - ゴーストギャラリー・ビューワ | アクセス制御（Protection Proxy） | 鍵付き絵を追加→直アクセスで破綻→代理で権限判定→完成コード提示 | 権限なし実装 | GuardProxy | perl, moo, design-patterns, proxy-pattern, lazy-loading |
-| 第3回 | 第3回-何度も見るなら貯めたい - ゴーストギャラリー・ビューワ | キャッシュProxy | 高解像度の再描画が遅い→キャッシュ追加で高速化→完成コード提示 | キャッシュ無し | CacheProxy | perl, moo, design-patterns, proxy-pattern, lazy-loading |
-| 第4回 | 第4回-誰が覗いたか記録せよ - ゴーストギャラリー・ビューワ | ロギングProxy | 監査要件追加→ログの散乱で破綻→代理で記録→完成コード提示 | 散在ログ | AuditProxy | perl, moo, design-patterns, proxy-pattern, lazy-loading |
-| 第5回 | 第5回-遠隔アーカイブへ引っ越し - ゴーストギャラリー・ビューワ | リモートProxy | 画像を外部倉庫へ移動→呼び出しの混乱→代理で抽象化→完成コード提示 | 直接HTTP版 | RemoteProxy | perl, moo, design-patterns, proxy-pattern, lazy-loading |
+| 第1回 | 第1回-高解像度で画面が固まる - Mooで作るゴーストギャラリー・ビューワ | 遅延初期化（Virtual Proxy） | 全画像ロードでフリーズ→プレビュー追加で破綻→Proxyで必要時にロード→完成コード提示 | 全件ロード版 | ImageProxy | perl, moo, design-patterns, proxy-pattern, ghost-gallery-viewer |
+| 第2回 | 第2回-呪いの絵は誰でも見ていい？ - Mooで作るゴーストギャラリー・ビューワ | アクセス制御（Protection Proxy） | 鍵付き絵を追加→直アクセスで破綻→代理で権限判定→完成コード提示 | 権限なし実装 | GuardProxy | perl, moo, design-patterns, proxy-pattern, ghost-gallery-viewer |
+| 第3回 | 第3回-何度も見るなら貯めたい - Mooで作るゴーストギャラリー・ビューワ | キャッシュ（Caching Proxy） | 高解像度の再描画が遅い→キャッシュ追加で高速化→完成コード提示 | キャッシュ無し | CacheProxy | perl, moo, design-patterns, proxy-pattern, ghost-gallery-viewer |
+| 第4回 | 第4回-誰が覗いたか記録せよ - Mooで作るゴーストギャラリー・ビューワ | ロギング（Logging Proxy） | 監査要件追加→ログの散乱で破綻→代理で記録→完成コード提示 | 散在ログ | AuditProxy | perl, moo, design-patterns, proxy-pattern, ghost-gallery-viewer |
+| 第5回 | 第5回-遠隔アーカイブへ引っ越し - Mooで作るゴーストギャラリー・ビューワ | リモート（Remote Proxy） | 画像を外部倉庫へ移動→呼び出しの混乱→代理で抽象化→完成コード提示 | 直接HTTP版 | RemoteProxy | perl, moo, design-patterns, proxy-pattern, ghost-gallery-viewer |
 
 ### 差別化ポイント
 
@@ -89,11 +89,11 @@ title: '連載構造案 - Proxyパターン新シリーズ（全5回）'
 
 ### シリーズ名案
 
-**「秘密基地ゲートキーパーを作ろう」**（全5回）
+**「Mooで作る秘密基地ゲートキーパー」**（全5回）
 
 ### 特徴・アプローチ
 
-秘密基地の「ドア・金庫・監視センサー」を操作するCLIを作る。アクセス制御とログを軸に、段階的にProxyで守る。セキュリティっぽい題材だが、あくまで自己完結の仮想基地として倫理面をクリアする。
+秘密基地の「ドア・金庫・監視センサー」を操作するCLIを作る。アクセス制御とログを軸に、段階的にProxyで守る。各回で「動く→追加で破綻→Proxyで再設計→完成コード」を明示し、セキュリティっぽい題材だが、あくまで自己完結の仮想基地として倫理面をクリアする。
 
 ### USP（独自の価値提案）
 
@@ -119,11 +119,11 @@ title: '連載構造案 - Proxyパターン新シリーズ（全5回）'
 
 | 回 | タイトル | 新しい概念 | ストーリー | コード例1 | コード例2 | 推奨タグ |
 |---|---------|-----------|-----------|----------|----------|---------|
-| 第1回 | 第1回-誰でも開けられる基地ドア - 秘密基地ゲートキーパー | アクセス制御（Protection Proxy） | 直操作でドア全開→権限管理要求→Proxyで制御→完成コード提示 | 直操作版 | GateProxy | perl, moo, design-patterns, proxy-pattern, security |
-| 第2回 | 第2回-操作履歴が闇に消える - 秘密基地ゲートキーパー | ロギングProxy | 監査が欲しい→ログ散乱→代理で集約→完成コード提示 | 素朴ログ | AuditProxy | perl, moo, design-patterns, proxy-pattern, security |
-| 第3回 | 第3回-重いセンサー起動が遅い - 秘密基地ゲートキーパー | 遅延初期化（Virtual Proxy） | センサー起動が重い→遅延ロード→完成コード提示 | 常時起動版 | SensorProxy | perl, moo, design-patterns, proxy-pattern, security |
-| 第4回 | 第4回-同じ判定を繰り返すな - 秘密基地ゲートキーパー | キャッシュProxy | センサー判定が高コスト→キャッシュで高速化→完成コード提示 | 再計算版 | CacheProxy | perl, moo, design-patterns, proxy-pattern, security |
-| 第5回 | 第5回-遠隔基地をまとめて守る - 秘密基地ゲートキーパー | リモートProxy | 複数基地の遠隔操作→直接HTTPで破綻→代理で統合→完成コード提示 | 直HTTP版 | RemoteGateProxy | perl, moo, design-patterns, proxy-pattern, security |
+| 第1回 | 第1回-誰でも開けられる基地ドア - Mooで作る秘密基地ゲートキーパー | アクセス制御（Protection Proxy） | 直操作でドア全開→権限管理要求→Proxyで制御→完成コード提示 | 直操作版 | GateProxy | perl, moo, design-patterns, proxy-pattern, secret-base-gatekeeper |
+| 第2回 | 第2回-操作履歴が闇に消える - Mooで作る秘密基地ゲートキーパー | ロギング（Logging Proxy） | 監査が欲しい→ログ散乱→代理で集約→完成コード提示 | 素朴ログ | AuditProxy | perl, moo, design-patterns, proxy-pattern, secret-base-gatekeeper |
+| 第3回 | 第3回-重いセンサー起動が遅い - Mooで作る秘密基地ゲートキーパー | 遅延初期化（Virtual Proxy） | センサー起動が重い→遅延ロード→完成コード提示 | 常時起動版 | SensorProxy | perl, moo, design-patterns, proxy-pattern, secret-base-gatekeeper |
+| 第4回 | 第4回-同じ判定を繰り返すな - Mooで作る秘密基地ゲートキーパー | キャッシュ（Caching Proxy） | センサー判定が高コスト→キャッシュで高速化→完成コード提示 | 再計算版 | CacheProxy | perl, moo, design-patterns, proxy-pattern, secret-base-gatekeeper |
+| 第5回 | 第5回-遠隔基地をまとめて守る - Mooで作る秘密基地ゲートキーパー | リモート（Remote Proxy） | 複数基地の遠隔操作→直接HTTPで破綻→代理で統合→完成コード提示 | 直HTTP版 | RemoteGateProxy | perl, moo, design-patterns, proxy-pattern, secret-base-gatekeeper |
 
 ### 差別化ポイント
 
@@ -136,11 +136,11 @@ title: '連載構造案 - Proxyパターン新シリーズ（全5回）'
 
 ### シリーズ名案
 
-**「宇宙ドローン遠隔操縦盤を作ろう」**（全5回）
+**「Mooで作る宇宙ドローン遠隔操縦盤」**（全5回）
 
 ### 特徴・アプローチ
 
-地球から宇宙ドローンを操縦する設定で、リモート操作・通信遅延・キャッシュ・権限制御をProxyで吸収する。通信が切れたらダミーで動かすなど、実務とゲーム性の両立を狙う。
+地球から宇宙ドローンを操縦する設定で、リモート操作・通信遅延・キャッシュ・権限制御をProxyで吸収する。各回で「動く→無理が出る→Proxyで吸収→完成コード」を明示し、通信が切れたらダミーで動かすなど、実務とゲーム性の両立を狙う。
 
 ### USP（独自の価値提案）
 
@@ -165,11 +165,11 @@ title: '連載構造案 - Proxyパターン新シリーズ（全5回）'
 
 | 回 | タイトル | 新しい概念 | ストーリー | コード例1 | コード例2 | 推奨タグ |
 |---|---------|-----------|-----------|----------|----------|---------|
-| 第1回 | 第1回-通信が遠すぎる操縦盤 - 宇宙ドローン遠隔操縦盤 | リモートProxy | 直接API呼び出しで破綻→代理で遅延吸収→完成コード提示 | 直API版 | RemoteProxy | perl, moo, design-patterns, proxy-pattern, remote-control |
-| 第2回 | 第2回-通信不能でも動かしたい - 宇宙ドローン遠隔操縦盤 | フォールバックProxy | オフライン時の空回り→代理でダミー応答→完成コード提示 | 失敗時例 | FallbackProxy | perl, moo, design-patterns, proxy-pattern, remote-control |
-| 第3回 | 第3回-操縦ログが証拠になる - 宇宙ドローン遠隔操縦盤 | ロギングProxy | 監査ログ要求→散在→代理で記録→完成コード提示 | 散在ログ | AuditProxy | perl, moo, design-patterns, proxy-pattern, remote-control |
-| 第4回 | 第4回-観測データの再取得を防ぐ - 宇宙ドローン遠隔操縦盤 | キャッシュProxy | 同データ再取得で破綻→キャッシュ追加→完成コード提示 | 再取得版 | CacheProxy | perl, moo, design-patterns, proxy-pattern, remote-control |
-| 第5回 | 第5回-操縦権限を切り替えろ - 宇宙ドローン遠隔操縦盤 | アクセス制御（Protection Proxy） | 操縦権限追加→直アクセスで破綻→代理で制御→完成コード提示 | 直操作版 | GateProxy | perl, moo, design-patterns, proxy-pattern, remote-control |
+| 第1回 | 第1回-通信が遠すぎる操縦盤 - Mooで作る宇宙ドローン遠隔操縦盤 | リモート（Remote Proxy） | 直接API呼び出しで破綻→代理で遅延吸収→完成コード提示 | 直API版 | RemoteProxy | perl, moo, design-patterns, proxy-pattern, space-drone-console |
+| 第2回 | 第2回-通信不能でも動かしたい - Mooで作る宇宙ドローン遠隔操縦盤 | フォールバック（Fallback Proxy） | オフライン時の空回り→代理でダミー応答→完成コード提示 | 失敗時例 | FallbackProxy | perl, moo, design-patterns, proxy-pattern, space-drone-console |
+| 第3回 | 第3回-操縦ログが証拠になる - Mooで作る宇宙ドローン遠隔操縦盤 | ロギング（Logging Proxy） | 監査ログ要求→散在→代理で記録→完成コード提示 | 散在ログ | AuditProxy | perl, moo, design-patterns, proxy-pattern, space-drone-console |
+| 第4回 | 第4回-観測データの再取得を防ぐ - Mooで作る宇宙ドローン遠隔操縦盤 | キャッシュ（Caching Proxy） | 同データ再取得で破綻→キャッシュ追加→完成コード提示 | 再取得版 | CacheProxy | perl, moo, design-patterns, proxy-pattern, space-drone-console |
+| 第5回 | 第5回-操縦権限を切り替えろ - Mooで作る宇宙ドローン遠隔操縦盤 | アクセス制御（Protection Proxy） | 操縦権限追加→直アクセスで破綻→代理で制御→完成コード提示 | 直操作版 | GateProxy | perl, moo, design-patterns, proxy-pattern, space-drone-console |
 
 ### 差別化ポイント
 
@@ -246,18 +246,73 @@ title: '連載構造案 - Proxyパターン新シリーズ（全5回）'
 ### 第1版レビュー（SEO視点）（2026-01-17）
 
 - **レビュー担当**: search-engine-optimization エージェント（代行: copilot）
-- **評価結果**: 合格
-- **主な改善点**: タイトル末尾にシリーズ名を統一して検索意図を明確化
+- **評価結果**: 要改善
+- **主な改善点**: シリーズ名に「Mooで作る」を入れて検索キーワードを強化、シリーズ固有タグを追加
 
 ---
 
 ### 第1版レビュー（品質視点）（2026-01-17）
 
 - レビュー担当: reviewer エージェント（代行: copilot）
-- 評価結果: 合格
-- 主な改善点: 1記事1概念を各案の表で明示し、差別化ポイントを明文化
+- 評価結果: 要改善
+- 主な改善点: 各回の4ステップ（動く→破綻→Proxy→完成）を明示、Proxy種別表記の統一
 
 #### 品質基準チェック
+
+| 基準 | 評価 |
+|------|------|
+| 構造の一貫性 | △ |
+| 段階的難易度上昇 | △ |
+| 1記事1概念の原則 | ✓ |
+| 各案の差別化 | ✓ |
+| 連載構造表の完全性 | ✓ |
+| ペルソナへの適合性 | ✓ |
+| 技術的正確性 | △ |
+
+---
+
+### 第2版（2026-01-17）- 第1版レビュー反映
+
+**反映した改善点**:
+
+1. シリーズ名・各回タイトルに「Mooで作る」を統一
+2. タグにシリーズ固有タグを追加
+3. 各案の特徴に4ステップの学習導線を明記
+
+---
+
+### 第2版レビュー（SEO視点）（2026-01-17）
+
+- **レビュー担当**: search-engine-optimization エージェント（代行: copilot）
+- **評価結果**: 要改善
+- **主な改善点**: Proxy種別の用語統一（Caching/Logging/Remoteなど）をタイトルや概念欄で明確にする
+
+---
+
+### 第2版レビュー（品質視点）（2026-01-17）
+
+- レビュー担当: reviewer エージェント（代行: copilot）
+- 評価結果: 要改善
+- 主な改善点: Proxy種別の表記統一、概念欄の英語併記で誤解を防ぐ
+
+---
+
+### 第3版（2026-01-17）- 第2版レビュー反映
+
+**反映した改善点**:
+
+1. Proxy種別（Caching/Logging/Remote/Fallback）の英語併記を統一
+2. 連載構造表のタグをシリーズごとに統一
+
+---
+
+### 第3版レビュー（最終）（2026-01-17）
+
+- レビュー担当: reviewer エージェント（代行: copilot）
+- 評価結果: 合格
+- 主な改善点: 主要改善点は全て反映済み
+
+#### 品質基準チェック（第3版）
 
 | 基準 | 評価 |
 |------|------|
@@ -271,7 +326,7 @@ title: '連載構造案 - Proxyパターン新シリーズ（全5回）'
 
 ---
 
-### 最終版（第1版）確定（2026-01-17）
+### 最終版（第3版）確定（2026-01-17）
 
 - 最終確認: reviewer エージェント（代行: copilot）
 - 評価: 全品質基準を満たす
