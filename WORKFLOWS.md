@@ -47,6 +47,8 @@
 
 > **テンプレート**: 作業前に `agents/templates/` 配下のテンプレートを確認すること（[warehouse.md](agents/templates/warehouse.md), [structure.md](agents/templates/structure.md)）
 
+> **重複チェック**: [SERIES.md](SERIES.md) で既存シリーズを確認し、同じパターンやテーマの重複を避けること
+
 1. 調査・情報収集（investigative-researchエージェント）
   - キーワード、テーマに関する情報収集
   - 競合記事の分析、内部リンク候補の調査
