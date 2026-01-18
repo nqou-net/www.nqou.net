@@ -1,0 +1,355 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="深夜帯だけアラートを有効にするなど、Observerを動的に登録・解除する機能を実装します。attach/detachを活用したランタイム制御で柔軟な運用を実現しましょう。"><title>第6回-監視ON/OFFを切り替える - Perlでハニーポット侵入レーダーを作ろう</title><link rel=canonical href=https://www.nqou.net/2026/01/18/061340/><link rel=stylesheet href=/scss/style.min.6a692fd055deae459f2a9767f57f3855ba80cafd5041317f24f7360f6ca47cdf.css><meta property='og:title' content="第6回-監視ON/OFFを切り替える - Perlでハニーポット侵入レーダーを作ろう"><meta property='og:description' content="深夜帯だけアラートを有効にするなど、Observerを動的に登録・解除する機能を実装します。attach/detachを活用したランタイム制御で柔軟な運用を実現しましょう。"><meta property='og:url' content='https://www.nqou.net/2026/01/18/061340/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='perl'><meta property='article:tag' content='moo'><meta property='article:tag' content='dynamic-registration'><meta property='article:tag' content='attach-detach'><meta property='article:tag' content='honeypot-intrusion-radar'><meta property='article:published_time' content='2026-01-18T06:13:40+09:00'><meta property='article:modified_time' content='2026-01-18T06:13:40+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/honeypot-intrusion-radar-series-image.jpg'><meta name=twitter:title content="第6回-監視ON/OFFを切り替える - Perlでハニーポット侵入レーダーを作ろう"><meta name=twitter:description content="深夜帯だけアラートを有効にするなど、Observerを動的に登録・解除する機能を実装します。attach/detachを活用したランタイム制御で柔軟な運用を実現しましょう。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/honeypot-intrusion-radar-series-image.jpg'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/nqounet201703.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar>
+</a><span class=emoji>🥃</span></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/warehouse/><svg class="icon icon-tabler icon-tabler-warehouse" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 10l9-6 9 6"/><rect x="5" y="10" width="14" height="10" rx="2"/><rect x="10" y="14" width="4" height="6" rx="1"/><path d="M7 20v-4h2v4"/><path d="M15 20v-4h2v4"/></svg>
+<span>Warehouse</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#運用シナリオ>運用シナリオ</a></li><li><a href=#alertobserverを追加する>AlertObserverを追加する</a></li><li><a href=#動的登録解除の威力>動的登録・解除の威力</a></li><li><a href=#現実的な使い方>現実的な使い方</a></li><li><a href=#今回のまとめ>今回のまとめ</a></li><li><a href=#次回予告>次回予告</a></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/01/18/061340/><img src=/public_images/2026/honeypot-intrusion-radar-series-image.jpg loading=lazy alt="Featured image of post 第6回-監視ON/OFFを切り替える - Perlでハニーポット侵入レーダーを作ろう"></a></div><div class=article-details><div class=article-title-wrapper><h2 class=article-title><a href=/2026/01/18/061340/>第6回-監視ON/OFFを切り替える - Perlでハニーポット侵入レーダーを作ろう</a></h2><h3 class=article-subtitle>深夜帯だけアラートを有効にするなど、Observerを動的に登録・解除する機能を実装します。attach/detachを活用したランタイム制御で柔軟な運用を実現しましょう。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>1月 18, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 4分</time></div></footer></div></header><section class=article-content><p><a class=link href=https://x.com/nqounet target=_blank rel=noopener>@nqounet</a>です。</p><p><a class=link href=/2026/01/18/061323/>前回</a>は司令塔（IntrusionHub）を作成し、Observerを一元管理できるようにしました。<code>attach</code>で登録、<code>detach</code>で解除、<code>notify</code>で一斉通知という構造です。</p><p>今回は「深夜帯だけアラートを有効にしたい」という運用要件に応えます。<code>detach</code>の出番です。</p><h2 id=運用シナリオ>運用シナリオ</h2><p>ハニーポットの運用では、こんな要望が出てきます。</p><ul><li>日中はログとスコア計算だけでいい</li><li>深夜（侵入が多い時間帯）はアラート通知も欲しい</li><li>状況に応じて通知先を切り替えたい</li></ul><p>攻撃者は夜行性なのでしょうか？深夜帯のほうが侵入試行が増える傾向にあります（まあ、どこかのタイムゾーンでは昼間ですが）。</p><p>これを実現するには、Observerを<strong>動的に登録・解除</strong>できる必要があります。</p><h2 id=alertobserverを追加する>AlertObserverを追加する</h2><p>まず、アラート通知を担当するObserverを作りましょう。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>  1
+</span><span class=lnt>  2
+</span><span class=lnt>  3
+</span><span class=lnt>  4
+</span><span class=lnt>  5
+</span><span class=lnt>  6
+</span><span class=lnt>  7
+</span><span class=lnt>  8
+</span><span class=lnt>  9
+</span><span class=lnt> 10
+</span><span class=lnt> 11
+</span><span class=lnt> 12
+</span><span class=lnt> 13
+</span><span class=lnt> 14
+</span><span class=lnt> 15
+</span><span class=lnt> 16
+</span><span class=lnt> 17
+</span><span class=lnt> 18
+</span><span class=lnt> 19
+</span><span class=lnt> 20
+</span><span class=lnt> 21
+</span><span class=lnt> 22
+</span><span class=lnt> 23
+</span><span class=lnt> 24
+</span><span class=lnt> 25
+</span><span class=lnt> 26
+</span><span class=lnt> 27
+</span><span class=lnt> 28
+</span><span class=lnt> 29
+</span><span class=lnt> 30
+</span><span class=lnt> 31
+</span><span class=lnt> 32
+</span><span class=lnt> 33
+</span><span class=lnt> 34
+</span><span class=lnt> 35
+</span><span class=lnt> 36
+</span><span class=lnt> 37
+</span><span class=lnt> 38
+</span><span class=lnt> 39
+</span><span class=lnt> 40
+</span><span class=lnt> 41
+</span><span class=lnt> 42
+</span><span class=lnt> 43
+</span><span class=lnt> 44
+</span><span class=lnt> 45
+</span><span class=lnt> 46
+</span><span class=lnt> 47
+</span><span class=lnt> 48
+</span><span class=lnt> 49
+</span><span class=lnt> 50
+</span><span class=lnt> 51
+</span><span class=lnt> 52
+</span><span class=lnt> 53
+</span><span class=lnt> 54
+</span><span class=lnt> 55
+</span><span class=lnt> 56
+</span><span class=lnt> 57
+</span><span class=lnt> 58
+</span><span class=lnt> 59
+</span><span class=lnt> 60
+</span><span class=lnt> 61
+</span><span class=lnt> 62
+</span><span class=lnt> 63
+</span><span class=lnt> 64
+</span><span class=lnt> 65
+</span><span class=lnt> 66
+</span><span class=lnt> 67
+</span><span class=lnt> 68
+</span><span class=lnt> 69
+</span><span class=lnt> 70
+</span><span class=lnt> 71
+</span><span class=lnt> 72
+</span><span class=lnt> 73
+</span><span class=lnt> 74
+</span><span class=lnt> 75
+</span><span class=lnt> 76
+</span><span class=lnt> 77
+</span><span class=lnt> 78
+</span><span class=lnt> 79
+</span><span class=lnt> 80
+</span><span class=lnt> 81
+</span><span class=lnt> 82
+</span><span class=lnt> 83
+</span><span class=lnt> 84
+</span><span class=lnt> 85
+</span><span class=lnt> 86
+</span><span class=lnt> 87
+</span><span class=lnt> 88
+</span><span class=lnt> 89
+</span><span class=lnt> 90
+</span><span class=lnt> 91
+</span><span class=lnt> 92
+</span><span class=lnt> 93
+</span><span class=lnt> 94
+</span><span class=lnt> 95
+</span><span class=lnt> 96
+</span><span class=lnt> 97
+</span><span class=lnt> 98
+</span><span class=lnt> 99
+</span><span class=lnt>100
+</span><span class=lnt>101
+</span><span class=lnt>102
+</span><span class=lnt>103
+</span><span class=lnt>104
+</span><span class=lnt>105
+</span><span class=lnt>106
+</span><span class=lnt>107
+</span><span class=lnt>108
+</span><span class=lnt>109
+</span><span class=lnt>110
+</span><span class=lnt>111
+</span><span class=lnt>112
+</span><span class=lnt>113
+</span><span class=lnt>114
+</span><span class=lnt>115
+</span><span class=lnt>116
+</span><span class=lnt>117
+</span><span class=lnt>118
+</span><span class=lnt>119
+</span><span class=lnt>120
+</span><span class=lnt>121
+</span><span class=lnt>122
+</span><span class=lnt>123
+</span><span class=lnt>124
+</span><span class=lnt>125
+</span><span class=lnt>126
+</span><span class=lnt>127
+</span><span class=lnt>128
+</span><span class=lnt>129
+</span><span class=lnt>130
+</span><span class=lnt>131
+</span><span class=lnt>132
+</span><span class=lnt>133
+</span><span class=lnt>134
+</span><span class=lnt>135
+</span><span class=lnt>136
+</span><span class=lnt>137
+</span><span class=lnt>138
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=ch>#!/usr/bin/env perl</span>
+</span></span><span class=line><span class=cl><span class=c1># 言語: perl</span>
+</span></span><span class=line><span class=cl><span class=c1># バージョン: 5.36以上</span>
+</span></span><span class=line><span class=cl><span class=c1># 依存: Moo（cpanmでインストール）</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>IntrusionEvent</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>timestamp</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>source_ip</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>attack_type</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>IntrusionObserver</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo::Role</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>requires</span> <span class=s>&#39;update&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>RadarLogObserver</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>with</span> <span class=s>&#39;IntrusionObserver&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>update</span> <span class=p>($self, $event) {</span>
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=s>&#34;[ログ] &#34;</span> <span class=o>.</span> <span class=nv>$event</span><span class=o>-&gt;</span><span class=n>timestamp</span> <span class=o>.</span> <span class=s>&#34; / &#34;</span> <span class=o>.</span> <span class=nv>$event</span><span class=o>-&gt;</span><span class=n>source_ip</span> <span class=o>.</span> <span class=s>&#34; / &#34;</span> <span class=o>.</span> <span class=nv>$event</span><span class=o>-&gt;</span><span class=n>attack_type</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>ThreatScoreObserver</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>with</span> <span class=s>&#39;IntrusionObserver&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>%threat_scores</span> <span class=o>=</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=s>&#39;SSH Brute Force&#39;</span>       <span class=o>=&gt;</span> <span class=mi>80</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=s>&#39;Port Scan&#39;</span>             <span class=o>=&gt;</span> <span class=mi>30</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=s>&#39;SQL Injection Attempt&#39;</span> <span class=o>=&gt;</span> <span class=mi>90</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>total_score</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>      <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>default</span> <span class=o>=&gt;</span> <span class=mi>0</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>update</span> <span class=p>($self, $event) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$score</span> <span class=o>=</span> <span class=nv>$threat_scores</span><span class=p>{</span><span class=nv>$event</span><span class=o>-&gt;</span><span class=n>attack_type</span><span class=p>}</span> <span class=sr>//</span> <span class=mi>50</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>total_score</span><span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>total_score</span> <span class=o>+</span> <span class=nv>$score</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=s>&#34;[スコア] 累計: &#34;</span> <span class=o>.</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>total_score</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># アラート担当（新規追加）</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>AlertObserver</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>with</span> <span class=s>&#39;IntrusionObserver&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>update</span> <span class=p>($self, $event) {</span>
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=s>&#34;!!! [警報] 侵入検知: &#34;</span> <span class=o>.</span> <span class=nv>$event</span><span class=o>-&gt;</span><span class=n>attack_type</span> <span class=o>.</span> <span class=s>&#34; from &#34;</span> <span class=o>.</span> <span class=nv>$event</span><span class=o>-&gt;</span><span class=n>source_ip</span> <span class=o>.</span> <span class=s>&#34; !!!&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>IntrusionHub</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>observers</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>      <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=o>[]</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>attach</span> <span class=p>($self, $observer) {</span>
+</span></span><span class=line><span class=cl>    <span class=nb>push</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>observers</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>,</span> <span class=nv>$observer</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>detach</span> <span class=p>($self, $observer) {</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>observers</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span> <span class=err>=</span> <span class=nv>grep</span> <span class=p>{</span> <span class=nv>$_</span> <span class=o>!=</span> <span class=nv>$observer</span> <span class=p>}</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>observers</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*;</span>
+</span></span><span class=line><span class=cl><span class=err>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nv>sub</span> <span class=n>notify</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$event</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=k>my</span> <span class=nv>$observer</span> <span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>observers</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$observer</span><span class=o>-&gt;</span><span class=n>update</span><span class=p>(</span><span class=nv>$event</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>main</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$hub</span> <span class=o>=</span> <span class=nn>IntrusionHub</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 常時稼働のObserver</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$log_observer</span>   <span class=o>=</span> <span class=nn>RadarLogObserver</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$score_observer</span> <span class=o>=</span> <span class=nn>ThreatScoreObserver</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=nv>$hub</span><span class=o>-&gt;</span><span class=n>attach</span><span class=p>(</span><span class=nv>$log_observer</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$hub</span><span class=o>-&gt;</span><span class=n>attach</span><span class=p>(</span><span class=nv>$score_observer</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 深夜帯専用のObserver</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$alert_observer</span> <span class=o>=</span> <span class=nn>AlertObserver</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># イベントを用意</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>@events</span> <span class=o>=</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=nn>IntrusionEvent</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>timestamp</span>   <span class=o>=&gt;</span> <span class=s>&#39;2026-01-18T14:00:00+09:00&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>source_ip</span>   <span class=o>=&gt;</span> <span class=s>&#39;192.168.1.100&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>attack_type</span> <span class=o>=&gt;</span> <span class=s>&#39;Port Scan&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>),</span>
+</span></span><span class=line><span class=cl>    <span class=nn>IntrusionEvent</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>timestamp</span>   <span class=o>=&gt;</span> <span class=s>&#39;2026-01-18T02:30:00+09:00&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>source_ip</span>   <span class=o>=&gt;</span> <span class=s>&#39;10.0.0.55&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>attack_type</span> <span class=o>=&gt;</span> <span class=s>&#39;SSH Brute Force&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>),</span>
+</span></span><span class=line><span class=cl>    <span class=nn>IntrusionEvent</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>timestamp</span>   <span class=o>=&gt;</span> <span class=s>&#39;2026-01-18T03:15:00+09:00&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>source_ip</span>   <span class=o>=&gt;</span> <span class=s>&#39;172.16.0.22&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>attack_type</span> <span class=o>=&gt;</span> <span class=s>&#39;SQL Injection Attempt&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>),</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>say</span> <span class=s>&#34;=== 日中モード ===&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=nv>$hub</span><span class=o>-&gt;</span><span class=n>notify</span><span class=p>(</span><span class=nv>$events</span><span class=p>[</span><span class=mi>0</span><span class=p>]);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>say</span> <span class=s>&#34;&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>say</span> <span class=s>&#34;=== 深夜モード（アラートON）===&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=nv>$hub</span><span class=o>-&gt;</span><span class=n>attach</span><span class=p>(</span><span class=nv>$alert_observer</span><span class=p>);</span>  <span class=c1># 深夜になったのでアラートを有効化</span>
+</span></span><span class=line><span class=cl><span class=nv>$hub</span><span class=o>-&gt;</span><span class=n>notify</span><span class=p>(</span><span class=nv>$events</span><span class=p>[</span><span class=mi>1</span><span class=p>]);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>say</span> <span class=s>&#34;&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>say</span> <span class=s>&#34;=== 引き続き深夜モード ===&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=nv>$hub</span><span class=o>-&gt;</span><span class=n>notify</span><span class=p>(</span><span class=nv>$events</span><span class=p>[</span><span class=mi>2</span><span class=p>]);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>say</span> <span class=s>&#34;&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>say</span> <span class=s>&#34;=== 朝になったのでアラートOFF ===&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=nv>$hub</span><span class=o>-&gt;</span><span class=n>detach</span><span class=p>(</span><span class=nv>$alert_observer</span><span class=p>);</span>  <span class=c1># 朝になったのでアラートを無効化</span>
+</span></span><span class=line><span class=cl><span class=nv>$hub</span><span class=o>-&gt;</span><span class=n>notify</span><span class=p>(</span><span class=nv>$events</span><span class=p>[</span><span class=mi>0</span><span class=p>]);</span>  <span class=c1># 再度同じイベントで確認</span>
+</span></span></code></pre></td></tr></table></div></div><p>実行結果はこうなります。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>=== 日中モード ===
+</span></span><span class=line><span class=cl>[ログ] 2026-01-18T14:00:00+09:00 / 192.168.1.100 / Port Scan
+</span></span><span class=line><span class=cl>[スコア] 累計: 30
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>=== 深夜モード（アラートON）===
+</span></span><span class=line><span class=cl>[ログ] 2026-01-18T02:30:00+09:00 / 10.0.0.55 / SSH Brute Force
+</span></span><span class=line><span class=cl>[スコア] 累計: 110
+</span></span><span class=line><span class=cl>!!! [警報] 侵入検知: SSH Brute Force from 10.0.0.55 !!!
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>=== 引き続き深夜モード ===
+</span></span><span class=line><span class=cl>[ログ] 2026-01-18T03:15:00+09:00 / 172.16.0.22 / SQL Injection Attempt
+</span></span><span class=line><span class=cl>[スコア] 累計: 200
+</span></span><span class=line><span class=cl>!!! [警報] 侵入検知: SQL Injection Attempt from 172.16.0.22 !!!
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>=== 朝になったのでアラートOFF ===
+</span></span><span class=line><span class=cl>[ログ] 2026-01-18T14:00:00+09:00 / 192.168.1.100 / Port Scan
+</span></span><span class=line><span class=cl>[スコア] 累計: 230
+</span></span></code></pre></td></tr></table></div></div><h2 id=動的登録解除の威力>動的登録・解除の威力</h2><p>注目すべきは、コードの変更なしに通知先を切り替えられる点です。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=nv>$hub</span><span class=o>-&gt;</span><span class=n>attach</span><span class=p>(</span><span class=nv>$alert_observer</span><span class=p>);</span>  <span class=c1># アラートを追加</span>
+</span></span><span class=line><span class=cl><span class=c1># ...しばらく運用...</span>
+</span></span><span class=line><span class=cl><span class=nv>$hub</span><span class=o>-&gt;</span><span class=n>detach</span><span class=p>(</span><span class=nv>$alert_observer</span><span class=p>);</span>  <span class=c1># アラートを解除</span>
+</span></span></code></pre></td></tr></table></div></div><p>既存のコード（<code>RadarLogObserver</code>や<code>ThreatScoreObserver</code>）には一切手を加えていません。これが**開放閉鎖の原則（OCP）**の効果です。</p><h2 id=現実的な使い方>現実的な使い方</h2><p>実際の運用では、時刻判定を組み合わせることになるでしょう。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># 疑似コード</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$hour</span> <span class=o>=</span> <span class=p>(</span><span class=nb>localtime</span><span class=p>)[</span><span class=mi>2</span><span class=p>];</span>
+</span></span><span class=line><span class=cl><span class=k>if</span> <span class=p>(</span><span class=nv>$hour</span> <span class=o>&gt;=</span> <span class=mi>22</span> <span class=o>||</span> <span class=nv>$hour</span> <span class=o>&lt;</span> <span class=mi>6</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$hub</span><span class=o>-&gt;</span><span class=n>attach</span><span class=p>(</span><span class=nv>$alert_observer</span><span class=p>);</span>  <span class=c1># 深夜帯</span>
+</span></span><span class=line><span class=cl><span class=p>}</span> <span class=k>else</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$hub</span><span class=o>-&gt;</span><span class=n>detach</span><span class=p>(</span><span class=nv>$alert_observer</span><span class=p>);</span>  <span class=c1># 日中</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>外部の条件（時刻、負荷状況、設定ファイルなど）に応じて、柔軟に通知先を制御できます。</p><h2 id=今回のまとめ>今回のまとめ</h2><p>今回はObserverの動的登録・解除を実装しました。</p><ul><li><code>AlertObserver</code>を新規作成（アラート通知担当）</li><li><code>attach</code>で深夜モードに切り替え</li><li><code>detach</code>で日中モードに切り替え</li><li>既存コードへの変更なしで機能追加</li></ul><p>ランタイムでの柔軟な制御が可能になりました。</p><h2 id=次回予告>次回予告</h2><p>次回は「偽物のObserverを排除する」話です。現在の<code>attach</code>は何でも受け入れてしまいますが、<code>IntrusionObserver</code>ロールを実装していないものを弾けるようにしましょう。</p><p>Mooの型制約機能を使った堅牢化です。</p></section><footer class=article-footer><section class=article-tags><a href=/tags/perl/>Perl</a>
+<a href=/tags/moo/>Moo</a>
+<a href=/tags/dynamic-registration/>Dynamic-Registration</a>
+<a href=/tags/attach-detach/>Attach-Detach</a>
+<a href=/tags/honeypot-intrusion-radar/>Honeypot-Intrusion-Radar</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/01/16/004205/><div class=article-image><img src=/public_images/2026/observer-pattern-series-image.jpg loading=lazy data-key data-hash=/public_images/2026/observer-pattern-series-image.jpg></div><div class=article-details><h2 class=article-title>第6回-Observerを動的に追加・削除しよう - Perlでローグライク通知システムを作ろう</h2></div></a></article><article class=has-image><a href=/2026/01/18/061505/><div class=article-image><img src=/public_images/2026/honeypot-intrusion-radar-series-image.jpg loading=lazy data-key data-hash=/public_images/2026/honeypot-intrusion-radar-series-image.jpg></div><div class=article-details><h2 class=article-title>【目次】Perlでハニーポット侵入レーダーを作ろう（全10回）</h2></div></a></article><article class=has-image><a href=/2026/01/18/061448/><div class=article-image><img src=/public_images/2026/honeypot-intrusion-radar-series-image.jpg loading=lazy data-key data-hash=/public_images/2026/honeypot-intrusion-radar-series-image.jpg></div><div class=article-details><h2 class=article-title>第10回-これがObserverパターンだ！ - Perlでハニーポット侵入レーダーを作ろう</h2></div></a></article><article class=has-image><a href=/2026/01/18/061431/><div class=article-image><img src=/public_images/2026/honeypot-intrusion-radar-series-image.jpg loading=lazy data-key data-hash=/public_images/2026/honeypot-intrusion-radar-series-image.jpg></div><div class=article-details><h2 class=article-title>第9回-完成！侵入レーダー司令室 - Perlでハニーポット侵入レーダーを作ろう</h2></div></a></article><article class=has-image><a href=/2026/01/18/061414/><div class=article-image><img src=/public_images/2026/honeypot-intrusion-radar-series-image.jpg loading=lazy data-key data-hash=/public_images/2026/honeypot-intrusion-radar-series-image.jpg></div><div class=article-details><h2 class=article-title>第8回-脅威スコアを拡張せよ（OCP） - Perlでハニーポット侵入レーダーを作ろう</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>
