@@ -87,9 +87,9 @@ title: Abstract Factoryパターン調査ドキュメント
 
 | 利用シーン | 説明 | 具体例 |
 |-----------|------|--------|
-| UIテーマ切り替え | UI部品をテーマごとにまとめて生成 | Mac風/Windows風のボタン・ウィンドウ |
-| DBドライバ切り替え | DBごとに接続/クエリオブジェクトを揃える | MySQL/PostgreSQL向けDAOセット |
-| APIクライアント切り替え | 環境ごとにAPI実装を切り替える | 本番/モックAPIのクライアントセット |
+| UIテーマ切り替え | UI部品をテーマごとにまとめて生成 | Mac風/Windows風のボタン・ウィンドウ・アイコンセット |
+| DBドライバ切り替え | DBごとに接続/クエリ/トランザクション部品を揃える | MySQL/PostgreSQL向けコネクション/クエリ/DAOセット |
+| APIクライアント切り替え | 環境ごとにAPI実装の部品群を切り替える | 本番/モックAPIのRequestBuilder/ResponseParserセット |
 
 **根拠**:
 
@@ -113,7 +113,7 @@ title: Abstract Factoryパターン調査ドキュメント
 
 - AbstractFactoryロールでcreate_button/create_windowを定義
 - ConcreteFactoryがMac/Windowsなどの製品ファミリを生成
-- 製品側にも共通ロールを用意し、UI側は抽象に依存する
+- 製品側に共通ロールを用意し、UI側は抽象に依存する
 
 ```perl
 # 言語: perl
@@ -124,7 +124,17 @@ package UIFactory;
 use v5.36;
 use Moo::Role;
 
-requires qw(create_button create_window);
+requires 'create_button', 'create_window';
+
+package ButtonRole;
+use v5.36;
+use Moo::Role;
+requires qw(render);
+
+package WindowRole;
+use v5.36;
+use Moo::Role;
+requires qw(render);
 
 package MacFactory;
 use v5.36;
@@ -145,12 +155,26 @@ sub create_window($self) { return WinWindow->new }
 package MacButton;
 use v5.36;
 use Moo;
+with 'ButtonRole';
 sub render { 'mac-button' }
 
 package WinButton;
 use v5.36;
 use Moo;
+with 'ButtonRole';
 sub render { 'win-button' }
+
+package MacWindow;
+use v5.36;
+use Moo;
+with 'WindowRole';
+sub render { 'mac-window' }
+
+package WinWindow;
+use v5.36;
+use Moo;
+with 'WindowRole';
+sub render { 'win-window' }
 
 1;
 ```
