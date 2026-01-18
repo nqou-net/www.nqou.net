@@ -1,7 +1,7 @@
 ---
 date: 2026-01-17T17:51:52+09:00
 description: 'Builderパターンに関する包括的な調査結果 - GoF定義、実装パターン、関連パターンとの比較を網羅'
-draft: true
+draft: false
 epoch: 1768672312
 image: /favicon.png
 iso8601: 2026-01-17T17:51:52+09:00
