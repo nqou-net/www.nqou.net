@@ -1,7 +1,7 @@
 ---
 date: 2026-01-15T13:03:08+09:00
 description: 'Template Methodパターン（GoFデザインパターン）の徹底調査 - 基本から実装、SOLID原則との関係、類似パターンとの比較、Perl/Mooでの実装まで'
-draft: true
+draft: false
 epoch: 1768449788
 image: /favicon.png
 iso8601: 2026-01-15T13:03:08+09:00

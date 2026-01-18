@@ -1,7 +1,7 @@
 ---
 date: 2026-01-16T00:00:00+09:00
 description: 'Factory Methodパターン改善版連載のための調査結果 - Perl/Moo実装と連載設計の基礎'
-draft: true
+draft: false
 epoch: 1768489200
 image: /favicon.png
 iso8601: 2026-01-16T00:00:00+09:00

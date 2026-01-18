@@ -1,7 +1,7 @@
 ---
 date: 2026-01-17T20:32:23+09:00
 description: 'Observerパターンに関する包括的な調査結果 - 定義、用途、利点・欠点、Moo実装例を整理'
-draft: true
+draft: false
 epoch: 1768649543
 image: /favicon.png
 iso8601: 2026-01-17T20:32:23+09:00

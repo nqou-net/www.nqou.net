@@ -1,7 +1,7 @@
 ---
 date: 2026-01-13T16:34:30+09:00
 description: Prototypeパターン（GoFデザインパターン）に関する調査結果
-draft: true
+draft: false
 epoch: 1768386870
 image: /favicon.png
 iso8601: 2026-01-13T16:34:30+09:00

@@ -1,7 +1,7 @@
 ---
 date: 2026-01-17T13:20:13+09:00
 description: Proxyパターンに関する包括的な調査結果 - アクセス制御、遅延初期化、キャッシュ戦略を網羅
-draft: true
+draft: false
 epoch: 1768623613
 image: /favicon.png
 iso8601: 2026-01-17T13:20:13+09:00

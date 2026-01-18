@@ -1,7 +1,7 @@
 ---
 date: 2026-01-17T16:39:02+09:00
 description: 'Decoratorパターンに関する包括的な調査結果 - GoF定義、SOLID原則との関係、実装例を網羅'
-draft: true
+draft: false
 epoch: 1768667833
 image: /favicon.png
 iso8601: 2026-01-17T16:39:02+09:00
