@@ -1,70 +1,36 @@
-# WORKFLOWS.md — 記事作成ワークフローガイド（圧縮版）
+# WORKFLOWS.md — 記事作成ワークフローガイド
 
 > 補助文書: [AGENTS.md](AGENTS.md)（プロジェクト概要、コンテンツ作成ルール、エージェントマッピング、調査ドキュメント運用）を事前確認
 
 ---
 
-## ワークフロー基本方針
+## ワークフロー一覧
+
+### シリーズ記事
+
+| ワークフロー | 説明 |
+|---|---|
+| [series-article](.agent/workflows/series-article.md) | シリーズ記事の作成（全体フロー） |
+| [series-article-planning](.agent/workflows/series-article-planning.md) | プランニングフェーズ（調査→構造案→レビュー→選定） |
+| [series-article-writing](.agent/workflows/series-article-writing.md) | ライティングフェーズ（日時決定→原稿作成→リンク・挿絵→目次） |
+| [series-article-review](.agent/workflows/series-article-review.md) | レビューフェーズ（コード検証→校正→品質レビュー→公開） |
+
+### 単体記事
+
+| ワークフロー | 説明 |
+|---|---|
+| [single-article](.agent/workflows/single-article.md) | 単体記事の作成（全体フロー） |
+| [single-article-planning](.agent/workflows/single-article-planning.md) | プランニングフェーズ（調査→アウトライン作成） |
+| [single-article-writing](.agent/workflows/single-article-writing.md) | ライティングフェーズ（原稿作成→挿絵追加） |
+| [single-article-review](.agent/workflows/single-article-review.md) | レビューフェーズ（校正→最終チェック→公開） |
+
+---
+
+## 基本方針
 
 - プロンプトテンプレートに厳密に従う
 - **公開前は必ず reviewer エージェントで最終チェック**
-
----
-
-## シリーズ記事
-
-### プランニング
-
-> テンプレート: `agents/templates/warehouse.md`, `structure.md` | 重複チェック: [SERIES.md](SERIES.md)
-
-| ステップ | 担当エージェント | 内容 |
-|---|---|---|
-| 1 | investigative-research | 情報収集・競合分析・内部リンク調査 → `content/warehouse/<slug>.md` に保存。**テーマ提案は禁止** |
-| 2 | 専門家 | 連載構造案3案（A/B/C）作成 → `agents/structure/<slug>.md` に保存。インパクト・独自性優先、既存シリーズと差別化 |
-| 3 | search-engine-optimization | SEO視点レビュー（キーワード配置、検索意図）。最終稿のみ出力 |
-| 4 | reviewer | 品質視点レビュー（構造一貫性、段階的難易度）。最終稿のみ出力 |
-| 5 | ユーザー/reviewer | 最適案選定、選定理由文書化 |
-
-### ライティング
-
-> テンプレート: `agents/templates/post.md`
-
-| ステップ | 担当 | 内容 |
-|---|---|---|
-| 1 | 専門家 | 連載構造案に基づき原稿作成。初回は前提知識・対象読者明示。文体・トーン統一。最終稿のみ出力 |
-| 2 | illustration-craftsperson | 挿絵追加（Mermaid図）。推奨: クラス図/シーケンス図/フローチャート/構成図。挿入位置:「パターンで解決する」冒頭 |
-
-### レビュー
-
-| ステップ | 担当 | 内容 |
-|---|---|---|
-| 1 | — | 公開日時決定: 第1回=レビューの24h後、第2回以降=前回の17秒後。ファイル名: `content/post/%Y/%m/%d/%H%M%S.md` |
-| 2 | — | シリーズ記事間リンク追加（前回振り返り、次回予告） |
-| 3 | — | 目次記事作成: 最終回の17秒後公開、タイトル「【目次】シリーズ名（全N回）」、linkcard形式でリンク |
-| 4 | — | コード検証: テストコードによる動作確認と警告チェック。`agents/tests/<slug>/` に保存 |
-| 5 | proofreader | 校正 |
-| 6 | reviewer | 品質レビュー3回: ①構造案整合性 ②表現スタイル改善 ③最終仕上げ（SRP/OCP言及、一貫性） |
-| 7 | — | 公開: `draft: false`に変更 |
-
----
-
-## 単体記事
-
-### プランニング
-
-| ステップ | 担当 | 内容 |
-|---|---|---|
-| 1 | investigative-research | 情報収集・競合分析・内部リンク調査 → `content/warehouse/<slug>.md` |
-| 2 | search-engine-optimization | アウトライン作成: タイトル最適化、meta description、見出し構造（H1/H2/H3）、構造化データ |
-
-### ライティング・レビュー
-
-| ステップ | 担当 | 内容 |
-|---|---|---|
-| 1 | 専門家 | 原稿作成: 技術的正確性、コード例配置、引用URL明記 |
-| 2 | illustration-craftsperson | 挿絵追加（Mermaid） |
-| 3 | proofreader | 校正 |
-| 4 | reviewer | 最終チェック |
+- 重複チェック: [SERIES.md](SERIES.md)
 
 ---
 
