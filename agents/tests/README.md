@@ -13,30 +13,30 @@
 
 | 状況 | シリーズ数 | 割合 |
 |------|-----------|------|
-| ✅ テスト済み | 5 | 20.8% |
-| ❌ 未テスト | 19 | 79.2% |
+| ✅ テスト済み | 6 | 25.0% |
+| ❌ 未テスト | 18 | 75.0% |
 | **合計** | **24** | **100%** |
 
 ---
 
 ## デザインパターンシリーズ（19シリーズ）
 
-### テスト済み（5シリーズ）
+### テスト済み（6シリーズ）
 
 | パターン名 | シリーズタイトル | テストディレクトリ | 目次記事 |
 |-----------|----------------|------------------|---------|
 | Builder | PerlとMooで作るSQLクエリビルダー | [sql-query-builder](file:///Users/nobu/local/src/github.com/nqou-net/www.nqou.net-main/agents/tests/sql-query-builder) | [目次](/2026/01/20/002657/) |
+| Chain of Responsibility | 架空ECサイトで学ぶ決済審査システム | [payment-verification](file:///Users/nobu/local/src/github.com/nqou-net/www.nqou.net-main/agents/tests/payment-verification) | [目次](/2026/01/10/221432/) |
 | Decorator | PerlとMooで学ぶDecorator - ログ解析パイプライン実装 | [decorator-pattern-log-pipeline](file:///Users/nobu/local/src/github.com/nqou-net/www.nqou.net-main/agents/tests/decorator-pattern-log-pipeline) | [目次](/2026/01/19/211737/) |
 | Observer | Perlでハニーポット侵入レーダーを作ろう | [honeypot-intrusion-radar](file:///Users/nobu/local/src/github.com/nqou-net/www.nqou.net-main/agents/tests/honeypot-intrusion-radar) | [目次](/2026/01/18/061505/) |
 | Proxy | Mooで作るゴーストギャラリー・ビューワ | [ghost-gallery-viewer](file:///Users/nobu/local/src/github.com/nqou-net/www.nqou.net-main/agents/tests/ghost-gallery-viewer) | [目次](/2026/01/17/231118/) |
 | Template Method | PerlとMooでWebスクレイパーを作ってみよう | [web-scraper](file:///Users/nobu/local/src/github.com/nqou-net/www.nqou.net-main/agents/tests/web-scraper) | [目次](/2026/01/19/002047/) |
 
-### 未テスト（14シリーズ）
+### 未テスト（13シリーズ）
 
 | パターン名 | シリーズタイトル | 回数 | 目次記事 |
 |-----------|----------------|------|---------|
 | Adapter | 天気情報ツールで覚えるPerl | 全7回 | [目次](/2026/01/07/223826/) |
-| Chain of Responsibility | 架空ECサイトで学ぶ決済審査システム | 全3回 | [目次](/2026/01/10/221432/) |
 | Command | Mooで作る簡易テキストエディタ | 全10回 | [目次](/2026/01/08/154030/) |
 | Facade | PerlとMooでレポートジェネレーターを作ってみよう | 全10回 | [目次](/2026/01/12/230702/) |
 | Factory Method | PerlとMooでAPIレスポンスシミュレーターを作ってみよう | 全8回 | [目次](/2026/01/17/132411/) |
