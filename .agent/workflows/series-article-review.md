@@ -31,7 +31,7 @@ description: シリーズ記事のレビューフェーズ（コード検証→�
 
 ### 1.3 検証結果の記録
 
-1. 全回の検証完了後、結果を `walkthrough.md` に記録
+1. 全回の検証完了後、 `agents/tests/README.md` を更新
 
 ---
 
