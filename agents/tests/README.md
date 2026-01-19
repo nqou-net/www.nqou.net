@@ -1,6 +1,6 @@
 # シリーズ記事テスト状況一覧
 
-最終更新: 2026-01-19 (Mementoパターン追加)
+最終更新: 2026-01-19 (Stateパターン追加)
 
 ## 概要
 
@@ -13,15 +13,15 @@
 
 | 状況 | シリーズ数 | 割合 |
 |------|-----------|------|
-| ✅ テスト済み | 8 | 33.3% |
-| ❌ 未テスト | 16 | 66.7% |
+| ✅ テスト済み | 9 | 37.5% |
+| ❌ 未テスト | 15 | 62.5% |
 | **合計** | **24** | **100%** |
 
 ---
 
 ## デザインパターンシリーズ（19シリーズ）
 
-### テスト済み（8シリーズ）
+### テスト済み（9シリーズ）
 
 | パターン名 | シリーズタイトル | テストディレクトリ | 目次記事 |
 |-----------|----------------|------------------|---------|
@@ -32,9 +32,10 @@
 | Observer | Perlでハニーポット侵入レーダーを作ろう | [honeypot-intrusion-radar](file:///Users/nobu/local/src/github.com/nqou-net/www.nqou.net-main/agents/tests/honeypot-intrusion-radar) | [目次](/2026/01/18/061505/) |
 | Observer | Perlでローグライク通知システムを作ろう | [roguelike-notification-system](file:///Users/nobu/local/src/github.com/nqou-net/www.nqou.net-main/agents/tests/roguelike-notification-system) | [目次](/2026/01/16/004330/) |
 | Proxy | Mooで作るゴーストギャラリー・ビューワ | [ghost-gallery-viewer](file:///Users/nobu/local/src/github.com/nqou-net/www.nqou.net-main/agents/tests/ghost-gallery-viewer) | [目次](/2026/01/17/231118/) |
+| State | Mooを使って自動販売機シミュレーターを作ってみよう | [vending-machine-simulator](file:///Users/nobu/local/src/github.com/nqou-net/www.nqou.net-main/agents/tests/vending-machine-simulator) | [目次](/2026/01/10/001853/) |
 | Template Method | PerlとMooでWebスクレイパーを作ってみよう | [web-scraper](file:///Users/nobu/local/src/github.com/nqou-net/www.nqou.net-main/agents/tests/web-scraper) | [目次](/2026/01/19/002047/) |
 
-### 未テスト（11シリーズ）
+### 未テスト（10シリーズ）
 
 | パターン名 | シリーズタイトル | 回数 | 目次記事 |
 |-----------|----------------|------|---------|
@@ -46,7 +47,6 @@
 | Prototype | PerlとMooでモンスター軍団を量産してみよう | 全6回 | [目次](/2026/01/17/004454/) |
 | Proxy | Perlで作るブルートフォース攻撃シミュレータ | 全5回 | [目次](/2026/01/14/004249/) |
 | Singleton | 設定ファイルマネージャーを作ってみよう | 全8回 | [目次](/2026/01/08/033715/) |
-| State | Mooを使って自動販売機シミュレーターを作ってみよう | 全10回 | [目次](/2026/01/10/001853/) |
 | Strategy | Mooを使ってデータエクスポーターを作ってみよう | 全10回 | [目次](/2026/01/09/005530/) |
 
 ---
