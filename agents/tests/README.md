@@ -1,6 +1,6 @@
 # シリーズ記事テスト状況一覧
 
-最終更新: 2026-01-19
+最終更新: 2026-01-19 (ローグライク通知システム追加)
 
 ## 概要
 
@@ -13,15 +13,15 @@
 
 | 状況 | シリーズ数 | 割合 |
 |------|-----------|------|
-| ✅ テスト済み | 6 | 25.0% |
-| ❌ 未テスト | 18 | 75.0% |
+| ✅ テスト済み | 7 | 29.2% |
+| ❌ 未テスト | 17 | 70.8% |
 | **合計** | **24** | **100%** |
 
 ---
 
 ## デザインパターンシリーズ（19シリーズ）
 
-### テスト済み（6シリーズ）
+### テスト済み（7シリーズ）
 
 | パターン名 | シリーズタイトル | テストディレクトリ | 目次記事 |
 |-----------|----------------|------------------|---------|
@@ -29,10 +29,11 @@
 | Chain of Responsibility | 架空ECサイトで学ぶ決済審査システム | [payment-verification](file:///Users/nobu/local/src/github.com/nqou-net/www.nqou.net-main/agents/tests/payment-verification) | [目次](/2026/01/10/221432/) |
 | Decorator | PerlとMooで学ぶDecorator - ログ解析パイプライン実装 | [decorator-pattern-log-pipeline](file:///Users/nobu/local/src/github.com/nqou-net/www.nqou.net-main/agents/tests/decorator-pattern-log-pipeline) | [目次](/2026/01/19/211737/) |
 | Observer | Perlでハニーポット侵入レーダーを作ろう | [honeypot-intrusion-radar](file:///Users/nobu/local/src/github.com/nqou-net/www.nqou.net-main/agents/tests/honeypot-intrusion-radar) | [目次](/2026/01/18/061505/) |
+| Observer | Perlでローグライク通知システムを作ろう | [roguelike-notification-system](file:///Users/nobu/local/src/github.com/nqou-net/www.nqou.net-main/agents/tests/roguelike-notification-system) | [目次](/2026/01/16/004330/) |
 | Proxy | Mooで作るゴーストギャラリー・ビューワ | [ghost-gallery-viewer](file:///Users/nobu/local/src/github.com/nqou-net/www.nqou.net-main/agents/tests/ghost-gallery-viewer) | [目次](/2026/01/17/231118/) |
 | Template Method | PerlとMooでWebスクレイパーを作ってみよう | [web-scraper](file:///Users/nobu/local/src/github.com/nqou-net/www.nqou.net-main/agents/tests/web-scraper) | [目次](/2026/01/19/002047/) |
 
-### 未テスト（13シリーズ）
+### 未テスト（12シリーズ）
 
 | パターン名 | シリーズタイトル | 回数 | 目次記事 |
 |-----------|----------------|------|---------|
@@ -42,7 +43,6 @@
 | Factory Method | PerlとMooでAPIレスポンスシミュレーターを作ってみよう | 全8回 | [目次](/2026/01/17/132411/) |
 | Iterator | 本棚アプリで覚える集合体の巡回 | 全5回 | [目次](/2026/01/08/003843/) |
 | Memento | Mooを使ってゲームのセーブ機能を作ってみよう | 全10回 | [目次](/2026/01/13/233736/) |
-| Observer | Perlでローグライク通知システムを作ろう | 全10回 | [目次](/2026/01/16/004330/) |
 | Prototype | PerlとMooでモンスター軍団を量産してみよう | 全6回 | [目次](/2026/01/17/004454/) |
 | Proxy | Perlで作るブルートフォース攻撃シミュレータ | 全5回 | [目次](/2026/01/14/004249/) |
 | Singleton | 設定ファイルマネージャーを作ってみよう | 全8回 | [目次](/2026/01/08/033715/) |
