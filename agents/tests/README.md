@@ -13,23 +13,24 @@
 
 | 状況 | シリーズ数 | 割合 |
 |------|-----------|------|
-| ✅ テスト済み | 3 | 12.5% |
-| ❌ 未テスト | 21 | 87.5% |
+| ✅ テスト済み | 4 | 16.7% |
+| ❌ 未テスト | 20 | 83.3% |
 | **合計** | **24** | **100%** |
 
 ---
 
 ## デザインパターンシリーズ（19シリーズ）
 
-### テスト済み（3シリーズ）
+### テスト済み（4シリーズ）
 
 | パターン名 | シリーズタイトル | テストディレクトリ | 目次記事 |
 |-----------|----------------|------------------|---------|
 | Builder | PerlとMooで作るSQLクエリビルダー | [sql-query-builder](file:///Users/nobu/local/src/github.com/nqou-net/www.nqou.net-main/agents/tests/sql-query-builder) | [目次](/2026/01/20/002657/) |
 | Decorator | PerlとMooで学ぶDecorator - ログ解析パイプライン実装 | [decorator-pattern-log-pipeline](file:///Users/nobu/local/src/github.com/nqou-net/www.nqou.net-main/agents/tests/decorator-pattern-log-pipeline) | [目次](/2026/01/19/211737/) |
+| Proxy | Mooで作るゴーストギャラリー・ビューワ | [ghost-gallery-viewer](file:///Users/nobu/local/src/github.com/nqou-net/www.nqou.net-main/agents/tests/ghost-gallery-viewer) | [目次](/2026/01/17/231118/) |
 | Template Method | PerlとMooでWebスクレイパーを作ってみよう | [web-scraper](file:///Users/nobu/local/src/github.com/nqou-net/www.nqou.net-main/agents/tests/web-scraper) | [目次](/2026/01/19/002047/) |
 
-### 未テスト（16シリーズ）
+### 未テスト（15シリーズ）
 
 | パターン名 | シリーズタイトル | 回数 | 目次記事 |
 |-----------|----------------|------|---------|
@@ -41,10 +42,8 @@
 | Iterator | 本棚アプリで覚える集合体の巡回 | 全5回 | [目次](/2026/01/08/003843/) |
 | Memento | Mooを使ってゲームのセーブ機能を作ってみよう | 全10回 | [目次](/2026/01/13/233736/) |
 | Observer | Perlでローグライク通知システムを作ろう | 全10回 | [目次](/2026/01/16/004330/) |
-| Observer | Perlでハニーポット侵入レーダーを作ろう | 全10回 | [目次](/2026/01/18/061505/) |
 | Prototype | PerlとMooでモンスター軍団を量産してみよう | 全6回 | [目次](/2026/01/17/004454/) |
 | Proxy | Perlで作るブルートフォース攻撃シミュレータ | 全5回 | [目次](/2026/01/14/004249/) |
-| Proxy | Mooで作るゴーストギャラリー・ビューワ | 全5回 | [目次](/2026/01/17/231118/) |
 | Singleton | 設定ファイルマネージャーを作ってみよう | 全8回 | [目次](/2026/01/08/033715/) |
 | State | Mooを使って自動販売機シミュレーターを作ってみよう | 全10回 | [目次](/2026/01/10/001853/) |
 | Strategy | Mooを使ってデータエクスポーターを作ってみよう | 全10回 | [目次](/2026/01/09/005530/) |
@@ -78,7 +77,7 @@
 
 1. **Factory Method** - PerlとMooでAPIレスポンスシミュレーターを作ってみよう（会話履歴で言及）
 2. **Observer** - Perlでハニーポット侵入レーダーを作ろう（会話履歴で言及）
-3. **Proxy** - Mooで作るゴーストギャラリー・ビューワ（会話履歴で言及）
+3. **Proxy** - Perlで作るブルートフォース攻撃シミュレータ（未テスト）
 
 ### テスト実施方法
 
