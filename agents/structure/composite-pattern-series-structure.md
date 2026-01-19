@@ -174,7 +174,7 @@ title: '連載構造案 - Compositeパターン学習シリーズ'
 | 第4回 | 第4回-ネストした正規表現で壁にぶつかる - PerlとMooで正規表現パーサー | ネスト処理の複雑化 | `(a\|b)*c`のようなネストした正規表現を処理しようとすると、if/elseが爆発。「グループの中に選択、その外に繰り返し」の処理が困難に | ネスト処理の失敗例 | 複雑な条件分岐 | perl, moo, composite-pattern, design-patterns, anti-pattern |
 | 第5回 | 第5回-CompositeパターンでASTを構築しよう - PerlとMooで正規表現パーサー | Compositeパターン、AST（抽象構文木） | `RegexNode` Role（Component）と`CharNode`（Leaf）、`AlternationNode`、`RepetitionNode`（Composite）を実装。正規表現をツリー構造で表現 | `RegexNode` Role、`AlternationNode` | AST構築例 | perl, moo, composite-pattern, ast, design-patterns |
 | 第6回 | 第6回-再帰下降パーサーを実装しよう - PerlとMooで正規表現パーサー | 再帰下降パーサー、演算子優先順位 | 正規表現文字列（`a(b\|c)*d`）をパースしてASTを自動構築。演算子優先順位（選択 < 繰り返し < 連接）を処理 | `RegexParser`（再帰下降） | パース結果のAST表示 | perl, moo, composite-pattern, parsing, recursion |
-| 第7回 | 第7回-ASTをトラバースして展開しよう - PerlとMooで正規表代数パーサー | ツリー走査、深さ優先探索 | ASTを深さ優先探索（DFS）でトラバースし、正規表現を展開形（例: `(a\|b)*` → `"", a, b, aa, ab, ba, bb, ...`）に変換 | `ASTTraverser` | 展開結果表示 | perl, moo, composite-pattern, traversal, dfs |
+| 第7回 | 第7回-ASTをトラバースして展開しよう - PerlとMooで正規表現パーサー | ツリー走査、深さ優先探索 | ASTを深さ優先探索（DFS）でトラバースし、正規表現を展開形（例: `(a\|b)*` → `"", a, b, aa, ab, ba, bb, ...`）に変換 | `ASTTraverser` | 展開結果表示 | perl, moo, composite-pattern, traversal, dfs |
 | 第8回 | 第8回-正規表現を説明文に変換しよう（完成） - PerlとMooで正規表現パーサー | Visitor的変換、自然言語生成 | ASTから自然言語の説明文を生成（例: `a(b\|c)*d` → "aの後に、bまたはcが0回以上繰り返され、最後にd"）。新しい変換を追加しても既存コード変更不要（OCP） | `RegexExplainer` | 完成した説明文生成例 | perl, moo, composite-pattern, ocp, nlg |
 
 ### 差別化ポイント
