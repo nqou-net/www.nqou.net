@@ -1,7 +1,10 @@
 ---
 description: シリーズ記事「Abstract Factoryパターン」の連載構造案3つ（案A/B/C） - UIテーマキット、注文フローセット、マルチクラウド運用の3題材
-draft: true
+draft: false
 title: '連載構造案 - Abstract Factoryパターン新シリーズ（全8回）'
+selected_plan: '案B「Perlで作る注文フローの国別キット」'
+review_status: approved
+approved_date: 2026-01-19
 ---
 
 # 連載構造案：Abstract Factoryパターンを学ぶ新シリーズ
