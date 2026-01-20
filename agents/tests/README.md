@@ -14,7 +14,7 @@
 | Adapter | 天気情報ツールで覚えるPerl | ✅ |
 | Builder | PerlとMooで作るSQLクエリビルダー | ✅ |
 | Chain of Responsibility | 架空ECサイトで学ぶ決済審査システム | ✅ |
-| Chain of Responsibility | ユーザー登録バリデーションを学ぶ | ❌ |
+| Chain of Responsibility | ユーザー登録バリデーションを学ぶ | ✅ |
 | Command | Mooで作る簡易テキストエディタ | ✅ |
 | Composite | PerlとMooで学ぶComposite - Markdown目次生成ツリー構造 | ✅ |
 | Decorator | PerlとMooで学ぶDecorator - ログ解析パイプライン実装 | ✅ |
@@ -46,9 +46,9 @@
 
 | カテゴリ | 総数 | テスト済み | 未テスト |
 |---------|:----:|:----------:|:--------:|
-| デザインパターン | 21 | 16 | 5 |
+| デザインパターン | 21 | 17 | 4 |
 | 実践アプリ | 5 | 0 | 5 |
-| **合計** | **26** | **16** | **10** |
+| **合計** | **26** | **17** | **9** |
 
 ## テストディレクトリ一覧
 
@@ -67,6 +67,7 @@ agents/tests/
 ├── roguelike-notification-system/ # Observer パターン
 ├── simple-text-editor/           # Command パターン
 ├── sql-query-builder/            # Builder パターン
+├── user-registration-validation/ # Chain of Responsibility パターン
 ├── vending-machine-simulator/    # State パターン
 ├── weather-tool/                 # Adapter パターン
 └── web-scraper/                  # Template Method パターン
