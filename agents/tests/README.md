@@ -20,7 +20,7 @@
 | Decorator | PerlとMooで学ぶDecorator - ログ解析パイプライン実装 | ✅ |
 | Facade | PerlとMooでレポートジェネレーターを作ってみよう | ✅ |
 | Factory Method | PerlとMooでAPIレスポンスシミュレーターを作ってみよう | ✅ |
-| Iterator | 本棚アプリで覚える集合体の巡回 | ❌ |
+| Iterator | 本棚アプリで覚える集合体の巡回 | ✅ |
 | Memento | Mooを使ってゲームのセーブ機能を作ってみよう | ✅ |
 | Observer | Perlでローグライク通知システムを作ろう | ✅ |
 | Observer | Perlでハニーポット侵入レーダーを作ろう | ✅ |
@@ -46,9 +46,9 @@
 
 | カテゴリ | 総数 | テスト済み | 未テスト |
 |---------|:----:|:----------:|:--------:|
-| デザインパターン | 21 | 18 | 3 |
+| デザインパターン | 21 | 19 | 2 |
 | 実践アプリ | 5 | 0 | 5 |
-| **合計** | **26** | **18** | **8** |
+| **合計** | **26** | **19** | **7** |
 
 ## テストディレクトリ一覧
 
@@ -61,6 +61,7 @@ agents/tests/
 ├── decorator-pattern-log-pipeline/ # Decorator パターン
 ├── ghost-gallery-viewer/         # Proxy パターン
 ├── honeypot-intrusion-radar/     # Observer パターン
+├── iterator-pattern/             # Iterator パターン
 ├── mass-producing-monsters/      # Prototype パターン
 ├── moo-game-save/                # Memento パターン
 ├── payment-verification/         # Chain of Responsibility パターン
