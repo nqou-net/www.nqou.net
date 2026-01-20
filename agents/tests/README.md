@@ -1,6 +1,6 @@
 # シリーズ記事テスト状況一覧
 
-最終更新: 2026-01-19 (Strategyパターン追加)
+最終更新: 2026-01-20 (Facade/Factory Methodパターン追加)
 
 ## 概要
 
@@ -13,21 +13,22 @@
 
 | 状況 | シリーズ数 | 割合 |
 |------|-----------|------|
-| ✅ テスト済み | 10 | 41.7% |
-| ❌ 未テスト | 14 | 58.3% |
+| ✅ テスト済み | 11 | 45.8% |
+| ❌ 未テスト | 13 | 54.2% |
 | **合計** | **24** | **100%** |
 
 ---
 
 ## デザインパターンシリーズ（19シリーズ）
 
-### テスト済み（10シリーズ）
+### テスト済み（11シリーズ）
 
 | パターン名 | シリーズタイトル | テストディレクトリ | 目次記事 |
 |-----------|----------------|------------------|---------|
 | Builder | PerlとMooで作るSQLクエリビルダー | [sql-query-builder](file:///Users/nobu/local/src/github.com/nqou-net/www.nqou.net-main/agents/tests/sql-query-builder) | [目次](/2026/01/20/002657/) |
 | Chain of Responsibility | 架空ECサイトで学ぶ決済審査システム | [payment-verification](file:///Users/nobu/local/src/github.com/nqou-net/www.nqou.net-main/agents/tests/payment-verification) | [目次](/2026/01/10/221432/) |
 | Decorator | PerlとMooで学ぶDecorator - ログ解析パイプライン実装 | [decorator-pattern-log-pipeline](file:///Users/nobu/local/src/github.com/nqou-net/www.nqou.net-main/agents/tests/decorator-pattern-log-pipeline) | [目次](/2026/01/19/211737/) |
+| Facade (Factory Method) | PerlとMooでレポートジェネレーターを作ってみよう | [report-generator](file:///Users/nobu/local/src/github.com/nqou-net/www.nqou.net-main/agents/tests/report-generator) | [目次](/2026/01/12/230702/) |
 | Memento | Mooを使ってゲームのセーブ機能を作ってみよう | [moo-game-save](file:///Users/nobu/local/src/github.com/nqou-net/www.nqou.net-main/agents/tests/moo-game-save) | [目次](/2026/01/13/233736/) |
 | Observer | Perlでハニーポット侵入レーダーを作ろう | [honeypot-intrusion-radar](file:///Users/nobu/local/src/github.com/nqou-net/www.nqou.net-main/agents/tests/honeypot-intrusion-radar) | [目次](/2026/01/18/061505/) |
 | Observer | Perlでローグライク通知システムを作ろう | [roguelike-notification-system](file:///Users/nobu/local/src/github.com/nqou-net/www.nqou.net-main/agents/tests/roguelike-notification-system) | [目次](/2026/01/16/004330/) |
@@ -36,13 +37,12 @@
 | Strategy | Mooを使ってデータエクスポーターを作ってみよう | [data-exporter](file:///Users/nobu/local/src/github.com/nqou-net/www.nqou.net-main/agents/tests/data-exporter) | [目次](/2026/01/09/005530/) |
 | Template Method | PerlとMooでWebスクレイパーを作ってみよう | [web-scraper](file:///Users/nobu/local/src/github.com/nqou-net/www.nqou.net-main/agents/tests/web-scraper) | [目次](/2026/01/19/002047/) |
 
-### 未テスト（9シリーズ）
+### 未テスト（8シリーズ）
 
 | パターン名 | シリーズタイトル | 回数 | 目次記事 |
 |-----------|----------------|------|---------|
 | Adapter | 天気情報ツールで覚えるPerl | 全7回 | [目次](/2026/01/07/223826/) |
 | Command | Mooで作る簡易テキストエディタ | 全10回 | [目次](/2026/01/08/154030/) |
-| Facade | PerlとMooでレポートジェネレーターを作ってみよう | 全10回 | [目次](/2026/01/12/230702/) |
 | Factory Method | PerlとMooでAPIレスポンスシミュレーターを作ってみよう | 全8回 | [目次](/2026/01/17/132411/) |
 | Iterator | 本棚アプリで覚える集合体の巡回 | 全5回 | [目次](/2026/01/08/003843/) |
 | Prototype | PerlとMooでモンスター軍団を量産してみよう | 全6回 | [目次](/2026/01/17/004454/) |
