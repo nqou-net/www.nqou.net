@@ -88,16 +88,29 @@ subtest '多態性による統一的な処理' => sub {
         ForeignWeatherAdapter->new(foreign_service => ForeignWeatherService->new),
     );
     
+    # 各サービスに適した都市名を定義
+    my %service_cities = (
+        '国内天気サービス' => '東京',
+        'レガシー天気API'  => '東京',
+        '海外天気サービス' => 'ニューヨーク',
+    );
+    
     # すべてのサービスを同じループで処理できる
     for my $service (@services) {
-        ok($service->can('get_weather'), '全サービスがget_weatherを持つ');
-        ok($service->can('show_weather'), '全サービスがshow_weatherを持つ');
+        my $service_name = $service->name;
+        my $test_city = $service_cities{$service_name} // '東京';
         
-        # すべてのサービスが同じ形式の戻り値を返す
-        my $result = $service->get_weather('東京');
-        is(ref($result), 'HASH', '全サービスがハッシュリファレンスを返す');
-        ok(exists $result->{condition}, '全サービスがconditionキーを持つ');
-        ok(exists $result->{temperature}, '全サービスがtemperatureキーを持つ');
+        ok($service->can('get_weather'), "$service_name: get_weatherを持つ");
+        ok($service->can('show_weather'), "$service_name: show_weatherを持つ");
+        
+        # すべてのサービスが同じ形式の戻り値を返す（適切な都市名でテスト）
+        my $result = $service->get_weather($test_city);
+        is(ref($result), 'HASH', "$service_name: ハッシュリファレンスを返す");
+        ok(exists $result->{condition}, "$service_name: conditionキーを持つ");
+        ok(exists $result->{temperature}, "$service_name: temperatureキーを持つ");
+        
+        # 実際の天気データが取得できていることを確認（fallbackではない）
+        isnt($result->{condition}, '不明', "$service_name: 実際の天気データを返す");
     }
 };
 

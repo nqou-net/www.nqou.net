@@ -51,26 +51,58 @@ for my $test (@tests) {
     say "【第$test->{round}回】$test->{title}";
     say "─" x 60;
     
-    my $cmd = "perl $test->{dir}/t/$test->{test} 2>&1";
-    my $output = `$cmd`;
+    # ディレクトリとテスト名のバリデーション（シェルインジェクション対策）
+    my $dir = $test->{dir};
+    my $test_file = $test->{test};
+    
+    unless ($dir =~ /\A[0-9]{2}\z/ && $test_file =~ /\A[0-9a-z_]+\.t\z/) {
+        say "❌ 無効なテスト設定: $dir/$test_file";
+        $failed_rounds++;
+        say "";
+        next;
+    }
+    
+    my $test_path = "$dir/t/$test_file";
+    
+    # system + open3相当の安全な実行
+    my $pid = open(my $fh, '-|', 'perl', $test_path, '2>&1') or do {
+        say "❌ テスト実行エラー: $!";
+        $failed_rounds++;
+        say "";
+        next;
+    };
+    
+    my $output = do { local $/; <$fh> };
+    close $fh;
     my $exit_code = $? >> 8;
     
-    if ($exit_code == 0) {
-        # テスト数を取得
-        if ($output =~ /1\.\.(\d+)/) {
-            my $count = $1;
-            $total_tests += $count;
-            $passed_tests += $count;
-            say "✅ PASS ($count テスト)";
-        } else {
-            say "✅ PASS";
+    # TAPフォーマットを解析してテスト結果をカウント
+    my $plan_count = 0;
+    my $ok_count = 0;
+    my $not_ok_count = 0;
+    
+    for my $line (split /\n/, $output) {
+        if ($line =~ /\A1\.\.(\d+)/) {
+            $plan_count = $1;
+        } elsif ($line =~ /\Aok\s/) {
+            $ok_count++;
+        } elsif ($line =~ /\Anot ok\s/) {
+            $not_ok_count++;
         }
+    }
+    
+    if ($exit_code == 0 && $not_ok_count == 0) {
+        $total_tests += $ok_count;
+        $passed_tests += $ok_count;
+        say "✅ PASS ($ok_count テスト)";
     } else {
-        say "❌ FAIL";
+        say "❌ FAIL ($not_ok_count 失敗)";
         $failed_rounds++;
+        $total_tests += ($ok_count + $not_ok_count);
+        $passed_tests += $ok_count;
         # 失敗したテストの詳細を表示
         for my $line (split /\n/, $output) {
-            if ($line =~ /^not ok/) {
+            if ($line =~ /\Anot ok/) {
                 say "  $line";
             }
         }
