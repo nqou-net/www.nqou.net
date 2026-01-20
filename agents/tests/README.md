@@ -15,7 +15,7 @@
 | Builder | PerlとMooで作るSQLクエリビルダー | ✅ |
 | Chain of Responsibility | 架空ECサイトで学ぶ決済審査システム | ✅ |
 | Chain of Responsibility | ユーザー登録バリデーションを学ぶ | ❌ |
-| Command | Mooで作る簡易テキストエディタ | ❌ |
+| Command | Mooで作る簡易テキストエディタ | ✅ |
 | Composite | PerlとMooで学ぶComposite - Markdown目次生成ツリー構造 | ✅ |
 | Decorator | PerlとMooで学ぶDecorator - ログ解析パイプライン実装 | ✅ |
 | Facade | PerlとMooでレポートジェネレーターを作ってみよう | ✅ |
@@ -46,9 +46,9 @@
 
 | カテゴリ | 総数 | テスト済み | 未テスト |
 |---------|:----:|:----------:|:--------:|
-| デザインパターン | 21 | 12 | 9 |
+| デザインパターン | 21 | 13 | 8 |
 | 実践アプリ | 5 | 0 | 5 |
-| **合計** | **26** | **12** | **14** |
+| **合計** | **26** | **13** | **13** |
 
 ## テストディレクトリ一覧
 
@@ -63,6 +63,7 @@ agents/tests/
 ├── payment-verification/         # Chain of Responsibility パターン
 ├── report-generator/             # Facade パターン
 ├── roguelike-notification-system/ # Observer パターン
+├── simple-text-editor/           # Command パターン
 ├── sql-query-builder/            # Builder パターン
 ├── vending-machine-simulator/    # State パターン
 └── web-scraper/                  # Template Method パターン
