@@ -10,8 +10,8 @@ package Config {
         open my $fh, '<', $file or die "Cannot open $file: $!";
         while (my $line = <$fh>) {
             chomp $line;
-            next if $line =~ /^\s*$/;     # 空行をスキップ
-            next if $line =~ /^\s*#/;     # コメント行をスキップ
+            next if $line =~ /^\s*$/;
+            next if $line =~ /^\s*#/;
 
             if ($line =~ /^\s*(\w+)\s*=\s*(.+?)\s*$/) {
                 my ($key, $value) = ($1, $2);
