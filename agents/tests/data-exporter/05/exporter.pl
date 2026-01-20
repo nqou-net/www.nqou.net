@@ -1,0 +1,90 @@
+#!/usr/bin/env perl
+use v5.36;
+use JSON::PP;
+
+# ========================================
+# ExporterRole - エクスポーターの約束
+# ========================================
+package ExporterRole {
+    use Moo::Role;
+    requires 'export';
+}
+
+# ========================================
+# CsvExporterクラス
+# ========================================
+package CsvExporter {
+    use Moo;
+    use v5.36;
+    with 'ExporterRole';
+
+    sub export ($self, $data) {
+        my $output = "name,email,phone\n";
+        for my $contact (@$data) {
+            $output .= "$contact->{name},$contact->{email},$contact->{phone}\n";
+        }
+        return $output;
+    }
+}
+
+# ========================================
+# JsonExporterクラス
+# ========================================
+package JsonExporter {
+    use Moo;
+    use v5.36;
+    use JSON::PP;
+    with 'ExporterRole';
+
+    sub export ($self, $data) {
+        return JSON::PP->new->pretty->encode($data);
+    }
+}
+
+# ========================================
+# DataExporterクラス（エクスポーター管理）
+# ========================================
+package DataExporter {
+    use Moo;
+    use v5.36;
+
+    has exporter => (
+        is       => 'ro',
+        required => 1,
+    );
+
+    sub export_data ($self, $data) {
+        return $self->exporter->export($data);
+    }
+}
+
+# ========================================
+# メイン処理
+# ========================================
+package main;
+
+# アドレス帳データ
+my @contacts = (
+    { name => '田中太郎', email => 'tanaka@example.com', phone => '090-1234-5678' },
+    { name => '鈴木花子', email => 'suzuki@example.com', phone => '080-2345-6789' },
+    { name => '佐藤次郎', email => 'sato@example.com',   phone => '070-3456-7890' },
+);
+
+# コマンドライン引数から形式を取得
+my $format = $ARGV[0] // 'csv';
+
+# 形式に応じてエクスポーターを選択
+my $exporter_obj;
+if ($format eq 'csv') {
+    $exporter_obj = CsvExporter->new;
+}
+elsif ($format eq 'json') {
+    $exporter_obj = JsonExporter->new;
+}
+else {
+    die "未対応の形式です: $format\n";
+}
+
+# DataExporterを作成してエクスポート
+my $data_exporter = DataExporter->new(exporter => $exporter_obj);
+print $data_exporter->export_data(\@contacts);
