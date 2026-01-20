@@ -46,14 +46,18 @@ package Logger {
 
 package main;
 
-my $config = Config->new();
-$config->load_config('config.ini');
+unless (caller) {
+    my $config = Config->new();
+    $config->load_config('config.ini');
 
-say "アプリ名: " . $config->get('app_name');
+    say "アプリ名: " . $config->get('app_name');
 
-$config->set('debug', 0);
+    $config->set('debug', 0);
 
-say "デバッグモード（メイン側）: " . ($config->get('debug') ? 'ON' : 'OFF');
+    say "デバッグモード（メイン側）: " . ($config->get('debug') ? 'ON' : 'OFF');
 
-my $logger = Logger->new();
-$logger->debug("処理を開始します");
+    my $logger = Logger->new();
+    $logger->debug("処理を開始します");
+}
+
+1;

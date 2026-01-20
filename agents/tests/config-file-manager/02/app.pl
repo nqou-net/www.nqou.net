@@ -32,9 +32,13 @@ package Config {
 
 package main;
 
-my $config = Config->new();
-$config->load_config('config.ini');
+unless (caller) {
+    my $config = Config->new();
+    $config->load_config('config.ini');
 
-say "アプリ名: " . $config->get('app_name');
-say "バージョン: " . $config->get('version');
-say "デバッグモード: " . ($config->get('debug') ? 'ON' : 'OFF');
+    say "アプリ名: " . $config->get('app_name');
+    say "バージョン: " . $config->get('version');
+    say "デバッグモード: " . ($config->get('debug') ? 'ON' : 'OFF');
+}
+
+1;

@@ -11,8 +11,12 @@ package Config {
 
 package main;
 
-my $config = Config->new();
+unless (caller) {
+    my $config = Config->new();
 
-say "アプリ名: " . $config->app_name;
-say "バージョン: " . $config->version;
-say "デバッグモード: " . ($config->debug ? 'ON' : 'OFF');
+    say "アプリ名: " . $config->app_name;
+    say "バージョン: " . $config->version;
+    say "デバッグモード: " . ($config->debug ? 'ON' : 'OFF');
+}
+
+1;
