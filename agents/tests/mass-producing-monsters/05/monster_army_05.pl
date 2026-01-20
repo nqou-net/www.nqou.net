@@ -7,7 +7,6 @@
 # ネストしたオブジェクトも完全に独立したコピーになる
 
 use v5.36;
-use Storable qw(dclone);
 
 package Weapon {
     use Moo;
