@@ -11,7 +11,7 @@
 | パターン名 | シリーズタイトル | テスト済み |
 |-----------|----------------|:----------:|
 | Abstract Factory | Perlで作る注文フローの国別キット | ❌ |
-| Adapter | 天気情報ツールで覚えるPerl | ❌ |
+| Adapter | 天気情報ツールで覚えるPerl | ✅ |
 | Builder | PerlとMooで作るSQLクエリビルダー | ✅ |
 | Chain of Responsibility | 架空ECサイトで学ぶ決済審査システム | ✅ |
 | Chain of Responsibility | ユーザー登録バリデーションを学ぶ | ❌ |
@@ -46,9 +46,9 @@
 
 | カテゴリ | 総数 | テスト済み | 未テスト |
 |---------|:----:|:----------:|:--------:|
-| デザインパターン | 21 | 15 | 6 |
+| デザインパターン | 21 | 16 | 5 |
 | 実践アプリ | 5 | 0 | 5 |
-| **合計** | **26** | **15** | **11** |
+| **合計** | **26** | **16** | **10** |
 
 ## テストディレクトリ一覧
 
@@ -68,5 +68,6 @@ agents/tests/
 ├── simple-text-editor/           # Command パターン
 ├── sql-query-builder/            # Builder パターン
 ├── vending-machine-simulator/    # State パターン
+├── weather-tool/                 # Adapter パターン
 └── web-scraper/                  # Template Method パターン
 ```
