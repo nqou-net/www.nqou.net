@@ -19,7 +19,7 @@
 | Composite | PerlとMooで学ぶComposite - Markdown目次生成ツリー構造 | ✅ |
 | Decorator | PerlとMooで学ぶDecorator - ログ解析パイプライン実装 | ✅ |
 | Facade | PerlとMooでレポートジェネレーターを作ってみよう | ✅ |
-| Factory Method | PerlとMooでAPIレスポンスシミュレーターを作ってみよう | ❌ |
+| Factory Method | PerlとMooでAPIレスポンスシミュレーターを作ってみよう | ✅ |
 | Iterator | 本棚アプリで覚える集合体の巡回 | ❌ |
 | Memento | Mooを使ってゲームのセーブ機能を作ってみよう | ✅ |
 | Observer | Perlでローグライク通知システムを作ろう | ✅ |
@@ -46,14 +46,15 @@
 
 | カテゴリ | 総数 | テスト済み | 未テスト |
 |---------|:----:|:----------:|:--------:|
-| デザインパターン | 21 | 17 | 4 |
+| デザインパターン | 21 | 18 | 3 |
 | 実践アプリ | 5 | 0 | 5 |
-| **合計** | **26** | **17** | **9** |
+| **合計** | **26** | **18** | **8** |
 
 ## テストディレクトリ一覧
 
 ```
 agents/tests/
+├── api-response-simulator/       # Factory Method パターン
 ├── composite-markdown-toc/       # Composite パターン
 ├── config-file-manager/          # Singleton パターン
 ├── data-exporter/                # Strategy パターン
