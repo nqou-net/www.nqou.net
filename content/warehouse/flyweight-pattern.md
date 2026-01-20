@@ -1,10 +1,10 @@
 ---
-date: 2026-01-21T15:00:00+09:00
+date: 2026-01-20T14:14:00+09:00
 description: Flyweightパターン（GoFデザインパターン）に関する調査結果
 draft: false
-epoch: 1769007600
+epoch: 1737350040
 image: /favicon.png
-iso8601: 2026-01-21T15:00:00+09:00
+iso8601: 2026-01-20T14:14:00+09:00
 tags:
   - design-patterns
   - flyweight
@@ -64,7 +64,7 @@ title: Flyweightパターン調査ドキュメント
 
 **出典**:
 
-- Wikipedia: Prototype pattern - https://en.wikipedia.org/wiki/Flyweight_pattern
+- Wikipedia: Flyweight pattern - https://en.wikipedia.org/wiki/Flyweight_pattern
 - Refactoring Guru: Flyweight - https://refactoring.guru/design-patterns/flyweight
 - GeeksforGeeks: Flyweight Design Pattern - https://www.geeksforgeeks.org/system-design/flyweight-design-pattern/
 - SpotADev: Flyweight Pattern - https://www.spotadev.com/home/java/design-patterns/gang-of-four/flyweight
