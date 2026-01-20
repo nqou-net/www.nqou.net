@@ -1,7 +1,11 @@
 ---
-title: "Bridgeパターン完全ガイド - 抽象と実装を分離する構造パターン"
-description: "GoFデザインパターンの1つ、Bridgeパターンを徹底解説。Perl/Mooでの実装例、Adapter/Strategyとの違い、実務的なユースケース、メリット・デメリットまで網羅的に紹介します。"
-draft: true
+date: 2026-01-20T23:45:12+09:00
+description: GoFデザインパターンの1つ、Bridgeパターンを徹底解説。Perl/Mooでの実装例、Adapter/Strategyとの違い、実務的なユースケース、メリット・デメリットまで網羅的に紹介します。
+draft: false
+epoch: 1768920312
+image: /favicon.png
+iso8601: 2026-01-20T23:45:12+09:00
+title: 'Bridgeパターン完全ガイド - 抽象と実装を分離する構造パターン'
 ---
 
 # Bridgeパターン完全ガイド
