@@ -1,6 +1,6 @@
 # シリーズ記事テスト状況一覧
 
-最終更新: 2026-01-20 (Facade/Factory Methodパターン追加)
+最終更新: 2026-01-20 (Compositeパターン追加)
 
 ## 概要
 
@@ -19,14 +19,15 @@
 
 ---
 
-## デザインパターンシリーズ（19シリーズ）
+## デザインパターンシリーズ（20シリーズ）
 
-### テスト済み（11シリーズ）
+### テスト済み（9シリーズ）
 
 | パターン名 | シリーズタイトル | テストディレクトリ | 目次記事 |
 |-----------|----------------|------------------|---------|
 | Builder | PerlとMooで作るSQLクエリビルダー | [sql-query-builder](file:///Users/nobu/local/src/github.com/nqou-net/www.nqou.net-main/agents/tests/sql-query-builder) | [目次](/2026/01/20/002657/) |
 | Chain of Responsibility | 架空ECサイトで学ぶ決済審査システム | [payment-verification](file:///Users/nobu/local/src/github.com/nqou-net/www.nqou.net-main/agents/tests/payment-verification) | [目次](/2026/01/10/221432/) |
+| Composite | PerlとMooで学ぶComposite - Markdown目次生成ツリー構造 | [composite-markdown-toc](file:///Users/nobu/local/src/github.com/nqou-net/www.nqou.net-main/agents/tests/composite-markdown-toc) | [目次](/2026/01/20/003414/) |
 | Decorator | PerlとMooで学ぶDecorator - ログ解析パイプライン実装 | [decorator-pattern-log-pipeline](file:///Users/nobu/local/src/github.com/nqou-net/www.nqou.net-main/agents/tests/decorator-pattern-log-pipeline) | [目次](/2026/01/19/211737/) |
 | Facade (Factory Method) | PerlとMooでレポートジェネレーターを作ってみよう | [report-generator](file:///Users/nobu/local/src/github.com/nqou-net/www.nqou.net-main/agents/tests/report-generator) | [目次](/2026/01/12/230702/) |
 | Memento | Mooを使ってゲームのセーブ機能を作ってみよう | [moo-game-save](file:///Users/nobu/local/src/github.com/nqou-net/www.nqou.net-main/agents/tests/moo-game-save) | [目次](/2026/01/13/233736/) |

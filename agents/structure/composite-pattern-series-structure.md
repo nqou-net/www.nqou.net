@@ -1,6 +1,6 @@
 ---
 description: シリーズ記事「Compositeパターン」の連載構造案3つ（案A/B/C）- Markdown目次生成器、正規表現ASTビルダー、化学式分子量計算機の3題材
-draft: true
+draft: false
 title: '連載構造案 - Compositeパターン学習シリーズ'
 ---
 
