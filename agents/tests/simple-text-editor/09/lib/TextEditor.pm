@@ -182,6 +182,11 @@ sub do_insert ($editor, $history) {
     return unless defined $pos_input;
     chomp $pos_input;
 
+    if ($pos_input !~ /\A-?\d+\z/) {
+        say "エラー: 位置は数値で指定してください";
+        return;
+    }
+
     my $position = int($pos_input);
     my $max_pos  = length($editor->text);
 
@@ -220,6 +225,11 @@ sub do_delete ($editor, $history) {
     return unless defined $pos_input;
     chomp $pos_input;
 
+    if ($pos_input !~ /\A-?\d+\z/) {
+        say "エラー: 位置は数値で指定してください";
+        return;
+    }
+
     my $position = int($pos_input);
     my $max_pos  = length($editor->text) - 1;
 
@@ -232,6 +242,11 @@ sub do_delete ($editor, $history) {
     my $len_input = <STDIN>;
     return unless defined $len_input;
     chomp $len_input;
+
+    if ($len_input !~ /\A-?\d+\z/) {
+        say "エラー: 削除文字数は数値で指定してください";
+        return;
+    }
 
     my $length     = int($len_input);
     my $max_length = length($editor->text) - $position;
