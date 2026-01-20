@@ -1,6 +1,6 @@
 # シリーズ記事テスト状況一覧
 
-最終更新: 2026-01-19 (Stateパターン追加)
+最終更新: 2026-01-20 (Compositeパターン追加)
 
 ## 概要
 
@@ -13,20 +13,21 @@
 
 | 状況 | シリーズ数 | 割合 |
 |------|-----------|------|
-| ✅ テスト済み | 9 | 37.5% |
-| ❌ 未テスト | 15 | 62.5% |
-| **合計** | **24** | **100%** |
+| ✅ テスト済み | 10 | 40.0% |
+| ❌ 未テスト | 15 | 60.0% |
+| **合計** | **25** | **100%** |
 
 ---
 
-## デザインパターンシリーズ（19シリーズ）
+## デザインパターンシリーズ（20シリーズ）
 
-### テスト済み（9シリーズ）
+### テスト済み（10シリーズ）
 
 | パターン名 | シリーズタイトル | テストディレクトリ | 目次記事 |
 |-----------|----------------|------------------|---------|
 | Builder | PerlとMooで作るSQLクエリビルダー | [sql-query-builder](file:///Users/nobu/local/src/github.com/nqou-net/www.nqou.net-main/agents/tests/sql-query-builder) | [目次](/2026/01/20/002657/) |
 | Chain of Responsibility | 架空ECサイトで学ぶ決済審査システム | [payment-verification](file:///Users/nobu/local/src/github.com/nqou-net/www.nqou.net-main/agents/tests/payment-verification) | [目次](/2026/01/10/221432/) |
+| Composite | PerlとMooで学ぶComposite - Markdown目次生成ツリー構造 | [composite-markdown-toc](file:///Users/nobu/local/src/github.com/nqou-net/www.nqou.net-main/agents/tests/composite-markdown-toc) | [目次](/2026/01/20/003414/) |
 | Decorator | PerlとMooで学ぶDecorator - ログ解析パイプライン実装 | [decorator-pattern-log-pipeline](file:///Users/nobu/local/src/github.com/nqou-net/www.nqou.net-main/agents/tests/decorator-pattern-log-pipeline) | [目次](/2026/01/19/211737/) |
 | Memento | Mooを使ってゲームのセーブ機能を作ってみよう | [moo-game-save](file:///Users/nobu/local/src/github.com/nqou-net/www.nqou.net-main/agents/tests/moo-game-save) | [目次](/2026/01/13/233736/) |
 | Observer | Perlでハニーポット侵入レーダーを作ろう | [honeypot-intrusion-radar](file:///Users/nobu/local/src/github.com/nqou-net/www.nqou.net-main/agents/tests/honeypot-intrusion-radar) | [目次](/2026/01/18/061505/) |
