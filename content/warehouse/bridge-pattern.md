@@ -17,7 +17,7 @@ Bridgeパターンは「抽象（Abstraction）と実装（Implementation）を�
 Gang of Four（GoF）の原典では "Decouple an abstraction from its implementation so that the two can vary independently" と定義されています。継承による縦横の組み合わせが肥大化する問題（クラス爆発）を、委譲（composition）によって解決します。
 
 **具体例:**  
-例えば、図形（Circle, Rectangle）と色（Red, Blue）という2つの次元があるとき、継承だけで実装すると `RedCircle`, `BlueCircle`, `RedRectangle`, `BlueRectangle` の4クラスが必要です。Bridgeパターンでは、図形クラスが色オブジェクトへの参照を保持することで、クラス数を `Shape系2つ + Color系2つ = 4クラス` に抑えられます。
+例えば、図形（Circle, Rectangle）と色（Red, Blue）という2つの次元があるとき、継承だけで実装すると `RedCircle`, `BlueCircle`, `RedRectangle`, `BlueRectangle` の4クラスが必要です。Bridgeパターンでは、図形クラスが色オブジェクトへの参照を保持することで、クラス数を `Shape系2つ + Color系2つ = 4クラス` に抑えられます。さらに重要なのは、新しい図形（Triangle）や新しい色（Green）を追加する際、Bridgeパターンでは1クラスの追加で済む一方、継承では既存の組み合わせすべてに対応するクラス（GreenCircle, GreenRectangle, ...）が必要になる点です。
 
 **出典:**  
 - Wikipedia: Bridge pattern - https://en.wikipedia.org/wiki/Bridge_pattern
@@ -912,7 +912,7 @@ with 'NotificationSender';
 has 'senders' => (
     is       => 'ro',
     required => 1,
-    isa      => sub { die "Must be arrayref" unless ref $_[0] eq 'ARRAY' },
+    isa      => sub { die "senders attribute must be an array reference containing NotificationSender objects" unless ref $_[0] eq 'ARRAY' },
 );
 
 sub send {
