@@ -24,7 +24,7 @@
 | Memento | Mooを使ってゲームのセーブ機能を作ってみよう | ✅ |
 | Observer | Perlでローグライク通知システムを作ろう | ✅ |
 | Observer | Perlでハニーポット侵入レーダーを作ろう | ✅ |
-| Prototype | PerlとMooでモンスター軍団を量産してみよう | ❌ |
+| Prototype | PerlとMooでモンスター軍団を量産してみよう | ✅ |
 | Proxy | Perlで作るブルートフォース攻撃シミュレータ | ❌ |
 | Proxy | Mooで作るゴーストギャラリー・ビューワ | ✅ |
 | Singleton | 設定ファイルマネージャーを作ってみよう | ✅ |
@@ -46,9 +46,9 @@
 
 | カテゴリ | 総数 | テスト済み | 未テスト |
 |---------|:----:|:----------:|:--------:|
-| デザインパターン | 21 | 14 | 7 |
+| デザインパターン | 21 | 15 | 6 |
 | 実践アプリ | 5 | 0 | 5 |
-| **合計** | **26** | **14** | **12** |
+| **合計** | **26** | **15** | **11** |
 
 ## テストディレクトリ一覧
 
@@ -60,6 +60,7 @@ agents/tests/
 ├── decorator-pattern-log-pipeline/ # Decorator パターン
 ├── ghost-gallery-viewer/         # Proxy パターン
 ├── honeypot-intrusion-radar/     # Observer パターン
+├── mass-producing-monsters/      # Prototype パターン
 ├── moo-game-save/                # Memento パターン
 ├── payment-verification/         # Chain of Responsibility パターン
 ├── report-generator/             # Facade パターン
