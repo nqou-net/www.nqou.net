@@ -37,7 +37,7 @@ fi
 
 echo ""
 echo "📁 ディレクトリ構造:"
-tree -L 2 -I 'lib' . 2>/dev/null || find . -maxdepth 2 -type f -name '*.pl' -o -name '*.t' | sort
+tree -L 2 -I 'lib' . 2>/dev/null || find . -maxdepth 2 -type f \( -name '*.pl' -o -name '*.t' \) -not -path './*/lib/*' | sort
 
 echo ""
 echo "📖 詳細は README.md と detailed_review.md を参照してください"

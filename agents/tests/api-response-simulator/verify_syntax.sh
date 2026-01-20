@@ -8,12 +8,6 @@ for episode in 01 02 03 04 05 06 07 08; do
     
     # mock_api.plの検証
     if [ -f "$episode/mock_api.pl" ]; then
-        # Moo関連を除いた基本構文チェック
-        grep -v 'use Moo' "$episode/mock_api.pl" | \
-        grep -v 'extends' | \
-        grep -v 'with ' | \
-        grep -v 'has ' > "/tmp/check_${episode}.pl"
-        
         # ファイルのライン数と主要構造を表示
         lines=$(wc -l < "$episode/mock_api.pl")
         packages=$(grep -c '^package ' "$episode/mock_api.pl" || echo 0)
@@ -44,8 +38,8 @@ echo ""
 # シグネチャ構文の使用確認
 echo "【シグネチャ構文の使用状況】"
 for episode in 01 02 03 04 05 06 07 08; do
-    count=$(grep -c 'sub [a-z_]*(\$self' "$episode/mock_api.pl" 2>/dev/null || echo 0)
-    if [ $count -gt 0 ]; then
+    count=$(grep -cE '^\s*sub [a-z_]+\(\$self' "$episode/mock_api.pl" 2>/dev/null || echo 0)
+    if [ "$count" -gt 0 ]; then
         echo "  第${episode}回: ${count}箇所でシグネチャ使用"
     fi
 done
