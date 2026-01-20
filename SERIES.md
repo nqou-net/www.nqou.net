@@ -30,7 +30,7 @@ GoFの23パターンのうち、14パターンをカバー済み（アルファ�
 | Adapter | 天気情報ツールで覚えるPerl | 全7回 | adapter-pattern-series-structure.md | [目次](/2026/01/07/223826/) |
 | Builder | PerlとMooで作るSQLクエリビルダー | 全8回 | builder-pattern-series-structure.md | [目次](/2026/01/20/002657/) |
 | Chain of Responsibility | 架空ECサイトで学ぶ決済審査システム | 全3回 | payment-verification-series-structure.md | [目次](/2026/01/10/221432/) |
-
+| Chain of Responsibility | ユーザー登録バリデーションを学ぶ | 全3回 | form-validation-series-structure.md | [目次](/2026/01/09/100300/) |
 | Command | Mooで作る簡易テキストエディタ | 全10回 | command-pattern-series-structure.md | [目次](/2026/01/08/154030/) |
 | Decorator | PerlとMooで学ぶDecorator - ログ解析パイプライン実装 | 全8回 | decorator-pattern-series-structure.md | [目次](/2026/01/19/211737/) |
 | Facade | PerlとMooでレポートジェネレーターを作ってみよう | 全10回 | facade-pattern-series-structure.md | [目次](/2026/01/12/230702/) |
