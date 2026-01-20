@@ -13,6 +13,7 @@ package Cloneable {
 
 package Weapon {
     use Moo;
+    use Storable qw(dclone);
     with 'Cloneable';
 
     has name  => (is => 'ro', required => 1);
@@ -25,6 +26,7 @@ package Weapon {
 
 package Monster {
     use Moo;
+    use Storable qw(dclone);
     with 'Cloneable';
 
     has name    => (is => 'ro', required => 1);
