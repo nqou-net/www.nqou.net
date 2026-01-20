@@ -27,7 +27,7 @@
 | Prototype | PerlとMooでモンスター軍団を量産してみよう | ❌ |
 | Proxy | Perlで作るブルートフォース攻撃シミュレータ | ❌ |
 | Proxy | Mooで作るゴーストギャラリー・ビューワ | ✅ |
-| Singleton | 設定ファイルマネージャーを作ってみよう | ❌ |
+| Singleton | 設定ファイルマネージャーを作ってみよう | ✅ |
 | State | Mooを使って自動販売機シミュレーターを作ってみよう | ✅ |
 | Strategy | Mooを使ってデータエクスポーターを作ってみよう | ✅ |
 | Template Method | PerlとMooでWebスクレイパーを作ってみよう | ✅ |
@@ -46,15 +46,16 @@
 
 | カテゴリ | 総数 | テスト済み | 未テスト |
 |---------|:----:|:----------:|:--------:|
-| デザインパターン | 21 | 13 | 8 |
+| デザインパターン | 21 | 14 | 7 |
 | 実践アプリ | 5 | 0 | 5 |
-| **合計** | **26** | **13** | **13** |
+| **合計** | **26** | **14** | **12** |
 
 ## テストディレクトリ一覧
 
 ```
 agents/tests/
 ├── composite-markdown-toc/       # Composite パターン
+├── config-file-manager/          # Singleton パターン
 ├── data-exporter/                # Strategy パターン
 ├── decorator-pattern-log-pipeline/ # Decorator パターン
 ├── ghost-gallery-viewer/         # Proxy パターン
