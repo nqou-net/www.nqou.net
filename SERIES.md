@@ -5,12 +5,12 @@
 > [!IMPORTANT]
 > 新しいシリーズを企画する際は、このリストを確認し、同じデザインパターンやテーマが既存シリーズと重複しないか必ずチェックしてください。
 
-最終更新: 2026-01-24（Flyweightパターン追加）
+最終更新: 2026-01-21（Interpreterパターン追加）
 
 ## 目次
 
 - [デザインパターン学習シリーズ](#デザインパターン学習シリーズ)
-- [未執筆のデザインパターン](#未執筆のデザインパターン11パターン)
+- [未執筆のデザインパターン](#未執筆のデザインパターン4パターン)
 - [実践アプリケーション開発シリーズ](#実践アプリケーション開発シリーズ)
 - [統計](#統計)
 - [更新方法](#更新方法)
@@ -37,6 +37,7 @@ GoFの23パターンのうち、15パターンをカバー済（アルファベ�
 | Facade | PerlとMooでレポートジェネレーターを作ってみよう | 全10回 | facade-pattern-series-structure.md | [目次](/2026/01/12/230702/) |
 | Factory Method | PerlとMooでAPIレスポンスシミュレーターを作ってみよう | 全8回 | factory-method-pattern-series-structure.md | [目次](/2026/01/17/132411/) |
 | Flyweight | PerlとMooで弾幕シューティングを作ってみよう | 全6回 | flyweight-pattern-series-structure.md | [目次](/2026/01/24/003901/) |
+| Interpreter | PerlとMooでダイス言語を作ってみよう | 全8回 | interpreter-pattern-series-structure.md | 準備中 |
 | Iterator | 本棚アプリで覚える集合体の巡回 | 全5回 | iterator-pattern-series-structure.md | [目次](/2026/01/08/003843/) |
 | Memento | Mooを使ってゲームのセーブ機能を作ってみよう | 全10回 | memento-pattern-series-structure.md | [目次](/2026/01/13/233736/) |
 | Observer | Perlでローグライク通知システムを作ろう | 全10回 | observer-pattern-series-structure.md | [目次](/2026/01/16/004330/) |
@@ -49,13 +50,13 @@ GoFの23パターンのうち、15パターンをカバー済（アルファベ�
 | Strategy | Mooを使ってデータエクスポーターを作ってみよう | 全10回 | strategy-pattern-series-structure.md | [目次](/2026/01/09/005530/) |
 | Template Method | PerlとMooでWebスクレイパーを作ってみよう | 全10回 | template-method-pattern-series-structure.md | [目次](/2026/01/19/002047/) |
 
-### 未執筆のデザインパターン（5パターン）
+### 未執筆のデザインパターン（4パターン）
 
 新規シリーズの企画候補として参照してください。
 
 | 生成パターン | 構造パターン | 振る舞いパターン |
 | --- | --- | --- |
-| ~~Abstract Factory~~ | Bridge | Interpreter |
+| ~~Abstract Factory~~ | Bridge | ~~Interpreter~~ |
 | ~~Composite~~ | ~~Flyweight~~ | Mediator |
 | Visitor | | |
 
@@ -78,9 +79,9 @@ GoFの23パターンのうち、15パターンをカバー済（アルファベ�
 
 | カテゴリ | シリーズ数 | 総記事数 |
 |---------|----------|---------|
-| デザインパターン | 22 | 168回 |
+| デザインパターン | 23 | 176回 |
 | 実践アプリ | 5 | 51回 |
-| **合計** | **27** | **219回** |
+| **合計** | **28** | **227回** |
 
 ---
 
