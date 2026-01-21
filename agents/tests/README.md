@@ -25,7 +25,7 @@
 | Observer | Perlでローグライク通知システムを作ろう | ✅ |
 | Observer | Perlでハニーポット侵入レーダーを作ろう | ✅ |
 | Prototype | PerlとMooでモンスター軍団を量産してみよう | ✅ |
-| Proxy | Perlで作るブルートフォース攻撃シミュレータ | ❌ |
+| Proxy | Perlで作るブルートフォース攻撃シミュレータ | ✅ |
 | Proxy | Mooで作るゴーストギャラリー・ビューワ | ✅ |
 | Singleton | 設定ファイルマネージャーを作ってみよう | ✅ |
 | State | Mooを使って自動販売機シミュレーターを作ってみよう | ✅ |
@@ -46,15 +46,16 @@
 
 | カテゴリ | 総数 | テスト済み | 未テスト |
 |---------|:----:|:----------:|:--------:|
-| デザインパターン | 21 | 19 | 2 |
+| デザインパターン | 21 | 20 | 1 |
 | 実践アプリ | 5 | 0 | 5 |
-| **合計** | **26** | **19** | **7** |
+| **合計** | **26** | **20** | **6** |
 
 ## テストディレクトリ一覧
 
 ```
 agents/tests/
 ├── api-response-simulator/       # Factory Method パターン
+├── brute-force-simulator/        # Proxy パターン（Iterator応用）
 ├── composite-markdown-toc/       # Composite パターン
 ├── config-file-manager/          # Singleton パターン
 ├── data-exporter/                # Strategy パターン
