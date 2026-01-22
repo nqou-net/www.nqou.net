@@ -7,16 +7,6 @@
 
 最終更新: 2026-01-21（Interpreterパターン追加）
 
-## 目次
-
-- [デザインパターン学習シリーズ](#デザインパターン学習シリーズ)
-- [未執筆のデザインパターン](#未執筆のデザインパターン3パターン)
-- [実践アプリケーション開発シリーズ](#実践アプリケーション開発シリーズ)
-- [統計](#統計)
-- [更新方法](#更新方法)
-
----
-
 ## デザインパターン学習シリーズ
 
 GoFの23パターンのうち、15パターンをカバー済（アルファベット順）。
@@ -26,7 +16,6 @@ GoFの23パターンのうち、15パターンをカバー済（アルファベ�
 
 | パターン名 | シリーズタイトル | 回数 | 連載構造案 | 目次記事 |
 |-----------|----------------|------|------------|---------|
-| Abstract Factory | Perlで作る注文フローの国別キット | 全8回 | abstract-factory-pattern-series-structure.md | 準備中 |
 | Adapter | 天気情報ツールで覚えるPerl | 全7回 | adapter-pattern-series-structure.md | [目次](/2026/01/07/223826/) |
 | Builder | PerlとMooで作るSQLクエリビルダー | 全8回 | builder-pattern-series-structure.md | [目次](/2026/01/20/002657/) |
 | Composite | PerlとMooで学ぶComposite - Markdown目次生成ツリー構造 | 全8回 | composite-pattern-series-structure.md | [目次](/2026/01/20/003414/) |
@@ -37,7 +26,6 @@ GoFの23パターンのうち、15パターンをカバー済（アルファベ�
 | Facade | PerlとMooでレポートジェネレーターを作ってみよう | 全10回 | facade-pattern-series-structure.md | [目次](/2026/01/12/230702/) |
 | Factory Method | PerlとMooでAPIレスポンスシミュレーターを作ってみよう | 全8回 | factory-method-pattern-series-structure.md | [目次](/2026/01/17/132411/) |
 | Flyweight | PerlとMooで弾幕シューティングを作ってみよう | 全6回 | flyweight-pattern-series-structure.md | [目次](/2026/01/24/003901/) |
-| Interpreter | PerlとMooでダイス言語を作ってみよう | 全8回 | interpreter-pattern-series-structure.md | 準備中 |
 | Iterator | 本棚アプリで覚える集合体の巡回 | 全5回 | iterator-pattern-series-structure.md | [目次](/2026/01/08/003843/) |
 | Memento | Mooを使ってゲームのセーブ機能を作ってみよう | 全10回 | memento-pattern-series-structure.md | [目次](/2026/01/13/233736/) |
 | Observer | Perlでローグライク通知システムを作ろう | 全10回 | observer-pattern-series-structure.md | [目次](/2026/01/16/004330/) |
@@ -50,16 +38,6 @@ GoFの23パターンのうち、15パターンをカバー済（アルファベ�
 | Strategy | Mooを使ってデータエクスポーターを作ってみよう | 全10回 | strategy-pattern-series-structure.md | [目次](/2026/01/09/005530/) |
 | Template Method | PerlとMooでWebスクレイパーを作ってみよう | 全10回 | template-method-pattern-series-structure.md | [目次](/2026/01/19/002047/) |
 
-### 未執筆のデザインパターン（3パターン）
-
-新規シリーズの企画候補として参照してください。
-
-| 生成パターン | 構造パターン | 振る舞いパターン |
-| --- | --- | --- |
-| ~~Abstract Factory~~ | Bridge | ~~Interpreter~~ |
-| ~~Composite~~ | ~~Flyweight~~ | Mediator |
-| Visitor | | |
-
 ---
 
 ## 実践アプリケーション開発シリーズ
@@ -69,30 +47,5 @@ GoFの23パターンのうち、15パターンをカバー済（アルファベ�
 | Perl/Moo基礎 | Mooで覚えるオブジェクト指向プログラミング | 全12回 | moo-oop-series-structure.md | [目次](/2026/01/02/233311/) |
 | TDD | Perlで値オブジェクトを使ってテスト駆動開発してみよう | 全5回 | なし | [目次](/2025/12/27/234517/) |
 | CLIアプリ | シンプルなTodo CLIアプリ | 全10回 | todo-cli-series-structure.md | [目次](/2026/01/04/011453/) |
-
 | Webアプリ | Mooを使ってディスパッチャーを作ってみよう | 全12回 | moo-dispatcher-series-structure.md | [目次](/2026/01/03/002116/) |
 | Webアプリ | URL短縮サポーター | 全12回 | url-shortener-series-structure.md | [目次](/2026/01/04/210500/) |
-
----
-
-## 統計
-
-| カテゴリ | シリーズ数 | 総記事数 |
-|---------|----------|---------|
-| デザインパターン | 23 | 176回 |
-| 実践アプリ | 5 | 51回 |
-| **合計** | **28** | **227回** |
-
----
-
-## 更新方法
-
-新しいシリーズを作成した場合：
-
-1. 該当カテゴリの表に行を追加（アルファベット順を維持）
-2. パターン名/カテゴリ、シリーズタイトル、回数を記載
-3. 目次記事へのリンクを `[目次](/YYYY/MM/DD/HHMMSS/)` 形式で追加
-4. 連載構造案のファイル名を記載（ない場合は「なし」）
-5. デザインパターンを追加した場合は「未執筆のデザインパターン」から削除
-5. 統計セクションの数値を更新
-6. 最終更新日を更新
