@@ -1,3 +1,10 @@
+---
+date: 2026-01-24T23:56:14+09:00
+draft: true
+epoch: 1769266574
+image: /favicon.png
+iso8601: 2026-01-24T23:56:14+09:00
+---
 # Visitorパターン 調査レポート
 
 ## 調査実施日
@@ -7,8 +14,6 @@
 - Perl入学式卒業レベル
 - MooでのOOP入門を完了した読者
 - 技術スタック: Perl v5.36以降、Moo、signatures/postfix dereference対応
-
----
 
 ## 1. Visitorパターンの基本概念
 
