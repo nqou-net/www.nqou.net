@@ -30,6 +30,7 @@
 | データエクスポーター（Strategy） | ○ |
 | Webスクレイパー（Template Method） | ○ |
 | ドキュメント変換（Visitor） | ○ |
+| テキスト処理パイプライン（Chain of Responsibility / Decorator） | ○ |
 | Moo OOP入門 | ○ |
 | Todo CLI | ○ |
 | ディスパッチャー | ○ |
