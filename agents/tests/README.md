@@ -1,37 +1,19 @@
-# シリーズテスト状況
+# Code Verification Results
 
-| シリーズ名 | テスト済み |
-|-----------|:---------:|
-| チャットルーム（Mooで作る） | ○ |
-| 注文フロー（Abstract Factory） | ○ |
-| 天気情報ツール（Adapter） | ○ |
-| ランダムダンジョン（Bridge） | ○ |
-| SQLクエリビルダー（Builder） | ○ |
-| 決済審査システム（Chain of Responsibility） | ○ |
-| フォームバリデーション（Chain of Responsibility） | ○ |
-| テキストエディタ（Command） | ○ |
-| 目次生成（Composite） | ○ |
-| ブログ作成ツール（Composite-2） | ○ |
-| ログ解析パイプライン（Decorator） | ○ |
-| レポートジェネレーター（Facade） | ○ |
-| APIレスポンス（Factory Method） | ○ |
-| 弾幕シューティング（Flyweight） | ○ |
-| ダイス言語（Interpreter） | ○ |
-| 本棚アプリ（Iterator） | ○ |
-| **航空管制シミュレーター（Mediator）** | ○ |
-| ゲームセーブ（Memento） | ○ |
-| ローグライク通知（Observer） | ○ |
-| ハニーポット侵入レーダー（Observer-2） | ○ |
-| モンスター量産（Prototype） | ○ |
-| ゴーストギャラリー（Proxy） | ○ |
-| ブルートフォース（Proxy-2） | ○ |
-| 設定ファイルマネージャー（Singleton） | ○ |
-| 自動販売機（State） | ○ |
-| データエクスポーター（Strategy） | ○ |
-| Webスクレイパー（Template Method） | ○ |
-| ドキュメント変換（Visitor） | ○ |
-| テキスト処理パイプライン（Chain of Responsibility / Decorator） | ○ |
-| Moo OOP入門 | ○ |
-| Todo CLI | ○ |
-| ディスパッチャー | ○ |
-| URL短縮 | ○ |
+## File Backup Tool Series ("backup-tool")
+
+Verified on: 2026-01-25
+Perl Version: v5.42.0
+
+| Article | Status | Test Directory | Notes |
+|---|---|---|---|
+| 01 | PASS | agents/tests/backup-tool/01 | Simple copy verified |
+| 02 | PASS | agents/tests/backup-tool/02 | Timestamp diff verified |
+| 03 | PASS | agents/tests/backup-tool/03 | Template Method structure verified |
+| 04 | PASS | agents/tests/backup-tool/04 | Strategy pattern verified |
+| 05 | PASS | agents/tests/backup-tool/05 | Integration verified |
+| 06 | PASS | agents/tests/backup-tool/06 | Archive strategy verified |
+| 07 | PASS | agents/tests/backup-tool/07 | Logger and Error handling verified |
+| 08 | N/A  | - | No code examples |
+
+All code examples executed successfully without errors.
