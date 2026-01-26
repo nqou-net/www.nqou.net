@@ -2,7 +2,7 @@
 
 ## API Integration Patterns Series ("api-integration")
 
-Verified on: 2026-01-31
+Verified on: 2026-01-27
 Perl Version: v5.42.0
 
 | Article | Status | Test Directory | Notes |
