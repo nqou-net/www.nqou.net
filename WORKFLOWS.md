@@ -24,6 +24,12 @@
 | [single-article-writing](.agent/workflows/single-article-writing.md) | ライティングフェーズ（原稿作成→挿絵追加） |
 | [single-article-review](.agent/workflows/single-article-review.md) | レビューフェーズ（校正→最終チェック→公開） |
 
+### 統合記事（連載構造案から1記事作成）
+
+| ワークフロー | 説明 |
+|---|---|
+| [unified-article-from-series](.agent/workflows/unified-article-from-series.md) | 連載構造案を1つの長編記事に統合（章構成で1章1概念） |
+
 ---
 
 ## 基本方針
