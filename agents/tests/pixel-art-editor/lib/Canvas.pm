@@ -4,6 +4,7 @@ package Canvas {
     use Moo;
     use Term::ANSIColor qw(colored);
     use Storable qw(dclone);
+    require CanvasMemento;
 
     has width  => (is => 'ro', required => 1);
     has height => (is => 'ro', required => 1);
