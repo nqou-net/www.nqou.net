@@ -128,23 +128,15 @@ hugo server -D -F   # -D: ドラフト表示, -F: 未来日表示
 
 ---
 
-## 専門家エージェント
+## Browser Automation
 
-| 領域 | エージェント名 |
-|---|---|
-| Perl / CPAN / ワンライナー | `perl-monger` |
-| SQL / DB設計 | `sql-otaku` |
-| JSON-RPC / API設計 | `json-rpc-otaku` |
-| WebSocket / リアルタイム | `websocket-otaku` |
-| Docker / コンテナ | `docker-otaku` |
-| Kubernetes / クラスタ | `kubernetes-otaku` |
-| Git / ブランチ運用 | `git-otaku` |
-| GitHub / PR | `github-otaku` |
-| カスタムエージェント | `github-copilot-otaku` |
-| AIエージェントガイドライン | `agents-pm-otaku` |
-| 挿絵 / Mermaid | `illustration-craftsperson` |
+Use `agent-browser` for web automation. Run `agent-browser --help` for all commands.
 
----
+Core workflow:
+1. `agent-browser open <url>` - Navigate to page
+2. `agent-browser snapshot -i` - Get interactive elements with refs (@e1, @e2)
+3. `agent-browser click @e1` / `fill @e2 "text"` - Interact using refs
+4. Re-snapshot after page changes
 
 ## 付記
 

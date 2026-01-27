@@ -48,7 +48,7 @@
 | テキスト処理 | Perl/Mooでテキスト処理パイプライン | 全6回 | Chain of Responsibility+Decorator | ✅ 公開済 | multi-pattern-series-structure-2.md | [目次](/2026/01/30/002333/) |
 | バックアップ | Perlで作るファイルバックアップツール | 全8回 | Template Method+Strategy | ✅ 公開済 | backup-tool-series-structure.md | [目次](/2026/01/30/003407/) |
 | API統合 | Perl API統合パターン | 全8回 | Facade+Adapter | ✅ 公開済 | two-pattern-combination-series-structure.md | [目次](/2026/01/30/004635/) |
-| DevOps | Slackボット指令センター | 全9回 | Mediator+Command+Observer | 🚧 構成案のみ | multi-pattern-series-structure-3.md | なし |
+| DevOps | Slackボット指令センター | 全9回 | Mediator+Command+Observer | ✅ 公開済 | multi-pattern-series-structure-3.md | [目次](/2026/01/31/004808/) |
 
 ---
 
