@@ -1,5 +1,5 @@
 ---
-description: OOP-FPハイブリッド設計シリーズ Phase 1: 準備・公開日時決定
+description: "OOP-FPハイブリッド設計シリーズ Phase 1: 準備・公開日時決定"
 ---
 
 # Phase 1: 準備

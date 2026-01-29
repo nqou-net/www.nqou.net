@@ -1,5 +1,5 @@
 ---
-description: OOP-FPハイブリッド設計シリーズ Phase 3b: 統合原稿作成（1記事）
+description: "OOP-FPハイブリッド設計シリーズ Phase 3b: 統合原稿作成（1記事）"
 ---
 
 # Phase 3b: 統合原稿作成

@@ -1,5 +1,5 @@
 ---
-description: OOP-FPハイブリッド設計シリーズ Phase 3a: 連載原稿作成（8回）
+description: "OOP-FPハイブリッド設計シリーズ Phase 3a: 連載原稿作成（8回）"
 ---
 
 # Phase 3a: 連載原稿作成

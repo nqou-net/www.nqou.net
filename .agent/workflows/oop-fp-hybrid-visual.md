@@ -1,5 +1,5 @@
 ---
-description: OOP-FPハイブリッド設計シリーズ Phase 5: Mermaid図・挿絵
+description: "OOP-FPハイブリッド設計シリーズ Phase 5: Mermaid図・挿絵"
 ---
 
 # Phase 5: Mermaid図・挿絵

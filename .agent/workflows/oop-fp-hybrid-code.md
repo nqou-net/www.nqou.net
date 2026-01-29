@@ -1,5 +1,5 @@
 ---
-description: OOP-FPハイブリッド設計シリーズ Phase 2: コード実装・テスト
+description: "OOP-FPハイブリッド設計シリーズ Phase 2: コード実装・テスト"
 ---
 
 # Phase 2: コード実装・テスト

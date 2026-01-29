@@ -1,5 +1,5 @@
 ---
-description: OOP-FPハイブリッド設計シリーズ Phase 4a: ナビゲーション・目次
+description: "OOP-FPハイブリッド設計シリーズ Phase 4a: ナビゲーション・目次"
 ---
 
 # Phase 4a: ナビゲーション・目次

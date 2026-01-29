@@ -1,5 +1,5 @@
 ---
-description: OOP-FPハイブリッド設計シリーズ Phase 6: レビュー・最終確認
+description: "OOP-FPハイブリッド設計シリーズ Phase 6: レビュー・最終確認"
 ---
 
 # Phase 6: レビュー・最終確認
