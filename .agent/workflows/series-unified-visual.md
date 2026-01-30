@@ -34,24 +34,37 @@ description: "連載構造案から統合記事を作成する汎用ワークフ
 
 ## Step 2: 画像生成
 
-`generate_image` ツールを使用して挿絵を生成：
+`generate_image` ツールを使用して挿絵を生成。記事本文のイメージ（メタファー、技術的テーマ、章の要点）を具体的に反映したプロンプトを作成する。
 
-### プロンプトのガイドライン
+### プロンプト作成のフロー
 
-```
-[スタイル]: pixel art / illustration / diagram
-[被写体]: 主題を具体的に記述
-[雰囲気]: friendly / professional / technical
-[背景]: simple / gradient / themed
-[注意]: No text in the image
-```
+1.  **文脈の抽出**: その章で語られている主要な概念や使用されているメタファー（例：「執事」「パズル」「宇宙船」など）を特定する。
+2.  **要素の構成**: 抽出した文脈を以下のテンプレートに当てはめる。
+3.  **英語翻訳**: AIの精度を高めるため、最終的なプロンプトは英語にする。
 
-### 例
+### プロンプトの構成要素
 
 ```
-A friendly robot butler in pixel art style, wearing a traditional 
-butler uniform with a bow tie. Clean design on a light gray background. 
-No text in the image.
+[被写体 (Subject)]: 記事のメタファーやコンセプトを具体的に描写（例：A pixel art butler holding a glowing blueprint）
+[スタイル (Style)]: 記事のトーンに合わせる（例：Pixel art, Digital illustration, Oil painting）
+[照明・雰囲気 (Lighting/Mood)]: 記事の印象（例：Cyberpunk, Warm lighting, Dynamic shadows）
+[構図 (Composition)]: 視覚的な強調（例：Close-up, Wide shot, Minimalist background）
+[制約 (Constraints)]: No text in the image
+```
+
+### 良い例と悪い例
+
+*   **悪い例**: `ソフトウェアの設計図` (抽象的すぎて一貫性がない)
+*   **良い例**: `A detailed technical blueprint of a clockwork mechanism, vintage steampunk style, soft parchment background, high detail, no text.` (記事が「設計」や「メカニズム」を扱っている場合)
+
+### 実行例
+
+```javascript
+// ツールの呼び出し例
+generate_image({
+  Prompt: "A friendly robot butler in pixel art style, wearing a traditional butler uniform and holding a digital tablet displaying code. Clean design on a cool cyan gradient background. No text in the image.",
+  ImageName: "butler_implementation"
+})
 ```
 
 ---
