@@ -106,14 +106,14 @@ graph TD
 
 | 回 | タイトル | 新しい概念 | ストーリー | コード例1 | コード例2 | 推奨タグ |
 |---|---|---|---|---|---|---|
-| 1 | 巨大な文字を表示してみよう | ASCIIアート基礎 | 1文字をハードコードで巨大表示。「HELLO」と表示できた！ | `simple_art.pl`（ハードコード） | 出力結果 | perl, moo, ascii-art, beginner, tutorial |
-| 2 | 文字が増えるとメモリが爆発する | メモリ問題の体験 | A-Z全部追加したらメモリ使用量が急増。同じ文字なのに複製される | `memory_explosion.pl` | メモリ使用量の比較 | perl, moo, refactoring, memory, code-smell |
-| 3 | 文字グリフを共有しよう | Flyweight導入 | 同じ文字は1つのオブジェクトを再利用。メモリ激減 | `GlyphFactory.pm` | `Glyph.pm` | perl, moo, flyweight-pattern, sharing, optimization |
-| 4 | フォントの設定が散らばる問題 | 設定管理問題の体験 | フォントパスを複数箇所でハードコード。変更が大変 | `scattered_config.pl` | 問題点の整理 | perl, moo, configuration, code-smell, refactoring |
-| 5 | 設定を一元管理しよう | Singleton導入 | FontManagerで設定を一元管理。変更が1箇所で済む | `FontManager.pm`（Singleton） | 使用例 | perl, moo, singleton-pattern, configuration, global |
-| 6 | 使わない文字もロードしてしまう | 遅延ロード問題の体験 | 全フォントを起動時にロード。起動が遅い | `eager_loading.pl` | 起動時間の計測 | perl, moo, lazy-loading, performance, code-smell |
-| 7 | 使う文字だけロードしよう | Proxy導入 | FontProxyで必要な文字だけ遅延ロード。起動爆速 | `FontProxy.pm` | `RealFont.pm` | perl, moo, proxy-pattern, lazy-loading, virtual |
-| 8 | 3つのパターンで完成！ | パターン統合と振り返り | 3パターン名を明かし、連携を図解。拡張案も紹介 | 完成コード全体 | パターン連携図 | perl, moo, design-patterns, integration, retrospective |
+| 第1回 | 第1回-巨大な文字を表示してみよう - Perlで作るASCIIアート・フォントレンダラー | ASCIIアート基礎 | 1文字をハードコードで巨大表示。「HELLO」と表示できた！ | `simple_art.pl`（ハードコード） | 出力結果 | perl, moo, ascii-art, beginner, tutorial |
+| 第2回 | 第2回-文字が増えるとメモリが爆発する - Perlで作るASCIIアート・フォントレンダラー | メモリ問題の体験 | A-Z全部追加したらメモリ使用量が急増。同じ文字なのに複製される | `memory_explosion.pl` | メモリ使用量の比較 | perl, moo, refactoring, memory, code-smell |
+| 第3回 | 第3回-文字グリフを共有しよう - Perlで作るASCIIアート・フォントレンダラー | Flyweight導入 | 同じ文字は1つのオブジェクトを再利用。メモリ激減 | `GlyphFactory.pm` | `Glyph.pm` | perl, moo, flyweight-pattern, sharing, optimization |
+| 第4回 | 第4回-フォントの設定が散らばる問題 - Perlで作るASCIIアート・フォントレンダラー | 設定管理問題の体験 | フォントパスを複数箇所でハードコード。変更が大変 | `scattered_config.pl` | 問題点の整理 | perl, moo, configuration, code-smell, refactoring |
+| 第5回 | 第5回-設定を一元管理しよう - Perlで作るASCIIアート・フォントレンダラー | Singleton導入 | FontManagerで設定を一元管理。変更が1箇所で済む | `FontManager.pm`（Singleton） | 使用例 | perl, moo, singleton-pattern, configuration, global |
+| 第6回 | 第6回-使わない文字もロードしてしまう - Perlで作るASCIIアート・フォントレンダラー | 遅延ロード問題の体験 | 全フォントを起動時にロード。起動が遅い | `eager_loading.pl` | 起動時間の計測 | perl, moo, lazy-loading, performance, code-smell |
+| 第7回 | 第7回-使う文字だけロードしよう - Perlで作るASCIIアート・フォントレンダラー | Proxy導入 | FontProxyで必要な文字だけ遅延ロード。起動爆速 | `FontProxy.pm` | `RealFont.pm` | perl, moo, proxy-pattern, lazy-loading, virtual |
+| 第8回 | 第8回-3つのパターンで完成！ - Perlで作るASCIIアート・フォントレンダラー | パターン統合と振り返り | 3パターン名を明かし、連携を図解。拡張案も紹介 | 完成コード全体 | パターン連携図 | perl, moo, design-patterns, integration, retrospective |
 
 ### 差別化ポイント
 
@@ -163,14 +163,14 @@ graph TD
 
 | 回 | タイトル | 新しい概念 | ストーリー | コード例1 | コード例2 | 推奨タグ |
 |---|---|---|---|---|---|---|
-| 1 | タイルを配置してみよう | タイル基礎 | 草・水・壁をハードコードで配置。5×5マップ完成 | `simple_map.pl` | 出力結果 | perl, moo, game-dev, tiles, beginner |
-| 2 | マップが広がるとメモリが辛い | メモリ問題 | 100×100マップにしたらメモリ爆発 | `large_map.pl` | メモリ計測 | perl, moo, memory, code-smell, refactoring |
-| 3 | タイルを共有しよう | Flyweight導入 | 同じタイル種は1オブジェクトを再利用 | `TileFactory.pm` | `Tile.pm` | perl, moo, flyweight-pattern, sharing |
-| 4 | 設定がバラバラで大変 | 設定問題 | タイルサイズを複数箇所で定義。変更が困難 | `scattered_settings.pl` | 問題整理 | perl, moo, configuration, code-smell |
-| 5 | 設定を一元管理しよう | Singleton導入 | MapSettingsで設定一元化 | `MapSettings.pm` | 使用例 | perl, moo, singleton-pattern, configuration |
-| 6 | 全テクスチャをロードしてしまう | 遅延ロード問題 | 巨大テクスチャを全部ロード。起動が遅い | `eager_textures.pl` | 起動時間 | perl, moo, lazy-loading, performance |
-| 7 | 表示するタイルだけロード | Proxy導入 | TileProxyで必要なタイルだけロード | `TileProxy.pm` | `RealTile.pm` | perl, moo, proxy-pattern, lazy-loading |
-| 8 | 完成！3パターンの連携 | 統合・振り返り | パターン名を明かし、連携を解説 | 完成コード | パターン図 | perl, moo, design-patterns, integration |
+| 第1回 | 第1回-タイルを配置してみよう - Perlで作るドット絵マップエディタ | タイル基礎 | 草・水・壁をハードコードで配置。5×5マップ完成 | `simple_map.pl` | 出力結果 | perl, moo, game-dev, tiles, beginner |
+| 第2回 | 第2回-マップが広がるとメモリが辛い - Perlで作るドット絵マップエディタ | メモリ問題 | 100×100マップにしたらメモリ爆発 | `large_map.pl` | メモリ計測 | perl, moo, memory, code-smell, refactoring |
+| 第3回 | 第3回-タイルを共有しよう - Perlで作るドット絵マップエディタ | Flyweight導入 | 同じタイル種は1オブジェクトを再利用 | `TileFactory.pm` | `Tile.pm` | perl, moo, flyweight-pattern, sharing |
+| 第4回 | 第4回-設定がバラバラで大変 - Perlで作るドット絵マップエディタ | 設定問題 | タイルサイズを複数箇所で定義。変更が困難 | `scattered_settings.pl` | 問題整理 | perl, moo, configuration, code-smell |
+| 第5回 | 第5回-設定を一元管理しよう - Perlで作るドット絵マップエディタ | Singleton導入 | MapSettingsで設定一元化 | `MapSettings.pm` | 使用例 | perl, moo, singleton-pattern, configuration |
+| 第6回 | 第6回-全テクスチャをロードしてしまう - Perlで作るドット絵マップエディタ | 遅延ロード問題 | 巨大テクスチャを全部ロード。起動が遅い | `eager_textures.pl` | 起動時間 | perl, moo, lazy-loading, performance |
+| 第7回 | 第7回-表示するタイルだけロード - Perlで作るドット絵マップエディタ | Proxy導入 | TileProxyで必要なタイルだけロード | `TileProxy.pm` | `RealTile.pm` | perl, moo, proxy-pattern, lazy-loading |
+| 第8回 | 第8回-完成！3パターンの連携 - Perlで作るドット絵マップエディタ | 統合・振り返り | パターン名を明かし、連携を解説 | 完成コード | パターン図 | perl, moo, design-patterns, integration |
 
 ### 差別化ポイント
 
@@ -219,14 +219,14 @@ Unicode絵文字を効率的に検索・表示するCLIツールを構築。カ�
 
 | 回 | タイトル | 新しい概念 | ストーリー | コード例1 | コード例2 | 推奨タグ |
 |---|---|---|---|---|---|---|
-| 1 | 絵文字を表示してみよう | Unicode基礎 | 数個の絵文字をハードコードで表示 | `simple_emoji.pl` | 出力結果 | perl, moo, unicode, emoji, beginner |
-| 2 | 全絵文字をロードしたら重い | メモリ問題 | 3000+絵文字のメタデータでメモリ爆発 | `all_emoji.pl` | メモリ計測 | perl, moo, memory, code-smell |
-| 3 | メタデータを共有しよう | Flyweight導入 | カテゴリ情報を共有してメモリ節約 | `EmojiFactory.pm` | `Emoji.pm` | perl, moo, flyweight-pattern, sharing |
-| 4 | データベース設定が散らばる | 設定問題 | DB接続設定が複数箇所に分散 | `scattered_db.pl` | 問題整理 | perl, moo, configuration, code-smell |
-| 5 | データベースを一元管理 | Singleton導入 | EmojiDatabaseで一元管理 | `EmojiDatabase.pm` | 使用例 | perl, moo, singleton-pattern, database |
-| 6 | 全カテゴリをロードしてしまう | 遅延ロード問題 | 起動時に全カテゴリロード。遅い | `eager_categories.pl` | 起動時間 | perl, moo, lazy-loading, performance |
-| 7 | 使うカテゴリだけロード | Proxy導入 | CategoryProxyで遅延ロード | `CategoryProxy.pm` | `RealCategory.pm` | perl, moo, proxy-pattern, lazy-loading |
-| 8 | 完成！3パターンの連携 | 統合・振り返り | パターン名を明かし、全体像を解説 | 完成コード | パターン図 | perl, moo, design-patterns, integration |
+| 第1回 | 第1回-絵文字を表示してみよう - Perlで作る絵文字辞書 | Unicode基礎 | 数個の絵文字をハードコードで表示 | `simple_emoji.pl` | 出力結果 | perl, moo, unicode, emoji, beginner |
+| 第2回 | 第2回-全絵文字をロードしたら重い - Perlで作る絵文字辞書 | メモリ問題 | 3000+絵文字のメタデータでメモリ爆発 | `all_emoji.pl` | メモリ計測 | perl, moo, memory, code-smell |
+| 第3回 | 第3回-メタデータを共有しよう - Perlで作る絵文字辞書 | Flyweight導入 | カテゴリ情報を共有してメモリ節約 | `EmojiFactory.pm` | `Emoji.pm` | perl, moo, flyweight-pattern, sharing |
+| 第4回 | 第4回-データベース設定が散らばる - Perlで作る絵文字辞書 | 設定問題 | DB接続設定が複数箇所に分散 | `scattered_db.pl` | 問題整理 | perl, moo, configuration, code-smell |
+| 第5回 | 第5回-データベースを一元管理 - Perlで作る絵文字辞書 | Singleton導入 | EmojiDatabaseで一元管理 | `EmojiDatabase.pm` | 使用例 | perl, moo, singleton-pattern, database |
+| 第6回 | 第6回-全カテゴリをロードしてしまう - Perlで作る絵文字辞書 | 遅延ロード問題 | 起動時に全カテゴリロード。遅い | `eager_categories.pl` | 起動時間 | perl, moo, lazy-loading, performance |
+| 第7回 | 第7回-使うカテゴリだけロード - Perlで作る絵文字辞書 | Proxy導入 | CategoryProxyで遅延ロード | `CategoryProxy.pm` | `RealCategory.pm` | perl, moo, proxy-pattern, lazy-loading |
+| 第8回 | 第8回-完成！3パターンの連携 - Perlで作る絵文字辞書 | 統合・振り返り | パターン名を明かし、全体像を解説 | 完成コード | パターン図 | perl, moo, design-patterns, integration |
 
 ### 差別化ポイント
 
@@ -296,6 +296,44 @@ Unicode絵文字を効率的に検索・表示するCLIツールを構築。カ�
 
 ### レビュー待ち事項
 
-- [ ] SEO視点でのタイトル・タグ・description改善
-- [ ] 品質視点での構造・難易度評価
-- [ ] 技術的正確性の確認
+- [x] SEO視点でのタイトル・タグ・description改善
+- [x] 品質視点での構造・難易度評価
+- [x] 技術的正確性の確認
+
+---
+
+### 第1版レビュー（品質視点）（2026-01-30）
+
+- レビュー担当: reviewer エージェント
+- 評価結果: 合格（軽微な修正で完璧）
+- 主な改善点: タイトル形式の統一（「第N回-○○ - シリーズ名」形式に修正）
+
+#### 品質基準チェック
+
+| 基準 | 評価 |
+|------|------|
+| 構造の一貫性 | ✓ |
+| 段階的難易度上昇 | ✓ |
+| 1記事1概念の原則 | ✓ |
+| 各案の差別化 | ✓ |
+| 連載構造表の完全性 | ✓ |
+| ペルソナへの適合性 | ✓ |
+| 技術的正確性 | ✓ |
+
+---
+
+### 第2版（2026-01-30）- 第1版レビュー反映
+
+**反映した改善点**:
+
+1. タイトル形式を「第N回-○○ - シリーズ名」に統一（全3案）
+2. レビュー履歴セクションを更新
+
+---
+
+### 最終版（第2版）確定（2026-01-30）
+
+- 最終確認: reviewer エージェント
+- 評価: 全品質基準を満たす
+
+---
