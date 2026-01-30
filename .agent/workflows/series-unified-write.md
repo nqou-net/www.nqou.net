@@ -29,6 +29,15 @@ touch content/post/2026/02/01/015106.md
 
 ---
 
+## Step 1.5: ステータス更新
+
+PLANNING_STATUS.md を更新:
+
+1. ステータスを「⚙️ 執筆中」に変更
+2. 更新日を本日に更新
+
+---
+
 ## Step 2: frontmatterの作成
 
 以下の形式でfrontmatterを記述：

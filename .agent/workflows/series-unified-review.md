@@ -129,9 +129,23 @@ hugo server -D -F
 
 ---
 
-## Step 7: SERIES.mdの更新
+## Step 7: ステータス管理ファイルの更新
 
-`SERIES.md` の該当エントリを更新：
+### 7.1 PLANNING_STATUS.md の更新
+
+1. 「進行中」セクションから該当行を削除
+2. 「公開済み」セクションに移動
+3. 以下の情報を記録:
+   - 公開日
+   - 成果物リンク（記事/目次記事へのURL）
+
+```markdown
+| [<slug>.md](agents/structure/<slug>.md) | <タイトル> | <形式> | YYYY-MM-DD | [記事](/YYYY/MM/DD/HHMMSS/) |
+```
+
+### 7.2 SERIES.md の更新
+
+`SERIES.md` の該当エントリを更新（既存エントリがない場合は追加）：
 
 1. **ステータス**: `📝 企画中` → `✅ 公開済`
 2. **タイトル**: 最終的な記事タイトルに更新

@@ -52,10 +52,27 @@ description: シリーズ記事のレビューフェーズ（コード検証→�
 
 ---
 
-## Step 4: 公開
+## Step 4: 公開・ステータス更新
+
+### 4.1 記事公開
 
 1. `draft: false` に変更
-2. SERIES.md を更新
+
+### 4.2 PLANNING_STATUS.md の更新
+
+1. 「進行中」セクションから該当行を削除
+2. 「公開済み」セクションに移動
+3. 以下の情報を記録:
+   - 公開日
+   - 成果物リンク（目次記事へのURL）
+
+```markdown
+| [<slug>.md](agents/structure/<slug>.md) | <タイトル> | 全N回 | YYYY-MM-DD | [目次](/YYYY/MM/DD/HHMMSS/) |
+```
+
+### 4.3 SERIES.md の更新
+
+`SERIES.md` に該当シリーズを追加/更新
 
 ---
 
