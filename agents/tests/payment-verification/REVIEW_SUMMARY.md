@@ -123,7 +123,6 @@ agents/tests/payment-verification/
 ### Step 4: 公開準備 ✅ 確認済み
 
 - [x] `draft: false` 確認（既に公開済み）
-- [x] SERIES.md 確認（既に記載済み）
 
 ---
 

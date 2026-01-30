@@ -92,7 +92,7 @@ npx textlint content/post/YYYY/MM/DD/*.md
 - [ ] シリーズ間リンクが正しいか
 - [ ] 前回振り返り・次回予告があるか
 - [ ] 目次記事が作成されているか
-- [ ] `SERIES.md` に追加されているか
+- [ ] `PLANNING_STATUS.md` に追加されているか
 
 ### 統合版のみ
 

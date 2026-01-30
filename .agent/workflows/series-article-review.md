@@ -70,10 +70,6 @@ description: シリーズ記事のレビューフェーズ（コード検証→�
 | [<slug>.md](agents/structure/<slug>.md) | <タイトル> | 全N回 | YYYY-MM-DD | [目次](/YYYY/MM/DD/HHMMSS/) |
 ```
 
-### 4.3 SERIES.md の更新
-
-`SERIES.md` に該当シリーズを追加/更新
-
 ---
 
 ## 品質チェックリスト

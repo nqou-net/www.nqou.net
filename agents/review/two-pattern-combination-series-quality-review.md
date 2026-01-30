@@ -151,6 +151,5 @@ Sapporo   : Rain                19.0℃ [via WeatherStack]
 公開前に確認が必要な項目:
 
 - [ ] 全記事の`draft: true`を`draft: false`に変更
-- [ ] SERIES.mdにシリーズ情報を追加
 - [ ] ヘッダー画像（api-integration-header.png）の存在確認
 - [ ] Hugo buildでエラーがないことを確認

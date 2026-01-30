@@ -4,7 +4,7 @@ description: シリーズ記事の作成ワークフロー（プランニング�
 
 # シリーズ記事作成ワークフロー
 
-> 参照: [WORKFLOWS.md](../../WORKFLOWS.md), [AGENTS.md](../../AGENTS.md), [SERIES.md](../../SERIES.md)
+> 参照: [WORKFLOWS.md](../../WORKFLOWS.md), [AGENTS.md](../../AGENTS.md), [PLANNING_STATUS.md](../../PLANNING_STATUS.md)
 
 ---
 

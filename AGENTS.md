@@ -121,8 +121,7 @@ hugo server -D -F   # -D: ドラフト表示, -F: 未来日表示
 
 | 項目 | リンク |
 |---|---|
-| シリーズ記事一覧 | [SERIES.md](SERIES.md) |
-| 構造案ステータス管理 | [PLANNING_STATUS.md](PLANNING_STATUS.md) |
+| シリーズ記事・構造案管理 | [PLANNING_STATUS.md](PLANNING_STATUS.md) |
 | シリーズ記事ワークフロー | [WORKFLOWS.md#シリーズ記事連載記事のワークフロー](WORKFLOWS.md#シリーズ記事連載記事のワークフロー) |
 | 単体記事ワークフロー | [WORKFLOWS.md#単体記事のワークフロー](WORKFLOWS.md#単体記事のワークフロー) |
 | プロンプトテンプレート | [WORKFLOWS.md#プロンプトテンプレート](WORKFLOWS.md#プロンプトテンプレート) |

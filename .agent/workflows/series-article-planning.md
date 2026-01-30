@@ -4,7 +4,7 @@ description: シリーズ記事のプランニングフェーズ（調査→構�
 
 # シリーズ記事: プランニング
 
-> 参照: [WORKFLOWS.md](../../WORKFLOWS.md), [AGENTS.md](../../AGENTS.md), [SERIES.md](../../SERIES.md)
+> 参照: [WORKFLOWS.md](../../WORKFLOWS.md), [AGENTS.md](../../AGENTS.md), [PLANNING_STATUS.md](../../PLANNING_STATUS.md)
 > 次: `/series-article-writing`
 
 ---
