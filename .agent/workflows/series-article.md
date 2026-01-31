@@ -18,13 +18,16 @@ description: 連載構造案からシリーズ記事を作成するワークフ�
 
 ## フェーズ構成
 
-| Phase | コマンド | 内容 |
-|---|---|---|
-| 1 | `/series-unified-prepare` | 構造案読み込み・設定 |
-| 2 | `/series-unified-code` | コード実装・テスト |
-| 3 | `/series-unified-write` | 原稿作成 |
-| 4 | `/series-unified-visual` | 挿絵生成 |
-| 5 | `/series-unified-review` | レビュー・公開 |
+| Phase | コマンド | 内容 | 必須 |
+|---|---|---|---|
+| 1 | `/series-unified-prepare` | 構造案読み込み・設定 | ● |
+| 2 | `/series-unified-code` | コード実装・テスト | ● |
+| 3 | `/series-unified-write` | 原稿作成 | ● |
+| 4 | `/series-unified-visual` | 挿絵生成 | ○ (オプション) |
+| 5 | `/series-unified-review` | レビュー・公開 | ● |
+
+> [!TIP]
+> Phase 4（挿絵生成）はオプションです。デフォルトではスキップされ、`/series-unified-visual` で後から実行できます。
 
 ---
 
@@ -59,8 +62,10 @@ cat PLANNING_STATUS.md | grep -E "^\|.*✏️ 採用済み" | head -10
 1. `/series-unified-prepare` - 構造案読み込み・設定
 2. `/series-unified-code` - コード実装・テスト
 3. `/series-unified-write` - 原稿作成
-4. `/series-unified-visual` - 挿絵生成
-5. `/series-unified-review` - レビュー・公開
+4. `/series-unified-review` - レビュー・公開
+
+> [!NOTE]
+> 挿絵が必要な場合は、`/series-unified-visual` を別途実行してください。
 
 ---
 
