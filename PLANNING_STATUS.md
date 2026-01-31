@@ -26,6 +26,7 @@
 
 | 構造案ファイル | タイトル | ステータス | 採用案 | 開始日 | 更新日 |
 |--------------|---------|----------|-------|-------|-------|
+| [singleton-flyweight-proxy-series-structure.md](agents/structure/singleton-flyweight-proxy-series-structure.md) | ASCIIアート・フォントレンダラー（Singleton × Flyweight × Proxy） | 📝 計画中 | - | 2026-01-30 | 2026-01-30 |
 | [observer-decorator-command-series-structure.md](agents/structure/observer-decorator-command-series-structure.md) | 秘密のメッセンジャー（Observer × Decorator × Command） | 📝 計画中 | - | 2026-01-30 | 2026-01-30 |
 | [hands-on-three-patterns-series-structure.md](agents/structure/hands-on-three-patterns-series-structure.md) | ダンジョンマスター（Strategy × Factory × Template Method） | ⚙️ 執筆中 | 案B | 2026-01-31 | 2026-01-31 |
 
