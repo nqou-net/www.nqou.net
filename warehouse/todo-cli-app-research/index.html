@@ -1,0 +1,762 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="シリーズ記事「シンプルなTodo CLIアプリ」作成に向けた調査結果。Commandパターン・Repositoryパターンの調査、PerlでのCLI実装方法、内部リンク候補の調査をまとめたドキュメント。"><title>シンプルなTodo CLIアプリ - 調査ドキュメント</title><link rel=canonical href=https://www.nqou.net/warehouse/todo-cli-app-research/><link rel=stylesheet href=/scss/style.min.6a692fd055deae459f2a9767f57f3855ba80cafd5041317f24f7360f6ca47cdf.css><meta property='og:title' content="シンプルなTodo CLIアプリ - 調査ドキュメント"><meta property='og:description' content="シリーズ記事「シンプルなTodo CLIアプリ」作成に向けた調査結果。Commandパターン・Repositoryパターンの調査、PerlでのCLI実装方法、内部リンク候補の調査をまとめたドキュメント。"><meta property='og:url' content='https://www.nqou.net/warehouse/todo-cli-app-research/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Warehouse'><meta property='article:tag' content='perl'><meta property='article:tag' content='command-pattern'><meta property='article:tag' content='repository-pattern'><meta property='article:tag' content='cli'><meta property='article:tag' content='design-patterns'><meta property='article:published_time' content='2026-01-01T10:45:00+09:00'><meta property='article:modified_time' content='2026-01-01T10:45:00+09:00'><meta property='og:image' content='https://www.nqou.net/favicon.png'><meta name=twitter:title content="シンプルなTodo CLIアプリ - 調査ドキュメント"><meta name=twitter:description content="シリーズ記事「シンプルなTodo CLIアプリ」作成に向けた調査結果。Commandパターン・Repositoryパターンの調査、PerlでのCLI実装方法、内部リンク候補の調査をまとめたドキュメント。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/favicon.png'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/warehouse/><svg class="icon icon-tabler icon-tabler-warehouse" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 10l9-6 9 6"/><rect x="5" y="10" width="14" height="10" rx="2"/><rect x="10" y="14" width="4" height="6" rx="1"/><path d="M7 20v-4h2v4"/><path d="M15 20v-4h2v4"/></svg>
+<span>Warehouse</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#調査概要>調査概要</a></li><li><a href=#1-commandパターンの調査>1. Commandパターンの調査</a><ol><li><a href=#11-定義と概要>1.1 定義と概要</a></li><li><a href=#12-構成要素>1.2 構成要素</a></li><li><a href=#13-メリットデメリット>1.3 メリット・デメリット</a><ol><li><a href=#メリット>メリット</a></li><li><a href=#デメリット>デメリット</a></li></ol></li><li><a href=#14-cliツールでのcommandパターン活用例>1.4 CLIツールでのCommandパターン活用例</a></li><li><a href=#15-perlでの実装方法>1.5 Perlでの実装方法</a></li></ol></li><li><a href=#2-repositoryパターンの調査>2. Repositoryパターンの調査</a><ol><li><a href=#21-定義と概要>2.1 定義と概要</a></li><li><a href=#22-構成要素と構造>2.2 構成要素と構造</a></li><li><a href=#23-メリットデメリット>2.3 メリット・デメリット</a><ol><li><a href=#メリット-1>メリット</a></li><li><a href=#デメリット-1>デメリット</a></li></ol></li><li><a href=#24-perlでの実装方法>2.4 Perlでの実装方法</a></li></ol></li><li><a href=#3-todo-cliアプリの設計調査>3. Todo CLIアプリの設計調査</a><ol><li><a href=#31-典型的なtodo-cliアプリの機能>3.1 典型的なTodo CLIアプリの機能</a></li><li><a href=#32-perlでのcli引数解析getoptlong>3.2 PerlでのCLI引数解析（Getopt::Long）</a></li><li><a href=#33-jsonファイルでのデータ永続化方法>3.3 JSONファイルでのデータ永続化方法</a></li><li><a href=#34-sqliteでのデータ永続化演習用>3.4 SQLiteでのデータ永続化（演習用）</a></li></ol></li><li><a href=#4-内部リンク調査>4. 内部リンク調査</a><ol><li><a href=#41-mooで覚えるオブジェクト指向プログラミングシリーズ全12回>4.1 「Mooで覚えるオブジェクト指向プログラミング」シリーズ（全12回）</a></li><li><a href=#42-mooを使ってディスパッチャーを作ってみようシリーズ>4.2 「Mooを使ってディスパッチャーを作ってみよう」シリーズ</a></li><li><a href=#43-デザインパターン関連記事>4.3 デザインパターン関連記事</a></li></ol></li><li><a href=#5-重要な参考文献リソースリスト>5. 重要な参考文献・リソースリスト</a><ol><li><a href=#51-必読リソース>5.1 必読リソース</a><ol><li><a href=#書籍>書籍</a></li><li><a href=#webリソース>Webリソース</a></li></ol></li></ol></li><li><a href=#6-調査結果のサマリー>6. 調査結果のサマリー</a><ol><li><a href=#61-主要な発見>6.1 主要な発見</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/warehouse/todo-cli-app-research/><img src=/favicon.png loading=lazy alt="Featured image of post シンプルなTodo CLIアプリ - 調査ドキュメント"></a></div><div class=article-details><div class=article-title-wrapper><h2 class=article-title><a href=/warehouse/todo-cli-app-research/>シンプルなTodo CLIアプリ - 調査ドキュメント</a></h2><h3 class=article-subtitle>シリーズ記事「シンプルなTodo CLIアプリ」作成に向けた調査結果。Commandパターン・Repositoryパターンの調査、PerlでのCLI実装方法、内部リンク候補の調査をまとめたドキュメント。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>1月 01, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 13分</time></div></footer></div></header><section class=article-content><h1 id=シンプルなtodo-cliアプリ---調査ドキュメント>シンプルなTodo CLIアプリ - 調査ドキュメント</h1><h2 id=調査概要>調査概要</h2><ul><li><strong>調査目的</strong>: シリーズ記事「シンプルなTodo CLIアプリ」の作成に向けた調査・情報収集</li><li><strong>調査実施日</strong>: 2026年1月1日</li><li><strong>テーマ</strong>: シンプルなTodo CLIアプリ</li><li><strong>技術スタック</strong>: Perl</li><li><strong>想定読者</strong>: Perl入学式卒業程度、「Mooで覚えるオブジェクト指向プログラミング」シリーズ（全12回）を読了した方</li></ul><hr><h2 id=1-commandパターンの調査>1. Commandパターンの調査</h2><h3 id=11-定義と概要>1.1 定義と概要</h3><p><strong>要点</strong>:</p><ul><li>Commandパターンは、リクエスト（操作や命令）をオブジェクトとしてカプセル化する振る舞いパターンである</li><li>リクエストの送信者（Invoker）と受信者（Receiver）を分離し、疎結合な設計を実現する</li><li>コマンドをオブジェクト化することで、パラメータ化、キューイング、ログ記録、Undo/Redo機能などが実現可能になる</li></ul><p><strong>根拠</strong>:</p><ul><li>GoF「Design Patterns」書籍において、Commandパターンは「リクエストをオブジェクトとして扱い、異なるリクエストでクライアントをパラメータ化し、リクエストをキューに入れたり、ログに記録したり、操作の取り消しをサポートする」と定義されている</li></ul><p><strong>出典</strong>:</p><ul><li>Refactoring Guru: Command - <a class=link href=https://refactoring.guru/design-patterns/command target=_blank rel=noopener>https://refactoring.guru/design-patterns/command</a></li><li>GeeksforGeeks: Command Design Pattern - <a class=link href=https://www.geeksforgeeks.org/system-design/command-pattern/ target=_blank rel=noopener>https://www.geeksforgeeks.org/system-design/command-pattern/</a></li><li>Wikipedia: Command pattern - <a class=link href=https://en.wikipedia.org/wiki/Command_pattern target=_blank rel=noopener>https://en.wikipedia.org/wiki/Command_pattern</a></li></ul><p><strong>信頼度</strong>: 9/10（GoF原典および複数の信頼できる技術サイト）</p><hr><h3 id=12-構成要素>1.2 構成要素</h3><p>Commandパターンは、以下の5つの主要コンポーネントで構成される。</p><pre class=mermaid>
+	classDiagram
+    class Client {
+        +main()
+    }
+    class Invoker {
+        -command: Command
+        +setCommand(Command)
+        +executeCommand()
+    }
+    class Command {
+        &lt;&lt;interface&gt;&gt;
+        +execute()
+        +undo()
+    }
+    class ConcreteCommand {
+        -receiver: Receiver
+        -state
+        +execute()
+        +undo()
+    }
+    class Receiver {
+        +action()
+    }
+    
+    Client ..&gt; ConcreteCommand : creates
+    Client ..&gt; Receiver : creates
+    Invoker o--&gt; Command : has
+    ConcreteCommand ..|&gt; Command : implements
+    ConcreteCommand --&gt; Receiver : calls
+</pre><div class=table-wrapper><table><thead><tr><th>要素</th><th>役割</th><th>Todo CLIでの具体例</th></tr></thead><tbody><tr><td><strong>Command (インターフェース)</strong></td><td>コマンドの実行メソッド（execute）を宣言</td><td><code>Command::Role</code>（Moo::Role）</td></tr><tr><td><strong>ConcreteCommand</strong></td><td>Commandインターフェースを実装し、Receiverとアクションを結びつける</td><td><code>Command::Add</code>, <code>Command::List</code>, <code>Command::Complete</code></td></tr><tr><td><strong>Receiver</strong></td><td>実際の処理を知っているオブジェクト</td><td><code>TaskRepository</code></td></tr><tr><td><strong>Invoker</strong></td><td>コマンドの実行を依頼するオブジェクト</td><td>CLIアプリのメインルーチン</td></tr><tr><td><strong>Client</strong></td><td>ConcreteCommandオブジェクトを生成し、設定</td><td>コマンドライン引数の解析部分</td></tr></tbody></table></div><p><strong>信頼度</strong>: 9/10</p><hr><h3 id=13-メリットデメリット>1.3 メリット・デメリット</h3><h4 id=メリット>メリット</h4><div class=table-wrapper><table><thead><tr><th>利点</th><th>説明</th><th>Todo CLIでの効果</th></tr></thead><tbody><tr><td><strong>疎結合</strong></td><td>送信者と受信者を分離</td><td>CLIの引数解析とタスク操作ロジックを分離できる</td></tr><tr><td><strong>拡張性</strong></td><td>新しいコマンドを追加しても既存コードへの影響が少ない</td><td><code>Command::Delete</code>などを後から追加しやすい</td></tr><tr><td><strong>Undo/Redo</strong></td><td>操作履歴を保存し元に戻すことが可能</td><td>コマンド履歴の実装演習に適用可能</td></tr><tr><td><strong>ログ記録</strong></td><td>実行したコマンドを記録できる</td><td>操作ログの実装が容易</td></tr></tbody></table></div><h4 id=デメリット>デメリット</h4><div class=table-wrapper><table><thead><tr><th>欠点</th><th>説明</th><th>対策</th></tr></thead><tbody><tr><td><strong>クラス数の増加</strong></td><td>各コマンドごとにクラスが必要</td><td>小規模アプリでは過剰にならないよう注意</td></tr><tr><td><strong>複雑性の増加</strong></td><td>単純な処理でも複数のクラスが関与</td><td>初心者向け記事では段階的に導入</td></tr></tbody></table></div><p><strong>出典</strong>:</p><ul><li>SourceMaking: Command Design Pattern - <a class=link href=https://sourcemaking.com/design_patterns/command target=_blank rel=noopener>https://sourcemaking.com/design_patterns/command</a></li><li>Alchemists: Command Pattern - <a class=link href=https://www.alchemists.io/articles/command_pattern/ target=_blank rel=noopener>https://www.alchemists.io/articles/command_pattern/</a></li></ul><p><strong>信頼度</strong>: 9/10</p><hr><h3 id=14-cliツールでのcommandパターン活用例>1.4 CLIツールでのCommandパターン活用例</h3><p><strong>要点</strong>:</p><p>CLIツールでのCommandパターンは、各サブコマンド（add, list, complete等）を独立したコマンドオブジェクトとして実装することで効果を発揮する。</p><p><strong>一般的な構造</strong>:</p><ol><li>コマンドライン引数を解析</li><li>対応するConcreteCommandオブジェクトを生成</li><li>Invokerがexecute()を呼び出し</li></ol><p><strong>典型的なCLIツールのサブコマンド構造</strong>:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>todo add &#34;タスク名&#34;     -&gt; Command::Add-&gt;execute()
+</span></span><span class=line><span class=cl>todo list              -&gt; Command::List-&gt;execute()
+</span></span><span class=line><span class=cl>todo complete 1        -&gt; Command::Complete-&gt;execute()
+</span></span></code></pre></td></tr></table></div></div><p><strong>出典</strong>:</p><ul><li>Moments Log: Using the Command Pattern in CLI - <a class=link href=https://www.momentslog.com/development/design-pattern/using-the-command-pattern-in-command-line-interfaces-for-task-execution target=_blank rel=noopener>https://www.momentslog.com/development/design-pattern/using-the-command-pattern-in-command-line-interfaces-for-task-execution</a></li><li>Optique Cookbook: CLI patterns - <a class=link href=https://optique.dev/cookbook target=_blank rel=noopener>https://optique.dev/cookbook</a></li></ul><p><strong>信頼度</strong>: 9/10</p><hr><h3 id=15-perlでの実装方法>1.5 Perlでの実装方法</h3><p><strong>要点</strong>:</p><p>PerlでCommandパターンを実装する場合、Moo::Roleを使ってCommandインターフェースを定義し、各ConcreteCommandクラスでロールを消費（<code>with</code>）する方法が推奨される。</p><p><strong>実装例</strong>:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span><span class=lnt>51
+</span><span class=lnt>52
+</span><span class=lnt>53
+</span><span class=lnt>54
+</span><span class=lnt>55
+</span><span class=lnt>56
+</span><span class=lnt>57
+</span><span class=lnt>58
+</span><span class=lnt>59
+</span><span class=lnt>60
+</span><span class=lnt>61
+</span><span class=lnt>62
+</span><span class=lnt>63
+</span><span class=lnt>64
+</span><span class=lnt>65
+</span><span class=lnt>66
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># Command Role（インターフェース相当）</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Command::Role</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo::Role</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>requires</span> <span class=s>&#39;execute&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>requires</span> <span class=s>&#39;description&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># ConcreteCommand: タスク追加</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Command::Add</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>with</span> <span class=s>&#39;Command::Role&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>repository</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>title</span>      <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>execute</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$self</span> <span class=o>=</span> <span class=nb>shift</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$task</span> <span class=o>=</span> <span class=nn>Task</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>title</span> <span class=o>=&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>title</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>repository</span><span class=o>-&gt;</span><span class=n>add</span><span class=p>(</span><span class=nv>$task</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=k>print</span> <span class=s>&#34;タスクを追加しました: &#34;</span> <span class=o>.</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>title</span> <span class=o>.</span> <span class=s>&#34;\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>description</span> <span class=p>{</span> <span class=s>&#39;タスクを追加する&#39;</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># ConcreteCommand: タスク一覧</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Command::List</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>with</span> <span class=s>&#39;Command::Role&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>repository</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>execute</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$self</span> <span class=o>=</span> <span class=nb>shift</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>@tasks</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>repository</span><span class=o>-&gt;</span><span class=n>all</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>for</span> <span class=k>my</span> <span class=nv>$task</span> <span class=p>(</span><span class=nv>@tasks</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=k>my</span> <span class=nv>$status</span> <span class=o>=</span> <span class=nv>$task</span><span class=o>-&gt;</span><span class=n>is_done</span> <span class=p>?</span> <span class=s>&#39;[x]&#39;</span> <span class=p>:</span> <span class=s>&#39;[ ]&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>            <span class=nb>printf</span> <span class=s>&#34;%d. %s %s\n&#34;</span><span class=p>,</span> <span class=nv>$task</span><span class=o>-&gt;</span><span class=n>id</span><span class=p>,</span> <span class=nv>$status</span><span class=p>,</span> <span class=nv>$task</span><span class=o>-&gt;</span><span class=n>title</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>description</span> <span class=p>{</span> <span class=s>&#39;タスク一覧を表示する&#39;</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># ConcreteCommand: タスク完了</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Command::Complete</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>with</span> <span class=s>&#39;Command::Role&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>repository</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>task_id</span>    <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>execute</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$self</span> <span class=o>=</span> <span class=nb>shift</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$task</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>repository</span><span class=o>-&gt;</span><span class=n>find</span><span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>task_id</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=nv>$task</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$task</span><span class=o>-&gt;</span><span class=n>mark_done</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>repository</span><span class=o>-&gt;</span><span class=n>save</span><span class=p>(</span><span class=nv>$task</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>            <span class=k>print</span> <span class=s>&#34;タスクを完了しました: &#34;</span> <span class=o>.</span> <span class=nv>$task</span><span class=o>-&gt;</span><span class=n>title</span> <span class=o>.</span> <span class=s>&#34;\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span> <span class=k>else</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=k>print</span> <span class=s>&#34;タスクが見つかりません: ID &#34;</span> <span class=o>.</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>task_id</span> <span class=o>.</span> <span class=s>&#34;\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>description</span> <span class=p>{</span> <span class=s>&#39;タスクを完了にする&#39;</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p><strong>Perl Moo + Roleの利点</strong>:</p><ul><li><code>requires</code>で必須メソッドを宣言でき、実装漏れを防げる</li><li>継承ではなく合成で機能を追加できる（「Mooで覚えるオブジェクト指向プログラミング」第10回で学習済み）</li></ul><p><strong>信頼度</strong>: 9/10</p><hr><h2 id=2-repositoryパターンの調査>2. Repositoryパターンの調査</h2><h3 id=21-定義と概要>2.1 定義と概要</h3><p><strong>要点</strong>:</p><ul><li>Repositoryパターンは、ドメインオブジェクト（ビジネスロジックを持つオブジェクト）とデータストレージ層の間に抽象層を設けるパターンである</li><li>コレクションのようなインターフェースでドメインオブジェクトにアクセスできる</li><li>データの取得・保存・削除のロジックを一箇所にカプセル化する</li></ul><p><strong>根拠</strong>:</p><ul><li>Martin Fowlerの「Patterns of Enterprise Application Architecture」で定義されたパターン</li><li>ドメイン駆動設計（DDD）で重要な役割を果たす</li></ul><p><strong>出典</strong>:</p><ul><li>GeeksforGeeks: Repository Design Pattern - <a class=link href=https://www.geeksforgeeks.org/system-design/repository-design-pattern/ target=_blank rel=noopener>https://www.geeksforgeeks.org/system-design/repository-design-pattern/</a></li><li>DeepWiki: Repository Pattern - <a class=link href=https://deepwiki.com/domain-driven-design/ddd-microservices/5.1-repository-pattern target=_blank rel=noopener>https://deepwiki.com/domain-driven-design/ddd-microservices/5.1-repository-pattern</a></li></ul><p><strong>信頼度</strong>: 9/10</p><hr><h3 id=22-構成要素と構造>2.2 構成要素と構造</h3><pre class=mermaid>
+	classDiagram
+    class Repository {
+        &lt;&lt;interface&gt;&gt;
+        +add(entity)
+        +find(id)
+        +all()
+        +save(entity)
+        +remove(id)
+    }
+    class FileRepository {
+        -filepath
+        +add(entity)
+        +find(id)
+        +all()
+        +save(entity)
+        +remove(id)
+    }
+    class InMemoryRepository {
+        -storage
+        +add(entity)
+        +find(id)
+        +all()
+        +save(entity)
+        +remove(id)
+    }
+    class SQLiteRepository {
+        -dbh
+        +add(entity)
+        +find(id)
+        +all()
+        +save(entity)
+        +remove(id)
+    }
+    class Task {
+        +id
+        +title
+        +is_done
+        +mark_done()
+    }
+
+    Repository &lt;|.. FileRepository : implements
+    Repository &lt;|.. InMemoryRepository : implements
+    Repository &lt;|.. SQLiteRepository : implements
+    FileRepository --&gt; Task : manages
+    InMemoryRepository --&gt; Task : manages
+    SQLiteRepository --&gt; Task : manages
+</pre><div class=table-wrapper><table><thead><tr><th>要素</th><th>役割</th><th>Todo CLIでの具体例</th></tr></thead><tbody><tr><td><strong>Repository (インターフェース)</strong></td><td>データアクセスの共通メソッドを宣言</td><td><code>TaskRepository::Role</code></td></tr><tr><td><strong>ConcreteRepository</strong></td><td>具体的なストレージへのアクセスを実装</td><td><code>FileRepository</code>, <code>InMemoryRepository</code>, <code>SQLiteRepository</code></td></tr><tr><td><strong>Entity</strong></td><td>管理対象のドメインオブジェクト</td><td><code>Task</code></td></tr></tbody></table></div><p><strong>信頼度</strong>: 9/10</p><hr><h3 id=23-メリットデメリット>2.3 メリット・デメリット</h3><h4 id=メリット-1>メリット</h4><div class=table-wrapper><table><thead><tr><th>利点</th><th>説明</th><th>Todo CLIでの効果</th></tr></thead><tbody><tr><td><strong>永続化層の抽象化</strong></td><td>ストレージの詳細を隠蔽</td><td>JSON→SQLiteへの切り替えがCommandクラスに影響しない</td></tr><tr><td><strong>テスト容易性</strong></td><td>InMemoryRepositoryでテスト可能</td><td>実際のファイルI/Oなしでテスト可能</td></tr><tr><td><strong>単一責任の原則</strong></td><td>データアクセスロジックを分離</td><td>Taskクラスはビジネスロジックに集中できる</td></tr><tr><td><strong>交換可能性</strong></td><td>実装を切り替え可能</td><td>演習でJSON→SQLiteへの切り替えが容易</td></tr></tbody></table></div><h4 id=デメリット-1>デメリット</h4><div class=table-wrapper><table><thead><tr><th>欠点</th><th>説明</th><th>対策</th></tr></thead><tbody><tr><td><strong>複雑性の増加</strong></td><td>追加の抽象層が必要</td><td>小規模アプリでは過剰にならないよう注意</td></tr><tr><td><strong>学習コスト</strong></td><td>パターンの理解が必要</td><td>段階的に導入し、利点を体感させる</td></tr></tbody></table></div><p><strong>出典</strong>:</p><ul><li>GeeksforGeeks: Repository Design Pattern - <a class=link href=https://www.geeksforgeeks.org/system-design/repository-design-pattern/ target=_blank rel=noopener>https://www.geeksforgeeks.org/system-design/repository-design-pattern/</a></li></ul><p><strong>信頼度</strong>: 9/10</p><hr><h3 id=24-perlでの実装方法>2.4 Perlでの実装方法</h3><p><strong>要点</strong>:</p><p>PerlでRepositoryパターンを実装する場合、Moo::Roleでインターフェースを定義し、各具象クラスで実装する。</p><p><strong>実装例</strong>:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>  1
+</span><span class=lnt>  2
+</span><span class=lnt>  3
+</span><span class=lnt>  4
+</span><span class=lnt>  5
+</span><span class=lnt>  6
+</span><span class=lnt>  7
+</span><span class=lnt>  8
+</span><span class=lnt>  9
+</span><span class=lnt> 10
+</span><span class=lnt> 11
+</span><span class=lnt> 12
+</span><span class=lnt> 13
+</span><span class=lnt> 14
+</span><span class=lnt> 15
+</span><span class=lnt> 16
+</span><span class=lnt> 17
+</span><span class=lnt> 18
+</span><span class=lnt> 19
+</span><span class=lnt> 20
+</span><span class=lnt> 21
+</span><span class=lnt> 22
+</span><span class=lnt> 23
+</span><span class=lnt> 24
+</span><span class=lnt> 25
+</span><span class=lnt> 26
+</span><span class=lnt> 27
+</span><span class=lnt> 28
+</span><span class=lnt> 29
+</span><span class=lnt> 30
+</span><span class=lnt> 31
+</span><span class=lnt> 32
+</span><span class=lnt> 33
+</span><span class=lnt> 34
+</span><span class=lnt> 35
+</span><span class=lnt> 36
+</span><span class=lnt> 37
+</span><span class=lnt> 38
+</span><span class=lnt> 39
+</span><span class=lnt> 40
+</span><span class=lnt> 41
+</span><span class=lnt> 42
+</span><span class=lnt> 43
+</span><span class=lnt> 44
+</span><span class=lnt> 45
+</span><span class=lnt> 46
+</span><span class=lnt> 47
+</span><span class=lnt> 48
+</span><span class=lnt> 49
+</span><span class=lnt> 50
+</span><span class=lnt> 51
+</span><span class=lnt> 52
+</span><span class=lnt> 53
+</span><span class=lnt> 54
+</span><span class=lnt> 55
+</span><span class=lnt> 56
+</span><span class=lnt> 57
+</span><span class=lnt> 58
+</span><span class=lnt> 59
+</span><span class=lnt> 60
+</span><span class=lnt> 61
+</span><span class=lnt> 62
+</span><span class=lnt> 63
+</span><span class=lnt> 64
+</span><span class=lnt> 65
+</span><span class=lnt> 66
+</span><span class=lnt> 67
+</span><span class=lnt> 68
+</span><span class=lnt> 69
+</span><span class=lnt> 70
+</span><span class=lnt> 71
+</span><span class=lnt> 72
+</span><span class=lnt> 73
+</span><span class=lnt> 74
+</span><span class=lnt> 75
+</span><span class=lnt> 76
+</span><span class=lnt> 77
+</span><span class=lnt> 78
+</span><span class=lnt> 79
+</span><span class=lnt> 80
+</span><span class=lnt> 81
+</span><span class=lnt> 82
+</span><span class=lnt> 83
+</span><span class=lnt> 84
+</span><span class=lnt> 85
+</span><span class=lnt> 86
+</span><span class=lnt> 87
+</span><span class=lnt> 88
+</span><span class=lnt> 89
+</span><span class=lnt> 90
+</span><span class=lnt> 91
+</span><span class=lnt> 92
+</span><span class=lnt> 93
+</span><span class=lnt> 94
+</span><span class=lnt> 95
+</span><span class=lnt> 96
+</span><span class=lnt> 97
+</span><span class=lnt> 98
+</span><span class=lnt> 99
+</span><span class=lnt>100
+</span><span class=lnt>101
+</span><span class=lnt>102
+</span><span class=lnt>103
+</span><span class=lnt>104
+</span><span class=lnt>105
+</span><span class=lnt>106
+</span><span class=lnt>107
+</span><span class=lnt>108
+</span><span class=lnt>109
+</span><span class=lnt>110
+</span><span class=lnt>111
+</span><span class=lnt>112
+</span><span class=lnt>113
+</span><span class=lnt>114
+</span><span class=lnt>115
+</span><span class=lnt>116
+</span><span class=lnt>117
+</span><span class=lnt>118
+</span><span class=lnt>119
+</span><span class=lnt>120
+</span><span class=lnt>121
+</span><span class=lnt>122
+</span><span class=lnt>123
+</span><span class=lnt>124
+</span><span class=lnt>125
+</span><span class=lnt>126
+</span><span class=lnt>127
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># Repository Role（インターフェース相当）</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>TaskRepository::Role</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo::Role</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>requires</span> <span class=s>&#39;add&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>requires</span> <span class=s>&#39;find&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>requires</span> <span class=s>&#39;all&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>requires</span> <span class=s>&#39;save&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>requires</span> <span class=s>&#39;remove&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># InMemory実装（テスト用）</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>TaskRepository::InMemory</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>with</span> <span class=s>&#39;TaskRepository::Role&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>storage</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=p>{}</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>next_id</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>add</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$task</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$id</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>next_id</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$task</span><span class=o>-&gt;</span><span class=n>id</span><span class=p>(</span><span class=nv>$id</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>storage</span><span class=o>-&gt;</span><span class=p>{</span><span class=nv>$id</span><span class=p>}</span> <span class=o>=</span> <span class=nv>$task</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>next_id</span><span class=p>(</span><span class=nv>$id</span> <span class=o>+</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$task</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>find</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$id</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>storage</span><span class=o>-&gt;</span><span class=p>{</span><span class=nv>$id</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>all</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$self</span> <span class=o>=</span> <span class=nb>shift</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nb>values</span> <span class=nv>%</span><span class=p>{</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>storage</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>save</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$task</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>storage</span><span class=o>-&gt;</span><span class=p>{</span><span class=nv>$task</span><span class=o>-&gt;</span><span class=n>id</span><span class=p>}</span> <span class=o>=</span> <span class=nv>$task</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>remove</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$id</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=nb>delete</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>storage</span><span class=o>-&gt;</span><span class=p>{</span><span class=nv>$id</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># JSON File実装</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>TaskRepository::File</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>JSON</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>with</span> <span class=s>&#39;TaskRepository::Role&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>filepath</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=s>&#39;tasks.json&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>_load</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$self</span> <span class=o>=</span> <span class=nb>shift</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=o>[]</span> <span class=k>unless</span> <span class=o>-</span><span class=n>f</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>filepath</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=nb>open</span> <span class=k>my</span> <span class=nv>$fh</span><span class=p>,</span> <span class=s>&#39;&lt;:encoding(UTF-8)&#39;</span><span class=p>,</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>filepath</span> <span class=ow>or</span> <span class=nb>die</span> <span class=vg>$!</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=nb>local</span> <span class=vg>$/</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$json</span> <span class=o>=</span> <span class=sr>&lt;$fh&gt;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=nb>close</span> <span class=nv>$fh</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=n>decode_json</span><span class=p>(</span><span class=nv>$json</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>_save_all</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$data</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=nb>open</span> <span class=k>my</span> <span class=nv>$fh</span><span class=p>,</span> <span class=s>&#39;&gt;:encoding(UTF-8)&#39;</span><span class=p>,</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>filepath</span> <span class=ow>or</span> <span class=nb>die</span> <span class=vg>$!</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>print</span> <span class=nv>$fh</span> <span class=n>encode_json</span><span class=p>(</span><span class=nv>$data</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=nb>close</span> <span class=nv>$fh</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>add</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$task</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$data</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_load</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$max_id</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>for</span> <span class=k>my</span> <span class=nv>$item</span> <span class=p>(</span><span class=nv>@$data</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$max_id</span> <span class=o>=</span> <span class=nv>$item</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>id</span><span class=p>}</span> <span class=k>if</span> <span class=nv>$item</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>id</span><span class=p>}</span> <span class=o>&gt;</span> <span class=nv>$max_id</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$task</span><span class=o>-&gt;</span><span class=n>id</span><span class=p>(</span><span class=nv>$max_id</span> <span class=o>+</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=nb>push</span> <span class=nv>@$data</span><span class=p>,</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=n>id</span>      <span class=o>=&gt;</span> <span class=nv>$task</span><span class=o>-&gt;</span><span class=n>id</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>title</span>   <span class=o>=&gt;</span> <span class=nv>$task</span><span class=o>-&gt;</span><span class=n>title</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>is_done</span> <span class=o>=&gt;</span> <span class=nv>$task</span><span class=o>-&gt;</span><span class=n>is_done</span> <span class=p>?</span> <span class=mi>1</span> <span class=p>:</span> <span class=mi>0</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>};</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_save_all</span><span class=p>(</span><span class=nv>$data</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$task</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>find</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$id</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$data</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_load</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>for</span> <span class=k>my</span> <span class=nv>$item</span> <span class=p>(</span><span class=nv>@$data</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=k>if</span> <span class=p>(</span><span class=nv>$item</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>id</span><span class=p>}</span> <span class=o>==</span> <span class=nv>$id</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>                <span class=k>return</span> <span class=nn>Task</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=nv>%$item</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>            <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>all</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$self</span> <span class=o>=</span> <span class=nb>shift</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$data</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_load</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nb>map</span> <span class=p>{</span> <span class=nn>Task</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=nv>%$_</span><span class=p>)</span> <span class=p>}</span> <span class=nv>@$data</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>save</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$task</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$data</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_load</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>for</span> <span class=k>my</span> <span class=nv>$item</span> <span class=p>(</span><span class=nv>@$data</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=k>if</span> <span class=p>(</span><span class=nv>$item</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>id</span><span class=p>}</span> <span class=o>==</span> <span class=nv>$task</span><span class=o>-&gt;</span><span class=n>id</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>                <span class=nv>$item</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>title</span><span class=p>}</span>   <span class=o>=</span> <span class=nv>$task</span><span class=o>-&gt;</span><span class=n>title</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>                <span class=nv>$item</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>is_done</span><span class=p>}</span> <span class=o>=</span> <span class=nv>$task</span><span class=o>-&gt;</span><span class=n>is_done</span> <span class=p>?</span> <span class=mi>1</span> <span class=p>:</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>                <span class=k>last</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>            <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_save_all</span><span class=p>(</span><span class=nv>$data</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>remove</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$id</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$data</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_load</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=nv>@$data</span> <span class=o>=</span> <span class=nb>grep</span> <span class=p>{</span> <span class=nv>$_</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>id</span><span class=p>}</span> <span class=o>!=</span> <span class=nv>$id</span> <span class=p>}</span> <span class=nv>@$data</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_save_all</span><span class=p>(</span><span class=nv>$data</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p><strong>信頼度</strong>: 9/10</p><hr><h2 id=3-todo-cliアプリの設計調査>3. Todo CLIアプリの設計調査</h2><h3 id=31-典型的なtodo-cliアプリの機能>3.1 典型的なTodo CLIアプリの機能</h3><p><strong>要点</strong>:</p><p>典型的なTodo CLIアプリは以下の機能を持つ。</p><div class=table-wrapper><table><thead><tr><th>機能</th><th>コマンド例</th><th>説明</th></tr></thead><tbody><tr><td>タスク追加</td><td><code>todo add "買い物に行く"</code></td><td>新しいタスクを作成</td></tr><tr><td>タスク一覧</td><td><code>todo list</code></td><td>全タスクを表示</td></tr><tr><td>タスク完了</td><td><code>todo complete 1</code></td><td>指定IDのタスクを完了済みにする</td></tr><tr><td>タスク削除</td><td><code>todo delete 1</code></td><td>指定IDのタスクを削除（オプション）</td></tr><tr><td>ヘルプ表示</td><td><code>todo help</code></td><td>使用方法を表示</td></tr></tbody></table></div><p><strong>Todo CLIアプリのクラス構成案</strong>:</p><pre class=mermaid>
+	classDiagram
+    class Task {
+        +id
+        +title
+        +is_done
+        +mark_done()
+    }
+
+    class TaskRepository {
+        &lt;&lt;Role&gt;&gt;
+        +add(task)
+        +find(id)
+        +all()
+        +save(task)
+        +remove(id)
+    }
+
+    class FileRepository {
+        -filepath
+    }
+
+    class InMemoryRepository {
+        -storage
+    }
+
+    class Command {
+        &lt;&lt;Role&gt;&gt;
+        +execute()
+        +description()
+    }
+
+    class AddCommand {
+        -repository
+        -title
+    }
+
+    class ListCommand {
+        -repository
+    }
+
+    class CompleteCommand {
+        -repository
+        -task_id
+    }
+
+    class TodoApp {
+        -repository
+        +run(args)
+    }
+
+    TaskRepository &lt;|.. FileRepository : with
+    TaskRepository &lt;|.. InMemoryRepository : with
+    Command &lt;|.. AddCommand : with
+    Command &lt;|.. ListCommand : with
+    Command &lt;|.. CompleteCommand : with
+    TodoApp --&gt; TaskRepository : uses
+    TodoApp --&gt; Command : creates
+    AddCommand --&gt; TaskRepository : uses
+    ListCommand --&gt; TaskRepository : uses
+    CompleteCommand --&gt; TaskRepository : uses
+    FileRepository --&gt; Task : manages
+    InMemoryRepository --&gt; Task : manages
+</pre><p><strong>信頼度</strong>: 9/10</p><hr><h3 id=32-perlでのcli引数解析getoptlong>3.2 PerlでのCLI引数解析（Getopt::Long）</h3><p><strong>要点</strong>:</p><p>PerlでCLI引数を解析する標準的な方法は<code>Getopt::Long</code>モジュールを使用すること。</p><p><strong>基本的な使い方</strong>:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>use</span> <span class=nn>Getopt::Long</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Pod::Usage</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>%opts</span> <span class=o>=</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>verbose</span> <span class=o>=&gt;</span> <span class=mi>0</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>GetOptions</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=s>&#39;verbose|v&#39;</span> <span class=o>=&gt;</span> <span class=o>\</span><span class=nv>$opts</span><span class=p>{</span><span class=n>verbose</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=s>&#39;help|h&#39;</span>    <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=n>pod2usage</span><span class=p>(</span><span class=o>-</span><span class=n>verbose</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>)</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl><span class=p>)</span> <span class=ow>or</span> <span class=n>pod2usage</span><span class=p>(</span><span class=o>-</span><span class=n>verbose</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 残りの引数は @ARGV に残る</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$command</span> <span class=o>=</span> <span class=nb>shift</span> <span class=nv>@ARGV</span> <span class=sr>//</span> <span class=s>&#39;help&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>@args</span>    <span class=o>=</span> <span class=nv>@ARGV</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p><strong>Todo CLIでの引数解析例</strong>:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=ch>#!/usr/bin/env perl</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Getopt::Long</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># サブコマンドを取得</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$command</span> <span class=o>=</span> <span class=nb>shift</span> <span class=nv>@ARGV</span> <span class=sr>//</span> <span class=s>&#39;help&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># サブコマンドに応じて処理を分岐</span>
+</span></span><span class=line><span class=cl><span class=k>if</span> <span class=p>(</span><span class=nv>$command</span> <span class=ow>eq</span> <span class=s>&#39;add&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$title</span> <span class=o>=</span> <span class=nb>shift</span> <span class=nv>@ARGV</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nb>die</span> <span class=s>&#34;タスク名を指定してください\n&#34;</span> <span class=k>unless</span> <span class=nv>$title</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=c1># Command::Add-&gt;new(title =&gt; $title, repository =&gt; $repo)-&gt;execute;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=k>elsif</span> <span class=p>(</span><span class=nv>$command</span> <span class=ow>eq</span> <span class=s>&#39;list&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=c1># Command::List-&gt;new(repository =&gt; $repo)-&gt;execute;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=k>elsif</span> <span class=p>(</span><span class=nv>$command</span> <span class=ow>eq</span> <span class=s>&#39;complete&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$id</span> <span class=o>=</span> <span class=nb>shift</span> <span class=nv>@ARGV</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nb>die</span> <span class=s>&#34;タスクIDを指定してください\n&#34;</span> <span class=k>unless</span> <span class=nv>$id</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=c1># Command::Complete-&gt;new(task_id =&gt; $id, repository =&gt; $repo)-&gt;execute;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=k>else</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>print</span> <span class=s>&#34;使い方: todo &lt;command&gt; [args]\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>print</span> <span class=s>&#34;  add &lt;title&gt;     タスクを追加\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>print</span> <span class=s>&#34;  list            タスク一覧を表示\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>print</span> <span class=s>&#34;  complete &lt;id&gt;   タスクを完了にする\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p><strong>ベストプラクティス</strong>:</p><ul><li>長いオプション名を使用し、自己文書化する（例: <code>--verbose</code> vs <code>-v</code>）</li><li>ヘルプメッセージを必ず用意する</li><li>エラーメッセージはSTDERRに出力する</li><li>入力値の検証を早期に行う</li></ul><p><strong>出典</strong>:</p><ul><li>perldoc: Getopt::Long - <a class=link href=https://perldoc.perl.org/Getopt::Long target=_blank rel=noopener>https://perldoc.perl.org/Getopt::Long</a></li><li>Stack Overflow: What are the best-practices for implementing a CLI tool in Perl? - <a class=link href=https://stackoverflow.com/questions/1183876/what-are-the-best-practices-for-implementing-a-cli-tool-in-perl target=_blank rel=noopener>https://stackoverflow.com/questions/1183876/what-are-the-best-practices-for-implementing-a-cli-tool-in-perl</a></li><li>Perl Maven: Advanced usage of Getopt::Long - <a class=link href=https://perlmaven.com/advanced-usage-of-getopt-long-accepting-command-line-arguments target=_blank rel=noopener>https://perlmaven.com/advanced-usage-of-getopt-long-accepting-command-line-arguments</a></li></ul><p><strong>信頼度</strong>: 9/10</p><hr><h3 id=33-jsonファイルでのデータ永続化方法>3.3 JSONファイルでのデータ永続化方法</h3><p><strong>要点</strong>:</p><p>PerlでJSONファイルを使ってデータを永続化する方法。</p><p><strong>使用モジュール</strong>:</p><ul><li><code>JSON</code> - 汎用的なJSONモジュール</li><li><code>JSON::MaybeXS</code> - 環境に応じて最速のJSONモジュールを選択</li><li><code>JSON::PP</code> - Pure Perl実装（Perl 5.14以降は標準搭載）</li></ul><p><strong>基本的な読み書き</strong>:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>use</span> <span class=nn>JSON</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 書き込み</span>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>save_to_json</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$filepath</span><span class=p>,</span> <span class=nv>$data</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nb>open</span> <span class=k>my</span> <span class=nv>$fh</span><span class=p>,</span> <span class=s>&#39;&gt;:encoding(UTF-8)&#39;</span><span class=p>,</span> <span class=nv>$filepath</span> <span class=ow>or</span> <span class=nb>die</span> <span class=vg>$!</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>print</span> <span class=nv>$fh</span> <span class=n>encode_json</span><span class=p>(</span><span class=nv>$data</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nb>close</span> <span class=nv>$fh</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 読み込み</span>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>load_from_json</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$filepath</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=o>[]</span> <span class=k>unless</span> <span class=o>-</span><span class=n>f</span> <span class=nv>$filepath</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nb>open</span> <span class=k>my</span> <span class=nv>$fh</span><span class=p>,</span> <span class=s>&#39;&lt;:encoding(UTF-8)&#39;</span><span class=p>,</span> <span class=nv>$filepath</span> <span class=ow>or</span> <span class=nb>die</span> <span class=vg>$!</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nb>local</span> <span class=vg>$/</span><span class=p>;</span>  <span class=c1># スラープモード</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$json</span> <span class=o>=</span> <span class=sr>&lt;$fh&gt;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nb>close</span> <span class=nv>$fh</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=n>decode_json</span><span class=p>(</span><span class=nv>$json</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p><strong>JSON形式のタスクデータ例</strong>:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-json data-lang=json><span class=line><span class=cl><span class=p>[</span>
+</span></span><span class=line><span class=cl>  <span class=p>{</span> <span class=nt>&#34;id&#34;</span><span class=p>:</span> <span class=mi>1</span><span class=p>,</span> <span class=nt>&#34;title&#34;</span><span class=p>:</span> <span class=s2>&#34;買い物に行く&#34;</span><span class=p>,</span> <span class=nt>&#34;is_done&#34;</span><span class=p>:</span> <span class=kc>false</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>  <span class=p>{</span> <span class=nt>&#34;id&#34;</span><span class=p>:</span> <span class=mi>2</span><span class=p>,</span> <span class=nt>&#34;title&#34;</span><span class=p>:</span> <span class=s2>&#34;レポートを書く&#34;</span><span class=p>,</span> <span class=nt>&#34;is_done&#34;</span><span class=p>:</span> <span class=kc>true</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>  <span class=p>{</span> <span class=nt>&#34;id&#34;</span><span class=p>:</span> <span class=mi>3</span><span class=p>,</span> <span class=nt>&#34;title&#34;</span><span class=p>:</span> <span class=s2>&#34;Perlの勉強&#34;</span><span class=p>,</span> <span class=nt>&#34;is_done&#34;</span><span class=p>:</span> <span class=kc>false</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>]</span>
+</span></span></code></pre></td></tr></table></div></div><p><strong>出典</strong>:</p><ul><li>Perl Maven: JSON in Perl - <a class=link href=https://perlmaven.com/json target=_blank rel=noopener>https://perlmaven.com/json</a></li><li>TheLinuxCode: Using JSON for Effective Data Interchange in Perl - <a class=link href=https://thelinuxcode.com/json-with-perl/ target=_blank rel=noopener>https://thelinuxcode.com/json-with-perl/</a></li></ul><p><strong>信頼度</strong>: 9/10</p><hr><h3 id=34-sqliteでのデータ永続化演習用>3.4 SQLiteでのデータ永続化（演習用）</h3><p><strong>要点</strong>:</p><p>JSON→SQLiteへの切り替え演習のための情報。</p><p><strong>使用モジュール</strong>:</p><ul><li><code>DBI</code> - Perlのデータベースインターフェース</li><li><code>DBD::SQLite</code> - SQLite用ドライバ</li></ul><p><strong>基本的なCRUD操作</strong>:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>use</span> <span class=nn>DBI</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 接続</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$dbh</span> <span class=o>=</span> <span class=nn>DBI</span><span class=o>-&gt;</span><span class=nb>connect</span><span class=p>(</span><span class=s>&#34;dbi:SQLite:dbname=tasks.db&#34;</span><span class=p>,</span> <span class=s>&#34;&#34;</span><span class=p>,</span> <span class=s>&#34;&#34;</span><span class=p>,</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=n>PrintError</span> <span class=o>=&gt;</span> <span class=mi>0</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>RaiseError</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>AutoCommit</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>})</span> <span class=ow>or</span> <span class=nb>die</span> <span class=nv>$</span><span class=nn>DBI::</span><span class=nv>errstr</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># テーブル作成</span>
+</span></span><span class=line><span class=cl><span class=nv>$dbh</span><span class=o>-&gt;</span><span class=k>do</span><span class=p>(</span><span class=sx>q{
+</span></span></span><span class=line><span class=cl><span class=sx>    CREATE TABLE IF NOT EXISTS tasks (
+</span></span></span><span class=line><span class=cl><span class=sx>        id INTEGER PRIMARY KEY AUTOINCREMENT,
+</span></span></span><span class=line><span class=cl><span class=sx>        title TEXT NOT NULL,
+</span></span></span><span class=line><span class=cl><span class=sx>        is_done INTEGER DEFAULT 0
+</span></span></span><span class=line><span class=cl><span class=sx>    )
+</span></span></span><span class=line><span class=cl><span class=sx>}</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># INSERT</span>
+</span></span><span class=line><span class=cl><span class=nv>$dbh</span><span class=o>-&gt;</span><span class=k>do</span><span class=p>(</span><span class=s>&#34;INSERT INTO tasks (title) VALUES (?)&#34;</span><span class=p>,</span> <span class=nb>undef</span><span class=p>,</span> <span class=s>&#34;新しいタスク&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># SELECT</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$sth</span> <span class=o>=</span> <span class=nv>$dbh</span><span class=o>-&gt;</span><span class=n>prepare</span><span class=p>(</span><span class=s>&#34;SELECT id, title, is_done FROM tasks&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$sth</span><span class=o>-&gt;</span><span class=n>execute</span><span class=p>();</span>
+</span></span><span class=line><span class=cl><span class=k>while</span> <span class=p>(</span><span class=k>my</span> <span class=nv>@row</span> <span class=o>=</span> <span class=nv>$sth</span><span class=o>-&gt;</span><span class=n>fetchrow_array</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>print</span> <span class=s>&#34;ID:$row[0] Title:$row[1] Done:$row[2]\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># UPDATE</span>
+</span></span><span class=line><span class=cl><span class=nv>$dbh</span><span class=o>-&gt;</span><span class=k>do</span><span class=p>(</span><span class=s>&#34;UPDATE tasks SET is_done = 1 WHERE id = ?&#34;</span><span class=p>,</span> <span class=nb>undef</span><span class=p>,</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># DELETE</span>
+</span></span><span class=line><span class=cl><span class=nv>$dbh</span><span class=o>-&gt;</span><span class=k>do</span><span class=p>(</span><span class=s>&#34;DELETE FROM tasks WHERE id = ?&#34;</span><span class=p>,</span> <span class=nb>undef</span><span class=p>,</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nv>$dbh</span><span class=o>-&gt;</span><span class=n>disconnect</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p><strong>出典</strong>:</p><ul><li>Perl Maven: Simple Database access using Perl DBI and SQL - <a class=link href=https://perlmaven.com/simple-database-access-using-perl-dbi-and-sql target=_blank rel=noopener>https://perlmaven.com/simple-database-access-using-perl-dbi-and-sql</a></li><li>TutorialsPoint: SQLite - Perl - <a class=link href=https://www.tutorialspoint.com/sqlite/sqlite_perl.htm target=_blank rel=noopener>https://www.tutorialspoint.com/sqlite/sqlite_perl.htm</a></li><li>MetaCPAN: DBD::SQLite - <a class=link href=https://metacpan.org/pod/DBD::SQLite target=_blank rel=noopener>https://metacpan.org/pod/DBD::SQLite</a></li></ul><p><strong>信頼度</strong>: 9/10</p><hr><h2 id=4-内部リンク調査>4. 内部リンク調査</h2><h3 id=41-mooで覚えるオブジェクト指向プログラミングシリーズ全12回>4.1 「Mooで覚えるオブジェクト指向プログラミング」シリーズ（全12回）</h3><p>本シリーズ記事の前提知識となる既存記事。</p><div class=table-wrapper><table><thead><tr><th style=text-align:left>回</th><th style=text-align:left>タイトル</th><th style=text-align:left>内部リンク</th><th style=text-align:left>関連する概念</th></tr></thead><tbody><tr><td style=text-align:left>第1回</td><td style=text-align:left>Mooで覚えるオブジェクト指向プログラミング</td><td style=text-align:left><code>/2021/10/31/191008/</code></td><td style=text-align:left>オブジェクト、クラス、プロパティ、メソッド</td></tr><tr><td style=text-align:left>第2回</td><td style=text-align:left>データとロジックをまとめよう</td><td style=text-align:left><code>/2025/12/30/163810/</code></td><td style=text-align:left><code>has</code>、<code>sub</code></td></tr><tr><td style=text-align:left>第3回</td><td style=text-align:left>同じものを何度も作れるように</td><td style=text-align:left><code>/2025/12/30/163811/</code></td><td style=text-align:left><code>new</code>（コンストラクタ）</td></tr><tr><td style=text-align:left>第4回</td><td style=text-align:left>勝手に書き換えられないようにする</td><td style=text-align:left><code>/2025/12/30/163812/</code></td><td style=text-align:left><code>is => 'ro'</code>、<code>is => 'rw'</code></td></tr><tr><td style=text-align:left>第5回</td><td style=text-align:left>初期化忘れを防ぐ</td><td style=text-align:left><code>/2025/12/30/163813/</code></td><td style=text-align:left><code>required</code>、<code>default</code></td></tr><tr><td style=text-align:left>第6回</td><td style=text-align:left>内部実装を外から触らせない</td><td style=text-align:left><code>/2025/12/30/163814/</code></td><td style=text-align:left>カプセル化</td></tr><tr><td style=text-align:left>第7回</td><td style=text-align:left>関連するデータを別のクラスに</td><td style=text-align:left><code>/2025/12/30/163815/</code></td><td style=text-align:left>オブジェクトの関連</td></tr><tr><td style=text-align:left>第8回</td><td style=text-align:left>似ているクラスの重複をなくす</td><td style=text-align:left><code>/2025/12/30/163816/</code></td><td style=text-align:left><code>extends</code>（継承）</td></tr><tr><td style=text-align:left>第9回</td><td style=text-align:left>同じ名前で違う動作を</td><td style=text-align:left><code>/2025/12/30/163817/</code></td><td style=text-align:left>オーバーライド</td></tr><tr><td style=text-align:left>第10回</td><td style=text-align:left>継承しないで振る舞いを共有</td><td style=text-align:left><code>/2025/12/30/163818/</code></td><td style=text-align:left><code>Moo::Role</code>、<code>with</code></td></tr><tr><td style=text-align:left>第11回</td><td style=text-align:left>「持っている」ものに仕事を任せる</td><td style=text-align:left><code>/2025/12/30/163819/</code></td><td style=text-align:left><code>handles</code>（委譲）</td></tr><tr><td style=text-align:left>第12回</td><td style=text-align:left>型チェックでバグを未然に防ぐ</td><td style=text-align:left><code>/2025/12/30/163820/</code></td><td style=text-align:left><code>isa</code>（型制約）</td></tr></tbody></table></div><p><strong>特に重要な関連</strong>:</p><ul><li><strong>第10回（Moo::Role）</strong>: Commandパターン・Repositoryパターンのインターフェース定義で使用</li><li><strong>第7回（オブジェクトの関連）</strong>: CommandクラスがRepositoryを持つ関係</li><li><strong>第4回・第5回（ro/rw、required）</strong>: Taskクラスの属性定義で使用</li></ul><hr><h3 id=42-mooを使ってディスパッチャーを作ってみようシリーズ>4.2 「Mooを使ってディスパッチャーを作ってみよう」シリーズ</h3><p>関連するデザインパターン（Strategyパターン）を扱うシリーズ。</p><div class=table-wrapper><table><thead><tr><th style=text-align:left>回</th><th style=text-align:left>タイトル</th><th style=text-align:left>内部リンク</th><th style=text-align:left>関連度</th></tr></thead><tbody><tr><td style=text-align:left>第12回</td><td style=text-align:left>これがデザインパターンだ！</td><td style=text-align:left><code>/2026/01/03/001541/</code></td><td style=text-align:left>高（Strategyパターン解説）</td></tr><tr><td style=text-align:left>第5回</td><td style=text-align:left>共通の約束を決めよう</td><td style=text-align:left><code>/2026/01/03/001534/</code></td><td style=text-align:left>高（Roleによるインターフェース）</td></tr></tbody></table></div><hr><h3 id=43-デザインパターン関連記事>4.3 デザインパターン関連記事</h3><div class=table-wrapper><table><thead><tr><th>ファイルパス</th><th>内部リンク</th><th>内容</th><th>関連度</th></tr></thead><tbody><tr><td>デザインパターン概要調査</td><td><code>content/warehouse/design-patterns-research.md</code></td><td>GoF 23パターン概要</td><td>中</td></tr><tr><td>Commandパターン調査</td><td><code>content/warehouse/command-pattern.md</code></td><td>Commandパターン詳細調査</td><td>高</td></tr></tbody></table></div><hr><h2 id=5-重要な参考文献リソースリスト>5. 重要な参考文献・リソースリスト</h2><h3 id=51-必読リソース>5.1 必読リソース</h3><h4 id=書籍>書籍</h4><div class=table-wrapper><table><thead><tr><th>書籍名</th><th>著者</th><th>ASIN/ISBN</th><th>重要度</th></tr></thead><tbody><tr><td>Design Patterns: Elements of Reusable Object-Oriented Software</td><td>GoF</td><td>978-0201633610</td><td>必須</td></tr><tr><td>Head First Design Patterns (2nd Edition)</td><td>Eric Freeman, Elisabeth Robson</td><td>978-1492078005</td><td>推奨</td></tr></tbody></table></div><h4 id=webリソース>Webリソース</h4><div class=table-wrapper><table><thead><tr><th>リソース名</th><th>URL</th><th>特徴</th><th>信頼度</th></tr></thead><tbody><tr><td>Refactoring Guru - Command</td><td><a class=link href=https://refactoring.guru/design-patterns/command target=_blank rel=noopener>https://refactoring.guru/design-patterns/command</a></td><td>視覚的な図解、多言語コード例</td><td>高</td></tr><tr><td>GeeksforGeeks - Command Pattern</td><td><a class=link href=https://www.geeksforgeeks.org/system-design/command-pattern/ target=_blank rel=noopener>https://www.geeksforgeeks.org/system-design/command-pattern/</a></td><td>網羅的な解説</td><td>高</td></tr><tr><td>GeeksforGeeks - Repository Pattern</td><td><a class=link href=https://www.geeksforgeeks.org/system-design/repository-design-pattern/ target=_blank rel=noopener>https://www.geeksforgeeks.org/system-design/repository-design-pattern/</a></td><td>永続化パターン解説</td><td>高</td></tr><tr><td>perldoc - Getopt::Long</td><td><a class=link href=https://perldoc.perl.org/Getopt::Long target=_blank rel=noopener>https://perldoc.perl.org/Getopt::Long</a></td><td>Perl公式ドキュメント</td><td>高</td></tr><tr><td>Perl Maven - JSON in Perl</td><td><a class=link href=https://perlmaven.com/json target=_blank rel=noopener>https://perlmaven.com/json</a></td><td>Perl JSON操作ガイド</td><td>高</td></tr><tr><td>MetaCPAN - DBI</td><td><a class=link href=https://metacpan.org/pod/DBI target=_blank rel=noopener>https://metacpan.org/pod/DBI</a></td><td>Perl DBI公式</td><td>高</td></tr><tr><td>MetaCPAN - DBD::SQLite</td><td><a class=link href=https://metacpan.org/pod/DBD::SQLite target=_blank rel=noopener>https://metacpan.org/pod/DBD::SQLite</a></td><td>SQLiteドライバ公式</td><td>高</td></tr></tbody></table></div><hr><h2 id=6-調査結果のサマリー>6. 調査結果のサマリー</h2><h3 id=61-主要な発見>6.1 主要な発見</h3><ol><li><p><strong>Commandパターンの適用性</strong>: CLIツールの各サブコマンドをCommandオブジェクトとして実装することで、拡張性と保守性が向上する。「Mooで覚えるオブジェクト指向プログラミング」第10回で学んだMoo::Roleを使ってインターフェースを定義できる</p></li><li><p><strong>Repositoryパターンの有用性</strong>: 永続化層を抽象化することで、JSON→SQLiteへの切り替えがドメインロジックに影響を与えずに実現できる。これは演習題材として最適</p></li><li><p><strong>前提知識との連携</strong>: 「Mooで覚えるオブジェクト指向プログラミング」シリーズで学んだ概念（Moo::Role、has、required、isaなど）を実践的に活用できる</p></li><li><p><strong>Perlでの実装</strong>: Getopt::Longでの引数解析、JSONモジュールでのファイル永続化、DBI+DBD::SQLiteでのDB永続化は、いずれも成熟したエコシステムが存在する</p></li></ol><hr><p><strong>調査完了日</strong>: 2026年1月1日<br><strong>調査者</strong>: 調査・情報収集エージェント</p></section><footer class=article-footer><section class=article-tags><a href=/tags/perl/>Perl</a>
+<a href=/tags/command-pattern/>Command-Pattern</a>
+<a href=/tags/repository-pattern/>Repository-Pattern</a>
+<a href=/tags/cli/>Cli</a>
+<a href=/tags/design-patterns/>Design-Patterns</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/01/31/123916/><div class=article-image><img src=/public_images/2026/pixel-art-editor-header-image.jpg loading=lazy data-key data-hash=/public_images/2026/pixel-art-editor-header-image.jpg></div><div class=article-details><h2 class=article-title>PerlとMooでPixelアートエディタを作ろう - Memento+Commandパターンで無限Undo/Redo</h2></div></a></article><article class=has-image><a href=/2026/01/31/004626/><div class=article-image><img src=/public_images/2026/slack-bot-header.jpg loading=lazy data-key data-hash=/public_images/2026/slack-bot-header.jpg></div><div class=article-details><h2 class=article-title>第4回：コマンドをオブジェクトにしよう【PerlでSlackボット指令センターを作る】</h2></div></a></article><article class=has-image><a href=/warehouse/observer-decorator-command-combination/><div class=article-image><img src=/favicon.png loading=lazy data-key data-hash=/favicon.png></div><div class=article-details><h2 class=article-title>Observer × Decorator × Command 組み合わせ調査ドキュメント</h2></div></a></article><article class=has-image><a href=/2026/01/08/154030/><div class=article-image><img src=/public_images/2026/command-pattern-series-image.jpg loading=lazy data-key data-hash=/public_images/2026/command-pattern-series-image.jpg></div><div class=article-details><h2 class=article-title>Mooで作る簡易テキストエディタ - 目次（全10回）</h2></div></a></article><article class=has-image><a href=/2026/01/08/153827/><div class=article-image><img src=/public_images/2026/command-pattern-series-image.jpg loading=lazy data-key data-hash=/public_images/2026/command-pattern-series-image.jpg></div><div class=article-details><h2 class=article-title>第10回-これがデザインパターンだ！ - Mooで作る簡易テキストエディタ</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>
