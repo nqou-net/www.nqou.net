@@ -30,6 +30,7 @@
 | [observer-decorator-command-series-structure.md](agents/structure/observer-decorator-command-series-structure.md) | 秘密のメッセンジャー（Observer × Decorator × Command） | 📝 計画中 | - | 2026-01-30 | 2026-01-30 |
 | [hands-on-three-patterns-series-structure.md](agents/structure/hands-on-three-patterns-series-structure.md) | ダンジョンマスター（Strategy × Factory × Template Method） | ⚙️ 執筆中 | 案B | 2026-01-31 | 2026-01-31 |
 | [observer-memento-iterator-series-structure.md](agents/structure/observer-memento-iterator-series-structure.md) | Webページ変更ハンター（Observer × Memento × Iterator） | 📝 計画中 | - | 2026-01-31 | 2026-01-31 |
+| [bridge-adapter-proxy-series-structure.md](agents/structure/bridge-adapter-proxy-series-structure.md) | ウイスキーテイスティング・ノート（Bridge × Adapter × Proxy） | 📝 計画中 | - | 2026-01-31 | 2026-01-31 |
 
 ---
 
