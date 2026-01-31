@@ -2,6 +2,7 @@
 date: 2026-01-30T18:51:30+09:00
 description: Singleton × Flyweight × Proxy パターン組み合わせシリーズの調査結果
 draft: false
+epoch: 1769766690
 image: /favicon.png
 iso8601: 2026-01-30T18:51:30+09:00
 tags:

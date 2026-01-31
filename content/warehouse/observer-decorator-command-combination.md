@@ -2,7 +2,9 @@
 date: 2026-01-30T15:30:00+09:00
 description: Observer × Decorator × Command パターンの組み合わせに関する調査結果
 draft: false
+epoch: 1769754600
 image: /favicon.png
+iso8601: 2026-01-30T15:30:00+09:00
 tags:
   - observer-pattern
   - decorator-pattern
