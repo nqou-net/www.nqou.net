@@ -19,7 +19,7 @@
 | 📊 | レビュー中 | 最終レビュー中 |
 | ✅ | 公開済み | 記事が公開完了 |
 | ❌ | 棄却 | 採用されなかった構造案 |
-
+3
 ---
 
 ## 進行中
@@ -28,7 +28,7 @@
 |--------------|---------|----------|-------|-------|-------|
 | [singleton-flyweight-proxy-series-structure.md](agents/structure/singleton-flyweight-proxy-series-structure.md) | ASCIIアート・フォントレンダラー（Singleton × Flyweight × Proxy） | 📝 計画中 | - | 2026-01-30 | 2026-01-30 |
 | [observer-decorator-command-series-structure.md](agents/structure/observer-decorator-command-series-structure.md) | 秘密のメッセンジャー（Observer × Decorator × Command） | 📝 計画中 | - | 2026-01-30 | 2026-01-30 |
-| [hands-on-three-patterns-series-structure.md](agents/structure/hands-on-three-patterns-series-structure.md) | ダンジョンマスター（Strategy × Factory × Template Method） | ⚙️ 執筆中 | 案B | 2026-01-31 | 2026-01-31 |
+
 | [observer-memento-iterator-series-structure.md](agents/structure/observer-memento-iterator-series-structure.md) | Webページ変更ハンター（Observer × Memento × Iterator） | ⚙️ 執筆中 | 案A | 2026-01-31 | 2026-01-31 |
 | [bridge-adapter-proxy-series-structure.md](agents/structure/bridge-adapter-proxy-series-structure.md) | ウイスキーテイスティング・ノート（Bridge × Adapter × Proxy） | 📝 計画中 | - | 2026-01-31 | 2026-01-31 |
 | [chain-state-memento-series-structure.md](agents/structure/chain-state-memento-series-structure.md) | タイムトラベル冒険ゲーム（Chain of Responsibility × State × Memento） | 📝 計画中 | - | 2026-01-31 | 2026-01-31 |
@@ -95,6 +95,7 @@
 | [oop-fp-hybrid-design-series-structure.md](agents/structure/oop-fp-hybrid-design-series-structure.md) | OOP×FPハイブリッド設計 | 統合版 | 2026-02-01 | [記事](/2026/02/01/005526/) |
 | [memento-command-pattern-series-structure.md](agents/structure/memento-command-pattern-series-structure.md) | Pixelアートエディタ（Memento+Command） | 統合版 | 2026-01-31 | [記事](/2026/01/31/123916/) |
 | [hands-on-design-patterns-series-structure.md](agents/structure/hands-on-design-patterns-series-structure.md) | 執事Bot〜4つのデザインパターンで作るコマンド帝国 | 統合版 | 2026-02-01 | [記事](/2026/02/01/015106/) |
+| [hands-on-three-patterns-series-structure.md](agents/structure/hands-on-three-patterns-series-structure.md) | Perlで作るダンジョンマスター〜3つのデザインパターンで生成・実行・調整を手で覚える | 統合版 | 2026-02-01 | [記事](/2026/02/01/093248/) |
 
 ---
 

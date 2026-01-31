@@ -1,76 +1,119 @@
 ---
-description: 記事の要所（章の最初や転換点）に挿絵を生成・追加するワークフロー
+description: "記事ファイルのパスを渡すと、その記事を分析して効果的な挿絵を画像生成して埋め込むワークフロー"
 ---
 
-# 記事挿絵生成 (Key Illustrations)
+# 記事の挿絵生成ワークフロー (Key Illustrations)
 
-> 対象: シリーズ記事、単体記事
-> 目的: 記事の要所（章の冒頭、転換点など）を視覚化し、読者の理解を助ける
+指定された記事ファイルを分析し、効果的な挿絵を生成して埋め込みます。
 
----
+## 前提条件
 
-## Step 1: 対象とポイントの特定
-
-1. **対象記事の特定**:
-   - 編集中の Markdown ファイル (`content/post/...`) を確認
-   - 記事の年号 (`%Y`) とスラッグ (`<series-slug>` または `<article-slug>`) を特定
-
-2. **挿絵ポイントの抽出**:
-   - 記事を読み、以下のタイミングを特定する:
-     - 章（見出し）の直後
-     - 話の転換点（「しかし」「ここで登場するのが」など）
-     - 複雑な概念の説明が必要な箇所
-   - 具体例:
-     - **Before**: 問題が山積している混沌とした状況
-     - **Concept**: パターン構造図、クラス図、フローチャート
-     - **After**: 完成イメージ、整然としたコードの世界
-
-3. **トピック名 (<topic>) の決定**:
-   - 各ポイントの内容を表す短い英数字 (kebab-case)
-   - 例: `problem-chaos`, `mediator-pattern`, `final-architecture`
+- 対象の記事ファイルパスが指定されていること（またはアクティブなファイル）
 
 ---
 
-## Step 2: 画像生成 (Generate)
+## Step 1: 記事の分析とポイント特定
 
-1. **`generate_image` ツールを実行**:
-   - `Prompt`: 記事の文脈を反映し、具体的かつ魅力的な指示を与える。
-     - *Style*: 記事のトーンに合わせる（テクニカル、親しみやすい、RPG風など）
-     - *Content*: 抽象的すぎず、何が描かれているか伝わるようにする
-   - `ImageName`: `<series-slug>-<topic>` (一時保存用)
+対象の記事ファイルを読み込み、挿絵が効果的な箇所を特定します。
 
-2. **生成画像の確認**:
-   - Artifact として保存された画像を確認し、必要であればリテイク（再生成）
+> [!NOTE]
+> ユーザーからファイルパスが渡されていない場合は、現在アクティブなファイルを使用するか、ユーザーにパスを問い合わせてください。
 
----
+1. `read_file` などのツールで記事の内容を読み込む。
+2. 以下の基準で挿絵を入れるべき箇所をリストアップする。
 
-## Step 3: 配置と埋め込み (Deploy)
+### 挿絵推奨箇所
 
-1. **保存ディレクトリの準備**:
-   - `static/public_images/%Y/` (記事の公開年)
-   - 存在しない場合は作成 (`mkdir -p`)
-
-2. **ファイルの移動**:
-   - リサイズ (推奨: 長辺640px, JPEG):
-     - `sips -Z 640 -s format jpeg <artifact_path>` (macOS)
-     - 大きすぎる画像は記事の読み込みを遅くするため、適切なサイズに調整する。
-
-   - 生成された Artifact 画像を保存先へ移動
-   - 命名規則: `static/public_images/%Y/<series-slug>-<topic>.jpg`
-   - コマンド例: `mv <artifact_path> static/public_images/2026/<series-slug>-<topic>.jpg`
-
-3. **記事への埋め込み**:
-   - Markdown ファイルの該当箇所（Step 1 で特定したポイント）に画像リンクを追加
-   - 書式:
-     ```markdown
-     ![<Alt Text>](/public_images/%Y/<series-slug>-<topic>.jpg)
-     ```
-   - `<Alt Text>` には画像の内容や、記事内での役割（「図1: パターン構造」など）を記述
+| 箇所 | 目的 | 優先度 |
+|------|------|--------|
+| ヘッダー | 記事の第一印象（アイキャッチ） | 高 |
+| 各章/セクションの先頭 | 内容の視覚的導入 | 中 |
+| パターン/概念の説明 | 抽象概念の可視化 | 高 |
+| まとめ/結論 | 読後感の演出 | 低 |
 
 ---
 
-## Step 4: 最終確認
+## Step 2: 画像生成
 
-1. **プレビュー確認**:
-   - 生成された画像が記事の文脈と合致しているか
-   - 画像リンクが正しく機能しているか（パス間違いがないか）
+`generate_image` ツールを使用して挿絵を生成します。記事本文のメタファーやテーマを具体的に反映したプロンプトを作成してください。
+
+### プロンプト作成フロー
+
+1.  **文脈の抽出**: そのセクションの主要な概念やメタファー（例：「執事」「パズル」「宇宙船」など）を特定。
+2.  **要素の構成**: 以下のテンプレートに当てはめる。
+3.  **英語翻訳**: プロンプトは英語で作成する。
+
+### プロンプトテンプレート
+
+```
+[Subject]: 記事のメタファーやコンセプトを具体的に描写（例：A pixel art butler holding a glowing blueprint）
+[Style]: 記事のトーンに合わせる（例：Pixel art, Digital illustration, Oil painting）
+[Lighting/Mood]: 記事の印象（例：Cyberpunk, Warm lighting, Dynamic shadows）
+[Composition]: 視覚的な強調（例：Close-up, Wide shot, Minimalist background）
+[Constraints]: No text in the image, Aspect Ratio 16:9
+```
+
+### 実行例
+
+```javascript
+generate_image({
+  Prompt: "A friendly robot butler in pixel art style, wearing a traditional butler uniform and holding a digital tablet displaying code. Clean design on a cool cyan gradient background. No text in the image.",
+  ImageName: "butler_implementation"
+})
+```
+
+---
+
+## Step 3: 画像の配置
+
+生成した画像をプロジェクトの静的ファイルディレクトリに移動します。
+
+1. 記事のパスや日付から、適切な公開用ディレクトリを決定する。
+   - 例: `static/public_images/YYYY/MM/` や `static/public_images/YYYY/{SLUG}/`
+2. ディレクトリが存在しない場合は作成する。
+3. 生成された画像を移動する。
+
+// turbo
+```bash
+# 例: 日付ディレクトリへの移動
+# 記事の日付やスラッグに合わせて変更してください
+mkdir -p static/public_images/$(date +%Y)/{SLUG}
+cp {GENERATED_IMAGE_PATH} static/public_images/$(date +%Y)/{SLUG}/{IMAGE_NAME}.png
+```
+
+---
+
+## Step 4: 画像のリサイズ（推奨）
+
+Web表示用に画像を最適化します。
+
+```bash
+# sipsを使用（macOS）
+sips -Z 640 {IMAGE_PATH} --out {OUTPUT_PATH}
+```
+
+---
+
+## Step 5: 記事への埋め込み
+
+マークダウンファイルに画像リンクを追記します。
+
+```markdown
+![画像の説明](/public_images/YYYY/{SLUG}/{IMAGE_NAME}.png)
+```
+
+### 埋め込み位置の目安
+- **ヘッダー**: Frontmatterの直後
+- **章の先頭**: 見出し（`##`）の直後
+- **説明図**: 該当する段落の後
+
+---
+
+## Step 6: 検証
+
+Hugoサーバーなどで表示を確認し、問題がないかチェックします。
+
+### チェックリスト
+- [ ] 画像が正しく表示されているか
+- [ ] コンテキストに合った画像か
+- [ ] サイズが適切か

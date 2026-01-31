@@ -1,3 +1,10 @@
+---
+date: 2026-01-31T23:54:23+09:00
+draft: true
+epoch: 1769871263
+image: /favicon.png
+iso8601: 2026-01-31T23:54:23+09:00
+---
 # Chain of Responsibility × State × Memento パターン組み合わせ徹底調査報告書
 
 ## エグゼクティブサマリー
