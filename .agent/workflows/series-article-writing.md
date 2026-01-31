@@ -6,6 +6,19 @@ description: シリーズ記事のライティングフェーズ（日時決定�
 
 > 前: `/series-article-planning` | 次: `/series-article-review`
 > 参照: [WORKFLOWS.md](../../WORKFLOWS.md), [AGENTS.md](../../AGENTS.md)
+> 知見ベース: [workflow-insights.md](../../agents/knowledge/workflow-insights.md)
+
+---
+
+## Step 0: 知見の読み込み
+
+// turbo
+1. 知見ファイルの確認:
+   ```bash
+   grep -A 20 "series-article-writing" agents/knowledge/workflow-insights.md 2>/dev/null
+   ```
+2. 関連する知見を抽出し、今回の執筆に活かす
+3. 特に「成功パターン」と「失敗パターン」に注目
 
 ---
 
@@ -96,4 +109,29 @@ PLANNING_STATUS.md を更新:
 1. 最終回の17秒後に公開
 2. タイトル: 「【目次】シリーズ名（全N回）」
 3. linkcard 形式でリンク
-4. 完了後 → `/series-article-review` へ進む
+
+---
+
+## Step 6: 知見の記録
+
+今回の執筆で得た気づきを `agents/knowledge/workflow-insights.md` に追記:
+
+```markdown
+## YYYY-MM-DD: <コンテンツ名>
+
+### ワークフロー: series-article-writing
+
+### 知見タイプ: <成功/失敗/発見/フィードバック/改善>
+
+**コンテキスト**: <状況の説明>
+
+**知見**: <学んだこと>
+
+**適用場面**: <今後どんな場面で活用できるか>
+```
+
+---
+
+## 完了後
+
+→ `/series-article-review` へ進む
