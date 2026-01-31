@@ -21,15 +21,6 @@
 | [series-article-writing](.agent/workflows/series-article-writing.md) | ライティングフェーズ（日時決定→原稿作成→リンク・挿絵→目次） |
 | [series-article-review](.agent/workflows/series-article-review.md) | レビューフェーズ（コード検証→校正→品質レビュー→公開） |
 
-### 単体記事
-
-| ワークフロー | 説明 |
-|---|---|
-| [single-article](.agent/workflows/single-article.md) | 単体記事の作成（全体フロー） |
-| [single-article-planning](.agent/workflows/single-article-planning.md) | プランニングフェーズ（調査→アウトライン作成） |
-| [single-article-writing](.agent/workflows/single-article-writing.md) | ライティングフェーズ（原稿作成→挿絵追加） |
-| [single-article-review](.agent/workflows/single-article-review.md) | レビューフェーズ（校正→最終チェック→公開） |
-
 ### 統合記事（連載構造案から1記事作成）
 
 | ワークフロー | 説明 |
