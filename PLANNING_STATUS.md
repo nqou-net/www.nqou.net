@@ -96,6 +96,11 @@
 | [observer-decorator-command-series-structure.md](agents/structure/observer-decorator-command-series-structure.md) | 秘密のメッセンジャー（Observer×Decorator×Command） | 統合版 | 2026-02-03 | ✓ | [記事](/2026/02/03/004116/) |
 | [bridge-adapter-proxy-series-structure.md](agents/structure/bridge-adapter-proxy-series-structure.md) | ウイスキーテイスティング・ノート（Bridge × Adapter × Proxy） | 統合版 | 2026-02-04 | - | [記事](/2026/02/04/001726/) |
 
+### 手で覚えるデザインパターンシリーズ
+
+| 構造案ファイル | タイトル | 形式 | 公開日 | 挿絵 | 成果物 |
+|--------------|---------|------|-------|------|-------|
+| [whisky-profile-generator-series-structure.md](agents/structure/whisky-profile-generator-series-structure.md) | ウイスキー香味プロファイル生成器（Factory Method + Strategy） | 統合版 | 2026-02-06 | - | [記事](/2026/02/06/000000/) |
 
 ---
 
