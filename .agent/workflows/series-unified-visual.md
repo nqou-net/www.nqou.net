@@ -5,6 +5,19 @@ description: "連載構造案から統合記事を作成する汎用ワークフ
 # Phase 5: 挿絵生成（汎用）
 
 > 前: `/series-unified-write` | 次: `/series-unified-review`
+> 知見ベース: [workflow-insights.md](../../agents/knowledge/workflow-insights.md)
+
+---
+
+## Step 0: 知見の読み込み
+
+// turbo
+1. 知見ファイルの確認:
+   ```bash
+   grep -A 20 "series-unified-visual" agents/knowledge/workflow-insights.md 2>/dev/null
+   ```
+2. 関連する知見を抽出し、今回の挿絵生成に活かす
+3. 特に「失敗パターン」に注目（画像リサイズの問題など）
 
 ---
 
@@ -182,3 +195,33 @@ hugo server -D -F
 - 生成画像は `~/.gemini/antigravity/brain/` に一時保存される
 - 最終的には `static/public_images/` にコピーする
 - 画像ファイル名は小文字・ハイフン区切りを推奨
+
+---
+
+## Step 8: 知見の記録
+
+今回の挿絵生成で得た気づきを `agents/knowledge/workflow-insights.md` に追記:
+
+```markdown
+## YYYY-MM-DD: <コンテンツ名>
+
+### ワークフロー: series-unified-visual
+
+### 知見タイプ: <成功/失敗/発見/フィードバック/改善>
+
+**コンテキスト**: <状況の説明>
+
+**知見**: <学んだこと>
+
+**適用場面**: <今後どんな場面で活用できるか>
+```
+
+### 記録すべき典型例
+
+- 画像リサイズツールの選択（sips vs magick）
+- 効果的なプロンプトの書き方
+- ファイルパーミッションの問題
+
+> [!NOTE]
+> 知見がない場合はこのステップをスキップ可能
+

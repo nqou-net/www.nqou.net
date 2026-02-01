@@ -26,7 +26,6 @@
 
 | 構造案ファイル | タイトル | ステータス | 採用案 | 開始日 | 更新日 |
 |--------------|---------|----------|-------|-------|-------|
-| [chain-state-memento-series-structure.md](agents/structure/chain-state-memento-series-structure.md) | タイムトラベル冒険ゲーム（Chain of Responsibility × State × Memento） | 📝 計画中 | - | 2026-01-31 | 2026-01-31 |
 
 ---
 
@@ -73,6 +72,7 @@
 | [backup-tool-series-structure.md](agents/structure/backup-tool-series-structure.md) | ファイルバックアップツール（Template Method+Strategy） | 全8回 | 2026-01-30 | [目次](/2026/01/30/003407/) |
 | [two-pattern-combination-series-structure.md](agents/structure/two-pattern-combination-series-structure.md) | API統合パターン（Facade+Adapter） | 全8回 | 2026-01-30 | [目次](/2026/01/30/004635/) |
 | [observer-memento-iterator-series-structure.md](agents/structure/observer-memento-iterator-series-structure.md) | Webページ変更ハンター（Observer+Memento+Iterator） | 統合版 | 2026-02-01 | [記事](/2026/02/01/100000/) |
+| [chain-state-memento-series-structure.md](agents/structure/chain-state-memento-series-structure.md) | タイムトラベル冒険ゲーム（Chain of Responsibility+State+Memento） | 統合版 | 2026-02-05 | [記事](/2026/02/05/000937/) |
 
 ### 実践アプリケーション開発シリーズ
 

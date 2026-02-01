@@ -6,6 +6,7 @@ description: 連載構造案からシリーズ記事を作成するワークフ�
 
 > 前提: `/planning-v2` で連載構造案が作成済み
 > 参照: [PLANNING_STATUS.md](../../PLANNING_STATUS.md)
+> 知見ベース: [workflow-insights.md](../../agents/knowledge/workflow-insights.md)
 
 ---
 
@@ -13,6 +14,18 @@ description: 連載構造案からシリーズ記事を作成するワークフ�
 
 このワークフローは planning-v2 で生成された連載構造案（`agents/structure/*.md`）を
 使用して、シリーズ記事を作成します。
+
+---
+
+## Step 0: 知見の読み込み
+
+// turbo
+1. 知見ファイルの確認:
+   ```bash
+   cat agents/knowledge/workflow-insights.md | head -50
+   ```
+2. 全体スケジュールやシリーズ構成に関する知見を確認
+3. 各Phase実行時に、該当する知見を参照するよう意識
 
 ---
 
@@ -31,7 +44,7 @@ description: 連載構造案からシリーズ記事を作成するワークフ�
 
 ---
 
-## Step 0: 前提確認
+## Step 1: 前提確認
 
 // turbo
 ```bash
@@ -44,7 +57,7 @@ cat PLANNING_STATUS.md | grep -E "^\|.*✏️ 採用済み" | head -10
 
 ---
 
-## Step 1: 出力形式の選択
+## Step 2: 出力形式の選択
 
 ユーザーに確認:
 
@@ -55,7 +68,7 @@ cat PLANNING_STATUS.md | grep -E "^\|.*✏️ 採用済み" | head -10
 
 ---
 
-## Step 2-6: Phase実行
+## Step 3-7: Phase実行
 
 選択した形式に応じて各Phaseワークフローを順次実行:
 
@@ -69,17 +82,17 @@ cat PLANNING_STATUS.md | grep -E "^\|.*✏️ 採用済み" | head -10
 
 ---
 
-## Step 7: 連載版の追加作業
+## Step 8: 連載版の追加作業（連載版のみ）
 
 連載版を選択した場合の追加作業:
 
-### 7.1 記事分割
+### 8.1 記事分割
 
 1. 統合記事を各回に分割
 2. 各回のfrontmatterを設定（date は17秒間隔）
 3. ファイル命名: `content/post/YYYY/MM/DD/HHMMSS.md`
 
-### 7.2 記事間リンク追加
+### 8.2 記事間リンク追加
 
 各記事に以下を追加:
 
@@ -93,7 +106,7 @@ cat PLANNING_STATUS.md | grep -E "^\|.*✏️ 採用済み" | head -10
 （最終回以外）次回は...について解説します。
 ```
 
-### 7.3 目次記事作成
+### 8.3 目次記事作成
 
 1. 最終回の17秒後に公開
 2. タイトル: 「【目次】シリーズ名（全N回）」
@@ -101,9 +114,25 @@ cat PLANNING_STATUS.md | grep -E "^\|.*✏️ 採用済み" | head -10
 
 ---
 
-## 完了
+## Step 9: 完了と知見記録
 
 全てのPhaseが完了したら、PLANNING_STATUS.md が自動更新されます。
+
+最後に、一連の流れを通じて得た知見を記録します：
+
+```markdown
+## YYYY-MM-DD: <コンテンツ名>
+
+### ワークフロー: series-article
+
+### 知見タイプ: <成功/失敗/発見/フィードバック/改善>
+
+**コンテキスト**: <状況の説明>
+
+**知見**: <学んだこと>
+
+**適用場面**: <今後どんな場面で活用できるか>
+```
 
 ---
 

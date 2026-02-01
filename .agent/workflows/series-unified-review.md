@@ -5,6 +5,19 @@ description: "連載構造案から統合記事を作成する汎用ワークフ
 # Phase 6: レビュー（汎用）
 
 > 前: `/series-unified-visual` | 次: 完了
+> 知見ベース: [workflow-insights.md](../../agents/knowledge/workflow-insights.md)
+
+---
+
+## Step 0: 知見の読み込み
+
+// turbo
+1. 知見ファイルの確認:
+   ```bash
+   grep -A 20 "series-unified-review" agents/knowledge/workflow-insights.md 2>/dev/null
+   ```
+2. 関連する知見を抽出し、今回のレビューに活かす
+3. 特に「失敗パターン」に注目
 
 ---
 
@@ -172,3 +185,33 @@ hugo server -D -F
 - [ ] 目次記事から各回へのリンクが有効
 - [ ] 公開日時が連続している
 - [ ] 各記事のfrontmatterが統一されている
+
+---
+
+## Step 8: 知見の記録
+
+今回のレビューで得た気づきを `agents/knowledge/workflow-insights.md` に追記:
+
+```markdown
+## YYYY-MM-DD: <コンテンツ名>
+
+### ワークフロー: series-unified-review
+
+### 知見タイプ: <成功/失敗/発見/フィードバック/改善>
+
+**コンテキスト**: <状況の説明>
+
+**知見**: <学んだこと>
+
+**適用場面**: <今後どんな場面で活用できるか>
+```
+
+### 記録すべき典型例
+
+- レビューで見つかった頻出問題
+- 効率的なレビュー手順
+- Hugoビルドの問題と解決策
+
+> [!NOTE]
+> 知見がない場合はこのステップをスキップ可能
+

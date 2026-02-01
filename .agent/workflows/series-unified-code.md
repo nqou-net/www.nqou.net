@@ -5,6 +5,19 @@ description: "連載構造案から統合記事を作成する汎用ワークフ
 # Phase 2: コード実装（汎用）
 
 > 前: `/series-unified-prepare` | 次: `/series-unified-write`
+> 知見ベース: [workflow-insights.md](../../agents/knowledge/workflow-insights.md)
+
+---
+
+## Step 0: 知見の読み込み
+
+// turbo
+1. 知見ファイルの確認:
+   ```bash
+   grep -A 20 "series-unified-code" agents/knowledge/workflow-insights.md 2>/dev/null
+   ```
+2. 関連する知見を抽出し、今回のコード実装に活かす
+3. 特に「失敗パターン」に注目（UTF-8問題、パッケージ依存関係など）
 
 ---
 
@@ -142,3 +155,34 @@ perl agents/tests/{SLUG}/lib/example1_solution.pl
 - コードは原稿作成前に全て動作確認
 - テストは記事のコード例と一致させる
 - 依存モジュールは冒頭でインストール確認
+
+---
+
+## Step 7: 知見の記録
+
+今回のコード実装で得た気づきを `agents/knowledge/workflow-insights.md` に追記:
+
+```markdown
+## YYYY-MM-DD: <コンテンツ名>
+
+### ワークフロー: series-unified-code
+
+### 知見タイプ: <成功/失敗/発見/フィードバック/改善>
+
+**コンテキスト**: <状況の説明>
+
+**知見**: <学んだこと>
+
+**適用場面**: <今後どんな場面で活用できるか>
+```
+
+### 記録すべき典型例
+
+- UTF-8/エンコーディング問題
+- パッケージ依存関係の解決方法
+- テスト作成のベストプラクティス
+- デバッグ中に発見したコツ
+
+> [!NOTE]
+> 知見がない場合はこのステップをスキップ可能
+
