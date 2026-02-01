@@ -26,7 +26,6 @@
 
 | 構造案ファイル | タイトル | ステータス | 採用案 | 開始日 | 更新日 |
 |--------------|---------|----------|-------|-------|-------|
-| [bridge-adapter-proxy-series-structure.md](agents/structure/bridge-adapter-proxy-series-structure.md) | ウイスキーテイスティング・ノート（Bridge × Adapter × Proxy） | 📝 計画中 | - | 2026-01-31 | 2026-01-31 |
 | [chain-state-memento-series-structure.md](agents/structure/chain-state-memento-series-structure.md) | タイムトラベル冒険ゲーム（Chain of Responsibility × State × Memento） | 📝 計画中 | - | 2026-01-31 | 2026-01-31 |
 
 ---
@@ -93,8 +92,9 @@
 | [memento-command-pattern-series-structure.md](agents/structure/memento-command-pattern-series-structure.md) | Pixelアートエディタ（Memento+Command） | 統合版 | 2026-01-31 | ✓ | [記事](/2026/01/31/123916/) |
 | [hands-on-design-patterns-series-structure.md](agents/structure/hands-on-design-patterns-series-structure.md) | 執事Bot〜4つのデザインパターンで作るコマンド帝国 | 統合版 | 2026-02-01 | ✓ | [記事](/2026/02/01/015106/) |
 | [hands-on-three-patterns-series-structure.md](agents/structure/hands-on-three-patterns-series-structure.md) | Perlで作るダンジョンマスター〜3つのデザインパターンで生成・実行・調整を手で覚える | 統合版 | 2026-02-01 | ✓ | [記事](/2026/02/01/093248/) |
-| [singleton-flyweight-proxy-series-structure.md](agents/structure/singleton-flyweight-proxy-series-structure.md) | ASCIIアート・フォントレンダラー | 統合版 | 2026-02-02 | - | [記事](/2026/02/02/004531/) |
+| [singleton-flyweight-proxy-series-structure.md](agents/structure/singleton-flyweight-proxy-series-structure.md) | ASCIIアート・フォントレンダラー | 統合版 | 2026-02-02 | ✓ | [記事](/2026/02/02/004531/) |
 | [observer-decorator-command-series-structure.md](agents/structure/observer-decorator-command-series-structure.md) | 秘密のメッセンジャー（Observer×Decorator×Command） | 統合版 | 2026-02-03 | ✓ | [記事](/2026/02/03/004116/) |
+| [bridge-adapter-proxy-series-structure.md](agents/structure/bridge-adapter-proxy-series-structure.md) | ウイスキーテイスティング・ノート（Bridge × Adapter × Proxy） | 統合版 | 2026-02-04 | - | [記事](/2026/02/04/001726/) |
 
 
 ---
