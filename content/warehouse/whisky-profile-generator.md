@@ -1,8 +1,11 @@
 ---
 date: 2026-02-01T11:30:00+09:00
-description: ウイスキー香味プロファイル生成器の調査ドキュメント - Factory Method + Strategy パターン
+description: 'ウイスキー香味プロファイル生成器の調査ドキュメント - Factory Method + Strategy パターン'
 draft: true
-title: 調査ドキュメント - ウイスキー香味プロファイル生成器
+epoch: 1769913000
+image: /favicon.png
+iso8601: 2026-02-01T11:30:00+09:00
+title: '調査ドキュメント - ウイスキー香味プロファイル生成器'
 ---
 
 # 調査ドキュメント: ウイスキー香味プロファイル生成器
