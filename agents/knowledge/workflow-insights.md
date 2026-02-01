@@ -1,8 +1,8 @@
 ````markdown
 # ワークフロー知見ベース（統合版）
 
-> 最終更新: 2026-01-31
-> 総エントリ数: 1件
+> 最終更新: 2026-02-01
+> 総エントリ数: 2件
 
 このファイルは各ワークフローの実行時に蓄積される知見を記録します。
 各実行の最後に、得られた気づきをここに追記してください。
@@ -65,5 +65,18 @@
 **知見**: 推薦案と異なる選択がされた場合、ユーザーの重視するポイント（実用性 vs 楽しさ）を事前に確認する価値がある。「デザインパターン学習」のコンテキストでは、「楽しさ」「ゲーム性」が重要な選択基準になりうる。
 
 **適用場面**: 複数案の提示時、推薦理由に「実用性」「楽しさ」「ハッキング的魅力」などの軸を明示し、ユーザーの優先順位を確認する一言を添える。
+
+
+## 2026-02-01: Secret Messenger (Observer × Decorator × Command)
+
+### ワークフロー: series-unified-visual
+
+### 知見タイプ: 失敗と改善
+
+**コンテキスト**: Generated images using `generate_image` and attempted to resize using `sips -Z 640`.
+
+**知見**: `sips` command failed with "Cannot write to file" error on MacOS for generated artifacts. Switched to `magick` (ImageMagick) which worked perfectly.
+
+**適用場面**: Future image resizing steps in workflows should prefer `magick` if available or ensure file permissions/paths are correct for `sips`.
 
 ````
