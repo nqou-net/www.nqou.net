@@ -1,8 +1,10 @@
 ---
 date: 2026-02-01T13:30:00+09:00
-description: Interpreter × Visitor × Composite パターン組み合わせシリーズの調査ドキュメント - 正規表現リファインリーを題材に
+description: 'Interpreter × Visitor × Composite パターン組み合わせシリーズの調査ドキュメント - 正規表現リファインリーを題材に'
 draft: false
+epoch: 1769920200
 image: /favicon.png
+iso8601: 2026-02-01T13:30:00+09:00
 tags:
   - design-patterns
   - interpreter-pattern
@@ -11,7 +13,7 @@ tags:
   - perl
   - moo
   - regex
-title: 'Interpreter × Visitor × Composite 組み合わせシリーズ調査'
+title: Interpreter × Visitor × Composite 組み合わせシリーズ調査
 ---
 
 # Interpreter × Visitor × Composite 組み合わせシリーズ調査ドキュメント

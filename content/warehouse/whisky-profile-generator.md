@@ -1,7 +1,7 @@
 ---
 date: 2026-02-01T11:30:00+09:00
 description: 'ウイスキー香味プロファイル生成器の調査ドキュメント - Factory Method + Strategy パターン'
-draft: true
+draft: false
 epoch: 1769913000
 image: /favicon.png
 iso8601: 2026-02-01T11:30:00+09:00
