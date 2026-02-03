@@ -96,7 +96,7 @@
 | [hands-on-three-patterns-series-structure.md](agents/structure/hands-on-three-patterns-series-structure.md) | Perlで作るダンジョンマスター〜3つのデザインパターンで生成・実行・調整を手で覚える | 統合版 | 2026-02-01 | ✓ | [記事](/2026/02/01/093248/) |
 | [singleton-flyweight-proxy-series-structure.md](agents/structure/singleton-flyweight-proxy-series-structure.md) | ASCIIアート・フォントレンダラー | 統合版 | 2026-02-02 | ✓ | [記事](/2026/02/02/004531/) |
 | [observer-decorator-command-series-structure.md](agents/structure/observer-decorator-command-series-structure.md) | 秘密のメッセンジャー（Observer×Decorator×Command） | 統合版 | 2026-02-03 | ✓ | [記事](/2026/02/03/004116/) |
-| [bridge-adapter-proxy-series-structure.md](agents/structure/bridge-adapter-proxy-series-structure.md) | ウイスキーテイスティング・ノート（Bridge × Adapter × Proxy） | 統合版 | 2026-02-04 | - | [記事](/2026/02/04/001726/) |
+| [bridge-adapter-proxy-series-structure.md](agents/structure/bridge-adapter-proxy-series-structure.md) | ウイスキーテイスティング・ノート（Bridge × Adapter × Proxy） | 統合版 | 2026-02-04 | ✓ | [記事](/2026/02/04/001726/) |
 
 ### 手で覚えるデザインパターンシリーズ
 
@@ -115,11 +115,17 @@
 
 | 構造案ファイル | タイトル | 形式 | 公開日 | 挿絵 | 成果物 |
 |--------------|---------|------|-------|------|-------|
-| [pattern-dna-strategy-game.md](agents/structure/pattern-dna-strategy-game.md) | コードドクター〜ダメージ計算式緊急手術（Strategy） | 統合版 | 2026-02-09 | - | [記事](/2026/02/09/002541/) |
+| [pattern-dna-strategy-game.md](agents/structure/pattern-dna-strategy-game.md) | コードドクター〜ダメージ計算式緊急手術（Strategy） | 統合版 | 2026-02-09 | ✓ | [記事](/2026/02/09/002541/) |
 | [pattern-dna-factory-method.md](agents/structure/pattern-dna-factory-method.md) | コードドクター〜通知システム緊急手術（Factory Method） | 統合版 | 2026-02-11 | - | [記事](/2026/02/11/000705/) |
 | [pattern-dna-singleton.md](agents/structure/pattern-dna-singleton.md) | コードドクター〜DB接続マネージャ緊急手術（Singleton） | 統合版 | 2026-02-10 | - | [記事](/2026/02/10/004532/) |
 | [pattern-dna-abstract-factory.md](agents/structure/pattern-dna-abstract-factory.md) | コードドクター〜難易度システム緊急手術（Abstract Factory） | 統合版 | 2026-02-12 | - | [記事](/2026/02/12/001507/) |
 | [pattern-dna-builder.md](agents/structure/pattern-dna-builder.md) | コードドクター〜キャラクター生成緊急手術（Builder） | 統合版 | 2026-02-13 | - | [記事](/2026/02/13/004416/) |
+| [pattern-dna-prototype.md](agents/structure/pattern-dna-prototype.md) | コードドクター〜敵キャラクター量産緊急手術（Prototype） | 統合版 | 2026-02-14 | - | [記事](/2026/02/14/005714/) |
+| [pattern-dna-adapter.md](agents/structure/pattern-dna-adapter.md) | コードドクター〜レトロゲーム入力緊急手術（Adapter） | 統合版 | 2026-02-15 | - | [記事](/2026/02/15/004421/) |
+| [pattern-dna-facade.md](agents/structure/pattern-dna-facade.md) | コードドクター〜スマートホームAPI地獄緊急手術（Facade） | ✅ 公開済み | 2026-02-16 | - | [記事](/2026/02/16/005211/) |
+| [pattern-dna-bridge.md](agents/structure/pattern-dna-bridge.md) | コードドクター〜クラス爆発緊急手術（Bridge） | 統合版 | 2026-02-17 | - | [記事](/2026/02/17/005648/) |
+| [pattern-dna-composite.md](agents/structure/pattern-dna-composite.md) | コードドクター〜階層構造緊急手術（Composite） | 統合版 | 2026-02-18 | - | [記事](/2026/02/18/001014/) |
+| [pattern-dna-flyweight.md](agents/structure/pattern-dna-flyweight.md) | コードドクター〜100万本の森緊急手術（Flyweight） | 統合版 | 2026-02-19 | - | [記事](/2026/02/19/000913/) |
 
 ---
 
