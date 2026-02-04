@@ -45,3 +45,7 @@ Phase 2のプロットに従って書き進めます。
 
 ファイルパス: `content/post/YYYY/MM/DD/NNNNNN.md`
 Markdown形式。
+**Categories & Tags Rule**:
+- MUST be in English.
+- MUST be in kebab-case (e.g., `design-pattern`, `factory-method`).
+

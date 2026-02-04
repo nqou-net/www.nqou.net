@@ -60,8 +60,11 @@ PLANNING_STATUS.md を更新:
 date: {公開日時}
 description: "{SEO最適化されたdescription（120文字以内）}"
 draft: false
+categories:
+  - {category-name} # English kebab-case only
 tags:
-  - {言語タグ}
+  - {tag-name} # English kebab-case only
+
   - {シリーズタグ}
   - {パターン/技術タグ}
 title: '{SEO最適化されたタイトル}'
