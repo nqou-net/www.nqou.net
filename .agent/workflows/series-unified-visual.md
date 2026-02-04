@@ -5,21 +5,10 @@ description: "連載構造案から統合記事を作成する汎用ワークフ
 # Phase 5: 挿絵生成（汎用）
 
 > 前: `/series-unified-write` | 次: `/series-unified-review`
-> 知見ベース: [workflow-insights.md](../../agents/knowledge/workflow-insights.md)
 
 ---
 
-## Step 0: 知見の読み込み
 
-// turbo
-1. 知見ファイルの確認:
-   ```bash
-   grep -A 20 "series-unified-visual" agents/knowledge/workflow-insights.md 2>/dev/null
-   ```
-2. 関連する知見を抽出し、今回の挿絵生成に活かす
-3. 特に「失敗パターン」に注目（画像リサイズの問題など）
-
----
 
 ## 前提条件
 
@@ -109,21 +98,9 @@ static/public_images/
 
 ---
 
-## Step 4: 画像のリサイズ（オプション）
 
-大きすぎる画像をリサイズ：
 
-```bash
-# sipsを使用（macOS）
-sips -Z 640 {IMAGE_PATH} --out {OUTPUT_PATH}
-
-# ImageMagickを使用（クロスプラットフォーム）
-convert {IMAGE_PATH} -resize 640x {OUTPUT_PATH}
-```
-
----
-
-## Step 5: 記事への埋め込み
+## Step 4: 記事への埋め込み
 
 Markdown形式で画像を埋め込み：
 
@@ -139,7 +116,7 @@ Markdown形式で画像を埋め込み：
 
 ---
 
-## Step 6: 画像の確認
+## Step 5: 画像の確認
 
 Hugoサーバーで画像の表示を確認：
 
@@ -152,13 +129,13 @@ hugo server -D -F
 ### チェックリスト
 
 - [ ] 全画像が正しく表示される
-- [ ] 画像サイズが適切（横幅640px以下推奨）
+
 - [ ] 画像の配置が記事の流れに合っている
 - [ ] altテキストが適切に設定されている
 
 ---
 
-## Step 7: PLANNING_STATUS.md を更新
+## Step 6: PLANNING_STATUS.md を更新
 
 挿絵生成が正常に完了したら、`PLANNING_STATUS.md` の該当記事の挿絵列を更新：
 
@@ -197,31 +174,4 @@ hugo server -D -F
 - 画像ファイル名は小文字・ハイフン区切りを推奨
 
 ---
-
-## Step 8: 知見の記録
-
-今回の挿絵生成で得た気づきを `agents/knowledge/workflow-insights.md` に追記:
-
-```markdown
-## YYYY-MM-DD: <コンテンツ名>
-
-### ワークフロー: series-unified-visual
-
-### 知見タイプ: <成功/失敗/発見/フィードバック/改善>
-
-**コンテキスト**: <状況の説明>
-
-**知見**: <学んだこと>
-
-**適用場面**: <今後どんな場面で活用できるか>
-```
-
-### 記録すべき典型例
-
-- 画像リサイズツールの選択（sips vs magick）
-- 効果的なプロンプトの書き方
-- ファイルパーミッションの問題
-
-> [!NOTE]
-> 知見がない場合はこのステップをスキップ可能
 
