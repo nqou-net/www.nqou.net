@@ -5,12 +5,13 @@ description: コードドクターシリーズ記事を作成するワークフ�
 # Code Doctor: Narrative Writing
 
 > キャラクター設定: [code-doctor-characters.md](../../agents/knowledge/code-doctor-characters.md)
-> 連載構造案: [STRUCTURE.md] (Phase 2の結果)
-> 実装コード: [CODE] (Phase 3の結果)
+> 連載構造案: `agents/code-doctor-series/<slug>/plot.md` (Phase 2の結果)
+> 実装コード: `agents/code-doctor-series/<slug>/tests/` (Phase 3の結果)
 
 ## 概要
 
 Phase 1~3の素材を統合し、実際に記事本文（Markdown）を執筆します。
+※ `<slug>` はデザインパターン名のケバブケース（例: `factory-method`）です。Phase 1~3 で生成されたものと一致させてください。
 
 ## Step 1: 執筆エージェントのセットアップ
 

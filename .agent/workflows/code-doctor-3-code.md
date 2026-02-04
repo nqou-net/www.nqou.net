@@ -10,6 +10,7 @@ description: コードドクターシリーズ：コード実装と検証 (Phase
 ## 概要
 
 物語の中で使用される「患部（Before code）」と「治療後（After code）」のコードを作成し、実際に動作することを確認します。
+ファイルパスには、Phase 1, 2 と同様の `<slug>` (ケバブケース) を使用してください。
 
 ## Step 1: Bad Code (症状) の実装
 
@@ -33,4 +34,5 @@ description: コードドクターシリーズ：コード実装と検証 (Phase
 ## Output Requirements
 
 - `agents/code-doctor-series/<slug>/tests/` 配下に実際のコードファイルが生成されていること。
+  - `<slug>`: デザインパターン名のケバブケース（例: `factory-method`）
 - テストがPassしていること。

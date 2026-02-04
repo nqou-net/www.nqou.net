@@ -15,6 +15,7 @@ description: コードドクターシリーズ：患者プロファイルとカ�
 
 以下の情報を確認（不足があれば自動生成またはユーザーに確認）:
 - **Design Pattern**: 解説するデザインパターン
+- **Slug**: デザインパターン名のケバブケース（例: `factory-method`, `singleton`）。以降 `<slug>` として参照。
 - **Theme**: 具体的な実装テーマ（例: ゲームの状態管理、ログ出力など）
 - **Symptoms** (Optional): 具体的なコードの症状
 
@@ -60,3 +61,4 @@ description: コードドクターシリーズ：患者プロファイルとカ�
 
 生成されたプロファイルとカルテを以下のパスに保存してください。
 `agents/code-doctor-series/<slug>/profile.md`
+※ `<slug>` は Step 1 で定義したデザインパターンのケバブケース名です。

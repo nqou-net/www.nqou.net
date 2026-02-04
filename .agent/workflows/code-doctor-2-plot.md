@@ -51,7 +51,7 @@ Phase 1の情報を元に、起承転結（導入・検査・手術・予後）�
 
 生成されたプロットは以下のパスに保存してください：
 - Path: `agents/code-doctor-series/<slug>/plot.md`
-  - `<slug>` は対象のデザインパターン名（例: `singleton`, `observer`）に置き換えてください。
+  - `<slug>` は対象のデザインパターン名のケバブケース（例: `factory-method`, `singleton`）に置き換えてください。
   - 必要なディレクトリが存在しない場合は作成してください。
 
 ## Output Example
