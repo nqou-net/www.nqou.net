@@ -55,3 +55,8 @@ description: コードドクターシリーズ：患者プロファイルとカ�
 - Metaphor: 「増殖した腫瘍（switch文）が血管（ロジック）を圧迫している」
 - Cure: Strategy Patternによる腫瘍の切除とバイパス手術。
 ```
+
+## Step 4: 保存
+
+生成されたプロファイルとカルテを以下のパスに保存してください。
+`agents/code-doctor-series/<slug>/profile.md`

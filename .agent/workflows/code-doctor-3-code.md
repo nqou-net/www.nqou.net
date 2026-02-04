@@ -32,5 +32,5 @@ description: コードドクターシリーズ：コード実装と検証 (Phase
 
 ## Output Requirements
 
-- `agents/tests/{PATTERN_SLUG}/` 配下に実際のコードファイルが生成されていること。
+- `agents/code-doctor-series/<slug>/tests/` 配下に実際のコードファイルが生成されていること。
 - テストがPassしていること。
