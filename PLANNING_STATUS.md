@@ -102,8 +102,8 @@
 
 | 構造案ファイル | タイトル | 形式 | 公開日 | 挿絵 | 成果物 |
 |--------------|---------|------|-------|------|-------|
-| [whisky-profile-generator-series-structure.md](agents/structure/whisky-profile-generator-series-structure.md) | ウイスキー香味プロファイル生成器（Factory Method + Strategy） | 統合版 | 2026-02-06 | - | [記事](/2026/02/06/000740/) |
-| [flyweight-prototype-abstract-factory-series-structure.md](agents/structure/flyweight-prototype-abstract-factory-series-structure.md) | ウイスキーテイスティングカード生成器（Flyweight × Prototype × Abstract Factory） | 統合版 | 2026-02-07 | - | [記事](/2026/02/07/000257/) |
+| [whisky-profile-generator-series-structure.md](agents/structure/whisky-profile-generator-series-structure.md) | ウイスキー香味プロファイル生成器（Factory Method + Strategy） | 統合版 | 2026-02-06 | ✓ | [記事](/2026/02/06/000740/) |
+| [flyweight-prototype-abstract-factory-series-structure.md](agents/structure/flyweight-prototype-abstract-factory-series-structure.md) | ウイスキーテイスティングカード生成器（Flyweight × Prototype × Abstract Factory） | 統合版 | 2026-02-07 | ✓ | [記事](/2026/02/07/000257/) |
 | [interpreter-visitor-composite-series-structure.md](agents/structure/interpreter-visitor-composite-series-structure.md) | 正規表現リファインリー（Interpreter × Visitor × Composite） | 統合版 | 2026-02-08 | - | [記事](/2026/02/08/000550/) |
 
 ### コードドクターシリーズ

@@ -27,7 +27,6 @@ description: "連載構造案から統合記事を作成する汎用ワークフ
 
 | 箇所 | 目的 | 優先度 |
 |------|------|--------|
-| ヘッダー | 記事の第一印象 | 高 |
 | 各章/セクションの先頭 | 内容の視覚的導入 | 中 |
 | パターン/概念の説明 | 抽象概念の可視化 | 高 |
 | 完成時 | 達成感の演出 | 中 |
@@ -90,7 +89,6 @@ cp {GENERATED_IMAGE_PATH} static/public_images/$(date +%Y)/{SLUG}/{IMAGE_NAME}.p
 static/public_images/
 └── 2026/
     └── {SLUG}/
-        ├── header.png
         ├── chapter1.png
         ├── chapter2.png
         └── ...
@@ -105,14 +103,13 @@ static/public_images/
 Markdown形式で画像を埋め込み：
 
 ```markdown
-![画像の説明](/public_images/2026/{SLUG}/header.png)
+![画像の説明](/public_images/2026/{SLUG}/chapter1.png)
 ```
 
 ### 埋め込み位置
 
-1. **ヘッダー画像**: frontmatter直後、本文開始前
-2. **章画像**: 各章のタイトル直後（`---` と `## 第N章` の間）
-3. **概念図**: 説明テキストの後
+1. **章画像**: 各章のタイトル直後（`---` と `## 第N章` の間）
+2. **概念図**: 説明テキストの後
 
 ---
 
