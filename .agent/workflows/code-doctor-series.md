@@ -2,200 +2,67 @@
 description: コードドクターシリーズ記事を作成するワークフロー（パターン名のみで自動生成対応）
 ---
 
-# コードドクターシリーズ作成ワークフロー
+# Code Doctor Series: Master Workflow
 
-> キャラクター設定: [code-doctor-characters.md](../../agents/knowledge/code-doctor-characters.md)
-> シリーズ管理: PLANNING_STATUS.md § コードドクターシリーズ
-
----
+> **Character Settings**: [code-doctor-characters.md](../../agents/knowledge/code-doctor-characters.md)
+> **Narrative Skill**: [code-doctor-narrative](../../agents/skills/code-doctor-narrative/SKILL.md)
 
 ## 概要
 
-このワークフローは「コードドクター」シリーズ記事を作成します。
-3人の登場人物（コードドクター・助手・患者）による会話劇形式で、
-デザインパターンを医療メタファーで解説する記事形式です。
+このワークフローは、複数の専門サブエージェント（ワークフロー）を連携させ、高品質な「コードドクター」シリーズ記事を作成します。
 
 ---
 
-## Step 0: キャラクター設定の確認
+## Process Overview
 
-// turbo
-```bash
-cat agents/knowledge/code-doctor-characters.md | head -100
-```
-
-**必ず確認すべき設定**:
-- コードドクター: 体言止め、独白禁止、勘違いシーン
-- 助手: 翻訳・説明役、情に絆されやすい、恋愛感情なし
-- 元ネイルサロン設定
-
----
-
-## Step 1: 入力判定とGenerator呼び出し
-
-### 入力形式の自動判定
-
-ユーザー入力を確認し、以下のいずれかを判定:
-
-| 入力形式 | 判定条件 | 処理 |
-|----------|----------|------|
-| **最小入力** | `デザインパターン` のみ指定 | → Generator 自動実行 |
-| **詳細入力** | `テーマ` や `症状` も指定 | → ユーザー指定値を使用 |
-| **構造案指定** | `構造案` ファイルを指定 | → 指定ファイルを読み込み |
-
-### 最小入力の場合: Generator 実行
-
-// turbo
-```bash
-cat agents/prompts/pattern-dna-generator-prompt.md
-```
-
-**Generator に渡す情報**:
-- デザインパターン名
-
-**Generator が生成する情報**:
-- 症状リスト（3つ）
-- 推奨テーマ
-- 患者プロファイル
-
-**生成指示**:
-入力されたパターン名に対して、`pattern-dna-generator-prompt.md` の「症状カタログ」セクションから該当する症状を抽出し、最適なテーマと患者プロファイルを決定する。
-
-### 生成結果の確認
-
-生成された症状・テーマ・患者プロファイルをユーザーに提示し、確認を得る。
-問題なければ Step 2 に進む。
+1.  **Phase 1: Profile & Diagnosis** (`/code-doctor-1-profile`)
+    -   患者プロファイルと技術的症状（カルテ）の作成。
+2.  **Phase 2: Plot Architecture** (`/code-doctor-2-plot`)
+    -   物語の起承転結とコメディ要素の設計。
+3.  **Phase 3: Surgical Implementation** (`/code-doctor-3-code`)
+    -   Before/Afterコードの実装と検証。
+4.  **Phase 4: Narrative Writing** (`/code-doctor-4-write`)
+    -   記事本文の執筆。
+5.  **Phase 5: Medical Board Review** (`/code-doctor-5-review`)
+    -   キャラクター一貫性と品質の最終チェック。
 
 ---
 
-## Step 2: 構造案の作成
+## Execution Guide
 
-`/planning-v3`（パターンDNA解析）で構造案を作成。
+ユーザー入力（パターン名など）に基づき、各フェーズを順番に実行してください。
 
-**コードドクター向け設定**:
-- テーマ: 医療メタファー（診断・手術・退院）
-- 各章: 症状→診断→処方→手術の流れ
+### Step 1: Initialize
+ユーザー入力から `Design Pattern` と `Theme` を抽出します。
 
----
+### Step 2: Chain Execution
+各サブワークフローを呼び出し、その出力を次のステップの入力として使用します。
 
-## Step 3: Phase実行
-
-通常の統合版ワークフローに沿って実行:
-
-1. `/series-unified-prepare` - 準備
-2. `/series-unified-code` - コード実装
-3. `/series-unified-write` - 原稿作成（**キャラクター設定を反映**）
-4. `/series-unified-review` - レビュー
+**Workflow Chain:**
+`User Input` -> [Phase 1: Profile] -> `Patient/Chart` -> [Phase 2: Plot] -> `Detailed Plot` -> [Phase 3: Code] -> `Impl Files` -> [Phase 4: Write] -> `Draft.md` -> [Phase 5: Review] -> `Final.md`
 
 ---
 
-## Step 4: 原稿作成時の注意
+## Manual Override (Pro Tips)
 
-### ストーリー構成
-
-1. **冒頭**: 緊急搬送シーン「先生、患者さんです！」
-2. **診断**: 問診→症状特定→処方箋
-3. **手術**: ドクター指示→コード→助手の解説→患者の反応
-4. 退院: 処方箋まとめ→注意事項（次回予告は禁止）
-5. **エピローグ**: コーヒーを差し出す助手、次の患者
-
-### 勘違いシーンの入れ方
-
-- コーヒーを差し出す → 「彼女なりの愛情表現だろう」
-- 心配そうな表情 → 「私のことを…」（実際は患者への心配）
-- 遅くまで残る → 「私と一緒にいたいのか」
-
-### セリフ・地の文の書き方
-
-- **視点**: **患者の一人称視点**（「私」「僕」「俺」など）
-- **描写**: 患者がドクターと助手を観察する形式（他人の心は読めない）
-- **ペース**: 会話だけで急がず、合間に情景描写や動作描写を挟むこと
-
-| キャラ | 特徴 |
-|--------|------|
-| ドクター | 「重症」「切れ」「動かせ」（**極端に短い**・体言止め） |
-| 助手 | 「つまりですね…」「先生は○○と仰ってます」（ドクターの代弁・解説） |
-| 患者 | 「こ、これだけ？」「せ、先生…」（怯えながら） |
+- 特定のフェーズだけやり直したい場合は、直接サブワークフローを呼び出してください。
+  - 例: 「プロットはいいけどコードが変」→ `/code-doctor-3-code`
+  - 例: 「口調だけ直したい」→ `/code-doctor-5-review`
 
 ---
 
-## Step 5: タグ設定
+## Prompt Example
 
-必須タグ:
-- `code-doctor`
-- `design-patterns`
-- パターン名（例: `strategy-pattern`）
+エージェントに対して一括で指示する場合のプロンプト例：
 
----
+```markdown
+@/.agent/workflows/code-doctor-series.md
 
-## Step 6: PLANNING_STATUS.md 更新
+# Request
+Observerパターンについて、コードドクターシリーズの記事を書いてください。
 
-「コードドクターシリーズ」セクションに追加。
-
----
-
-## プロンプト例
-
-### 最小入力（パターン名のみ）★推奨
-
-```
-@[/code-doctor-series]
-
-- デザインパターン: Singleton
-```
-
-→ 症状・テーマ・患者プロファイルは Generator が自動生成
-
-### 基本形（テーマ指定）
-
-```
-@[/code-doctor-series]
-
-- デザインパターン: State
-- テーマ: ゲームキャラクターの状態管理
-```
-
-→ 症状は自動生成、テーマはユーザー指定を使用
-
-### 詳細版（症状も具体的に記述）
-
-```
-@[/code-doctor-series]
-
-- デザインパターン: Observer
-- テーマ: イベント通知システム
-- 症状:
-  - イベント発生時に全オブジェクトをループで通知
-  - 新しい通知先を追加するたびに既存コードを修正
-  - 通知の順序が制御できない
-- 患者の背景: ソーシャルゲームのプッシュ通知システム担当
-- 公開日時: 2026-02-23T00:00:00+09:00
-- 挿絵: あり
-```
-
-### 複数パターン治療
-
-```
-@[/code-doctor-series]
-
-- デザインパターン: Command + Memento
-- テーマ: Undo/Redoシステム
-- 症状:
-  - 操作履歴が配列に直接保存されている
-  - 元に戻すロジックが各操作に散在
-  - 履歴の上限管理ができない
-- 患者の背景: お絵かきアプリの開発者
-- 公開日時: 2026-03-02T00:00:00+09:00
-- 挿絵: なし
-```
-
-### パターンDNA解析から派生
-
-```
-@[/code-doctor-series]
-
-- 構造案: agents/structure/pattern-dna-factory-method.md
-- 採用案: 案A
-- 公開日時: 2026-03-09T00:00:00+09:00
-- 挿絵: なし
+# Specifics
+- テーマ: 気象観測データ（あえて古典的な例で）
+- 患者: 「基本に忠実すぎて応用が利かない」新人エンジニア
+- 症状: 全てのディスプレイ要素をハードコードして更新している
 ```

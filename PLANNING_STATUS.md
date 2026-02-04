@@ -120,7 +120,8 @@
 | [pattern-dna-singleton.md](agents/structure/pattern-dna-singleton.md) | コードドクター〜DB接続マネージャ緊急手術（Singleton） | 統合版 | 2026-02-10 | - | [記事](/2026/02/10/004532/) |
 | [pattern-dna-abstract-factory.md](agents/structure/pattern-dna-abstract-factory.md) | コードドクター〜難易度システム緊急手術（Abstract Factory） | 統合版 | 2026-02-12 | - | [記事](/2026/02/12/001507/) |
 | [pattern-dna-builder.md](agents/structure/pattern-dna-builder.md) | コードドクター〜キャラクター生成緊急手術（Builder） | 統合版 | 2026-02-13 | - | [記事](/2026/02/13/004416/) |
-| [pattern-dna-prototype.md](agents/structure/pattern-dna-prototype.md) | コードドクター〜敵キャラクター量産緊急手術（Prototype） | 統合版 | 2026-02-14 | - | [記事](/2026/02/14/005714/) |
+| [pattern-dna-prototype.md](agents/structure/pattern-dna-prototype.md) | コードドクター〜無限増殖する細胞の悲劇（Prototype） | 統合版 | 2026-02-14 | - | [記事](/2026/02/14/000137/) |
+
 | [pattern-dna-adapter.md](agents/structure/pattern-dna-adapter.md) | コードドクター〜レトロゲーム入力緊急手術（Adapter） | 統合版 | 2026-02-15 | - | [記事](/2026/02/15/004421/) |
 | [pattern-dna-facade.md](agents/structure/pattern-dna-facade.md) | コードドクター〜スマートホームAPI地獄緊急手術（Facade） | ✅ 公開済み | 2026-02-16 | - | [記事](/2026/02/16/005211/) |
 | [pattern-dna-bridge.md](agents/structure/pattern-dna-bridge.md) | コードドクター〜クラス爆発緊急手術（Bridge） | 統合版 | 2026-02-17 | - | [記事](/2026/02/17/005648/) |

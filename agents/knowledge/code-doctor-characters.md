@@ -62,7 +62,7 @@ Constraint: 見出しは**医療メタファーのみ**使用。「第1章」や
 ## 5. Standard Output Format: Prescription Summary (処方箋まとめ)
 
 記事の最後（`術後経過`の後）に水平線（`---`）を挟んで「処方箋まとめ」を含めること。
-これは「助手が後で整理して清書したもの」という設定とする。
+これは「**助手から患者へ手渡された退院時のメモ**」という設定とする。
 
 ### Format
 1.  Separator: `---` (Must be inserted before the heading)
@@ -73,3 +73,7 @@ Constraint: 見出しは**医療メタファーのみ**使用。「第1章」や
 4.  List: 治療のステップ
     *   Heading: `### 治療のステップ`
     *   Ordered list of implementation steps (Role definition, Concrete Class implementation, etc.).
+5.  Message: 助手からのメッセージ
+    *   Heading: `### 助手より`
+    *   Content: 技術的な励ましや、ドクターの厳しさへのフォロー、あるいは患者の今後の活躍を祈る**温かい一言**。ですます調。
+
