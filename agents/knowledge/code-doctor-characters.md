@@ -17,7 +17,7 @@
 
 ### Assistant (ナース兼通訳)
 *   Profile: 女性、30代。「有能な世話焼き」。伝説のコードドクターの娘（秘密）。
-*   Behavior (厳守):
+*   Behavior:
     *   通訳: ドクターの専門用語を**比喩**（料理、建築、日常など）で患者に解説する。
     *   丁寧: 患者には常に「です・ます」調の敬語。
     *   フォロー: ドクターの無愛想さを緩和する。
@@ -31,7 +31,7 @@
 
 ## 2. Story Structure (医療メタファー)
 
-Constraint: 見出しは**医療メタファーのみ**使用。「第1章」や番号は**禁止**。
+Constraint: 見出しは**医療メタファーのみ**使用。「第1章」や番号、顺序を直接的に数字で示すのは**禁止**。
 
 | Phase | Metaphor Headers (1-2個選択) | Narrative Goal |
 | :--- | :--- | :--- |
@@ -61,13 +61,15 @@ Constraint: 見出しは**医療メタファーのみ**使用。「第1章」や
 
 ## 5. Standard Output Format: Prescription Summary (処方箋まとめ)
 
-記事の最後（`IV. 予後`の後）に必ず「処方箋まとめ」を含めること。
+記事の最後（`術後経過`の後）に水平線（`---`）を挟んで「処方箋まとめ」を含めること。
+これは「助手が後で整理して清書したもの」という設定とする。
 
 ### Format
-1.  Heading: `## 処方箋まとめ`
-2.  Table: 適用基準（Symptoms vs Application）
+1.  Separator: `---` (Must be inserted before the heading)
+2.  Heading: `## 処方箋まとめ`
+3.  Table: 適用基準（Symptoms vs Application）
     *   Columns: `| 症状 | 適用すべき | 経過観察 |`
     *   Checkmarks: Apply `✓` to the correct column.
-3.  List: 治療のステップ
+4.  List: 治療のステップ
     *   Heading: `### 治療のステップ`
     *   Ordered list of implementation steps (Role definition, Concrete Class implementation, etc.).
