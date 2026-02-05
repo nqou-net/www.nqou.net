@@ -1,12 +1,16 @@
 ---
-description: コードドクターシリーズ記事を作成するワークフロー（Phase 4: 執筆）
+description: "コードドクターシリーズ記事を作成するワークフロー（Phase 4: 執筆）"
 ---
 
 # Code Doctor: Narrative Writing
 
-> キャラクター設定: [code-doctor-characters.md](../../agents/knowledge/code-doctor-characters.md)
-> 連載構造案: `agents/code-doctor-series/<slug>/plot.md` (Phase 2の結果)
-> 実装コード: `agents/code-doctor-series/<slug>/tests/` (Phase 3の結果)
+> [!IMPORTANT]
+> **このフェーズで初めて完全なキャラクター設定を参照します。**
+> Phase 1〜3では情報を絞って「指示の希釈化」を回避しています。
+
+> **キャラクター設定（完全版）**: [code-doctor-characters.md](../../agents/knowledge/code-doctor-characters.md)
+> **連載構造案**: `agents/code-doctor-series/<slug>/plot.md` (Phase 2の結果)
+> **実装コード**: `agents/code-doctor-series/<slug>/tests/` (Phase 3の結果)
 
 ## 概要
 
@@ -17,11 +21,51 @@ Phase 1~3の素材を統合し、実際に記事本文（Markdown）を執筆し
 
 **Sub-Agent Context**: `Ghostwriter`
 あなたは熟練の小説家兼テクニカルライターです。
+
+> [!CAUTION]
+> 執筆前に必ず `code-doctor-characters.md` を読み込むこと。
+
+### 厳守ルール
+
+| ルール | 説明 | 違反例（NG） | 正解例（OK） |
+|--------|------|-------------|-------------|
+| **患者ナレーション** | 地の文は患者の一人称のみ | 「ドクターは〜と思った」 | 「僕には〜に見えた」 |
+| **助手の呼称** | 「助手」または「ナナコ」 | 「女性が〜」「彼女は〜」 | 「助手のナナコが〜」 |
+| **助手の敬語** | 患者への発言は敬語必須 | 「〜だよ」「〜なの」 | 「〜ですよ」「〜ですね」 |
+| **ドクターの発話** | 1文以内、技術用語のみ | 「つまり、これは〜」 | 「結合度。高すぎる」 |
+
 - **Voice**: 患者の一人称（Phase 1で設定）。
 - **Rule**: ドクターの内面は描写しない。あくまで「見えたまま」を書く。
 - **Tone**: 技術的な解説の正確さと、物語としての面白さを両立させる。
 
-## Step 2: 章ごとの執筆
+## Step 2: タイトル生成
+
+### フォーマット
+```
+コードドクター: {PatternName} - {MedicalMetaphor}と{ThemeMetaphor}
+```
+
+### 3要素の定義
+
+| 要素 | 説明 | 例 |
+|------|------|-----|
+| **PatternName** | デザインパターン英語名 | Singleton, Factory Method, Adapter |
+| **MedicalMetaphor** | 症状・病名・処置の比喩（Phase 1/2で確定） | 多重人格症候群、癒着分離手術、適合不全 |
+| **ThemeMetaphor** | 技術的課題・解決の比喩表現 | 唯一の真実、疎結合の誕生 |
+
+### 例
+- `コードドクター: Singleton - 多重人格症候群と唯一の真実`
+- `コードドクター: Factory Method - 癒着分離手術と疎結合の誕生`
+- `コードドクター: Adapter - 適合不全症候群とレガシー血管の変換`
+- `コードドクター: Flyweight - 肥満症と1万体の分身ダイエット`
+
+### Checklist
+- [ ] 「コードドクター:」で始まっているか？
+- [ ] パターン名が英語で含まれているか？
+- [ ] 医療メタファーが含まれているか？
+- [ ] テーマの比喩表現が含まれているか？
+
+## Step 3: 章ごとの執筆
 
 Phase 2のプロットに従って書き進めます。
 
@@ -30,14 +74,14 @@ Phase 2のプロットに従って書き進めます。
 - **Before Code**: 患者が自信なさげに提示する、またはドクターが無言で指差す。
 - **After Code**: 助手がその仕組みを解説する、またはドクターが短く本質を突く。
 
-## Step 3: 医療メタファーの徹底
+## Step 4: 医療メタファーの徹底
 
 **Checklist**:
 - [ ] 「リファクタリング」 → 「手術」「治療」と言い換えているか？
 - [ ] 「バグ」「スパゲッティコード」 → 「患部」「癒着」「腫瘍」などと言い換えているか？
 - [ ] 見出しが「第1章」などになっていないか？（「診断」「処方」などのメタファー見出しにする）
 
-## Step 4: 処方箋まとめ（Prescription Summary）の追加
+## Step 5: 処方箋まとめ（Prescription Summary）の追加
 
 記事の末尾に、必ず`agents/knowledge/code-doctor-characters.md` で定義されたフォーマットの「処方箋まとめ」を追加してください。
 

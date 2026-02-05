@@ -4,12 +4,26 @@ description: コードドクターシリーズ記事を作成するワークフ�
 
 # Code Doctor Series: Master Workflow
 
-> **Character Settings**: [code-doctor-characters.md](../../agents/knowledge/code-doctor-characters.md)
 > **Narrative Skill**: [code-doctor-narrative](../../agents/skills/code-doctor-narrative/SKILL.md)
 
 ## 概要
 
 このワークフローは、複数の専門サブエージェント（ワークフロー）を連携させ、高品質な「コードドクター」シリーズ記事を作成します。
+
+---
+
+## 設計原則: 多段階プロンプト（Chain of Prompting）
+
+> [!IMPORTANT]
+> **指示の希釈化（Instruction Dilution）を回避するため、各フェーズで必要な情報のみを提供します。**
+
+| Phase | 参照コンテキスト | 目的 |
+|-------|-----------------|------|
+| 1: Profile | `phase-1-context.md` | 患者ペルソナ・医療メタファー設計 |
+| 2: Plot | `phase-2-context.md` | 4幕構造・勘違いシーン配置 |
+| 3: Code | `phase-3-context.md` | 技術制約・Before/After実装 |
+| 4: Write | `code-doctor-characters.md` **（完全版）** | キャラクター発話・執筆ルール |
+| 5: Review | チェックリスト形式 | 品質基準検証 |
 
 ---
 

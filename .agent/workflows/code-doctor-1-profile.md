@@ -4,8 +4,8 @@ description: コードドクターシリーズ：患者プロファイルとカ�
 
 # Code Doctor: Profile & Chart Generation
 
-> キャラクター設定: [code-doctor-characters.md](../../agents/knowledge/code-doctor-characters.md)
-> スキル: [code-doctor-narrative](../../agents/skills/code-doctor-narrative/SKILL.md)
+> **Phase Context**: [phase-1-context.md](../../agents/knowledge/phase-1-context.md)
+> **Note**: 執筆ルールはPhase 4で提供。このフェーズでは患者ペルソナと医療メタファーに集中。
 
 ## 概要
 

@@ -4,8 +4,9 @@ description: コードドクターシリーズ：物語構成とプロット作�
 
 # Code Doctor: Plot Architecture
 
-> 前提: Phase 1で「患者プロファイル」と「カルテ」が完成していること。
-> スキル: [code-doctor-narrative](../../agents/skills/code-doctor-narrative/SKILL.md)
+> **前提**: Phase 1で「患者プロファイル」と「カルテ」が完成していること。
+> **Phase Context**: [phase-2-context.md](../../agents/knowledge/phase-2-context.md)
+> **Note**: キャラクター発話詳細はPhase 4で提供。このフェーズでは物語構成に集中。
 
 ## 概要
 
