@@ -1,41 +1,23 @@
 ---
-description: "連載構造案から統合記事を作成する汎用ワークフロー（Phase 5: 挿絵生成）"
+description: "連載構造案から統合記事を作成する汎用ワークフロー（Phase 5: 挿絵生成 - Warm/Cozy）"
 ---
 
-# Phase 5: 挿絵生成（汎用）
+# Phase 5: 挿絵生成（Warm/Cozy）
 
 > 前: `/series-unified-write` | 次: `/series-unified-review`
 
 ---
 
-
-
-## 前提条件
-
-以下がPhase 3で完了済み：
-
-- 記事本文の作成
-- Mermaid図の埋め込み
-
----
-
 ## Step 1: スタイルの定義
 
-このワークフローで使用する「雰囲気（スタイル）」を以下で定義します。
-新しい雰囲気をその場で作るか、以下のプリセットから選択してください。
+**Style: Warm / Cozy**
 
-### 現在のスタイル設定 (Default)
+> [!IMPORTANT]
+> **全ての画像生成に以下のスタイル定義を使用すること。**
 
-> **Tech / Modern**:
-> `Flat vector illustration, minimalist design, isometric view, cool color palette (blue, cyan, white), clean background, no text`
-
-### その他のスタイル例 (参照用)
-
-| スタイル名 | プロンプト定義 |
-|------------|----------------|
-| **Warm / Cozy** | `Soft watercolor style, warm lighting, pastel colors, hand-drawn texture, cozy atmosphere` |
-| **Cyberpunk** | `Cyberpunk digital art, neon lights, dark background, high contrast, futuristic glitch effects` |
-| **Professional** | `Corporate memphis style, flat design, confidence blue and grey, professional vector art` |
+```
+Soft watercolor style, warm lighting, pastel colors (pink, orange, beige), hand-drawn texture, cozy atmosphere, no text
+```
 
 ---
 
@@ -67,28 +49,23 @@ Step 1で定義したスタイルと、記事の内容を組み合わせて画�
 
 ```
 [被写体 (Subject)]: 記事の具体的なシーン（例：A robot butler holding a blueprint）
-[スタイル定型文]: Step 1で決めたスタイル定義（例：Flat vector illustration...）
+[スタイル定型文]: Step 1で決めたスタイル定義（例：Soft watercolor style...）
 [制約 (Constraints)]: No text in the image
 ```
-
-### 良い例と悪い例
-
-*   **悪い例**: `ソフトウェアの設計図` (抽象的すぎて一貫性がない)
-*   **良い例**: `A detailed technical blueprint of a clockwork mechanism, vintage steampunk style, soft parchment background, high detail, no text.` (記事が「設計」や「メカニズム」を扱っている場合)
 
 ### 実行例
 
 ```javascript
 // ツールの呼び出し例
 generate_image({
-  Prompt: "A friendly robot butler in pixel art style, wearing a traditional butler uniform and holding a digital tablet displaying code. Clean design on a cool cyan gradient background. No text in the image.",
+  Prompt: "A friendly robot butler in soft watercolor style, warm lighting, holding a scroll. Pastel colors, cozy atmosphere. No text in the image.",
   ImageName: "butler_implementation"
 })
 ```
 
 ---
 
-## Step 3: 画像の配置
+## Step 4: 画像の配置
 
 生成した画像を静的ファイルディレクトリに配置：
 
@@ -114,9 +91,7 @@ static/public_images/
 
 ---
 
-
-
-## Step 4: 記事への埋め込み
+## Step 5: 記事への埋め込み
 
 Markdown形式で画像を埋め込み：
 
@@ -131,7 +106,7 @@ Markdown形式で画像を埋め込み：
 
 ---
 
-## Step 5: 画像の確認
+## Step 6: 画像の確認
 
 Hugoサーバーで画像の表示を確認：
 
@@ -144,13 +119,12 @@ hugo server -D -F
 ### チェックリスト
 
 - [ ] 全画像が正しく表示される
-
 - [ ] 画像の配置が記事の流れに合っている
 - [ ] altテキストが適切に設定されている
 
 ---
 
-## Step 6: PLANNING_STATUS.md を更新
+## Step 7: PLANNING_STATUS.md を更新
 
 挿絵生成が正常に完了したら、`PLANNING_STATUS.md` の該当記事の挿絵列を更新：
 
@@ -189,4 +163,3 @@ hugo server -D -F
 - 画像ファイル名は小文字・ハイフン区切りを推奨
 
 ---
-
