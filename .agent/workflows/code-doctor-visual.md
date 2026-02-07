@@ -20,26 +20,41 @@ description: "コードドクターシリーズ：挿絵生成 (オプショナ�
 
 > [!IMPORTANT]
 > **全ての画像生成に以下のベーススタイルを適用すること。**
+> **キャラクター（ドクター、ナナコ）が登場する画像には、必ず参照画像 `static/public_images/2026/clinic-and-docktor-and-nanako.jpg` を使用すること。**
 
 ### Base Style Definition
 
 ```
-Style: Soft watercolor illustration with gentle textures
-Palette: Muted medical tones (sage green, cream, dusty rose, pale blue)
-Lighting: Warm, diffused, like morning light in a clinic
-Atmosphere: Professional yet cozy, like a small-town doctor's office
-Characters: Simple anime-inspired figures, minimal facial details
-Composition: Clean, uncluttered, focus on central subject
+Style: Anime-inspired illustration with clean linework and soft coloring
+Palette: Industrial muted tones (concrete gray, warm wood, cream, navy accents, cool blue monitors)
+Lighting: Fluorescent overhead lights mixed with monitor glow, indoor basement atmosphere
+Atmosphere: Compact underground clinic with tech-forward aesthetic, exposed pipes and certificates on concrete walls
+Setting: Small basement-style clinic with 3 monitors on wooden desk, metal filing cabinets, bookshelf, examination bed
+Characters: Anime-style figures with natural proportions, expressive but not exaggerated
+Composition: Detailed background with focus on character interaction
 Constraints: No text, no logos, no UI elements
 ```
 
 ### キャラクター描写ガイド
 
-| キャラクター | 視覚的特徴 |
-|-------------|-----------|
-| **ドクター** | 白衣、眼鏡なし、短髪（黒）、無表情、腕組み姿勢が多い |
-| **ナナコ（助手）** | ナース服（クリーム色）、ポニーテール（茶）、笑顔、クリップボード |
-| **患者** | カジュアル服、困惑やほっとした表情（記事により変化） |
+> [!NOTE]
+> ドクターとナナコの外見は参照画像を基準とし、服装のみシーンに合わせて調整する。
+> **季節・場所に応じた服装**: 真冬の屋外シーンでは半袖NG、コート着用など常識的な服装とすること。
+
+| キャラクター | 固定の視覚的特徴 | 服装（基本/調整可） |
+|-------------|-----------------|-------------------|
+| **ドクター** | 黒髪短髪、眼鏡なし、真剣な表情、無愛想だが有能な雰囲気 | 基本: 黒/ダークグレーのジャケット。冬の屋外: コート追加。診察中: そのままでOK |
+| **ナナコ（助手）** | 茶髪ショートボブ（肩につかない長さ）、優しい笑顔、タブレット端末を持つことが多い | 基本: 白ナース服（紺トリム）+ 紺パンツ。冬の屋外: カーディガンやコート追加 |
+| **患者** | カジュアル服、困惑やほっとした表情（記事により変化） | シーンに応じて自由に設定 |
+
+#### 服装調整の例
+
+| シーン | ドクター | ナナコ |
+|--------|---------|--------|
+| 院内（通常） | 黒ジャケット | 白ナース服 + 紺パンツ |
+| 往診（春〜秋） | 黒ジャケット + 医療バッグ | 白ナース服 + カーディガン |
+| 往診（真冬） | ダークコート + マフラー | コート + 暖かい服装 |
+| 緊急対応 | ジャケットのまま | 同上 |
 
 ---
 
@@ -62,9 +77,9 @@ Constraints: No text, no logos, no UI elements
 
 ```
 [Scene Description], [Character Action/Pose],
-Soft watercolor illustration style, muted medical color palette (sage green, cream, dusty rose),
-warm diffused lighting, clean composition, cozy clinic atmosphere,
-anime-inspired simple figures, no text in image
+Anime-inspired illustration with clean linework, industrial muted tones (concrete gray, warm wood, navy accents),
+fluorescent lighting mixed with monitor glow, compact underground clinic aesthetic,
+exposed pipes on walls, anime-style figures with natural proportions, no text in image
 ```
 
 ### 具体例
@@ -73,33 +88,33 @@ anime-inspired simple figures, no text in image
 
 ```
 A vintage factory machine with colorful product shapes emerging from assembly line,
-Soft watercolor illustration style, muted medical color palette (sage green, cream, dusty rose),
-warm diffused lighting, clean composition, no characters, symbolic medical-industrial atmosphere,
+Anime-inspired illustration style, industrial muted color palette (gray, wood tones, navy),
+cool blue accent lighting, clean composition, no characters, industrial-medical atmosphere,
 no text in image
 ```
 
 #### 来院シーン
 
 ```
-A confused programmer entering a small cozy clinic, greeted by a cheerful nurse with ponytail and a stern doctor in white coat crossing arms,
-Soft watercolor illustration style, muted medical tones, warm morning light,
-anime-inspired simple figures, no text in image
+A confused programmer entering a compact basement clinic, greeted by a cheerful assistant with short brown bob hair holding tablet in white nurse uniform with navy trim, while a stern-looking doctor with short black hair in dark jacket sits at triple-monitor desk,
+Anime-inspired illustration, industrial muted tones, fluorescent overhead lighting,
+concrete walls with certificates, anime-style figures, no text in image
 ```
 
 #### 診断シーン
 
 ```
-A doctor pointing at a tangled spaghetti-like code diagram on whiteboard while nurse explains to worried patient,
-Soft watercolor illustration style, muted medical color palette,
-warm diffused lighting, clinic interior, anime-inspired figures, no text in image
+A doctor with short black hair in dark jacket pointing at code diagram on one of three monitors while nurse assistant with brown bob hair explains to worried patient,
+Anime-inspired illustration, industrial muted tones, monitor glow lighting,
+basement clinic interior with exposed pipes, anime-style figures, no text in image
 ```
 
 #### 退院シーン
 
 ```
-A relieved patient receiving a prescription note from smiling nurse while doctor nods in background,
-Soft watercolor illustration style, muted medical tones, warm afternoon light,
-cozy clinic atmosphere, anime-inspired figures, no text in image
+A relieved patient receiving advice from smiling nurse assistant with brown bob hair in white uniform while doctor with black hair nods approvingly at desk,
+Anime-inspired illustration, industrial muted tones, warm fluorescent lighting,
+compact basement clinic atmosphere, anime-style figures, no text in image
 ```
 
 ---
@@ -121,8 +136,9 @@ cozy clinic atmosphere, anime-inspired figures, no text in image
 
 ```javascript
 generate_image({
-  Prompt: "A confused programmer entering a small cozy clinic...[full prompt]...",
-  ImageName: "factory_method_scene_1"
+  Prompt: "A confused programmer entering a compact basement clinic...[full prompt]...",
+  ImageName: "factory_method_scene_1",
+  ImagePaths: ["/Users/nobu/local/src/github.com/nqou-net/www.nqou.net/static/public_images/2026/clinic-and-docktor-and-nanako.jpg"]
 })
 ```
 
