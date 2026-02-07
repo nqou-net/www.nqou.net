@@ -23,7 +23,6 @@ description: コードドクターシリーズ記事を作成するワークフ�
 | 2: Plot | `phase-2-context.md` | 4幕構造・勘違いシーン配置 |
 | 3: Code | `phase-3-context.md` | 技術制約・Before/After実装 |
 | 4: Write | `code-doctor-characters.md` **（完全版）** | キャラクター発話・執筆ルール |
-| 4.5: Visual | スタイルプリセット | *Optional* |
 | 5: Review | チェックリスト形式 | 品質基準検証 |
 
 ---
@@ -38,10 +37,12 @@ description: コードドクターシリーズ記事を作成するワークフ�
     -   Before/Afterコードの実装と検証。
 4.  **Phase 4: Narrative Writing** (`/code-doctor-4-write`)
     -   記事本文の執筆。
-5.  **Phase 4.5: Visual Enhancement** (`/code-doctor-visual`) ⚡ *Optional*
-    -   **スキップ条件**: `挿絵: なし` 指定時、または指定なしの場合。
-6.  **Phase 5: Medical Board Review** (`/code-doctor-5-review`)
+5.  **Phase 5: Medical Board Review** (`/code-doctor-5-review`)
     -   キャラクター一貫性と品質の最終チェック。
+
+> [!TIP]
+> **挿絵生成について**: 画像生成は処理負荷が高いため、メインワークフローからは独立させています。
+> 必要に応じて `/code-doctor-visual` を別途実行してください。
 
 ---
 
@@ -52,17 +53,10 @@ description: コードドクターシリーズ記事を作成するワークフ�
 ### Step 1: Initialize
 ユーザー入力から `Design Pattern` と `Theme` を抽出します。
 
-**挿絵オプションの確認**:
-- `挿絵: あり` → Phase 4.5 を実行
-- `挿絵: なし` または指定なし → Phase 4.5 をスキップ
-
 ### Step 2: Chain Execution
 各サブワークフローを呼び出し、その出力を次のステップの入力として使用します。
 
-**Workflow Chain (挿絵あり):**
-`User Input` -> [Phase 1: Profile] -> `Patient/Chart` -> [Phase 2: Plot] -> `Detailed Plot` -> [Phase 3: Code] -> `Impl Files` -> [Phase 4: Write] -> `Draft.md` -> [Phase 4.5: Visual] -> `Illustrated.md` -> [Phase 5: Review] -> `Final.md`
-
-**Workflow Chain (挿絵なし):**
+**Workflow Chain:**
 `User Input` -> [Phase 1: Profile] -> `Patient/Chart` -> [Phase 2: Plot] -> `Detailed Plot` -> [Phase 3: Code] -> `Impl Files` -> [Phase 4: Write] -> `Draft.md` -> [Phase 5: Review] -> `Final.md`
 
 ---
