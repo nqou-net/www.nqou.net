@@ -62,3 +62,35 @@ description: コードドクターシリーズ：患者プロファイルとカ�
 生成されたプロファイルとカルテを以下のパスに保存してください。
 `agents/code-doctor-series/<slug>/profile.md`
 ※ `<slug>` は Step 1 で定義したデザインパターンのケバブケース名です。
+
+## Step 5: 患者立ち絵画像の生成
+
+**Sub-Agent Context**: `CharacterIllustrator`
+生成したプロファイルを基に、患者キャラクターの立ち絵画像を生成します。
+
+**画像生成ルール**:
+1. **スタイル**: アニメ調、シンプルで親しみやすいデザイン
+2. **ポーズ**: 困った表情で立っている姿（全身または上半身）
+3. **服装**: プロファイルの職種・背景に合った服装
+4. **背景**: シンプルな無地または透過風
+
+**プロンプト構築**:
+プロファイルから以下を抽出してプロンプトを構築:
+- 年齢・性別（Name欄から推測）
+- 職種（Role欄）
+- 性格・状況（Personality, Background欄）
+- 表情（主訴に応じた困り顔・疲れ顔など）
+
+**プロンプト例**:
+```
+Anime-style character illustration, full body standing pose.
+A 30-year-old male backend engineer, looking stressed and overwhelmed.
+Wearing casual office attire (hoodie and jeans).
+Worried expression, holding his head with one hand.
+Simple white background, clean linework.
+```
+
+**保存先**:
+`agents/code-doctor-series/<slug>/patient.png`
+
+> **Note**: この立ち絵は後続のPhase（挿絵生成）で参照画像として使用されます。キャラクターの一貫性を保つため、プロファイルの内容を正確に反映してください。
