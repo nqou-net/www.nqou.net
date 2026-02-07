@@ -22,8 +22,4 @@ sub new ($class) {
     return $instance;
 }
 
-sub get ($self, $key) {
-    return $self->{$key};
-}
-
 1;
