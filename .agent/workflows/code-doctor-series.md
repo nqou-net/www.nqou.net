@@ -39,7 +39,7 @@ description: コードドクターシリーズ記事を作成するワークフ�
 4.  **Phase 4: Narrative Writing** (`/code-doctor-4-write`)
     -   記事本文の執筆。
 5.  **Phase 4.5: Visual Enhancement** (`/code-doctor-visual`) ⚡ *Optional*
-    -   **スキップ条件**: `挿絵: なし` 指定時
+    -   **スキップ条件**: `挿絵: なし` 指定時、または指定なしの場合。
 6.  **Phase 5: Medical Board Review** (`/code-doctor-5-review`)
     -   キャラクター一貫性と品質の最終チェック。
 
