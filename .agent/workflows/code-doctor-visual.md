@@ -20,7 +20,17 @@ description: "コードドクターシリーズ：挿絵生成 (オプショナ�
 
 > [!IMPORTANT]
 > **全ての画像生成に以下のベーススタイルを適用すること。**
-> **キャラクター（ドクター、ナナコ）が登場する画像には、必ず参照画像 `static/public_images/2026/clinic-and-docktor-and-nanako.jpg` を使用すること。**
+> **シーンに応じて以下の参照画像を使い分けること:**
+> - **キャラクター参照**: `static/public_images/code-doctor/doctor-and-nanako.jpg`（ドクター・ナナコの外見統一用）
+> - **クリニック背景参照**: `static/public_images/code-doctor/clinic.jpg`（院内シーンの雰囲気統一用）
+
+### 参照画像の使い分け
+
+| シーン種別 | 使用する参照画像 |
+|-----------|----------------|
+| 院内シーン（キャラクター有） | `doctor-and-nanako.jpg` + `clinic.jpg` の**両方** |
+| 院内シーン（キャラクター無し、ヘッダー等） | `clinic.jpg` のみ |
+| 屋外シーン（往診等） | `doctor-and-nanako.jpg` のみ |
 
 ### Base Style Definition
 
@@ -41,6 +51,11 @@ Constraints: No text, no logos, no UI elements
 > ドクターとナナコの外見は参照画像を基準とし、服装のみシーンに合わせて調整する。
 > **季節・場所に応じた服装**: 真冬の屋外シーンでは半袖NG、コート着用など常識的な服装とすること。
 
+> [!CAUTION]
+> **温度感の統一（必須）**: 同一シーン内でキャラクター間の服装が矛盾してはならない。
+> - ❌ NG例: ナナコが半袖なのにドクターがコート → ナナコは寒い、ドクターは暑い
+> - ✅ OK例: 院内シーンなら全員軽装（ジャケット＋ナース服）、冬の屋外なら全員コート。
+
 | キャラクター | 固定の視覚的特徴 | 服装（基本/調整可） |
 |-------------|-----------------|-------------------|
 | **ドクター** | 黒髪短髪、眼鏡なし、真剣な表情、無愛想だが有能な雰囲気 | 基本: 黒/ダークグレーのジャケット。冬の屋外: コート追加。診察中: そのままでOK |
@@ -55,6 +70,31 @@ Constraints: No text, no logos, no UI elements
 | 往診（春〜秋） | 黒ジャケット + 医療バッグ | 白ナース服 + カーディガン |
 | 往診（真冬） | ダークコート + マフラー | コート + 暖かい服装 |
 | 緊急対応 | ジャケットのまま | 同上 |
+
+---
+
+## Step 0: 患者イメージの確定（必須）
+
+> [!IMPORTANT]
+> **画像生成前に必ず記事本文を読み、患者の特徴を抽出すること。**
+> 患者の外見を全シーンで統一するため、以下の項目を確定させる。
+
+### 抽出項目
+
+| 項目 | 抽出元 | 例 |
+|------|--------|----|
+| **性別** | 一人称（私/僕/俺）、地の文の描写 | 男性 |
+| **年齢層** | 職歴、立場の記述 | 30代（基盤チームリーダー） |
+| **服装** | 職業、性格、シーン設定 | ビジネスカジュアル（ジャケット＋チノパン） |
+| **表情傾向** | 来院理由、性格描写 | 疲弊、真面目、責任感 |
+| **特徴的な持ち物** | ストーリー上の小道具 | ラップトップ、技術書 |
+
+### プロファイル作成手順
+
+1. 記事の導入部・来院セクションを読む
+2. 患者の一人称、職業、立場を特定
+3. 上記テンプレートに従ってプロファイルを作成
+4. 全シーンでこのプロファイルを一貫して使用
 
 ---
 
@@ -82,41 +122,6 @@ fluorescent lighting mixed with monitor glow, compact underground clinic aesthet
 exposed pipes on walls, anime-style figures with natural proportions, no text in image
 ```
 
-### 具体例
-
-#### ヘッダー画像（Factory Method の例）
-
-```
-A vintage factory machine with colorful product shapes emerging from assembly line,
-Anime-inspired illustration style, industrial muted color palette (gray, wood tones, navy),
-cool blue accent lighting, clean composition, no characters, industrial-medical atmosphere,
-no text in image
-```
-
-#### 来院シーン
-
-```
-A confused programmer entering a compact basement clinic, greeted by a cheerful assistant with short brown bob hair holding tablet in white nurse uniform with navy trim, while a stern-looking doctor with short black hair in dark jacket sits at triple-monitor desk,
-Anime-inspired illustration, industrial muted tones, fluorescent overhead lighting,
-concrete walls with certificates, anime-style figures, no text in image
-```
-
-#### 診断シーン
-
-```
-A doctor with short black hair in dark jacket pointing at code diagram on one of three monitors while nurse assistant with brown bob hair explains to worried patient,
-Anime-inspired illustration, industrial muted tones, monitor glow lighting,
-basement clinic interior with exposed pipes, anime-style figures, no text in image
-```
-
-#### 退院シーン
-
-```
-A relieved patient receiving advice from smiling nurse assistant with brown bob hair in white uniform while doctor with black hair nods approvingly at desk,
-Anime-inspired illustration, industrial muted tones, warm fluorescent lighting,
-compact basement clinic atmosphere, anime-style figures, no text in image
-```
-
 ---
 
 ## Step 3: 画像生成
@@ -130,16 +135,6 @@ compact basement clinic atmosphere, anime-style figures, no text in image
 {slug}-scene-1.png     # 導入シーン
 {slug}-scene-2.png     # 診断/処置シーン
 {slug}-scene-3.png     # 退院シーン
-```
-
-### 実行例
-
-```javascript
-generate_image({
-  Prompt: "A confused programmer entering a compact basement clinic...[full prompt]...",
-  ImageName: "factory_method_scene_1",
-  ImagePaths: ["/Users/nobu/local/src/github.com/nqou-net/www.nqou.net/static/public_images/2026/clinic-and-docktor-and-nanako.jpg"]
-})
 ```
 
 ---
@@ -172,25 +167,6 @@ cp {GENERATED_IMAGE_PATH} static/public_images/$(date +%Y)/code-doctor-{SLUG}/{I
 
 ## Step 5: 記事への埋め込み
 
-### フロントマターのheader画像
-
-```yaml
----
-title: "コードドクター【Factory Method】..."
-image: /public_images/2026/code-doctor-factory-method/header.webp
----
-```
-
-### 本文中の挿絵
-
-```markdown
-## 来院
-
-![患者がコード診療所を訪れる様子](/public_images/2026/code-doctor-factory-method/scene-1.webp)
-
-僕は恐る恐る、その小さな診療所のドアを開けた...
-```
-
 ### 埋め込み位置ガイド
 
 | 画像 | 推奨位置 |
@@ -221,9 +197,10 @@ hugo server -D -F
 ## 注意事項
 
 1. **一貫性優先**: 個別の「創造的な」スタイル変更より、シリーズ統一感を重視
-2. **キャラクター固定**: ドクターとナナコの外見は常に同じ描写を使用
-3. **テキスト禁止**: 画像内に文字を含めない（AI生成の文字は品質が低い）
-4. **WebP推奨**: ファイルサイズ削減のため、最終保存はWebP形式
+2. **患者の一貫性**: Step 0で確定した患者プロファイルを全シーンで統一使用
+3. **服装の温度感統一**: 同一シーン内で「半袖のナナコ」と「コートのドクター」のような矛盾は禁止
+4. **テキスト禁止**: 画像内に文字を含めない（AI生成の文字は品質が低い）
+5. **WebP推奨**: ファイルサイズ削減のため、最終保存はWebP形式
 
 ---
 

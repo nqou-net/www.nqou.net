@@ -4,7 +4,7 @@ description: コードドクターシリーズ記事を作成するワークフ�
 
 # Code Doctor Series: Master Workflow
 
-> **Narrative Skill**: [code-doctor-narrative](../../agents/skills/code-doctor-narrative/SKILL.md)
+> **Narrative Skill**: [code-doctor-narrative](../skills/code-doctor-narrative/SKILL.md)
 
 ## 概要
 
@@ -23,7 +23,7 @@ description: コードドクターシリーズ記事を作成するワークフ�
 | 2: Plot | `phase-2-context.md` | 4幕構造・勘違いシーン配置 |
 | 3: Code | `phase-3-context.md` | 技術制約・Before/After実装 |
 | 4: Write | `code-doctor-characters.md` **（完全版）** | キャラクター発話・執筆ルール |
-| 4.5: Visual | スタイルプリセット（水彩調） | ヘッダー+挿絵3枚 ⚡ *Optional* |
+| 4.5: Visual | スタイルプリセット | *Optional* |
 | 5: Review | チェックリスト形式 | 品質基準検証 |
 
 ---
@@ -39,7 +39,6 @@ description: コードドクターシリーズ記事を作成するワークフ�
 4.  **Phase 4: Narrative Writing** (`/code-doctor-4-write`)
     -   記事本文の執筆。
 5.  **Phase 4.5: Visual Enhancement** (`/code-doctor-visual`) ⚡ *Optional*
-    -   ヘッダー画像 + 本文挿絵3枚の生成・配置。
     -   **スキップ条件**: `挿絵: なし` 指定時
 6.  **Phase 5: Medical Board Review** (`/code-doctor-5-review`)
     -   キャラクター一貫性と品質の最終チェック。
@@ -54,8 +53,8 @@ description: コードドクターシリーズ記事を作成するワークフ�
 ユーザー入力から `Design Pattern` と `Theme` を抽出します。
 
 **挿絵オプションの確認**:
-- `挿絵: あり` または指定なし → Phase 4.5 を実行
-- `挿絵: なし` → Phase 4.5 をスキップ
+- `挿絵: あり` → Phase 4.5 を実行
+- `挿絵: なし` または指定なし → Phase 4.5 をスキップ
 
 ### Step 2: Chain Execution
 各サブワークフローを呼び出し、その出力を次のステップの入力として使用します。
