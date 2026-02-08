@@ -131,21 +131,6 @@
 
 ````
 
-
-## 2026-02-09: コードドクター〜ダメージ計算式緊急手術
-
-### ワークフロー: series-unified-visual
-
-### 知見タイプ: 成功
-
-**コンテキスト**: コードドクターシリーズ第1回の挿絵生成。
-
-**知見**: 
-1. **雰囲気作りのプロンプト**: `[Lighting/Mood]: Dim lighting (2 AM), monitors glowing like spotlights, sterile yet cluttered atmosphere. Smell of acetone and coffee (visualized by steam).` という指定で、シリーズ特有の「ネイルサロン改装クリニック」の雰囲気を的確に生成できた。
-2. **概念図**: `[Subject]: An electric screwdriver with multiple interchangeable bits arranged neatly.` という具体的なメタファーを指定することで、Strategyパターンの説明図として有用な画像が得られた。
-
-**適用場面**: 今後のコードドクターシリーズでも、この「Dim lighting (2 AM)」と「具体的な物理メタファー」の組み合わせを標準とする。
-
 ## 2026-02-09: 全体ガイドライン更新
 
 ### ワークフロー: manual (ユーザー指示)
