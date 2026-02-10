@@ -19,6 +19,7 @@ description: コードドクターシリーズ記事を作成するワークフ�
 
 | Phase | 参照コンテキスト | 目的 |
 |-------|-----------------|------|
+| 0: Input | ユーザー入力 + `planning-insights.md` | テーマ・患者・症状の多角的検討・選定 |
 | 1: Profile | `phase-1-context.md` | 患者ペルソナ・医療メタファー設計 |
 | 2: Plot | `phase-2-context.md` | 4幕構造・勘違いシーン配置 |
 | 3: Code | `phase-3-context.md` | 技術制約・Before/After実装 |
@@ -29,6 +30,8 @@ description: コードドクターシリーズ記事を作成するワークフ�
 
 ## Process Overview
 
+0.  **Phase 0: Input Design** (`/code-doctor-0-input`)
+    -   テーマ・患者・症状の3案を生成し、多角的に評価・選定。
 1.  **Phase 1: Profile & Diagnosis** (`/code-doctor-1-profile`)
     -   患者プロファイルと技術的症状（カルテ）の作成。
 2.  **Phase 2: Plot Architecture** (`/code-doctor-2-plot`)
@@ -51,13 +54,13 @@ description: コードドクターシリーズ記事を作成するワークフ�
 ユーザー入力（パターン名など）に基づき、各フェーズを順番に実行してください。
 
 ### Step 1: Initialize
-ユーザー入力から `Design Pattern` と `Theme` を抽出します。
+ユーザー入力から `Design Pattern` を抽出します。
 
 ### Step 2: Chain Execution
 各サブワークフローを呼び出し、その出力を次のステップの入力として使用します。
 
 **Workflow Chain:**
-`User Input` -> [Phase 1: Profile] -> `Patient/Chart` -> [Phase 2: Plot] -> `Detailed Plot` -> [Phase 3: Code] -> `Impl Files` -> [Phase 4: Write] -> `Draft.md` -> [Phase 5: Review] -> `Final.md`
+`User Input` -> [Phase 0: Input Design] -> `Selected Theme/Patient/Symptoms` -> [Phase 1: Profile] -> `Patient/Chart` -> [Phase 2: Plot] -> `Detailed Plot` -> [Phase 3: Code] -> `Impl Files` -> [Phase 4: Write] -> `Draft.md` -> [Phase 5: Review] -> `Final.md`
 
 ---
 
