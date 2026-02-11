@@ -51,6 +51,7 @@ description: "コードドクターシリーズ：挿絵生成（Tertiary — �
 ## Step 3: プロンプト作成
 
 プリセットのテンプレートに従い、英語プロンプトを作成。
+プロンプトはファイルとして保存してください。（agents/code-doctor-series/{slug}/tertiary-image-{ケバブケース名}.txt）
 
 ### 参照画像の選択
 
