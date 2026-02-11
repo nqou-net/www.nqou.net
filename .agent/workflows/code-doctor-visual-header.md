@@ -208,5 +208,5 @@ hugo server -D -F
 
 ## 完了後
 
-→ `/code-doctor-visual-scene` で本文挿絵を生成（別ワークフロー）
+→ `/code-doctor-visual-primary` で本文挿絵を生成（最重要シーンから順に）
 → または `/code-doctor-5-review` へ進む
