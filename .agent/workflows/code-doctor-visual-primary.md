@@ -57,6 +57,19 @@ description: "コードドクターシリーズ：挿絵生成（Primary — 最
 
 プリセットの「参照画像の選択ルール」に従い、シーンに適した画像を選択。
 
+### 背景設定のリファレンス
+
+シーンが**院内（来院・触診・診断・処方・外科手術・術後経過）**の場合、以下の描写を背景として使用すること（`static/public_images/code-doctor/clinic.jpg` に準拠）：
+
+```
+Interior of an elegant code clinic with ornate cream-colored wainscoting panels
+with decorative molding on the walls. A cream reception counter sits to the left.
+To the right, a wooden desk with triple monitors displaying code, an ergonomic
+mesh office chair, and a printer nearby. A window with venetian blinds lets in
+soft daylight. The room has a warm, classic atmosphere — more like a vintage
+European salon than a typical office.
+```
+
 ---
 
 ## Step 4: 画像生成
