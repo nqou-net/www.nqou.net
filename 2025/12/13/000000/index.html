@@ -1,0 +1,939 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="PerlでDBへアクセスする基本からDBIの使い方、プレースホルダ、トランザクション、DBIx::ClassによるORMの使い方まで解説します。"><title>Perlでのデータベース操作 — DBI / DBIx::Class 入門</title><link rel=canonical href=https://www.nqou.net/2025/12/13/000000/><link rel=stylesheet href=/scss/style.min.6a692fd055deae459f2a9767f57f3855ba80cafd5041317f24f7360f6ca47cdf.css><meta property='og:title' content="Perlでのデータベース操作 — DBI / DBIx::Class 入門"><meta property='og:description' content="PerlでDBへアクセスする基本からDBIの使い方、プレースホルダ、トランザクション、DBIx::ClassによるORMの使い方まで解説します。"><meta property='og:url' content='https://www.nqou.net/2025/12/13/000000/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='perl'><meta property='article:tag' content='database'><meta property='article:tag' content='dbi'><meta property='article:tag' content='dbix-class'><meta property='article:tag' content='orm'><meta property='article:tag' content='sql'><meta property='article:published_time' content='2025-12-13T00:00:00+09:00'><meta property='article:modified_time' content='2025-12-13T00:00:00+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/20251213-dbi.jpg'><meta name=twitter:title content="Perlでのデータベース操作 — DBI / DBIx::Class 入門"><meta name=twitter:description content="PerlでDBへアクセスする基本からDBIの使い方、プレースホルダ、トランザクション、DBIx::ClassによるORMの使い方まで解説します。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/20251213-dbi.jpg'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/warehouse/><svg class="icon icon-tabler icon-tabler-warehouse" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 10l9-6 9 6"/><rect x="5" y="10" width="14" height="10" rx="2"/><rect x="10" y="14" width="4" height="6" rx="1"/><path d="M7 20v-4h2v4"/><path d="M15 20v-4h2v4"/></svg>
+<span>Warehouse</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#perlでのデータベース操作---dbidbixclass>Perlでのデータベース操作 - DBI/DBIx::Class</a></li><li><a href=#dbi---database-interface>DBI - Database Interface</a><ol><li><a href=#インストール>インストール</a></li><li><a href=#基本的な接続と操作>基本的な接続と操作</a></li><li><a href=#プレースホルダとsqlインジェクション対策>プレースホルダとSQLインジェクション対策</a></li><li><a href=#データの挿入insert>データの挿入（INSERT）</a></li><li><a href=#データの取得select>データの取得（SELECT）</a></li><li><a href=#データの更新と削除>データの更新と削除</a></li><li><a href=#トランザクション処理>トランザクション処理</a></li></ol></li><li><a href=#dbixclass---perlの強力なorm>DBIx::Class - Perlの強力なORM</a><ol><li><a href=#インストール-1>インストール</a></li><li><a href=#スキーマの定義>スキーマの定義</a></li><li><a href=#dbixclassの基本操作>DBIx::Classの基本操作</a></li><li><a href=#リレーションシップの活用>リレーションシップの活用</a></li><li><a href=#トランザクションdbixclass版>トランザクション（DBIx::Class版）</a></li><li><a href=#実用的な例ページネーション>実用的な例：ページネーション</a></li></ol></li><li><a href=#dbi-と-dbixclass-の使い分け>DBI と DBIx::Class の使い分け</a></li><li><a href=#まとめ>まとめ</a></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2025/12/13/000000/><img src=/public_images/20251213-dbi.jpg loading=lazy alt="Featured image of post Perlでのデータベース操作 — DBI / DBIx::Class 入門"></a></div><div class=article-details><div class=article-title-wrapper><h2 class=article-title><a href=/2025/12/13/000000/>Perlでのデータベース操作 — DBI / DBIx::Class 入門</a></h2><h3 class=article-subtitle>PerlでDBへアクセスする基本からDBIの使い方、プレースホルダ、トランザクション、DBIx::ClassによるORMの使い方まで解説します。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>12月 13, 2025</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 8分</time></div></footer></div></header><section class=article-content><h2 id=perlでのデータベース操作---dbidbixclass>Perlでのデータベース操作 - DBI/DBIx::Class</h2><p>データベースとのやり取りは、多くのアプリケーションで必須の機能です。Perlには長年培われた強力なデータベースアクセス層があり、低レベルな DBI から高レベルな ORM（Object-Relational Mapping）である DBIx::Class まで、用途に応じて選択できます。</p><h2 id=dbi---database-interface>DBI - Database Interface</h2><p>DBI（Database Interface）は Perl のデータベースアクセスの基盤となるモジュールです。データベース非依存な API を提供し、MySQL、PostgreSQL、SQLite、Oracle など、さまざまなデータベースに統一的なインターフェースでアクセスできます。</p><h3 id=インストール>インストール</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl><span class=c1># DBI 本体</span>
+</span></span><span class=line><span class=cl>cpanm DBI
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># データベースドライバ（使用するDBに応じて）</span>
+</span></span><span class=line><span class=cl>cpanm DBD::SQLite   <span class=c1># SQLite</span>
+</span></span><span class=line><span class=cl>cpanm DBD::mysql    <span class=c1># MySQL</span>
+</span></span><span class=line><span class=cl>cpanm DBD::Pg       <span class=c1># PostgreSQL</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=基本的な接続と操作>基本的な接続と操作</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>use</span> <span class=nn>DBI</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>feature</span> <span class=sx>qw(say)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># データベースに接続</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$dbh</span> <span class=o>=</span> <span class=nn>DBI</span><span class=o>-&gt;</span><span class=nb>connect</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=s>&#39;dbi:SQLite:dbname=test.db&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=s>&#39;&#39;</span><span class=p>,</span>  <span class=c1># ユーザー名（SQLiteでは不要）</span>
+</span></span><span class=line><span class=cl>    <span class=s>&#39;&#39;</span><span class=p>,</span>  <span class=c1># パスワード（SQLiteでは不要）</span>
+</span></span><span class=line><span class=cl>    <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>RaiseError</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>  <span class=c1># エラー時に例外を投げる</span>
+</span></span><span class=line><span class=cl>        <span class=n>AutoCommit</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>  <span class=c1># 自動コミット</span>
+</span></span><span class=line><span class=cl>        <span class=n>PrintError</span> <span class=o>=&gt;</span> <span class=mi>0</span><span class=p>,</span>  <span class=c1># エラーメッセージを自動出力しない</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>)</span> <span class=ow>or</span> <span class=nb>die</span> <span class=s>&#34;接続エラー: $DBI::errstr&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># テーブル作成</span>
+</span></span><span class=line><span class=cl><span class=nv>$dbh</span><span class=o>-&gt;</span><span class=k>do</span><span class=p>(</span><span class=sx>q{
+</span></span></span><span class=line><span class=cl><span class=sx>    CREATE TABLE IF NOT EXISTS users (
+</span></span></span><span class=line><span class=cl><span class=sx>        id INTEGER PRIMARY KEY AUTOINCREMENT,
+</span></span></span><span class=line><span class=cl><span class=sx>        name TEXT NOT NULL,
+</span></span></span><span class=line><span class=cl><span class=sx>        email TEXT UNIQUE NOT NULL,
+</span></span></span><span class=line><span class=cl><span class=sx>        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+</span></span></span><span class=line><span class=cl><span class=sx>    )
+</span></span></span><span class=line><span class=cl><span class=sx>}</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>say</span> <span class=s>&#34;データベース接続成功！&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 接続を閉じる</span>
+</span></span><span class=line><span class=cl><span class=nv>$dbh</span><span class=o>-&gt;</span><span class=n>disconnect</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=プレースホルダとsqlインジェクション対策>プレースホルダとSQLインジェクション対策</h3><p><strong>絶対にやってはいけない例</strong>：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># ❌ 危険！SQLインジェクションの脆弱性あり</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$user_input</span> <span class=o>=</span> <span class=s>&#34;&#39;; DROP TABLE users; --&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$sql</span> <span class=o>=</span> <span class=s>&#34;SELECT * FROM users WHERE name = &#39;$user_input&#39;&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$sth</span> <span class=o>=</span> <span class=nv>$dbh</span><span class=o>-&gt;</span><span class=n>prepare</span><span class=p>(</span><span class=nv>$sql</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$sth</span><span class=o>-&gt;</span><span class=n>execute</span><span class=p>();</span>
+</span></span></code></pre></td></tr></table></div></div><p><strong>正しい方法</strong>：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>use</span> <span class=nn>DBI</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$dbh</span> <span class=o>=</span> <span class=nn>DBI</span><span class=o>-&gt;</span><span class=nb>connect</span><span class=p>(</span><span class=s>&#39;dbi:SQLite:dbname=test.db&#39;</span><span class=p>,</span> <span class=s>&#39;&#39;</span><span class=p>,</span> <span class=s>&#39;&#39;</span><span class=p>,</span> 
+</span></span><span class=line><span class=cl>    <span class=p>{</span> <span class=n>RaiseError</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span> <span class=n>AutoCommit</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># ✅ プレースホルダを使用（安全）</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$name</span> <span class=o>=</span> <span class=s>&#34;&#39;; DROP TABLE users; --&#34;</span><span class=p>;</span>  <span class=c1># 悪意のある入力</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$sth</span> <span class=o>=</span> <span class=nv>$dbh</span><span class=o>-&gt;</span><span class=n>prepare</span><span class=p>(</span><span class=s>&#39;SELECT * FROM users WHERE name = ?&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$sth</span><span class=o>-&gt;</span><span class=n>execute</span><span class=p>(</span><span class=nv>$name</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 名前付きプレースホルダ（より読みやすい）</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$sth2</span> <span class=o>=</span> <span class=nv>$dbh</span><span class=o>-&gt;</span><span class=n>prepare</span><span class=p>(</span><span class=s>&#39;SELECT * FROM users WHERE name = :name AND email = :email&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$sth2</span><span class=o>-&gt;</span><span class=n>execute</span><span class=p>({</span> <span class=n>name</span> <span class=o>=&gt;</span> <span class=nv>$name</span><span class=p>,</span> <span class=n>email</span> <span class=o>=&gt;</span> <span class=s>&#39;user@example.com&#39;</span> <span class=p>});</span>
+</span></span></code></pre></td></tr></table></div></div><p>プレースホルダを使うことで：</p><ul><li><strong>SQLインジェクション攻撃を防げる</strong></li><li><strong>値のエスケープが自動的に行われる</strong></li><li><strong>SQL文の再利用が効率的</strong></li></ul><h3 id=データの挿入insert>データの挿入（INSERT）</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>use</span> <span class=nn>DBI</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>feature</span> <span class=sx>qw(say)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$dbh</span> <span class=o>=</span> <span class=nn>DBI</span><span class=o>-&gt;</span><span class=nb>connect</span><span class=p>(</span><span class=s>&#39;dbi:SQLite:dbname=test.db&#39;</span><span class=p>,</span> <span class=s>&#39;&#39;</span><span class=p>,</span> <span class=s>&#39;&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>{</span> <span class=n>RaiseError</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span> <span class=n>AutoCommit</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># テーブル作成</span>
+</span></span><span class=line><span class=cl><span class=nv>$dbh</span><span class=o>-&gt;</span><span class=k>do</span><span class=p>(</span><span class=sx>q{
+</span></span></span><span class=line><span class=cl><span class=sx>    CREATE TABLE IF NOT EXISTS users (
+</span></span></span><span class=line><span class=cl><span class=sx>        id INTEGER PRIMARY KEY AUTOINCREMENT,
+</span></span></span><span class=line><span class=cl><span class=sx>        name TEXT NOT NULL,
+</span></span></span><span class=line><span class=cl><span class=sx>        email TEXT UNIQUE NOT NULL,
+</span></span></span><span class=line><span class=cl><span class=sx>        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+</span></span></span><span class=line><span class=cl><span class=sx>    )
+</span></span></span><span class=line><span class=cl><span class=sx>}</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 1件挿入</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$sth</span> <span class=o>=</span> <span class=nv>$dbh</span><span class=o>-&gt;</span><span class=n>prepare</span><span class=p>(</span><span class=s>&#39;INSERT INTO users (name, email) VALUES (?, ?)&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$sth</span><span class=o>-&gt;</span><span class=n>execute</span><span class=p>(</span><span class=s>&#39;山田太郎&#39;</span><span class=p>,</span> <span class=s>&#39;yamada@example.com&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>say</span> <span class=s>&#34;挿入されたID: &#34;</span><span class=p>,</span> <span class=nv>$dbh</span><span class=o>-&gt;</span><span class=n>last_insert_id</span><span class=p>(</span><span class=nb>undef</span><span class=p>,</span> <span class=nb>undef</span><span class=p>,</span> <span class=s>&#39;users&#39;</span><span class=p>,</span> <span class=s>&#39;id&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 複数件を効率的に挿入</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>@users</span> <span class=o>=</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=p>[</span><span class=s>&#39;佐藤花子&#39;</span><span class=p>,</span> <span class=s>&#39;sato@example.com&#39;</span><span class=p>],</span>
+</span></span><span class=line><span class=cl>    <span class=p>[</span><span class=s>&#39;鈴木一郎&#39;</span><span class=p>,</span> <span class=s>&#39;suzuki@example.com&#39;</span><span class=p>],</span>
+</span></span><span class=line><span class=cl>    <span class=p>[</span><span class=s>&#39;田中美咲&#39;</span><span class=p>,</span> <span class=s>&#39;tanaka@example.com&#39;</span><span class=p>],</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$insert_sth</span> <span class=o>=</span> <span class=nv>$dbh</span><span class=o>-&gt;</span><span class=n>prepare</span><span class=p>(</span><span class=s>&#39;INSERT INTO users (name, email) VALUES (?, ?)&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=k>for</span> <span class=k>my</span> <span class=nv>$user</span> <span class=p>(</span><span class=nv>@users</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$insert_sth</span><span class=o>-&gt;</span><span class=n>execute</span><span class=p>(</span><span class=nv>@$user</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>say</span> <span class=s>&#34;ユーザーを追加しました&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nv>$dbh</span><span class=o>-&gt;</span><span class=n>disconnect</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=データの取得select>データの取得（SELECT）</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>use</span> <span class=nn>DBI</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>feature</span> <span class=sx>qw(say)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$dbh</span> <span class=o>=</span> <span class=nn>DBI</span><span class=o>-&gt;</span><span class=nb>connect</span><span class=p>(</span><span class=s>&#39;dbi:SQLite:dbname=test.db&#39;</span><span class=p>,</span> <span class=s>&#39;&#39;</span><span class=p>,</span> <span class=s>&#39;&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>{</span> <span class=n>RaiseError</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span> <span class=n>AutoCommit</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 全件取得</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$sth</span> <span class=o>=</span> <span class=nv>$dbh</span><span class=o>-&gt;</span><span class=n>prepare</span><span class=p>(</span><span class=s>&#39;SELECT id, name, email FROM users&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$sth</span><span class=o>-&gt;</span><span class=n>execute</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>say</span> <span class=s>&#34;=== 全ユーザー ===&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>while</span> <span class=p>(</span><span class=k>my</span> <span class=nv>$row</span> <span class=o>=</span> <span class=nv>$sth</span><span class=o>-&gt;</span><span class=n>fetchrow_hashref</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=s>&#34;ID: $row-&gt;{id}, 名前: $row-&gt;{name}, Email: $row-&gt;{email}&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 条件付き検索</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$search_sth</span> <span class=o>=</span> <span class=nv>$dbh</span><span class=o>-&gt;</span><span class=n>prepare</span><span class=p>(</span><span class=s>&#39;SELECT * FROM users WHERE name LIKE ?&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$search_sth</span><span class=o>-&gt;</span><span class=n>execute</span><span class=p>(</span><span class=s>&#39;%太郎%&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>say</span> <span class=s>&#34;\n=== 検索結果（太郎） ===&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>while</span> <span class=p>(</span><span class=k>my</span> <span class=nv>@row</span> <span class=o>=</span> <span class=nv>$search_sth</span><span class=o>-&gt;</span><span class=n>fetchrow_array</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=nb>join</span><span class=p>(</span><span class=s>&#39;, &#39;</span><span class=p>,</span> <span class=nv>@row</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 1件だけ取得</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$one_sth</span> <span class=o>=</span> <span class=nv>$dbh</span><span class=o>-&gt;</span><span class=n>prepare</span><span class=p>(</span><span class=s>&#39;SELECT * FROM users WHERE id = ?&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$one_sth</span><span class=o>-&gt;</span><span class=n>execute</span><span class=p>(</span><span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$user</span> <span class=o>=</span> <span class=nv>$one_sth</span><span class=o>-&gt;</span><span class=n>fetchrow_hashref</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>if</span> <span class=p>(</span><span class=nv>$user</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=s>&#34;\n=== ID:1のユーザー ===&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=s>&#34;名前: $user-&gt;{name}&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=s>&#34;Email: $user-&gt;{email}&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 全件を配列で取得</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$all_sth</span> <span class=o>=</span> <span class=nv>$dbh</span><span class=o>-&gt;</span><span class=n>prepare</span><span class=p>(</span><span class=s>&#39;SELECT name, email FROM users ORDER BY name&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$all_sth</span><span class=o>-&gt;</span><span class=n>execute</span><span class=p>();</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$all_users</span> <span class=o>=</span> <span class=nv>$all_sth</span><span class=o>-&gt;</span><span class=n>fetchall_arrayref</span><span class=p>({});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>say</span> <span class=s>&#34;\n=== 全ユーザー（ソート済み） ===&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>for</span> <span class=k>my</span> <span class=nv>$u</span> <span class=p>(</span><span class=nv>@$all_users</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=s>&#34;$u-&gt;{name} &lt;$u-&gt;{email}&gt;&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nv>$dbh</span><span class=o>-&gt;</span><span class=n>disconnect</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=データの更新と削除>データの更新と削除</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>use</span> <span class=nn>DBI</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>feature</span> <span class=sx>qw(say)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$dbh</span> <span class=o>=</span> <span class=nn>DBI</span><span class=o>-&gt;</span><span class=nb>connect</span><span class=p>(</span><span class=s>&#39;dbi:SQLite:dbname=test.db&#39;</span><span class=p>,</span> <span class=s>&#39;&#39;</span><span class=p>,</span> <span class=s>&#39;&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>{</span> <span class=n>RaiseError</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span> <span class=n>AutoCommit</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 更新（UPDATE）</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$update_sth</span> <span class=o>=</span> <span class=nv>$dbh</span><span class=o>-&gt;</span><span class=n>prepare</span><span class=p>(</span><span class=s>&#39;UPDATE users SET email = ? WHERE name = ?&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$rows_updated</span> <span class=o>=</span> <span class=nv>$update_sth</span><span class=o>-&gt;</span><span class=n>execute</span><span class=p>(</span><span class=s>&#39;new_email@example.com&#39;</span><span class=p>,</span> <span class=s>&#39;山田太郎&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>say</span> <span class=s>&#34;更新された行数: $rows_updated&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 削除（DELETE）</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$delete_sth</span> <span class=o>=</span> <span class=nv>$dbh</span><span class=o>-&gt;</span><span class=n>prepare</span><span class=p>(</span><span class=s>&#39;DELETE FROM users WHERE id = ?&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$rows_deleted</span> <span class=o>=</span> <span class=nv>$delete_sth</span><span class=o>-&gt;</span><span class=n>execute</span><span class=p>(</span><span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>say</span> <span class=s>&#34;削除された行数: $rows_deleted&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nv>$dbh</span><span class=o>-&gt;</span><span class=n>disconnect</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=トランザクション処理>トランザクション処理</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>use</span> <span class=nn>DBI</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>feature</span> <span class=sx>qw(say)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$dbh</span> <span class=o>=</span> <span class=nn>DBI</span><span class=o>-&gt;</span><span class=nb>connect</span><span class=p>(</span><span class=s>&#39;dbi:SQLite:dbname=test.db&#39;</span><span class=p>,</span> <span class=s>&#39;&#39;</span><span class=p>,</span> <span class=s>&#39;&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>{</span> <span class=n>RaiseError</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span> <span class=n>AutoCommit</span> <span class=o>=&gt;</span> <span class=mi>0</span> <span class=p>});</span>  <span class=c1># AutoCommit を無効化</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nb>eval</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=c1># トランザクション開始（AutoCommit=0 なので自動）</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=nv>$dbh</span><span class=o>-&gt;</span><span class=k>do</span><span class=p>(</span><span class=s>&#39;INSERT INTO users (name, email) VALUES (?, ?)&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=nb>undef</span><span class=p>,</span> <span class=s>&#39;佐藤次郎&#39;</span><span class=p>,</span> <span class=s>&#39;sato2@example.com&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=nv>$dbh</span><span class=o>-&gt;</span><span class=k>do</span><span class=p>(</span><span class=s>&#39;INSERT INTO users (name, email) VALUES (?, ?)&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=nb>undef</span><span class=p>,</span> <span class=s>&#39;鈴木三郎&#39;</span><span class=p>,</span> <span class=s>&#39;suzuki2@example.com&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=c1># 意図的にエラーを起こす例</span>
+</span></span><span class=line><span class=cl>    <span class=c1># $dbh-&gt;do(&#39;INSERT INTO users (name, email) VALUES (?, ?)&#39;,</span>
+</span></span><span class=line><span class=cl>    <span class=c1>#     undef, &#39;田中四郎&#39;, &#39;sato2@example.com&#39;);  # email重複エラー</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=c1># コミット</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$dbh</span><span class=o>-&gt;</span><span class=n>commit</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=s>&#34;トランザクション成功&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>if</span> <span class=p>(</span><span class=vg>$@</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=s>&#34;エラー発生: $@&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=s>&#34;ロールバックします&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$dbh</span><span class=o>-&gt;</span><span class=n>rollback</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nv>$dbh</span><span class=o>-&gt;</span><span class=n>disconnect</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><h2 id=dbixclass---perlの強力なorm>DBIx::Class - Perlの強力なORM</h2><p>DBIx::Class は Perl の代表的な ORM（Object-Relational Mapping）です。SQL を直接書くのではなく、オブジェクト指向的にデータベースを操作できます。</p><h3 id=インストール-1>インストール</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl>cpanm DBIx::Class
+</span></span><span class=line><span class=cl>cpanm DBIx::Class::Schema::Loader  <span class=c1># 既存DBからスキーマ自動生成</span>
+</span></span><span class=line><span class=cl>cpanm SQL::Translator  <span class=c1># スキーマのデプロイに必要</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=スキーマの定義>スキーマの定義</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span><span class=lnt>51
+</span><span class=lnt>52
+</span><span class=lnt>53
+</span><span class=lnt>54
+</span><span class=lnt>55
+</span><span class=lnt>56
+</span><span class=lnt>57
+</span><span class=lnt>58
+</span><span class=lnt>59
+</span><span class=lnt>60
+</span><span class=lnt>61
+</span><span class=lnt>62
+</span><span class=lnt>63
+</span><span class=lnt>64
+</span><span class=lnt>65
+</span><span class=lnt>66
+</span><span class=lnt>67
+</span><span class=lnt>68
+</span><span class=lnt>69
+</span><span class=lnt>70
+</span><span class=lnt>71
+</span><span class=lnt>72
+</span><span class=lnt>73
+</span><span class=lnt>74
+</span><span class=lnt>75
+</span><span class=lnt>76
+</span><span class=lnt>77
+</span><span class=lnt>78
+</span><span class=lnt>79
+</span><span class=lnt>80
+</span><span class=lnt>81
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># MyApp/Schema.pm</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>MyApp::Schema</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>base</span> <span class=sx>qw(DBIx::Class::Schema)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nn>__PACKAGE__</span><span class=o>-&gt;</span><span class=n>load_namespaces</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># MyApp/Schema/Result/User.pm</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>MyApp::Schema::Result::User</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>base</span> <span class=sx>qw(DBIx::Class::Core)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nn>__PACKAGE__</span><span class=o>-&gt;</span><span class=n>table</span><span class=p>(</span><span class=s>&#39;users&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nn>__PACKAGE__</span><span class=o>-&gt;</span><span class=n>add_columns</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>id</span> <span class=o>=&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>data_type</span>         <span class=o>=&gt;</span> <span class=s>&#39;integer&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>is_auto_increment</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=n>name</span> <span class=o>=&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>data_type</span>   <span class=o>=&gt;</span> <span class=s>&#39;varchar&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>size</span>        <span class=o>=&gt;</span> <span class=mi>100</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>is_nullable</span> <span class=o>=&gt;</span> <span class=mi>0</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=n>email</span> <span class=o>=&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>data_type</span>   <span class=o>=&gt;</span> <span class=s>&#39;varchar&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>size</span>        <span class=o>=&gt;</span> <span class=mi>255</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>is_nullable</span> <span class=o>=&gt;</span> <span class=mi>0</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=n>created_at</span> <span class=o>=&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>data_type</span>     <span class=o>=&gt;</span> <span class=s>&#39;datetime&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>default_value</span> <span class=o>=&gt;</span> <span class=o>\</span><span class=s>&#39;CURRENT_TIMESTAMP&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>},</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nn>__PACKAGE__</span><span class=o>-&gt;</span><span class=n>set_primary_key</span><span class=p>(</span><span class=s>&#39;id&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nn>__PACKAGE__</span><span class=o>-&gt;</span><span class=n>add_unique_constraint</span><span class=p>(</span><span class=n>email_unique</span> <span class=o>=&gt;</span> <span class=p>[</span><span class=s>&#39;email&#39;</span><span class=p>]);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># リレーションシップの定義（後で使用）</span>
+</span></span><span class=line><span class=cl><span class=nn>__PACKAGE__</span><span class=o>-&gt;</span><span class=n>has_many</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>posts</span> <span class=o>=&gt;</span> <span class=s>&#39;MyApp::Schema::Result::Post&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=s>&#39;user_id&#39;</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># MyApp/Schema/Result/Post.pm</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>MyApp::Schema::Result::Post</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>base</span> <span class=sx>qw(DBIx::Class::Core)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nn>__PACKAGE__</span><span class=o>-&gt;</span><span class=n>table</span><span class=p>(</span><span class=s>&#39;posts&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nn>__PACKAGE__</span><span class=o>-&gt;</span><span class=n>add_columns</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>id</span> <span class=o>=&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>data_type</span>         <span class=o>=&gt;</span> <span class=s>&#39;integer&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>is_auto_increment</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=n>user_id</span> <span class=o>=&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>data_type</span>      <span class=o>=&gt;</span> <span class=s>&#39;integer&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>is_foreign_key</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=n>title</span> <span class=o>=&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>data_type</span>   <span class=o>=&gt;</span> <span class=s>&#39;varchar&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>size</span>        <span class=o>=&gt;</span> <span class=mi>200</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>is_nullable</span> <span class=o>=&gt;</span> <span class=mi>0</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=n>body</span> <span class=o>=&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>data_type</span>   <span class=o>=&gt;</span> <span class=s>&#39;text&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>is_nullable</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=n>created_at</span> <span class=o>=&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>data_type</span>     <span class=o>=&gt;</span> <span class=s>&#39;datetime&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>default_value</span> <span class=o>=&gt;</span> <span class=o>\</span><span class=s>&#39;CURRENT_TIMESTAMP&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>},</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nn>__PACKAGE__</span><span class=o>-&gt;</span><span class=n>set_primary_key</span><span class=p>(</span><span class=s>&#39;id&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nn>__PACKAGE__</span><span class=o>-&gt;</span><span class=n>belongs_to</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>user</span> <span class=o>=&gt;</span> <span class=s>&#39;MyApp::Schema::Result::User&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=s>&#39;user_id&#39;</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=dbixclassの基本操作>DBIx::Classの基本操作</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span><span class=lnt>51
+</span><span class=lnt>52
+</span><span class=lnt>53
+</span><span class=lnt>54
+</span><span class=lnt>55
+</span><span class=lnt>56
+</span><span class=lnt>57
+</span><span class=lnt>58
+</span><span class=lnt>59
+</span><span class=lnt>60
+</span><span class=lnt>61
+</span><span class=lnt>62
+</span><span class=lnt>63
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>use</span> <span class=nn>MyApp::Schema</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>feature</span> <span class=sx>qw(say)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># スキーマに接続</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$schema</span> <span class=o>=</span> <span class=nn>MyApp::Schema</span><span class=o>-&gt;</span><span class=nb>connect</span><span class=p>(</span><span class=s>&#39;dbi:SQLite:dbname=myapp.db&#39;</span><span class=p>,</span> <span class=s>&#39;&#39;</span><span class=p>,</span> <span class=s>&#39;&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>{</span> <span class=n>RaiseError</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span> <span class=n>AutoCommit</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># テーブルをデプロイ（最初の1回だけ）</span>
+</span></span><span class=line><span class=cl><span class=nv>$schema</span><span class=o>-&gt;</span><span class=n>deploy</span><span class=p>({</span> <span class=n>add_drop_table</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># === 作成（CREATE） ===</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$user</span> <span class=o>=</span> <span class=nv>$schema</span><span class=o>-&gt;</span><span class=n>resultset</span><span class=p>(</span><span class=s>&#39;User&#39;</span><span class=p>)</span><span class=o>-&gt;</span><span class=n>create</span><span class=p>({</span>
+</span></span><span class=line><span class=cl>    <span class=n>name</span>  <span class=o>=&gt;</span> <span class=s>&#39;山田太郎&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>email</span> <span class=o>=&gt;</span> <span class=s>&#39;yamada@example.com&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=n>say</span> <span class=s>&#34;作成されたユーザーID: &#34;</span><span class=p>,</span> <span class=nv>$user</span><span class=o>-&gt;</span><span class=n>id</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 複数作成</span>
+</span></span><span class=line><span class=cl><span class=nv>$schema</span><span class=o>-&gt;</span><span class=n>resultset</span><span class=p>(</span><span class=s>&#39;User&#39;</span><span class=p>)</span><span class=o>-&gt;</span><span class=n>populate</span><span class=p>([</span>
+</span></span><span class=line><span class=cl>    <span class=p>{</span> <span class=n>name</span> <span class=o>=&gt;</span> <span class=s>&#39;佐藤花子&#39;</span><span class=p>,</span> <span class=n>email</span> <span class=o>=&gt;</span> <span class=s>&#39;sato@example.com&#39;</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=p>{</span> <span class=n>name</span> <span class=o>=&gt;</span> <span class=s>&#39;鈴木一郎&#39;</span><span class=p>,</span> <span class=n>email</span> <span class=o>=&gt;</span> <span class=s>&#39;suzuki@example.com&#39;</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl><span class=p>]);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># === 検索（READ） ===</span>
+</span></span><span class=line><span class=cl><span class=c1># 全件取得</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>@all_users</span> <span class=o>=</span> <span class=nv>$schema</span><span class=o>-&gt;</span><span class=n>resultset</span><span class=p>(</span><span class=s>&#39;User&#39;</span><span class=p>)</span><span class=o>-&gt;</span><span class=n>all</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>say</span> <span class=s>&#34;全ユーザー数: &#34;</span><span class=p>,</span> <span class=nb>scalar</span> <span class=nv>@all_users</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 条件付き検索</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>@search_result</span> <span class=o>=</span> <span class=nv>$schema</span><span class=o>-&gt;</span><span class=n>resultset</span><span class=p>(</span><span class=s>&#39;User&#39;</span><span class=p>)</span><span class=o>-&gt;</span><span class=n>search</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=p>{</span> <span class=n>name</span> <span class=o>=&gt;</span> <span class=p>{</span> <span class=n>like</span> <span class=o>=&gt;</span> <span class=s>&#39;%太郎%&#39;</span> <span class=p>}</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>)</span><span class=o>-&gt;</span><span class=n>all</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 1件取得</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$found_user</span> <span class=o>=</span> <span class=nv>$schema</span><span class=o>-&gt;</span><span class=n>resultset</span><span class=p>(</span><span class=s>&#39;User&#39;</span><span class=p>)</span><span class=o>-&gt;</span><span class=n>find</span><span class=p>(</span><span class=mi>1</span><span class=p>);</span>  <span class=c1># IDで検索</span>
+</span></span><span class=line><span class=cl><span class=k>if</span> <span class=p>(</span><span class=nv>$found_user</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=s>&#34;見つかったユーザー: &#34;</span><span class=p>,</span> <span class=nv>$found_user</span><span class=o>-&gt;</span><span class=n>name</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 条件付きで1件</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$single</span> <span class=o>=</span> <span class=nv>$schema</span><span class=o>-&gt;</span><span class=n>resultset</span><span class=p>(</span><span class=s>&#39;User&#39;</span><span class=p>)</span><span class=o>-&gt;</span><span class=n>search</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=p>{</span> <span class=n>email</span> <span class=o>=&gt;</span> <span class=s>&#39;yamada@example.com&#39;</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>)</span><span class=o>-&gt;</span><span class=n>first</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># === 更新（UPDATE） ===</span>
+</span></span><span class=line><span class=cl><span class=nv>$found_user</span><span class=o>-&gt;</span><span class=n>update</span><span class=p>({</span> <span class=n>email</span> <span class=o>=&gt;</span> <span class=s>&#39;new_yamada@example.com&#39;</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># または</span>
+</span></span><span class=line><span class=cl><span class=nv>$found_user</span><span class=o>-&gt;</span><span class=n>email</span><span class=p>(</span><span class=s>&#39;another@example.com&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$found_user</span><span class=o>-&gt;</span><span class=n>update</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 一括更新</span>
+</span></span><span class=line><span class=cl><span class=nv>$schema</span><span class=o>-&gt;</span><span class=n>resultset</span><span class=p>(</span><span class=s>&#39;User&#39;</span><span class=p>)</span><span class=o>-&gt;</span><span class=n>search</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=p>{</span> <span class=n>name</span> <span class=o>=&gt;</span> <span class=p>{</span> <span class=n>like</span> <span class=o>=&gt;</span> <span class=s>&#39;%太郎%&#39;</span> <span class=p>}</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>)</span><span class=o>-&gt;</span><span class=n>update</span><span class=p>({</span> <span class=n>name</span> <span class=o>=&gt;</span> <span class=o>\</span><span class=s>&#39;name || &#34; (更新済み)&#34;&#39;</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># === 削除（DELETE） ===</span>
+</span></span><span class=line><span class=cl><span class=nv>$found_user</span><span class=o>-&gt;</span><span class=nb>delete</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 条件付き削除</span>
+</span></span><span class=line><span class=cl><span class=nv>$schema</span><span class=o>-&gt;</span><span class=n>resultset</span><span class=p>(</span><span class=s>&#39;User&#39;</span><span class=p>)</span><span class=o>-&gt;</span><span class=n>search</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=p>{</span> <span class=n>created_at</span> <span class=o>=&gt;</span> <span class=p>{</span> <span class=s>&#39;&lt;&#39;</span> <span class=o>=&gt;</span> <span class=s>&#39;2025-01-01&#39;</span> <span class=p>}</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>)</span><span class=o>-&gt;</span><span class=nb>delete</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=リレーションシップの活用>リレーションシップの活用</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span><span class=lnt>51
+</span><span class=lnt>52
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>use</span> <span class=nn>MyApp::Schema</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>feature</span> <span class=sx>qw(say)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$schema</span> <span class=o>=</span> <span class=nn>MyApp::Schema</span><span class=o>-&gt;</span><span class=nb>connect</span><span class=p>(</span><span class=s>&#39;dbi:SQLite:dbname=myapp.db&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># ユーザーを作成</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$user</span> <span class=o>=</span> <span class=nv>$schema</span><span class=o>-&gt;</span><span class=n>resultset</span><span class=p>(</span><span class=s>&#39;User&#39;</span><span class=p>)</span><span class=o>-&gt;</span><span class=n>create</span><span class=p>({</span>
+</span></span><span class=line><span class=cl>    <span class=n>name</span>  <span class=o>=&gt;</span> <span class=s>&#39;山田太郎&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>email</span> <span class=o>=&gt;</span> <span class=s>&#39;yamada@example.com&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># ユーザーに紐づく投稿を作成</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$post</span> <span class=o>=</span> <span class=nv>$user</span><span class=o>-&gt;</span><span class=n>create_related</span><span class=p>(</span><span class=s>&#39;posts&#39;</span><span class=p>,</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=n>title</span> <span class=o>=&gt;</span> <span class=s>&#39;はじめての投稿&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>body</span>  <span class=o>=&gt;</span> <span class=s>&#39;DBIx::Classは便利ですね！&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># または</span>
+</span></span><span class=line><span class=cl><span class=nv>$schema</span><span class=o>-&gt;</span><span class=n>resultset</span><span class=p>(</span><span class=s>&#39;Post&#39;</span><span class=p>)</span><span class=o>-&gt;</span><span class=n>create</span><span class=p>({</span>
+</span></span><span class=line><span class=cl>    <span class=n>user_id</span> <span class=o>=&gt;</span> <span class=nv>$user</span><span class=o>-&gt;</span><span class=n>id</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>title</span>   <span class=o>=&gt;</span> <span class=s>&#39;2つ目の投稿&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>body</span>    <span class=o>=&gt;</span> <span class=s>&#39;リレーションが簡単です&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># ユーザーの投稿を全て取得</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>@user_posts</span> <span class=o>=</span> <span class=nv>$user</span><span class=o>-&gt;</span><span class=nn>posts</span><span class=o>-&gt;</span><span class=n>all</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>say</span> <span class=nv>$user</span><span class=o>-&gt;</span><span class=n>name</span><span class=p>,</span> <span class=s>&#34; の投稿数: &#34;</span><span class=p>,</span> <span class=nb>scalar</span> <span class=nv>@user_posts</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>for</span> <span class=k>my</span> <span class=nv>$p</span> <span class=p>(</span><span class=nv>@user_posts</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=s>&#34;  - &#34;</span><span class=p>,</span> <span class=nv>$p</span><span class=o>-&gt;</span><span class=n>title</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 投稿からユーザー情報を取得</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$post_with_user</span> <span class=o>=</span> <span class=nv>$schema</span><span class=o>-&gt;</span><span class=n>resultset</span><span class=p>(</span><span class=s>&#39;Post&#39;</span><span class=p>)</span><span class=o>-&gt;</span><span class=n>find</span><span class=p>(</span><span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>say</span> <span class=s>&#34;投稿者: &#34;</span><span class=p>,</span> <span class=nv>$post_with_user</span><span class=o>-&gt;</span><span class=nn>user</span><span class=o>-&gt;</span><span class=n>name</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># JOINを使った検索</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>@posts</span> <span class=o>=</span> <span class=nv>$schema</span><span class=o>-&gt;</span><span class=n>resultset</span><span class=p>(</span><span class=s>&#39;Post&#39;</span><span class=p>)</span><span class=o>-&gt;</span><span class=n>search</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=p>{</span> <span class=s>&#39;user.name&#39;</span> <span class=o>=&gt;</span> <span class=p>{</span> <span class=n>like</span> <span class=o>=&gt;</span> <span class=s>&#39;%太郎%&#39;</span> <span class=p>}</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=p>{</span> <span class=nb>join</span> <span class=o>=&gt;</span> <span class=s>&#39;user&#39;</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>)</span><span class=o>-&gt;</span><span class=n>all</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># prefetch でN+1問題を回避</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>@posts_with_users</span> <span class=o>=</span> <span class=nv>$schema</span><span class=o>-&gt;</span><span class=n>resultset</span><span class=p>(</span><span class=s>&#39;Post&#39;</span><span class=p>)</span><span class=o>-&gt;</span><span class=n>search</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=p>{},</span>
+</span></span><span class=line><span class=cl>    <span class=p>{</span> <span class=n>prefetch</span> <span class=o>=&gt;</span> <span class=s>&#39;user&#39;</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>)</span><span class=o>-&gt;</span><span class=n>all</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>for</span> <span class=k>my</span> <span class=nv>$p</span> <span class=p>(</span><span class=nv>@posts_with_users</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=c1># user はすでにロード済みなので追加のSQLは発行されない</span>
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=nv>$p</span><span class=o>-&gt;</span><span class=n>title</span><span class=p>,</span> <span class=s>&#34; by &#34;</span><span class=p>,</span> <span class=nv>$p</span><span class=o>-&gt;</span><span class=nn>user</span><span class=o>-&gt;</span><span class=n>name</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=トランザクションdbixclass版>トランザクション（DBIx::Class版）</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>use</span> <span class=nn>MyApp::Schema</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>feature</span> <span class=sx>qw(say)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$schema</span> <span class=o>=</span> <span class=nn>MyApp::Schema</span><span class=o>-&gt;</span><span class=nb>connect</span><span class=p>(</span><span class=s>&#39;dbi:SQLite:dbname=myapp.db&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># txn_do を使ったトランザクション</span>
+</span></span><span class=line><span class=cl><span class=nv>$schema</span><span class=o>-&gt;</span><span class=n>txn_do</span><span class=p>(</span><span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$user</span> <span class=o>=</span> <span class=nv>$schema</span><span class=o>-&gt;</span><span class=n>resultset</span><span class=p>(</span><span class=s>&#39;User&#39;</span><span class=p>)</span><span class=o>-&gt;</span><span class=n>create</span><span class=p>({</span>
+</span></span><span class=line><span class=cl>        <span class=n>name</span>  <span class=o>=&gt;</span> <span class=s>&#39;佐藤次郎&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>email</span> <span class=o>=&gt;</span> <span class=s>&#39;sato2@example.com&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>});</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=nv>$user</span><span class=o>-&gt;</span><span class=n>create_related</span><span class=p>(</span><span class=s>&#39;posts&#39;</span><span class=p>,</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>title</span> <span class=o>=&gt;</span> <span class=s>&#39;初投稿&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>body</span>  <span class=o>=&gt;</span> <span class=s>&#39;よろしくお願いします&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>});</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=c1># エラーが起きると自動でロールバック</span>
+</span></span><span class=line><span class=cl>    <span class=c1># die &#34;エラーテスト&#34; if $some_condition;</span>
+</span></span><span class=line><span class=cl><span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>say</span> <span class=s>&#34;トランザクション完了&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 手動でのトランザクション制御</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$txn</span> <span class=o>=</span> <span class=nv>$schema</span><span class=o>-&gt;</span><span class=n>txn_scope_guard</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nb>eval</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$user</span> <span class=o>=</span> <span class=nv>$schema</span><span class=o>-&gt;</span><span class=n>resultset</span><span class=p>(</span><span class=s>&#39;User&#39;</span><span class=p>)</span><span class=o>-&gt;</span><span class=n>create</span><span class=p>({</span>
+</span></span><span class=line><span class=cl>        <span class=n>name</span>  <span class=o>=&gt;</span> <span class=s>&#39;鈴木三郎&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>email</span> <span class=o>=&gt;</span> <span class=s>&#39;suzuki3@example.com&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>});</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=nv>$txn</span><span class=o>-&gt;</span><span class=n>commit</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>if</span> <span class=p>(</span><span class=vg>$@</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=s>&#34;エラー: $@&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=c1># commit していないので自動ロールバック</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=実用的な例ページネーション>実用的な例：ページネーション</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>use</span> <span class=nn>MyApp::Schema</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>feature</span> <span class=sx>qw(say)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$schema</span> <span class=o>=</span> <span class=nn>MyApp::Schema</span><span class=o>-&gt;</span><span class=nb>connect</span><span class=p>(</span><span class=s>&#39;dbi:SQLite:dbname=myapp.db&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>get_users_page</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$page</span><span class=p>,</span> <span class=nv>$per_page</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$page</span>     <span class=sr>//</span><span class=o>=</span> <span class=mi>1</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$per_page</span> <span class=sr>//</span><span class=o>=</span> <span class=mi>10</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$rs</span> <span class=o>=</span> <span class=nv>$schema</span><span class=o>-&gt;</span><span class=n>resultset</span><span class=p>(</span><span class=s>&#39;User&#39;</span><span class=p>)</span><span class=o>-&gt;</span><span class=n>search</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=p>{},</span>
+</span></span><span class=line><span class=cl>        <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=n>page</span>     <span class=o>=&gt;</span> <span class=nv>$page</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>rows</span>     <span class=o>=&gt;</span> <span class=nv>$per_page</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>order_by</span> <span class=o>=&gt;</span> <span class=p>{</span> <span class=o>-</span><span class=n>desc</span> <span class=o>=&gt;</span> <span class=s>&#39;created_at&#39;</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>users</span>      <span class=o>=&gt;</span> <span class=p>[</span><span class=nv>$rs</span><span class=o>-&gt;</span><span class=n>all</span><span class=p>],</span>
+</span></span><span class=line><span class=cl>        <span class=n>total</span>      <span class=o>=&gt;</span> <span class=nv>$rs</span><span class=o>-&gt;</span><span class=nn>pager</span><span class=o>-&gt;</span><span class=n>total_entries</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>page</span>       <span class=o>=&gt;</span> <span class=nv>$page</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>per_page</span>   <span class=o>=&gt;</span> <span class=nv>$per_page</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>last_page</span>  <span class=o>=&gt;</span> <span class=nv>$rs</span><span class=o>-&gt;</span><span class=nn>pager</span><span class=o>-&gt;</span><span class=n>last_page</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$result</span> <span class=o>=</span> <span class=n>get_users_page</span><span class=p>(</span><span class=mi>1</span><span class=p>,</span> <span class=mi>5</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>say</span> <span class=s>&#34;ページ $result-&gt;{page} / $result-&gt;{last_page}&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>say</span> <span class=s>&#34;総件数: $result-&gt;{total}&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>for</span> <span class=k>my</span> <span class=nv>$user</span> <span class=p>(</span><span class=nv>@</span><span class=p>{</span><span class=nv>$result</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>users</span><span class=p>}})</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=n>say</span> <span class=s>&#34;  - &#34;</span><span class=p>,</span> <span class=nv>$user</span><span class=o>-&gt;</span><span class=n>name</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><h2 id=dbi-と-dbixclass-の使い分け>DBI と DBIx::Class の使い分け</h2><div class=table-wrapper><table><thead><tr><th>項目</th><th>DBI</th><th>DBIx::Class</th></tr></thead><tbody><tr><td>学習コスト</td><td>低い</td><td>高い</td></tr><tr><td>柔軟性</td><td>高い</td><td>中程度</td></tr><tr><td>生産性</td><td>中程度</td><td>高い</td></tr><tr><td>パフォーマンス</td><td>最速</td><td>やや遅い</td></tr><tr><td>保守性</td><td>中程度</td><td>高い</td></tr><tr><td>複雑なSQL</td><td>容易</td><td>難しい場合も</td></tr></tbody></table></div><p><strong>DBIを選ぶべき場合</strong>：</p><ul><li>シンプルなSQLで十分</li><li>パフォーマンスが最重要</li><li>複雑なSQLを直接書きたい</li><li>学習コストを抑えたい</li></ul><p><strong>DBIx::Classを選ぶべき場合</strong>：</p><ul><li>大規模なアプリケーション</li><li>リレーションシップが多い</li><li>オブジェクト指向的に扱いたい</li><li>保守性を重視</li></ul><h2 id=まとめ>まとめ</h2><p>Perlでのデータベース操作は、DBI の低レベルな制御から DBIx::Class の高レベルな抽象化まで、幅広い選択肢があります。</p><p>重要なポイント：</p><ol><li><strong>必ずプレースホルダを使う</strong> - SQLインジェクション対策は必須</li><li><strong>トランザクションを適切に使う</strong> - データの整合性を保つ</li><li><strong>用途に応じてツールを選ぶ</strong> - DBI と DBIx::Class の使い分け</li><li><strong>N+1問題に注意</strong> - DBIx::Class では prefetch を活用</li></ol><p>データベースアクセスは多くのアプリケーションの基盤です。適切なツールと手法を選択することで、安全で効率的なデータ操作を実現できます。</p></section><footer class=article-footer><section class=article-tags><a href=/tags/perl/>Perl</a>
+<a href=/tags/database/>Database</a>
+<a href=/tags/dbi/>Dbi</a>
+<a href=/tags/dbix-class/>Dbix-Class</a>
+<a href=/tags/orm/>Orm</a>
+<a href=/tags/sql/>Sql</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/01/20/002441/><div class=article-image><img src=/public_images/2026/sql-query-builder-series-image.jpg loading=lazy data-key data-hash=/public_images/2026/sql-query-builder-series-image.jpg></div><div class=article-details><h2 class=article-title>第1回 - 最小のSELECTクエリを作ろう（Perl SQLクエリビルダー入門）</h2></div></a></article><article class=has-image><a href=/2026/01/20/002657/><div class=article-image><img src=/public_images/2026/sql-query-builder-series-image.jpg loading=lazy data-key data-hash=/public_images/2026/sql-query-builder-series-image.jpg></div><div class=article-details><h2 class=article-title>【目次】PerlとMooで作るSQLクエリビルダー（全8回）</h2></div></a></article><article class=has-image><a href=/2026/01/20/002640/><div class=article-image><img src=/public_images/2026/sql-query-builder-series-image.jpg loading=lazy data-key data-hash=/public_images/2026/sql-query-builder-series-image.jpg></div><div class=article-details><h2 class=article-title>第8回 - バリデーションとテストで完成（Perl SQLクエリビルダー）</h2></div></a></article><article class=has-image><a href=/2026/01/20/002606/><div class=article-image><img src=/public_images/2026/sql-query-builder-series-image.jpg loading=lazy data-key data-hash=/public_images/2026/sql-query-builder-series-image.jpg></div><div class=article-details><h2 class=article-title>第6回 - JOINとORDER BYで複雑なクエリを構築（Perl SQL）</h2></div></a></article><article class=has-image><a href=/2026/01/20/002549/><div class=article-image><img src=/public_images/2026/sql-query-builder-series-image.jpg loading=lazy data-key data-hash=/public_images/2026/sql-query-builder-series-image.jpg></div><div class=article-details><h2 class=article-title>第5回 - プレースホルダーで安全なSQL（Perl セキュリティ）</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

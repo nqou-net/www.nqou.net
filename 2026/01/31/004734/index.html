@@ -1,0 +1,321 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="前回でアーキテクチャは完成しましたが、「動く」ことと「運用できる」ことは別物です。 本番環境で動かすボットには、予期せぬエラーや悪意ある操作に対する堅牢性が求められます。\n今回は、Mediatorパターンだからこそ実現できる、一元化されたエラーハンドリングとセキュリティ対策について解説します。\nhttps://www.nqou.net/2026/01/31/004717/ 設計パターンを疑え "><title>第8回：権限制御とエラーハンドリング【PerlでSlackボット指令センターを作る】</title><link rel=canonical href=https://www.nqou.net/2026/01/31/004734/><link rel=stylesheet href=/scss/style.min.6a692fd055deae459f2a9767f57f3855ba80cafd5041317f24f7360f6ca47cdf.css><meta property='og:title' content="第8回：権限制御とエラーハンドリング【PerlでSlackボット指令センターを作る】"><meta property='og:description' content="前回でアーキテクチャは完成しましたが、「動く」ことと「運用できる」ことは別物です。 本番環境で動かすボットには、予期せぬエラーや悪意ある操作に対する堅牢性が求められます。\n今回は、Mediatorパターンだからこそ実現できる、一元化されたエラーハンドリングとセキュリティ対策について解説します。\nhttps://www.nqou.net/2026/01/31/004717/ 設計パターンを疑え "><meta property='og:url' content='https://www.nqou.net/2026/01/31/004734/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='perl'><meta property='article:tag' content='moo'><meta property='article:tag' content='security'><meta property='article:tag' content='error-handling'><meta property='article:published_time' content='2026-01-31T00:47:34+09:00'><meta property='article:modified_time' content='2026-01-31T00:47:34+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/slack-bot-header.jpg'><meta name=twitter:title content="第8回：権限制御とエラーハンドリング【PerlでSlackボット指令センターを作る】"><meta name=twitter:description content="前回でアーキテクチャは完成しましたが、「動く」ことと「運用できる」ことは別物です。 本番環境で動かすボットには、予期せぬエラーや悪意ある操作に対する堅牢性が求められます。\n今回は、Mediatorパターンだからこそ実現できる、一元化されたエラーハンドリングとセキュリティ対策について解説します。\nhttps://www.nqou.net/2026/01/31/004717/ 設計パターンを疑え "><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/slack-bot-header.jpg'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/warehouse/><svg class="icon icon-tabler icon-tabler-warehouse" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 10l9-6 9 6"/><rect x="5" y="10" width="14" height="10" rx="2"/><rect x="10" y="14" width="4" height="6" rx="1"/><path d="M7 20v-4h2v4"/><path d="M15 20v-4h2v4"/></svg>
+<span>Warehouse</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#コマンドがクラッシュしたら>コマンドがクラッシュしたら？</a></li><li><a href=#エラー通知用observer>エラー通知用Observer</a></li><li><a href=#タイムアウト処理>タイムアウト処理</a></li><li><a href=#セキュリティslack-user-idマッピング>セキュリティ：Slack User IDマッピング</a></li><li><a href=#今回の完成コード>今回の完成コード</a></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/01/31/004734/><img src=/public_images/2026/slack-bot-header.jpg loading=lazy alt="Featured image of post 第8回：権限制御とエラーハンドリング【PerlでSlackボット指令センターを作る】"></a></div><div class=article-details><div class=article-title-wrapper><h2 class=article-title><a href=/2026/01/31/004734/>第8回：権限制御とエラーハンドリング【PerlでSlackボット指令センターを作る】</a></h2></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>1月 31, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 4分</time></div></footer></div></header><section class=article-content><p>前回でアーキテクチャは完成しましたが、「動く」ことと「運用できる」ことは別物です。
+本番環境で動かすボットには、予期せぬエラーや悪意ある操作に対する堅牢性が求められます。</p><p>今回は、Mediatorパターンだからこそ実現できる、一元化されたエラーハンドリングとセキュリティ対策について解説します。</p><p><img src=/public_images/2026/slack-bot-ep8.png loading=lazy alt=セキュリティゲート></p><div class=linkcard><a class=linkcard-a href=https://www.nqou.net/2026/01/31/004717/ target=_blank rel="noopener noreferrer nofollow" title=https://www.nqou.net/2026/01/31/004717/ aria-label=https://www.nqou.net/2026/01/31/004717/><div class=linkcard-content><div class=linkcard-title>https://www.nqou.net/2026/01/31/004717/</div><div class=linkcard-meta><img class=linkcard-favicon src=https://www.nqou.net/favicon.ico alt onerror='this.style.display="none"'><span class=linkcard-domain>設計パターンを疑え</span></div></div></a></div><h2 id=コマンドがクラッシュしたら>コマンドがクラッシュしたら？</h2><p>今の実装では、もし <code>execute</code> メソッドの中で <code>die</code> が発生すると、ボット全体のプロセスが死んでしまったり、ユーザーに何も返事が返ってこなかったりします。これを防ぎましょう。</p><p>Mediatorの <code>dispatch</code> メソッドを修正し、<code>eval</code> (または <code>Try::Tiny</code>) でコマンド実行を包みます。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>use</span> <span class=nn>Try::Tiny</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>dispatch</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$text</span><span class=p>,</span> <span class=nv>$user_role</span><span class=p>,</span> <span class=nv>$user_name</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=k>my</span> <span class=nv>$cmd</span> <span class=p>(</span><span class=nv>@</span><span class=p>{</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>commands</span><span class=p>})</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=k>my</span> <span class=nv>$args</span> <span class=o>=</span> <span class=nv>$cmd</span><span class=o>-&gt;</span><span class=n>match</span><span class=p>(</span><span class=nv>$text</span><span class=p>))</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            
+</span></span><span class=line><span class=cl>            <span class=c1># ... 権限チェック ...</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>            <span class=k>my</span> <span class=nv>$result_msg</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>            <span class=n>try</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>                <span class=c1># 実行をトライ</span>
+</span></span><span class=line><span class=cl>                <span class=nv>$result_msg</span> <span class=o>=</span> <span class=nv>$cmd</span><span class=o>-&gt;</span><span class=n>execute</span><span class=p>(</span><span class=nv>$args</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>                
+</span></span><span class=line><span class=cl>                <span class=c1># 成功イベント</span>
+</span></span><span class=line><span class=cl>                <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>notify_observers</span><span class=p>({</span>
+</span></span><span class=line><span class=cl>                    <span class=n>type</span> <span class=o>=&gt;</span> <span class=s>&#39;success&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>                    <span class=c1># ...</span>
+</span></span><span class=line><span class=cl>                <span class=p>});</span>
+</span></span><span class=line><span class=cl>            <span class=p>}</span>
+</span></span><span class=line><span class=cl>            <span class=n>catch</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>                <span class=c1># エラー捕捉</span>
+</span></span><span class=line><span class=cl>                <span class=k>my</span> <span class=nv>$error</span> <span class=o>=</span> <span class=nv>$_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>                <span class=nv>$result_msg</span> <span class=o>=</span> <span class=s>&#34;💥 コマンド実行中にエラーが発生しました: $error&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>                
+</span></span><span class=line><span class=cl>                <span class=c1># エラーイベント</span>
+</span></span><span class=line><span class=cl>                <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>notify_observers</span><span class=p>({</span>
+</span></span><span class=line><span class=cl>                    <span class=n>type</span>    <span class=o>=&gt;</span> <span class=s>&#39;error&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>                    <span class=n>command</span> <span class=o>=&gt;</span> <span class=nb>ref</span><span class=p>(</span><span class=nv>$cmd</span><span class=p>),</span>
+</span></span><span class=line><span class=cl>                    <span class=n>error</span>   <span class=o>=&gt;</span> <span class=nv>$error</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>                    <span class=n>user</span>    <span class=o>=&gt;</span> <span class=nv>$user_name</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>                <span class=p>});</span>
+</span></span><span class=line><span class=cl>            <span class=p>};</span>
+</span></span><span class=line><span class=cl>            
+</span></span><span class=line><span class=cl>            <span class=k>return</span> <span class=nv>$result_msg</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=c1># ...</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>このように一箇所修正するだけで、すべてのコマンドに対してエラーハンドリングが適用されます。これがMediatorの強みです。</p><h2 id=エラー通知用observer>エラー通知用Observer</h2><p>エラーが発生したときだけ、開発者チームのチャンネル（<code>#dev-alerts</code>）にメンションを飛ばしたいとします。
+これも新しいObserverを作るだけで実現できます。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Bot::Observer::ErrorHandler</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>with</span> <span class=s>&#39;Bot::Observer::Role&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>update</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$event</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=c1># エラーイベント以外は無視</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=k>unless</span> <span class=nv>$event</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>type</span><span class=p>}</span> <span class=ow>eq</span> <span class=s>&#39;error&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$alert_msg</span> <span class=o>=</span> <span class=nb>sprintf</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=s>&#34;🚨 *Panic Alert*\nUser: %s\nCommand: %s\nError: ```%s```&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$event</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>user</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$event</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>command</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$event</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>error</span><span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=c1># 開発者チャンネルへ通知</span>
+</span></span><span class=line><span class=cl>    <span class=n>send_slack_alert</span><span class=p>(</span><span class=nv>$alert_msg</span><span class=p>);</span> 
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><h2 id=タイムアウト処理>タイムアウト処理</h2><p>デプロイコマンドなどが応答しなくなり、無限ループに入ったら？
+Perlの <code>Sys::SigAction</code> や <code>alarm</code> を使って、コマンド実行に制限時間を設けることも、Mediatorなら一箇所で済みます。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>use</span> <span class=nn>Sys::SigAction</span> <span class=sx>qw( set_sig_handler )</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># ... dispatch内で ...</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>try</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$timeout</span> <span class=o>=</span> <span class=mi>30</span><span class=p>;</span> <span class=c1># 秒</span>
+</span></span><span class=line><span class=cl>    <span class=nb>eval</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=nb>local</span> <span class=nv>$SIG</span><span class=p>{</span><span class=n>ALRM</span><span class=p>}</span> <span class=o>=</span> <span class=k>sub</span> <span class=p>{</span> <span class=nb>die</span> <span class=s>&#34;Timeout\n&#34;</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>        <span class=nb>alarm</span> <span class=nv>$timeout</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$result_msg</span> <span class=o>=</span> <span class=nv>$cmd</span><span class=o>-&gt;</span><span class=n>execute</span><span class=p>(</span><span class=nv>$args</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=nb>alarm</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=vg>$@</span><span class=p>)</span> <span class=p>{</span> <span class=nb>die</span> <span class=vg>$@</span> <span class=p>};</span> <span class=c1># エラー再送出</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=n>catch</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=sr>/Timeout/</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$result_msg</span> <span class=o>=</span> <span class=s>&#34;⏱️ 処理がタイムアウトしました (${timeout}秒)&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=c1># ...</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span></code></pre></td></tr></table></div></div><h2 id=セキュリティslack-user-idマッピング>セキュリティ：Slack User IDマッピング</h2><p>第5回でさらっと <code>user_role</code> を引数で渡していましたが、実際にはSlackのUser ID（例: <code>U012ABCDEF</code>）から権限を解決する必要があります。</p><p>これは、Webhookを受け取る層（Controller）で行うのが適切です。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>my</span> <span class=nv>%USER_ROLES</span> <span class=o>=</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=s>&#39;U01234567&#39;</span> <span class=o>=&gt;</span> <span class=s>&#39;admin&#39;</span><span class=p>,</span>  <span class=c1># nobu</span>
+</span></span><span class=line><span class=cl>    <span class=s>&#39;U99999999&#39;</span> <span class=o>=&gt;</span> <span class=s>&#39;guest&#39;</span><span class=p>,</span>  <span class=c1># other</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># Webhookハンドラ内</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$slack_user_id</span> <span class=o>=</span> <span class=nv>$payload</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>event</span><span class=p>}</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>user</span><span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$role</span> <span class=o>=</span> <span class=nv>$USER_ROLES</span><span class=p>{</span><span class=nv>$slack_user_id</span><span class=p>}</span> <span class=sr>//</span> <span class=s>&#39;guest&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$response</span> <span class=o>=</span> <span class=nv>$mediator</span><span class=o>-&gt;</span><span class=n>dispatch</span><span class=p>(</span><span class=nv>$text</span><span class=p>,</span> <span class=nv>$role</span><span class=p>,</span> <span class=nv>$slack_user_id</span><span class=p>);</span>
+</span></span></code></pre></td></tr></table></div></div><p>このように、「認証（誰か）」は入り口で、「認可（何ができるか）」はMediatorで行うという役割分担を意識しましょう。</p><p>次回はいよいよ最終回。これまでのすべてを統合し、実際に動く「指令センター」としての完成形をお見せします。
+そして、この設計が私たちの開発チームに何をもたらしたのか、ChatOpsの真の価値について語ります。</p><div class=linkcard><a class=linkcard-a href=https://www.nqou.net/2026/01/31/004751/ target=_blank rel="noopener noreferrer nofollow" title=https://www.nqou.net/2026/01/31/004751/ aria-label=https://www.nqou.net/2026/01/31/004751/><div class=linkcard-content><div class=linkcard-title>https://www.nqou.net/2026/01/31/004751/</div><div class=linkcard-meta><img class=linkcard-favicon src=https://www.nqou.net/favicon.ico alt onerror='this.style.display="none"'><span class=linkcard-domain>設計パターンを疑え</span></div></div></a></div><h2 id=今回の完成コード>今回の完成コード</h2><p>エラーハンドリングとセキュリティ対策を追加した <code>Bot::CommandMediator</code> です。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span><span class=lnt>51
+</span><span class=lnt>52
+</span><span class=lnt>53
+</span><span class=lnt>54
+</span><span class=lnt>55
+</span><span class=lnt>56
+</span><span class=lnt>57
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Bot::CommandMediator</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Try::Tiny</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Sys::SigAction</span> <span class=sx>qw( set_sig_handler )</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=c1># ... プロパティ定義 ...</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>dispatch</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$text</span><span class=p>,</span> <span class=nv>$user_role</span><span class=p>,</span> <span class=nv>$user_name</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=k>my</span> <span class=nv>$cmd</span> <span class=p>(</span><span class=nv>@</span><span class=p>{</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>commands</span><span class=p>})</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=k>my</span> <span class=nv>$args</span> <span class=o>=</span> <span class=nv>$cmd</span><span class=o>-&gt;</span><span class=n>match</span><span class=p>(</span><span class=nv>$text</span><span class=p>))</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            
+</span></span><span class=line><span class=cl>            <span class=k>if</span> <span class=p>(</span><span class=nv>$cmd</span><span class=o>-&gt;</span><span class=n>can</span><span class=p>(</span><span class=s>&#39;required_role&#39;</span><span class=p>)</span> <span class=o>&amp;&amp;</span> <span class=nv>$cmd</span><span class=o>-&gt;</span><span class=n>required_role</span> <span class=ow>ne</span> <span class=nv>$user_role</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>                <span class=k>return</span> <span class=s>&#34;⛔ 権限が不足しています（必要権限: &#34;</span> <span class=o>.</span> <span class=nv>$cmd</span><span class=o>-&gt;</span><span class=n>required_role</span> <span class=o>.</span> <span class=s>&#34;）&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>            <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>            <span class=k>my</span> <span class=nv>$result_msg</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>            <span class=n>try</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>                <span class=k>my</span> <span class=nv>$timeout</span> <span class=o>=</span> <span class=mi>30</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>                <span class=nb>eval</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>                    <span class=nb>local</span> <span class=nv>$SIG</span><span class=p>{</span><span class=n>ALRM</span><span class=p>}</span> <span class=o>=</span> <span class=k>sub</span> <span class=p>{</span> <span class=nb>die</span> <span class=s>&#34;Timeout\n&#34;</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>                    <span class=nb>alarm</span> <span class=nv>$timeout</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>                    <span class=nv>$result_msg</span> <span class=o>=</span> <span class=nv>$cmd</span><span class=o>-&gt;</span><span class=n>execute</span><span class=p>(</span><span class=nv>$args</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>                    <span class=nb>alarm</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>                <span class=p>};</span>
+</span></span><span class=line><span class=cl>                <span class=k>if</span> <span class=p>(</span><span class=vg>$@</span><span class=p>)</span> <span class=p>{</span> <span class=nb>die</span> <span class=vg>$@</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>                <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>notify_observers</span><span class=p>({</span>
+</span></span><span class=line><span class=cl>                    <span class=n>type</span>         <span class=o>=&gt;</span> <span class=s>&#39;success&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>                    <span class=n>command_name</span> <span class=o>=&gt;</span> <span class=nb>ref</span><span class=p>(</span><span class=nv>$cmd</span><span class=p>),</span>
+</span></span><span class=line><span class=cl>                    <span class=n>user</span>         <span class=o>=&gt;</span> <span class=nv>$user_name</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>                    <span class=n>message</span>      <span class=o>=&gt;</span> <span class=nv>$result_msg</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>                <span class=p>});</span>
+</span></span><span class=line><span class=cl>            <span class=p>}</span>
+</span></span><span class=line><span class=cl>            <span class=n>catch</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>                <span class=k>my</span> <span class=nv>$error</span> <span class=o>=</span> <span class=nv>$_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>                <span class=k>if</span> <span class=p>(</span><span class=nv>$error</span> <span class=o>=~</span><span class=sr> /Timeout/</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>                    <span class=nv>$result_msg</span> <span class=o>=</span> <span class=s>&#34;⏱️ 処理がタイムアウトしました&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>                    <span class=nv>$error</span> <span class=o>=</span> <span class=s>&#34;Timeout&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>                <span class=p>}</span> <span class=k>else</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>                    <span class=nv>$result_msg</span> <span class=o>=</span> <span class=s>&#34;💥 エラーが発生しました: $error&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>                <span class=p>}</span>
+</span></span><span class=line><span class=cl>                
+</span></span><span class=line><span class=cl>                <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>notify_observers</span><span class=p>({</span>
+</span></span><span class=line><span class=cl>                    <span class=n>type</span>    <span class=o>=&gt;</span> <span class=s>&#39;error&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>                    <span class=n>command</span> <span class=o>=&gt;</span> <span class=nb>ref</span><span class=p>(</span><span class=nv>$cmd</span><span class=p>),</span>
+</span></span><span class=line><span class=cl>                    <span class=n>error</span>   <span class=o>=&gt;</span> <span class=nv>$error</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>                    <span class=n>user</span>    <span class=o>=&gt;</span> <span class=nv>$user_name</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>                <span class=p>});</span>
+</span></span><span class=line><span class=cl>            <span class=p>};</span>
+</span></span><span class=line><span class=cl>            
+</span></span><span class=line><span class=cl>            <span class=k>return</span> <span class=nv>$result_msg</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=s>&#34;不明なコマンドです。&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div></section><footer class=article-footer><section class=article-tags><a href=/tags/perl/>Perl</a>
+<a href=/tags/moo/>Moo</a>
+<a href=/tags/security/>Security</a>
+<a href=/tags/error-handling/>Error-Handling</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/01/20/002549/><div class=article-image><img src=/public_images/2026/sql-query-builder-series-image.jpg loading=lazy data-key data-hash=/public_images/2026/sql-query-builder-series-image.jpg></div><div class=article-details><h2 class=article-title>第5回 - プレースホルダーで安全なSQL（Perl セキュリティ）</h2></div></a></article><article class=has-image><a href=/2026/01/18/061431/><div class=article-image><img src=/public_images/2026/honeypot-intrusion-radar-series-image.jpg loading=lazy data-key data-hash=/public_images/2026/honeypot-intrusion-radar-series-image.jpg></div><div class=article-details><h2 class=article-title>第9回-完成！侵入レーダー司令室 - Perlでハニーポット侵入レーダーを作ろう</h2></div></a></article><article class=has-image><a href=/2026/01/18/061215/><div class=article-image><img src=/public_images/2026/honeypot-intrusion-radar-series-image.jpg loading=lazy data-key data-hash=/public_images/2026/honeypot-intrusion-radar-series-image.jpg></div><div class=article-details><h2 class=article-title>第1回-侵入ログを光らせろ - Perlでハニーポット侵入レーダーを作ろう</h2></div></a></article><article class=has-image><a href=/2026/02/13/070705/><div class=article-image><img src=/public_images/2026/code-doctor-prototype/header.webp loading=lazy data-key data-hash=/public_images/2026/code-doctor-prototype/header.webp></div><div class=article-details><h2 class=article-title>コードドクター【Prototype】遺伝子異常の連鎖〜テンプレ完璧症候群と原型の処方箋〜</h2></div></a></article><article class=has-image><a href=/2026/02/12/070705/><div class=article-image><img src=/public_images/2026/code-doctor-builder/header.webp loading=lazy data-key data-hash=/public_images/2026/code-doctor-builder/header.webp></div><div class=article-details><h2 class=article-title>コードドクター【Builder】壊死性筋膜炎〜コピペ壊疽と知識の処方箋〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

@@ -1,0 +1,827 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="Perlで秘密のメッセンジャーを作りながらObserver・Decorator・Commandパターンを実践。暗号化・通知・操作履歴の機能を段階的に実装し、3つのGoFデザインパターンの組み合わせ方を体感で学びます。"><title>PerlとMooで秘密のメッセンジャーを作ろう 〜Observer・Decorator・Commandパターンで暗号通信ツールを構築</title><link rel=canonical href=https://www.nqou.net/2026/02/03/004116/><link rel=stylesheet href=/scss/style.min.6a692fd055deae459f2a9767f57f3855ba80cafd5041317f24f7360f6ca47cdf.css><meta property='og:title' content="PerlとMooで秘密のメッセンジャーを作ろう 〜Observer・Decorator・Commandパターンで暗号通信ツールを構築"><meta property='og:description' content="Perlで秘密のメッセンジャーを作りながらObserver・Decorator・Commandパターンを実践。暗号化・通知・操作履歴の機能を段階的に実装し、3つのGoFデザインパターンの組み合わせ方を体感で学びます。"><meta property='og:url' content='https://www.nqou.net/2026/02/03/004116/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='perl'><meta property='article:tag' content='moo'><meta property='article:tag' content='perl-design-patterns'><meta property='article:tag' content='observer-pattern'><meta property='article:tag' content='decorator-pattern'><meta property='article:tag' content='command-pattern'><meta property='article:tag' content='oop'><meta property='article:tag' content='encryption'><meta property='article:published_time' content='2026-02-03T00:41:16+09:00'><meta property='article:modified_time' content='2026-02-03T00:41:16+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/observer-decorator-command-series-image.jpg'><meta name=twitter:title content="PerlとMooで秘密のメッセンジャーを作ろう 〜Observer・Decorator・Commandパターンで暗号通信ツールを構築"><meta name=twitter:description content="Perlで秘密のメッセンジャーを作りながらObserver・Decorator・Commandパターンを実践。暗号化・通知・操作履歴の機能を段階的に実装し、3つのGoFデザインパターンの組み合わせ方を体感で学びます。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/observer-decorator-command-series-image.jpg'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/warehouse/><svg class="icon icon-tabler icon-tabler-warehouse" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 10l9-6 9 6"/><rect x="5" y="10" width="14" height="10" rx="2"/><rect x="10" y="14" width="4" height="6" rx="1"/><path d="M7 20v-4h2v4"/><path d="M15 20v-4h2v4"/></svg>
+<span>Warehouse</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#この記事で作るもの>この記事で作るもの</a></li><li><a href=#習得できるパターン>習得できるパターン</a></li><li><a href=#対象読者>対象読者</a></li><li><a href=#技術スタック>技術スタック</a></li><li><a href=#第1章-まずはメッセージを送ろう>第1章: まずはメッセージを送ろう</a><ol><li><a href=#今回の目標>今回の目標</a></li><li><a href=#動く基本クラスの実装>動く：基本クラスの実装</a></li><li><a href=#動作確認>動作確認</a></li><li><a href=#今回のポイント>今回のポイント</a></li></ol></li><li><a href=#第2章-暗号化したいでも>第2章: 暗号化したい！でも…</a><ol><li><a href=#前章の振り返り>前章の振り返り</a></li><li><a href=#今回の目標-1>今回の目標</a></li><li><a href=#破綻既存コードへの暗号化追加>破綻：既存コードへの暗号化追加</a></li><li><a href=#問題点の整理>問題点の整理</a></li><li><a href=#今回のポイント-1>今回のポイント</a></li></ol></li><li><a href=#第3章-レイヤーで包もう>第3章: レイヤーで包もう</a><ol><li><a href=#前章の振り返り-1>前章の振り返り</a></li><li><a href=#今回の目標-2>今回の目標</a></li><li><a href=#decoratorパターンとは>Decoratorパターンとは</a></li><li><a href=#完成encryptorrole-の実装>完成：Encryptor::Role の実装</a></li><li><a href=#xorencryptor-の実装>XorEncryptor の実装</a></li><li><a href=#改善されたmessagebox>改善されたMessageBox</a></li><li><a href=#今回のポイント-2>今回のポイント</a></li></ol></li><li><a href=#第4章-暗号を重ねる>第4章: 暗号を重ねる</a><ol><li><a href=#前章の振り返り-2>前章の振り返り</a></li><li><a href=#今回の目標-3>今回の目標</a></li><li><a href=#動くbase64decorator-の追加>動く：Base64Decorator の追加</a></li><li><a href=#完成3層のdecoratorチェーン>完成：3層のDecoratorチェーン</a></li><li><a href=#レイヤー構成>レイヤー構成</a></li><li><a href=#今回のポイント-3>今回のポイント</a></li></ol></li><li><a href=#第5章-新着メッセージを見逃すな>第5章: 新着メッセージを見逃すな</a><ol><li><a href=#前章の振り返り-3>前章の振り返り</a></li><li><a href=#今回の目標-4>今回の目標</a></li><li><a href=#破綻ポーリング実装>破綻：ポーリング実装</a></li><li><a href=#問題点の整理-1>問題点の整理</a></li><li><a href=#今回のポイント-4>今回のポイント</a></li></ol></li><li><a href=#第6章-監視者を配置せよ>第6章: 監視者を配置せよ</a><ol><li><a href=#前章の振り返り-4>前章の振り返り</a></li><li><a href=#今回の目標-5>今回の目標</a></li><li><a href=#observerパターンとは>Observerパターンとは</a></li><li><a href=#完成subjectrole-と-observer-の実装>完成：Subject::Role と Observer の実装</a></li><li><a href=#使用例>使用例</a></li><li><a href=#今回のポイント-5>今回のポイント</a></li></ol></li><li><a href=#第7章-操作を記録したい>第7章: 操作を記録したい</a><ol><li><a href=#前章の振り返り-5>前章の振り返り</a></li><li><a href=#今回の目標-6>今回の目標</a></li><li><a href=#破綻ベタ書き履歴>破綻：ベタ書き履歴</a></li><li><a href=#問題点の整理-2>問題点の整理</a></li><li><a href=#今回のポイント-6>今回のポイント</a></li></ol></li><li><a href=#第8章-命令をオブジェクトに>第8章: 命令をオブジェクトに</a><ol><li><a href=#前章の振り返り-6>前章の振り返り</a></li><li><a href=#今回の目標-7>今回の目標</a></li><li><a href=#commandパターンとは>Commandパターンとは</a></li><li><a href=#完成commandrole-と実装>完成：Command::Role と実装</a></li><li><a href=#commandhistory>CommandHistory</a></li><li><a href=#今回のポイント-7>今回のポイント</a></li></ol></li><li><a href=#第9章-完成秘密のメッセンジャー>第9章: 完成！秘密のメッセンジャー</a><ol><li><a href=#前章までの振り返り>前章までの振り返り</a></li><li><a href=#今回の目標-8>今回の目標</a></li><li><a href=#完成版アーキテクチャ>完成版アーキテクチャ</a></li><li><a href=#完成版コード>完成版コード</a></li><li><a href=#デモ実行>デモ実行</a></li></ol></li><li><a href=#まとめ>まとめ</a><ol><li><a href=#学んだこと>学んだこと</a></li><li><a href=#パターンの選択基準>パターンの選択基準</a></li><li><a href=#次のステップ>次のステップ</a></li><li><a href=#完成コード>完成コード</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/02/03/004116/><img src=/public_images/2026/observer-decorator-command-series-image.jpg loading=lazy alt="Featured image of post PerlとMooで秘密のメッセンジャーを作ろう 〜Observer・Decorator・Commandパターンで暗号通信ツールを構築"></a></div><div class=article-details><div class=article-title-wrapper><h2 class=article-title><a href=/2026/02/03/004116/>PerlとMooで秘密のメッセンジャーを作ろう 〜Observer・Decorator・Commandパターンで暗号通信ツールを構築</a></h2><h3 class=article-subtitle>Perlで秘密のメッセンジャーを作りながらObserver・Decorator・Commandパターンを実践。暗号化・通知・操作履歴の機能を段階的に実装し、3つのGoFデザインパターンの組み合わせ方を体感で学びます。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>2月 03, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 10分</time></div></footer></div></header><section class=article-content><p><img src=/public_images/2026/secret-messenger/header.png loading=lazy alt=秘密のメッセンジャー></p><blockquote><p><strong>🔐 暗号通信ツールを作りながらデザインパターンを学ぶ</strong></p><p>「デザインパターンは知ってるけど、いつ使うかわからない」
+「複数のパターンをどう組み合わせればいいの？」</p><p>そんな悩みを解決します。この記事では、<strong>秘密のメッセンジャー</strong>を作りながら、3つのGoFデザインパターンを実践的に学びます。</p></blockquote><h2 id=この記事で作るもの>この記事で作るもの</h2><p>友人と秘密のメッセージをやり取りできる暗号通信ツールを構築します。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>Alice → [暗号化] → MessageBox → [復号] → Bob
+</span></span><span class=line><span class=cl>                        ↓
+</span></span><span class=line><span class=cl>              自動通知 &amp; 操作履歴
+</span></span></code></pre></td></tr></table></div></div><p><strong>完成形の機能</strong>:</p><ul><li>📩 <strong>メッセージ送受信</strong>: シンプルなメールボックス</li><li>🔐 <strong>多層暗号化</strong>: XOR → Base64 の暗号化レイヤー</li><li>🔔 <strong>自動通知</strong>: 新着メッセージ到着時に通知</li><li>↩️ <strong>Undo機能</strong>: 送信/削除の取り消し</li></ul><h2 id=習得できるパターン>習得できるパターン</h2><div class=table-wrapper><table><thead><tr><th>パターン</th><th>役割</th><th>本記事での実装</th></tr></thead><tbody><tr><td><strong>Decorator</strong></td><td>機能の動的追加</td><td>暗号化レイヤーの積み重ね</td></tr><tr><td><strong>Observer</strong></td><td>状態変化の通知</td><td>新着メッセージの自動通知</td></tr><tr><td><strong>Command</strong></td><td>操作のオブジェクト化</td><td>履歴管理とUndo機能</td></tr></tbody></table></div><h2 id=対象読者>対象読者</h2><ul><li>Perlの基本構文を理解している方</li><li>オブジェクト指向の基礎（クラス、継承）を知っている方</li><li>デザインパターンを「使える」レベルにしたい方</li></ul><h2 id=技術スタック>技術スタック</h2><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>           <span class=c1># Perl 5.36以降（signatures対応）</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>             <span class=c1># 軽量オブジェクト指向フレームワーク</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>namespace::clean</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>MIME::Base64</span><span class=p>;</span>    <span class=c1># Base64エンコード用</span>
+</span></span></code></pre></td></tr></table></div></div><hr><h2 id=第1章-まずはメッセージを送ろう>第1章: まずはメッセージを送ろう</h2><h3 id=今回の目標>今回の目標</h3><ul><li><code>Message</code>クラスと<code>MessageBox</code>クラスを作成</li><li>シンプルなメッセージ送受信を実現</li></ul><h3 id=動く基本クラスの実装>動く：基本クラスの実装</h3><p>まずは最もシンプルな形から始めましょう。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Message</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>namespace::clean</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=s>&#39;sender&#39;</span>    <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=s>&#39;recipient&#39;</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=s>&#39;body&#39;</span>      <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=s>&#39;timestamp&#39;</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=nb>time</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>format</span><span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nb>sprintf</span><span class=p>(</span><span class=s>&#34;[%s] %s -&gt; %s: %s&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=nb>scalar</span><span class=p>(</span><span class=nb>localtime</span><span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>timestamp</span><span class=p>)),</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>sender</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>recipient</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>body</span>
+</span></span><span class=line><span class=cl>        <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>MessageBox</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>namespace::clean</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=s>&#39;owner&#39;</span>    <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=s>&#39;messages&#39;</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=o>[]</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>receive</span><span class=p>($self, $message) {</span>
+</span></span><span class=line><span class=cl>        <span class=nb>push</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>messages</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>,</span> <span class=nv>$message</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>get_all</span><span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>messages</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*;</span>
+</span></span><span class=line><span class=cl>    <span class=err>}</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=nv>sub</span> <span class=n>count</span><span class=p>(</span><span class=nv>$self</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nb>scalar</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>messages</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*;</span>
+</span></span><span class=line><span class=cl>    <span class=err>}</span>
+</span></span><span class=line><span class=cl><span class=err>}</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=動作確認>動作確認</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>my</span> <span class=nv>$alice_box</span> <span class=o>=</span> <span class=nn>MessageBox</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>owner</span> <span class=o>=&gt;</span> <span class=s>&#39;Alice&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$bob_box</span>   <span class=o>=</span> <span class=nn>MessageBox</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>owner</span> <span class=o>=&gt;</span> <span class=s>&#39;Bob&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$msg</span> <span class=o>=</span> <span class=nn>Message</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>sender</span>    <span class=o>=&gt;</span> <span class=s>&#39;Alice&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>recipient</span> <span class=o>=&gt;</span> <span class=s>&#39;Bob&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>body</span>      <span class=o>=&gt;</span> <span class=s>&#39;こんにちは、ボブ！&#39;</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$bob_box</span><span class=o>-&gt;</span><span class=n>receive</span><span class=p>(</span><span class=nv>$msg</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>say</span> <span class=s>&#34;ボブのメッセージボックス: &#34;</span><span class=p>,</span> <span class=nv>$bob_box</span><span class=o>-&gt;</span><span class=n>count</span><span class=p>,</span> <span class=s>&#34;件&#34;</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=今回のポイント>今回のポイント</h3><ul><li><code>Message</code>は不変（immutable）なデータオブジェクト</li><li><code>MessageBox</code>は単純なコレクション管理</li><li>まだ暗号化なし = <strong>平文そのまま</strong></li></ul><hr><h2 id=第2章-暗号化したいでも>第2章: 暗号化したい！でも…</h2><h3 id=前章の振り返り>前章の振り返り</h3><p>第1章では基本的なメッセージ送受信を実装しました。しかし、メッセージは平文のまま保存されています。秘密のメッセンジャーなのに、これでは秘密になりません！</p><h3 id=今回の目標-1>今回の目標</h3><ul><li>XOR暗号を追加しようとする</li><li>既存コードの変更が必要になり<strong>破綻</strong>を体験</li></ul><h3 id=破綻既存コードへの暗号化追加>破綻：既存コードへの暗号化追加</h3><p>暗号化を追加しようとすると、こうなってしまいます：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>MessageBox</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>namespace::clean</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=s>&#39;owner&#39;</span>        <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=s>&#39;messages&#39;</span>     <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=o>[]</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=s>&#39;use_encrypt&#39;</span>  <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=mi>0</span><span class=p>);</span>  <span class=c1># 暗号化フラグ追加</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=s>&#39;encrypt_key&#39;</span>  <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=mi>42</span><span class=p>);</span> <span class=c1># 暗号化キー追加</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>receive</span><span class=p>($self, $message) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$body</span> <span class=o>=</span> <span class=nv>$message</span><span class=o>-&gt;</span><span class=n>body</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>use_encrypt</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$body</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_xor_encrypt</span><span class=p>(</span><span class=nv>$body</span><span class=p>);</span>  <span class=c1># 暗号化ロジック混入</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=c1># ... 保存処理</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>get_all</span><span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>        <span class=c1># 復号ロジックも必要に...</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>_xor_encrypt</span><span class=p>($self, $text) {</span>
+</span></span><span class=line><span class=cl>        <span class=c1># 暗号化メソッドがMessageBoxに混在</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=問題点の整理>問題点の整理</h3><div class=table-wrapper><table><thead><tr><th>問題</th><th>説明</th></tr></thead><tbody><tr><td><strong>クラスの肥大化</strong></td><td>MessageBoxが暗号化の責務まで持つ</td></tr><tr><td><strong>OCP違反</strong></td><td>新しい暗号方式を追加するたびにMessageBoxを変更</td></tr><tr><td><strong>テスト困難</strong></td><td>暗号化とメールボックス機能が分離できない</td></tr><tr><td><strong>再利用不可</strong></td><td>暗号化ロジックを他で使えない</td></tr></tbody></table></div><blockquote><p><strong>OCP（開放閉鎖の原則）</strong>: 拡張に対して開いていて、修正に対して閉じているべき</p></blockquote><h3 id=今回のポイント-1>今回のポイント</h3><ul><li>「動くコード」と「良いコード」は違う</li><li>責務の分離ができていないと拡張時に破綻する</li><li>→ <strong>Decoratorパターン</strong>で解決へ</li></ul><hr><h2 id=第3章-レイヤーで包もう>第3章: レイヤーで包もう</h2><h3 id=前章の振り返り-1>前章の振り返り</h3><p>暗号化を追加しようとしたら、MessageBoxクラスが肥大化して破綻しました。責務の分離が必要です。</p><h3 id=今回の目標-2>今回の目標</h3><ul><li><strong>Decoratorパターン</strong>を導入</li><li>暗号化をMessageBoxから分離</li></ul><h3 id=decoratorパターンとは>Decoratorパターンとは</h3><p><img src=/public_images/2026/secret-messenger/decorator-layers.png loading=lazy alt=Decoratorパターンの概念図：暗号化レイヤーの積み重ね></p><pre class=mermaid>
+	classDiagram
+    class Encryptor {
+        &lt;&lt;interface&gt;&gt;
+        +encrypt(text)
+        +decrypt(text)
+    }
+    class NullEncryptor {
+        +encrypt(text)
+        +decrypt(text)
+    }
+    class XorEncryptor {
+        -key: int
+        +encrypt(text)
+        +decrypt(text)
+    }
+    Encryptor &lt;|.. NullEncryptor
+    Encryptor &lt;|.. XorEncryptor
+    XorEncryptor --&gt; Encryptor : wrapped
+</pre><h3 id=完成encryptorrole-の実装>完成：Encryptor::Role の実装</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Encryptor::Role</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo::Role</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>namespace::clean</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=n>requires</span> <span class=s>&#39;encrypt&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>requires</span> <span class=s>&#39;decrypt&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=s>&#39;wrapped&#39;</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>predicate</span> <span class=o>=&gt;</span> <span class=s>&#39;has_wrapped&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>process_encrypt</span><span class=p>($self, $text) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$result</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>encrypt</span><span class=p>(</span><span class=nv>$text</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>has_wrapped</span> 
+</span></span><span class=line><span class=cl>            <span class=p>?</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>wrapped</span><span class=o>-&gt;</span><span class=n>process_encrypt</span><span class=p>(</span><span class=nv>$result</span><span class=p>)</span> 
+</span></span><span class=line><span class=cl>            <span class=p>:</span> <span class=nv>$result</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>process_decrypt</span><span class=p>($self, $text) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$result</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>has_wrapped</span> 
+</span></span><span class=line><span class=cl>            <span class=p>?</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>wrapped</span><span class=o>-&gt;</span><span class=n>process_decrypt</span><span class=p>(</span><span class=nv>$text</span><span class=p>)</span> 
+</span></span><span class=line><span class=cl>            <span class=p>:</span> <span class=nv>$text</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>decrypt</span><span class=p>(</span><span class=nv>$result</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=xorencryptor-の実装>XorEncryptor の実装</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>XorEncryptor</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>with</span> <span class=s>&#39;Encryptor::Role&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>namespace::clean</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=s>&#39;key&#39;</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=mi>42</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>encrypt</span><span class=p>($self, $text) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nb>join</span> <span class=s>&#39;&#39;</span><span class=p>,</span> <span class=nb>map</span> <span class=p>{</span> <span class=nb>chr</span><span class=p>(</span><span class=nb>ord</span><span class=p>(</span><span class=nv>$_</span><span class=p>)</span> <span class=o>^</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>key</span><span class=p>)</span> <span class=p>}</span> <span class=nb>split</span> <span class=sr>//</span><span class=p>,</span> <span class=nv>$text</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>decrypt</span><span class=p>($self, $text) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>encrypt</span><span class=p>(</span><span class=nv>$text</span><span class=p>);</span>  <span class=c1># XORは対称暗号</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=改善されたmessagebox>改善されたMessageBox</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>MessageBox</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>namespace::clean</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=s>&#39;owner&#39;</span>     <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=s>&#39;messages&#39;</span>  <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=o>[]</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=s>&#39;encryptor&#39;</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=nn>NullEncryptor</span><span class=o>-&gt;</span><span class=k>new</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>receive</span><span class=p>($self, $message) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$encrypted_body</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>encryptor</span><span class=o>-&gt;</span><span class=n>process_encrypt</span><span class=p>(</span><span class=nv>$message</span><span class=o>-&gt;</span><span class=n>body</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=c1># 暗号化はEncryptorに委譲</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=今回のポイント-2>今回のポイント</h3><ul><li><strong>Decorator</strong>は機能を「包む」パターン</li><li>MessageBoxは暗号化の詳細を知らない</li><li><strong>OCP達成</strong>: 新しい暗号方式は新クラス追加で対応</li></ul><hr><h2 id=第4章-暗号を重ねる>第4章: 暗号を重ねる</h2><h3 id=前章の振り返り-2>前章の振り返り</h3><p>Decoratorパターンで暗号化を分離しました。次は複数のDecoratorを重ねてみましょう。</p><h3 id=今回の目標-3>今回の目標</h3><ul><li>Base64エンコード、タイムスタンプ追加など複数のDecoratorを重ねる</li><li>Decoratorの真の威力を体感</li></ul><h3 id=動くbase64decorator-の追加>動く：Base64Decorator の追加</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Base64Encryptor</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>with</span> <span class=s>&#39;Encryptor::Role&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>MIME::Base64</span> <span class=sx>qw(encode_base64 decode_base64)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>namespace::clean</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>encrypt</span><span class=p>($self, $text) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=n>encode_base64</span><span class=p>(</span><span class=nv>$text</span><span class=p>,</span> <span class=s>&#39;&#39;</span><span class=p>);</span>  <span class=c1># 改行なし</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>decrypt</span><span class=p>($self, $text) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=n>decode_base64</span><span class=p>(</span><span class=nv>$text</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=完成3層のdecoratorチェーン>完成：3層のDecoratorチェーン</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span><span class=lnt>9
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># Timestamp → Base64 → XOR の順で暗号化</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$chain</span> <span class=o>=</span> <span class=nn>TimestampEncryptor</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>wrapped</span> <span class=o>=&gt;</span> <span class=nn>Base64Encryptor</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>wrapped</span> <span class=o>=&gt;</span> <span class=nn>XorEncryptor</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>key</span> <span class=o>=&gt;</span> <span class=mi>42</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$encrypted</span> <span class=o>=</span> <span class=nv>$chain</span><span class=o>-&gt;</span><span class=n>process_encrypt</span><span class=p>(</span><span class=s>&#34;SECRET MESSAGE&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=c1># → &#34;1738500000|eWt6a256fXd8cXV8Z3lvYmU=&#34;</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=レイヤー構成>レイヤー構成</h3><pre class=mermaid>
+	flowchart LR
+    A[平文] --&gt; B[XorEncryptor]
+    B --&gt; C[Base64Encryptor]
+    C --&gt; D[TimestampEncryptor]
+    D --&gt; E[暗号文]
+</pre><h3 id=今回のポイント-3>今回のポイント</h3><ul><li>Decoratorは<strong>ネスト可能</strong></li><li>組み合わせは無限大</li><li>各レイヤーは独立してテスト可能</li></ul><hr><h2 id=第5章-新着メッセージを見逃すな>第5章: 新着メッセージを見逃すな</h2><h3 id=前章の振り返り-3>前章の振り返り</h3><p>Decoratorパターンで暗号化レイヤーを自由に重ねられるようになりました。次は「新着メッセージの通知」機能を追加したくなります。</p><h3 id=今回の目標-4>今回の目標</h3><ul><li>ポーリングによるメッセージチェックを実装</li><li>その非効率さを体感</li></ul><h3 id=破綻ポーリング実装>破綻：ポーリング実装</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>MessagePoller</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>namespace::clean</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=s>&#39;box&#39;</span>        <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=s>&#39;last_count&#39;</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=mi>0</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>check_for_new</span><span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$current_count</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>box</span><span class=o>-&gt;</span><span class=n>count</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=nv>$current_count</span> <span class=o>&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>last_count</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=k>my</span> <span class=nv>$new_count</span> <span class=o>=</span> <span class=nv>$current_count</span> <span class=o>-</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>last_count</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>last_count</span><span class=p>(</span><span class=nv>$current_count</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>            <span class=k>return</span> <span class=nv>$new_count</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=問題点の整理-1>問題点の整理</h3><div class=table-wrapper><table><thead><tr><th>問題</th><th>説明</th></tr></thead><tbody><tr><td><strong>リソース無駄</strong></td><td>定期的にチェックが必要 → CPU/メモリ消費</td></tr><tr><td><strong>遅延</strong></td><td>チェック間隔が長い → 通知が遅れる</td></tr><tr><td><strong>負荷</strong></td><td>チェック間隔が短い → 負荷が増える</td></tr><tr><td><strong>責務の問題</strong></td><td>メッセージ到着を知っているのはMessageBoxだけ</td></tr></tbody></table></div><h3 id=今回のポイント-4>今回のポイント</h3><ul><li>ポーリングは「プル型」の設計</li><li>本当に必要なのは「プッシュ型」の通知</li><li>→ <strong>Observerパターン</strong>で解決へ</li></ul><hr><h2 id=第6章-監視者を配置せよ>第6章: 監視者を配置せよ</h2><h3 id=前章の振り返り-4>前章の振り返り</h3><p>ポーリングによるメッセージチェックは非効率でした。メッセージ到着時に「能動的に通知」してほしいですね。</p><h3 id=今回の目標-5>今回の目標</h3><ul><li><strong>Observerパターン</strong>を導入</li><li>メッセージ到着時に自動通知</li></ul><h3 id=observerパターンとは>Observerパターンとは</h3><p><img src=/public_images/2026/secret-messenger/observer-notification.png loading=lazy alt=Observerパターンの概念図：中央の塔から一斉送信></p><pre class=mermaid>
+	classDiagram
+    class Subject {
+        &lt;&lt;interface&gt;&gt;
+        +attach(observer)
+        +detach(observer)
+        +notify(event)
+    }
+    class Observer {
+        &lt;&lt;interface&gt;&gt;
+        +update(subject, event)
+    }
+    class ObservableMessageBox {
+        +receive(message)
+    }
+    class ConsoleNotifier {
+        +update(subject, event)
+    }
+    Subject &lt;|.. ObservableMessageBox
+    Observer &lt;|.. ConsoleNotifier
+    ObservableMessageBox --&gt; Observer : notifies
+</pre><h3 id=完成subjectrole-と-observer-の実装>完成：Subject::Role と Observer の実装</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Subject::Role</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo::Role</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>namespace::clean</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=s>&#39;observers&#39;</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=o>[]</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>attach</span><span class=p>($self, $observer) {</span>
+</span></span><span class=line><span class=cl>        <span class=nb>push</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>observers</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>,</span> <span class=nv>$observer</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>notify</span><span class=p>($self, $event, @args) {</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$_</span><span class=o>-&gt;</span><span class=n>update</span><span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$event</span><span class=p>,</span> <span class=nv>@args</span><span class=p>)</span> <span class=k>for</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>observers</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*;</span>
+</span></span><span class=line><span class=cl>    <span class=err>}</span>
+</span></span><span class=line><span class=cl><span class=err>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nv>package</span> <span class=n>ObservableMessageBox</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>with</span> <span class=s>&#39;Subject::Role&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>namespace::clean</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>receive</span><span class=p>($self, $msg) {</span>
+</span></span><span class=line><span class=cl>        <span class=nb>push</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>messages</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>,</span> <span class=nv>$msg</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>notify</span><span class=p>(</span><span class=s>&#39;new_message&#39;</span><span class=p>,</span> <span class=nv>$msg</span><span class=p>);</span>  <span class=c1># 通知を発火！</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>ConsoleNotifier</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>with</span> <span class=s>&#39;Observer::Role&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>namespace::clean</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>update</span><span class=p>($self, $subject, $event, @args) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=nv>$event</span> <span class=ow>eq</span> <span class=s>&#39;new_message&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=k>my</span> <span class=p>(</span><span class=nv>$msg</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@args</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>            <span class=n>say</span> <span class=s>&#34;📩 新着: &#34;</span><span class=p>,</span> <span class=nv>$msg</span><span class=o>-&gt;</span><span class=n>sender</span><span class=p>,</span> <span class=s>&#34; -&gt; &#34;</span><span class=p>,</span> <span class=nv>$msg</span><span class=o>-&gt;</span><span class=n>body</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=使用例>使用例</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>my</span> <span class=nv>$box</span> <span class=o>=</span> <span class=nn>ObservableMessageBox</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>owner</span> <span class=o>=&gt;</span> <span class=s>&#39;Bob&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$box</span><span class=o>-&gt;</span><span class=n>attach</span><span class=p>(</span><span class=nn>ConsoleNotifier</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nv>$box</span><span class=o>-&gt;</span><span class=n>receive</span><span class=p>(</span><span class=nn>Message</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>sender</span> <span class=o>=&gt;</span> <span class=s>&#39;Alice&#39;</span><span class=p>,</span> <span class=n>recipient</span> <span class=o>=&gt;</span> <span class=s>&#39;Bob&#39;</span><span class=p>,</span> <span class=n>body</span> <span class=o>=&gt;</span> <span class=s>&#39;Hello!&#39;</span><span class=p>));</span>
+</span></span><span class=line><span class=cl><span class=c1># → 即座に通知: 📩 新着: Alice -&gt; Hello!</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=今回のポイント-5>今回のポイント</h3><ul><li><strong>Observer</strong>は「通知」のパターン</li><li><strong>疎結合</strong>: MessageBoxは通知先の詳細を知らない</li><li>複数のObserverを登録できる（ログ、メール通知、Slack等）</li></ul><hr><h2 id=第7章-操作を記録したい>第7章: 操作を記録したい</h2><h3 id=前章の振り返り-5>前章の振り返り</h3><p>Observerパターンで新着メッセージの自動通知ができるようになりました。次は「操作履歴」と「Undo機能」が欲しくなります。</p><h3 id=今回の目標-6>今回の目標</h3><ul><li>ベタ書きで履歴管理を実装</li><li>Undo実装の難しさを体感</li></ul><h3 id=破綻ベタ書き履歴>破綻：ベタ書き履歴</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>MessageBox</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>namespace::clean</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=s>&#39;history&#39;</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=o>[]</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>receive</span><span class=p>($self, $msg) {</span>
+</span></span><span class=line><span class=cl>        <span class=nb>push</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>messages</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>,</span> <span class=nv>$msg</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=nb>push</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>history</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>,</span> <span class=p>{</span> <span class=n>action</span> <span class=o>=&gt;</span> <span class=s>&#39;receive&#39;</span><span class=p>,</span> <span class=n>msg</span> <span class=o>=&gt;</span> <span class=nv>$msg</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>delete</span><span class=p>($self, $index) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$msg</span> <span class=o>=</span> <span class=nb>splice</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>messages</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>,</span> <span class=nv>$index</span><span class=p>,</span> <span class=mi>1</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=nb>push</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>history</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>,</span> <span class=p>{</span> <span class=n>action</span> <span class=o>=&gt;</span> <span class=s>&#39;delete&#39;</span><span class=p>,</span> <span class=n>msg</span> <span class=o>=&gt;</span> <span class=nv>$msg</span><span class=p>,</span> <span class=nb>index</span> <span class=o>=&gt;</span> <span class=nv>$index</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>undo</span><span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$last</span> <span class=o>=</span> <span class=nb>pop</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>history</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*;</span>
+</span></span><span class=line><span class=cl>        
+</span></span><span class=line><span class=cl>        <span class=err>#</span> <span class=nv>問題:</span> <span class=n>アクションごとに異なる処理が必要</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=nv>$last</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>action</span><span class=p>}</span> <span class=ow>eq</span> <span class=s>&#39;receive&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nb>pop</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>messages</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*;</span>
+</span></span><span class=line><span class=cl>        <span class=err>}</span> <span class=nv>elsif</span> <span class=p>(</span><span class=nv>$last</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>action</span><span class=p>}</span> <span class=ow>eq</span> <span class=s>&#39;delete&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=c1># 元の位置に戻すのが難しい...</span>
+</span></span><span class=line><span class=cl>            <span class=nb>splice</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>messages</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>,</span> <span class=nv>$last</span><span class=o>-&gt;</span><span class=p>{</span><span class=nb>index</span><span class=p>},</span> <span class=mi>0</span><span class=p>,</span> <span class=nv>$last</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>msg</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=c1># 新しいアクションを追加するたびにこのメソッドを変更必要</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=問題点の整理-2>問題点の整理</h3><div class=table-wrapper><table><thead><tr><th>問題</th><th>説明</th></tr></thead><tbody><tr><td><strong>undoの肥大化</strong></td><td>アクション種別ごとに分岐が必要</td></tr><tr><td><strong>OCP違反</strong></td><td>新しい操作を追加するたびにundo修正</td></tr><tr><td><strong>テスト困難</strong></td><td>操作と履歴管理が分離できない</td></tr></tbody></table></div><h3 id=今回のポイント-6>今回のポイント</h3><ul><li>操作を「データ」として扱いたい</li><li>各操作に「逆操作」を定義させたい</li><li>→ <strong>Commandパターン</strong>で解決へ</li></ul><hr><h2 id=第8章-命令をオブジェクトに>第8章: 命令をオブジェクトに</h2><h3 id=前章の振り返り-6>前章の振り返り</h3><p>ベタ書き履歴では、新しい操作を追加するたびにundoメソッドを修正する必要がありました。</p><h3 id=今回の目標-7>今回の目標</h3><ul><li><strong>Commandパターン</strong>を導入</li><li>各操作を独立したオブジェクトに</li></ul><h3 id=commandパターンとは>Commandパターンとは</h3><p><img src=/public_images/2026/secret-messenger/command-history.png loading=lazy alt=Commandパターンの概念図：積み上がるコマンドカード></p><pre class=mermaid>
+	classDiagram
+    class Command {
+        &lt;&lt;interface&gt;&gt;
+        +execute()
+        +undo()
+    }
+    class SendCommand {
+        +execute()
+        +undo()
+    }
+    class DeleteCommand {
+        +execute()
+        +undo()
+    }
+    class CommandHistory {
+        +execute(command)
+        +undo()
+    }
+    Command &lt;|.. SendCommand
+    Command &lt;|.. DeleteCommand
+    CommandHistory --&gt; Command : manages
+</pre><h3 id=完成commandrole-と実装>完成：Command::Role と実装</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Command::Role</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo::Role</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>namespace::clean</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>requires</span> <span class=s>&#39;execute&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>requires</span> <span class=s>&#39;undo&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=s>&#39;description&#39;</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=s>&#39;&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>SendCommand</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>with</span> <span class=s>&#39;Command::Role&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>namespace::clean</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=s>&#39;box&#39;</span>     <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=s>&#39;message&#39;</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=s>&#39;+description&#39;</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=s>&#39;送信&#39;</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>execute</span><span class=p>($self) {</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>box</span><span class=o>-&gt;</span><span class=n>add</span><span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>message</span><span class=p>)</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>undo</span><span class=p>($self)    {</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>box</span><span class=o>-&gt;</span><span class=n>remove_last</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>DeleteCommand</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>with</span> <span class=s>&#39;Command::Role&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>namespace::clean</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=s>&#39;box&#39;</span>         <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=s>&#39;index&#39;</span>       <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=s>&#39;deleted_msg&#39;</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>);</span>  <span class=c1># Undo用に保存</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=s>&#39;+description&#39;</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=s>&#39;削除&#39;</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>execute</span><span class=p>($self) {</span> 
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>deleted_msg</span><span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>box</span><span class=o>-&gt;</span><span class=n>remove_at</span><span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=nb>index</span><span class=p>));</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>undo</span><span class=p>($self) {</span> 
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>box</span><span class=o>-&gt;</span><span class=n>insert_at</span><span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=nb>index</span><span class=p>,</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>deleted_msg</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=commandhistory>CommandHistory</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>CommandHistory</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>namespace::clean</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=s>&#39;history&#39;</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=o>[]</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>execute</span><span class=p>($self, $command) {</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$command</span><span class=o>-&gt;</span><span class=n>execute</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=nb>push</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>history</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>,</span> <span class=nv>$command</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>undo</span><span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=k>unless</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>history</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*;</span>
+</span></span><span class=line><span class=cl>        <span class=nv>my</span> <span class=nv>$command</span> <span class=o>=</span> <span class=nb>pop</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>history</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*;</span>
+</span></span><span class=line><span class=cl>        <span class=err>$</span><span class=nv>command</span><span class=o>-&gt;</span><span class=n>undo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=今回のポイント-7>今回のポイント</h3><ul><li><strong>Command</strong>は「操作」をオブジェクト化するパターン</li><li>各Commandが自分のundo方法を知っている</li><li>新しい操作は新Commandクラス追加で対応（OCP達成）</li></ul><hr><h2 id=第9章-完成秘密のメッセンジャー>第9章: 完成！秘密のメッセンジャー</h2><h3 id=前章までの振り返り>前章までの振り返り</h3><p>3つのパターンを個別に学びました：</p><div class=table-wrapper><table><thead><tr><th>パターン</th><th>解決した問題</th></tr></thead><tbody><tr><td><strong>Decorator</strong></td><td>暗号化レイヤーの動的追加</td></tr><tr><td><strong>Observer</strong></td><td>新着メッセージの自動通知</td></tr><tr><td><strong>Command</strong></td><td>操作履歴とUndo機能</td></tr></tbody></table></div><h3 id=今回の目標-8>今回の目標</h3><ul><li>3パターンを統合して完成版を構築</li></ul><h3 id=完成版アーキテクチャ>完成版アーキテクチャ</h3><pre class=mermaid>
+	flowchart TB
+    subgraph &#34;Decorator (暗号化)&#34;
+        E1[XorEncryptor] --&gt; E2[Base64Encryptor]
+    end
+    
+    subgraph &#34;Observer (通知)&#34;
+        MB[SecretMessageBox] --&gt; O1[ConsoleNotifier]
+        MB --&gt; O2[LogObserver]
+    end
+    
+    subgraph &#34;Command (履歴)&#34;
+        CH[CommandHistory] --&gt; C1[SendCommand]
+        CH --&gt; C2[DeleteCommand]
+    end
+    
+    User --&gt; App[SecretMessenger]
+    App --&gt; CH
+    C1 --&gt; MB
+    C2 --&gt; MB
+    MB --&gt; E1
+</pre><h3 id=完成版コード>完成版コード</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>SecretMessenger</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>namespace::clean</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=s>&#39;box&#39;</span>     <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=s>&#39;history&#39;</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=nn>CommandHistory</span><span class=o>-&gt;</span><span class=k>new</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>send</span><span class=p>($self, $sender, $body) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$msg</span> <span class=o>=</span> <span class=nn>Message</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=n>sender</span>    <span class=o>=&gt;</span> <span class=nv>$sender</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>recipient</span> <span class=o>=&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>box</span><span class=o>-&gt;</span><span class=n>owner</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>body</span>      <span class=o>=&gt;</span> <span class=nv>$body</span>
+</span></span><span class=line><span class=cl>        <span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>history</span><span class=o>-&gt;</span><span class=n>execute</span><span class=p>(</span><span class=nn>SendCommand</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>box</span> <span class=o>=&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>box</span><span class=p>,</span> <span class=n>message</span> <span class=o>=&gt;</span> <span class=nv>$msg</span><span class=p>));</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>delete</span><span class=p>($self, $index) {</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>history</span><span class=o>-&gt;</span><span class=n>execute</span><span class=p>(</span><span class=nn>DeleteCommand</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>box</span> <span class=o>=&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>box</span><span class=p>,</span> <span class=nb>index</span> <span class=o>=&gt;</span> <span class=nv>$index</span><span class=p>));</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>undo</span><span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>history</span><span class=o>-&gt;</span><span class=n>can_undo</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>history</span><span class=o>-&gt;</span><span class=n>undo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>            <span class=n>say</span> <span class=s>&#34;↩️ Undo完了&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=デモ実行>デモ実行</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># 暗号化チェーン: Base64 → XOR</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$encryptor</span> <span class=o>=</span> <span class=nn>Base64Encryptor</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>wrapped</span> <span class=o>=&gt;</span> <span class=nn>XorEncryptor</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>key</span> <span class=o>=&gt;</span> <span class=mi>42</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># Bobのメッセージボックス</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$box</span> <span class=o>=</span> <span class=nn>SecretMessageBox</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>owner</span> <span class=o>=&gt;</span> <span class=s>&#39;Bob&#39;</span><span class=p>,</span> <span class=n>encryptor</span> <span class=o>=&gt;</span> <span class=nv>$encryptor</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$box</span><span class=o>-&gt;</span><span class=n>attach</span><span class=p>(</span><span class=nn>ConsoleNotifier</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>name</span> <span class=o>=&gt;</span> <span class=s>&#39;Desktop&#39;</span><span class=p>));</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># メッセンジャーアプリ</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$app</span> <span class=o>=</span> <span class=nn>SecretMessenger</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>box</span> <span class=o>=&gt;</span> <span class=nv>$box</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nv>$app</span><span class=o>-&gt;</span><span class=nb>send</span><span class=p>(</span><span class=s>&#39;Alice&#39;</span><span class=p>,</span> <span class=s>&#39;こんにちは、秘密のメッセージです！&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=c1># → [Desktop] 📩 新着: Alice</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nv>$app</span><span class=o>-&gt;</span><span class=nb>delete</span><span class=p>(</span><span class=mi>0</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=c1># → [Desktop] 🗑️ メッセージ削除</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nv>$app</span><span class=o>-&gt;</span><span class=n>undo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=c1># → ↩️ Undo完了</span>
+</span></span></code></pre></td></tr></table></div></div><hr><h2 id=まとめ>まとめ</h2><h3 id=学んだこと>学んだこと</h3><p>この記事では、<strong>秘密のメッセンジャー</strong>を構築しながら3つのGoFデザインパターンを学びました。</p><pre class=mermaid>
+	mindmap
+  root((秘密の&lt;br&gt;メッセンジャー))
+    Decorator
+      暗号化レイヤー
+      XOR暗号
+      Base64エンコード
+      タイムスタンプ
+    Observer
+      新着通知
+      ログ記録
+      疎結合
+    Command
+      送信コマンド
+      削除コマンド
+      Undo機能
+      履歴管理
+</pre><h3 id=パターンの選択基準>パターンの選択基準</h3><div class=table-wrapper><table><thead><tr><th>状況</th><th>適用パターン</th></tr></thead><tbody><tr><td>機能を動的に追加・削除したい</td><td>Decorator</td></tr><tr><td>状態変化を複数の場所に通知したい</td><td>Observer</td></tr><tr><td>操作を記録・取り消し・再実行したい</td><td>Command</td></tr></tbody></table></div><h3 id=次のステップ>次のステップ</h3><ul><li><strong>Memento</strong>: 状態のスナップショット保存</li><li><strong>Strategy</strong>: アルゴリズムの交換可能化</li><li><strong>Factory</strong>: オブジェクト生成の委譲</li></ul><h3 id=完成コード>完成コード</h3><p>本記事のコードは以下で確認できます：</p><ul><li><a class=link href=https://github.com/nqou-net/www.nqou.net/tree/main/agents/tests/observer-decorator-command-series/lib/ch09_secret_messenger.pl target=_blank rel=noopener>ch09_secret_messenger.pl</a></li></ul><hr><blockquote><p>🎉 <strong>おめでとうございます！</strong></p><p>これで「暗号通信ツールを作った」と友人に自慢できますね。
+デザインパターンは使ってこそ身につきます。ぜひ自分のプロジェクトでも試してみてください！</p></blockquote></section><footer class=article-footer><section class=article-tags><a href=/tags/perl/>Perl</a>
+<a href=/tags/moo/>Moo</a>
+<a href=/tags/perl-design-patterns/>Perl-Design-Patterns</a>
+<a href=/tags/observer-pattern/>Observer-Pattern</a>
+<a href=/tags/decorator-pattern/>Decorator-Pattern</a>
+<a href=/tags/command-pattern/>Command-Pattern</a>
+<a href=/tags/oop/>Oop</a>
+<a href=/tags/encryption/>Encryption</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/warehouse/observer-decorator-command-combination/><div class=article-image><img src=/favicon.png loading=lazy data-key data-hash=/favicon.png></div><div class=article-details><h2 class=article-title>Observer × Decorator × Command 組み合わせ調査ドキュメント</h2></div></a></article><article class=has-image><a href=/2026/02/01/015106/><div class=article-image><img src=/public_images/2026/hands-on-design-patterns-image.jpg loading=lazy data-key data-hash=/public_images/2026/hands-on-design-patterns-image.jpg></div><div class=article-details><h2 class=article-title>Perlで執事Bot〜4つのデザインパターンで作るコマンド帝国</h2></div></a></article><article class=has-image><a href=/2026/02/13/070705/><div class=article-image><img src=/public_images/2026/code-doctor-prototype/header.webp loading=lazy data-key data-hash=/public_images/2026/code-doctor-prototype/header.webp></div><div class=article-details><h2 class=article-title>コードドクター【Prototype】遺伝子異常の連鎖〜テンプレ完璧症候群と原型の処方箋〜</h2></div></a></article><article class=has-image><a href=/2026/02/11/070705/><div class=article-image><img src=/public_images/2026/code-doctor-abstract-factory/header.webp loading=lazy data-key data-hash=/public_images/2026/code-doctor-abstract-factory/header.webp></div><div class=article-details><h2 class=article-title>コードドクター【Abstract Factory】潜伏性クロスマッチ不全〜ファミリーの絆〜</h2></div></a></article><article class=has-image><a href=/2026/02/10/070705/><div class=article-image><img src=/public_images/2026/code-doctor-factory-method/header.webp loading=lazy data-key data-hash=/public_images/2026/code-doctor-factory-method/header.webp></div><div class=article-details><h2 class=article-title>コードドクター【Factory Method】癒着分離手術〜疎結合の誕生〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>
