@@ -1,0 +1,899 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="Plack/PSGIはPerlのWebアプリケーション開発に革命をもたらした基盤技術です。PSGIの概念、Plackの使い方、ミドルウェアの活用方法を、実際に動作するコード例とともに詳しく解説します"><title>Plack/PSGI - Perl Webアプリケーションの基盤技術</title><link rel=canonical href=https://www.nqou.net/2025/12/09/000000/><link rel=stylesheet href=/scss/style.min.6a692fd055deae459f2a9767f57f3855ba80cafd5041317f24f7360f6ca47cdf.css><meta property='og:title' content="Plack/PSGI - Perl Webアプリケーションの基盤技術"><meta property='og:description' content="Plack/PSGIはPerlのWebアプリケーション開発に革命をもたらした基盤技術です。PSGIの概念、Plackの使い方、ミドルウェアの活用方法を、実際に動作するコード例とともに詳しく解説します"><meta property='og:url' content='https://www.nqou.net/2025/12/09/000000/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='perl'><meta property='article:tag' content='advent-calendar'><meta property='article:tag' content='plack'><meta property='article:tag' content='psgi'><meta property='article:tag' content='web'><meta property='article:tag' content='middleware'><meta property='article:tag' content='starlet'><meta property='article:tag' content='starman'><meta property='article:published_time' content='2025-12-09T00:00:00+09:00'><meta property='article:modified_time' content='2025-12-09T00:00:00+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/20251209-psgi.jpg'><meta name=twitter:title content="Plack/PSGI - Perl Webアプリケーションの基盤技術"><meta name=twitter:description content="Plack/PSGIはPerlのWebアプリケーション開発に革命をもたらした基盤技術です。PSGIの概念、Plackの使い方、ミドルウェアの活用方法を、実際に動作するコード例とともに詳しく解説します"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/20251209-psgi.jpg'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/warehouse/><svg class="icon icon-tabler icon-tabler-warehouse" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 10l9-6 9 6"/><rect x="5" y="10" width="14" height="10" rx="2"/><rect x="10" y="14" width="4" height="6" rx="1"/><path d="M7 20v-4h2v4"/><path d="M15 20v-4h2v4"/></svg>
+<span>Warehouse</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#plackpsgiとは何か>Plack/PSGIとは何か</a><ol><li><a href=#psgiが解決した問題>PSGIが解決した問題</a></li><li><a href=#psgiの仕様>PSGIの仕様</a></li></ol></li><li><a href=#plackのインストールと基本的な使い方>Plackのインストールと基本的な使い方</a><ol><li><a href=#インストール>インストール</a></li><li><a href=#最初のpsgiアプリケーション---hello-world>最初のPSGIアプリケーション - Hello World</a></li><li><a href=#環境変数envの活用>環境変数（$env）の活用</a></li><li><a href=#パスによる分岐>パスによる分岐</a></li></ol></li><li><a href=#plackミドルウェア---機能を積み重ねる>Plackミドルウェア - 機能を積み重ねる</a><ol><li><a href=#ミドルウェアの基本>ミドルウェアの基本</a></li><li><a href=#便利なミドルウェアの紹介>便利なミドルウェアの紹介</a><ol><li><a href=#plackmiddlewarestatic---静的ファイル配信>Plack::Middleware::Static - 静的ファイル配信</a></li><li><a href=#plackmiddlewareauthbasic---basic認証>Plack::Middleware::Auth::Basic - Basic認証</a></li><li><a href=#plackmiddlewaresession---セッション管理>Plack::Middleware::Session - セッション管理</a></li></ol></li><li><a href=#ミドルウェアの積み重ね>ミドルウェアの積み重ね</a></li></ol></li><li><a href=#実用的なアプリケーション例>実用的なアプリケーション例</a><ol><li><a href=#plackrequestを使った本格的なアプリケーション>Plack::Requestを使った本格的なアプリケーション</a></li><li><a href=#テンプレートエンジンの利用>テンプレートエンジンの利用</a></li></ol></li><li><a href=#デプロイと本番運用>デプロイと本番運用</a><ol><li><a href=#starlet---シンプルで高速>Starlet - シンプルで高速</a></li><li><a href=#starman---本番環境向け>Starman - 本番環境向け</a></li><li><a href=#リバースプロキシ構成>リバースプロキシ構成</a></li><li><a href=#systemdでのサービス化>Systemdでのサービス化</a></li></ol></li><li><a href=#既存フレームワークとの関係>既存フレームワークとの関係</a><ol><li><a href=#mojolicious>Mojolicious</a></li><li><a href=#dancer2>Dancer2</a></li><li><a href=#catalyst>Catalyst</a></li></ol></li><li><a href=#カスタムミドルウェアの作成>カスタムミドルウェアの作成</a></li><li><a href=#テストの容易さ>テストの容易さ</a></li><li><a href=#まとめ>まとめ</a><ol><li><a href=#参考リンク>参考リンク</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2025/12/09/000000/><img src=/public_images/20251209-psgi.jpg loading=lazy alt="Featured image of post Plack/PSGI - Perl Webアプリケーションの基盤技術"></a></div><div class=article-details><div class=article-title-wrapper><h2 class=article-title><a href=/2025/12/09/000000/>Plack/PSGI - Perl Webアプリケーションの基盤技術</a></h2><h3 class=article-subtitle>Plack/PSGIはPerlのWebアプリケーション開発に革命をもたらした基盤技術です。PSGIの概念、Plackの使い方、ミドルウェアの活用方法を、実際に動作するコード例とともに詳しく解説します</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>12月 09, 2025</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 10分</time></div></footer></div></header><section class=article-content><h2 id=plackpsgiとは何か>Plack/PSGIとは何か</h2><p>Perl Webアプリケーション開発において、Plack/PSGIは革命的な存在です。2009年に宮川達彦氏によって提案されたPSGI（Perl Web Server Gateway Interface）は、PerlにおけるWebアプリケーションとWebサーバーの間のインターフェース仕様です。そして、Plackはそのリファレンス実装として、PSGIアプリケーションの実行環境とミドルウェアのエコシステムを提供します。</p><h3 id=psgiが解決した問題>PSGIが解決した問題</h3><p>PSGIが登場する前のPerl Web開発では、各フレームワーク（Catalyst、CGI::Application等）が独自にWebサーバーとのやり取りを実装していました。これには以下のような問題がありました：</p><ul><li><strong>フレームワーク固有の実装</strong>: 各フレームワークがApache mod_perl、FastCGI、CGIなどに個別対応</li><li><strong>デプロイの複雑さ</strong>: フレームワークを変更すると、デプロイ方法も変更が必要</li><li><strong>再利用性の低さ</strong>: 認証、ロギング、セッション管理などの共通機能が各フレームワークで個別実装</li><li><strong>テストの困難さ</strong>: Webサーバーを起動しないとテストできない場合が多い</li></ul><p>PSGIはこれらの問題を、<strong>アプリケーション層とサーバー層を分離する</strong>という明確な仕様によって解決しました。</p><h3 id=psgiの仕様>PSGIの仕様</h3><p>PSGIアプリケーションは、非常にシンプルな仕様で定義されます：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># 最小のPSGIアプリケーション</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$app</span> <span class=o>=</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$env</span> <span class=o>=</span> <span class=nb>shift</span><span class=p>;</span>  <span class=c1># リクエスト情報を含むハッシュリファレンス</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>[</span>
+</span></span><span class=line><span class=cl>        <span class=mi>200</span><span class=p>,</span>                             <span class=c1># HTTPステータスコード</span>
+</span></span><span class=line><span class=cl>        <span class=p>[</span> <span class=s>&#39;Content-Type&#39;</span> <span class=o>=&gt;</span> <span class=s>&#39;text/plain&#39;</span> <span class=p>],</span>  <span class=c1># HTTPヘッダー（配列リファレンス）</span>
+</span></span><span class=line><span class=cl>        <span class=p>[</span> <span class=s>&#34;Hello World&#34;</span> <span class=p>],</span>               <span class=c1># レスポンスボディ（配列リファレンス）</span>
+</span></span><span class=line><span class=cl>    <span class=p>];</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span></code></pre></td></tr></table></div></div><p>たったこれだけです！PSGIアプリケーションは、環境変数のハッシュリファレンスを受け取り、3要素の配列リファレンス（ステータス、ヘッダー、ボディ）を返すサブルーチンリファレンスです。</p><p>この単純さこそがPSGIの強みです。Python の WSGI、Ruby の Rackに影響を受けた設計思想が、Perl の Web開発に大きな変革をもたらしました。</p><h2 id=plackのインストールと基本的な使い方>Plackのインストールと基本的な使い方</h2><h3 id=インストール>インストール</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl><span class=c1># cpanmを使う場合</span>
+</span></span><span class=line><span class=cl>cpanm Plack
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># cpanを使う場合</span>
+</span></span><span class=line><span class=cl>cpan Plack
+</span></span></code></pre></td></tr></table></div></div><h3 id=最初のpsgiアプリケーション---hello-world>最初のPSGIアプリケーション - Hello World</h3><p><code>hello.psgi</code> という名前でファイルを作成します：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># hello.psgi</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$app</span> <span class=o>=</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$env</span> <span class=o>=</span> <span class=nb>shift</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>[</span>
+</span></span><span class=line><span class=cl>        <span class=mi>200</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>[</span> <span class=s>&#39;Content-Type&#39;</span> <span class=o>=&gt;</span> <span class=s>&#39;text/html; charset=UTF-8&#39;</span> <span class=p>],</span>
+</span></span><span class=line><span class=cl>        <span class=p>[</span> <span class=s>&#34;&lt;html&gt;&lt;body&gt;&lt;h1&gt;Hello, Plack!&lt;/h1&gt;&lt;/body&gt;&lt;/html&gt;&#34;</span> <span class=p>],</span>
+</span></span><span class=line><span class=cl>    <span class=p>];</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span></code></pre></td></tr></table></div></div><p>実行は <code>plackup</code> コマンドを使います：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl>plackup hello.psgi
+</span></span><span class=line><span class=cl><span class=c1># HTTP::Server::PSGI: Accepting connections at http://0:5000/</span>
+</span></span></code></pre></td></tr></table></div></div><p>ブラウザで <code>http://localhost:5000/</code> にアクセスすると、「Hello, Plack!」が表示されます。</p><h3 id=環境変数envの活用>環境変数（$env）の活用</h3><p><code>$env</code> ハッシュリファレンスには、リクエストに関する豊富な情報が含まれています：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># env_info.psgi</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$app</span> <span class=o>=</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$env</span> <span class=o>=</span> <span class=nb>shift</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$path</span> <span class=o>=</span> <span class=nv>$env</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>PATH_INFO</span><span class=p>};</span>        <span class=c1># リクエストパス</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$method</span> <span class=o>=</span> <span class=nv>$env</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>REQUEST_METHOD</span><span class=p>};</span> <span class=c1># HTTPメソッド</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$query</span> <span class=o>=</span> <span class=nv>$env</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>QUERY_STRING</span><span class=p>};</span>    <span class=c1># クエリ文字列</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$body</span> <span class=o>=</span> <span class=s>&lt;&lt;&#34;</span><span class=dl>HTML</span><span class=s>&#34;;
+</span></span></span><span class=line><span class=cl><span class=s>&lt;html&gt;
+</span></span></span><span class=line><span class=cl><span class=s>&lt;head&gt;&lt;title&gt;環境変数の例&lt;/title&gt;&lt;/head&gt;
+</span></span></span><span class=line><span class=cl><span class=s>&lt;body&gt;
+</span></span></span><span class=line><span class=cl><span class=s>&lt;h1&gt;リクエスト情報&lt;/h1&gt;
+</span></span></span><span class=line><span class=cl><span class=s>&lt;ul&gt;
+</span></span></span><span class=line><span class=cl><span class=s>&lt;li&gt;パス: $path&lt;/li&gt;
+</span></span></span><span class=line><span class=cl><span class=s>&lt;li&gt;メソッド: $method&lt;/li&gt;
+</span></span></span><span class=line><span class=cl><span class=s>&lt;li&gt;クエリ: $query&lt;/li&gt;
+</span></span></span><span class=line><span class=cl><span class=s>&lt;/ul&gt;
+</span></span></span><span class=line><span class=cl><span class=s>&lt;/body&gt;
+</span></span></span><span class=line><span class=cl><span class=s>&lt;/html&gt;
+</span></span></span><span class=line><span class=cl><span class=dl>HTML</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>[</span>
+</span></span><span class=line><span class=cl>        <span class=mi>200</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>[</span> <span class=s>&#39;Content-Type&#39;</span> <span class=o>=&gt;</span> <span class=s>&#39;text/html; charset=UTF-8&#39;</span> <span class=p>],</span>
+</span></span><span class=line><span class=cl>        <span class=p>[</span> <span class=nv>$body</span> <span class=p>],</span>
+</span></span><span class=line><span class=cl>    <span class=p>];</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=パスによる分岐>パスによる分岐</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># router.psgi</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$app</span> <span class=o>=</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$env</span> <span class=o>=</span> <span class=nb>shift</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$path</span> <span class=o>=</span> <span class=nv>$env</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>PATH_INFO</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=nv>$path</span> <span class=ow>eq</span> <span class=s>&#39;/&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=p>[</span>
+</span></span><span class=line><span class=cl>            <span class=mi>200</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=p>[</span> <span class=s>&#39;Content-Type&#39;</span> <span class=o>=&gt;</span> <span class=s>&#39;text/html; charset=UTF-8&#39;</span> <span class=p>],</span>
+</span></span><span class=line><span class=cl>            <span class=p>[</span> <span class=s>&#34;&lt;h1&gt;トップページ&lt;/h1&gt;&#34;</span> <span class=p>],</span>
+</span></span><span class=line><span class=cl>        <span class=p>];</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>elsif</span> <span class=p>(</span><span class=nv>$path</span> <span class=ow>eq</span> <span class=s>&#39;/about&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=p>[</span>
+</span></span><span class=line><span class=cl>            <span class=mi>200</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=p>[</span> <span class=s>&#39;Content-Type&#39;</span> <span class=o>=&gt;</span> <span class=s>&#39;text/html; charset=UTF-8&#39;</span> <span class=p>],</span>
+</span></span><span class=line><span class=cl>            <span class=p>[</span> <span class=s>&#34;&lt;h1&gt;Aboutページ&lt;/h1&gt;&lt;p&gt;このサイトについて&lt;/p&gt;&#34;</span> <span class=p>],</span>
+</span></span><span class=line><span class=cl>        <span class=p>];</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>else</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=p>[</span>
+</span></span><span class=line><span class=cl>            <span class=mi>404</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=p>[</span> <span class=s>&#39;Content-Type&#39;</span> <span class=o>=&gt;</span> <span class=s>&#39;text/html; charset=UTF-8&#39;</span> <span class=p>],</span>
+</span></span><span class=line><span class=cl>            <span class=p>[</span> <span class=s>&#34;&lt;h1&gt;404 Not Found&lt;/h1&gt;&#34;</span> <span class=p>],</span>
+</span></span><span class=line><span class=cl>        <span class=p>];</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span></code></pre></td></tr></table></div></div><h2 id=plackミドルウェア---機能を積み重ねる>Plackミドルウェア - 機能を積み重ねる</h2><p>Plackの真の力は、ミドルウェアのエコシステムにあります。ミドルウェアは、PSGIアプリケーションをラップして機能を追加する仕組みです。</p><h3 id=ミドルウェアの基本>ミドルウェアの基本</h3><p>ミドルウェアは <code>Plack::Builder</code> の <code>builder</code> と <code>enable</code> を使って適用します：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># middleware_basic.psgi</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Plack::Builder</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$app</span> <span class=o>=</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$env</span> <span class=o>=</span> <span class=nb>shift</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>[</span>
+</span></span><span class=line><span class=cl>        <span class=mi>200</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>[</span> <span class=s>&#39;Content-Type&#39;</span> <span class=o>=&gt;</span> <span class=s>&#39;text/plain&#39;</span> <span class=p>],</span>
+</span></span><span class=line><span class=cl>        <span class=p>[</span> <span class=s>&#34;Original App Response&#34;</span> <span class=p>],</span>
+</span></span><span class=line><span class=cl>    <span class=p>];</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>builder</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=n>enable</span> <span class=s>&#39;AccessLog&#39;</span><span class=p>,</span> <span class=nb>format</span> <span class=o>=&gt;</span> <span class=s>&#39;combined&#39;</span><span class=p>;</span>  <span class=c1># アクセスログ</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$app</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=便利なミドルウェアの紹介>便利なミドルウェアの紹介</h3><h4 id=plackmiddlewarestatic---静的ファイル配信>Plack::Middleware::Static - 静的ファイル配信</h4><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># static_files.psgi</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Plack::Builder</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$app</span> <span class=o>=</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>[</span> <span class=mi>200</span><span class=p>,</span> <span class=p>[</span> <span class=s>&#39;Content-Type&#39;</span> <span class=o>=&gt;</span> <span class=s>&#39;text/html&#39;</span> <span class=p>],</span> <span class=p>[</span> <span class=s>&#34;&lt;h1&gt;Dynamic Content&lt;/h1&gt;&#34;</span> <span class=p>]</span> <span class=p>];</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>builder</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=n>enable</span> <span class=s>&#39;Static&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>path</span> <span class=o>=&gt;</span> <span class=sx>qr{^/static/}</span><span class=p>,</span>  <span class=c1># /static/で始まるパスを静的ファイルとして扱う</span>
+</span></span><span class=line><span class=cl>        <span class=n>root</span> <span class=o>=&gt;</span> <span class=s>&#39;./public&#39;</span><span class=p>;</span>      <span class=c1># ドキュメントルート</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$app</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span></code></pre></td></tr></table></div></div><h4 id=plackmiddlewareauthbasic---basic認証>Plack::Middleware::Auth::Basic - Basic認証</h4><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># auth_basic.psgi</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Plack::Builder</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$app</span> <span class=o>=</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>[</span> <span class=mi>200</span><span class=p>,</span> <span class=p>[</span> <span class=s>&#39;Content-Type&#39;</span> <span class=o>=&gt;</span> <span class=s>&#39;text/html&#39;</span> <span class=p>],</span> <span class=p>[</span> <span class=s>&#34;&lt;h1&gt;Protected Content&lt;/h1&gt;&#34;</span> <span class=p>]</span> <span class=p>];</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>builder</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=n>enable</span> <span class=s>&#39;Auth::Basic&#39;</span><span class=p>,</span> <span class=n>authenticator</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=p>(</span><span class=nv>$username</span><span class=p>,</span> <span class=nv>$password</span><span class=p>,</span> <span class=nv>$env</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$username</span> <span class=ow>eq</span> <span class=s>&#39;admin&#39;</span> <span class=o>&amp;&amp;</span> <span class=nv>$password</span> <span class=ow>eq</span> <span class=s>&#39;secret&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$app</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span></code></pre></td></tr></table></div></div><h4 id=plackmiddlewaresession---セッション管理>Plack::Middleware::Session - セッション管理</h4><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># session.psgi</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Plack::Builder</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Plack::Request</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$app</span> <span class=o>=</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$env</span> <span class=o>=</span> <span class=nb>shift</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$req</span> <span class=o>=</span> <span class=nn>Plack::Request</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=nv>$env</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$session</span> <span class=o>=</span> <span class=nv>$req</span><span class=o>-&gt;</span><span class=n>session</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=c1># セッションからカウンターを取得（初回は0）</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$count</span> <span class=o>=</span> <span class=nv>$session</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>counter</span><span class=p>}</span> <span class=o>||</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$count</span><span class=o>++</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$session</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>counter</span><span class=p>}</span> <span class=o>=</span> <span class=nv>$count</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>[</span>
+</span></span><span class=line><span class=cl>        <span class=mi>200</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>[</span> <span class=s>&#39;Content-Type&#39;</span> <span class=o>=&gt;</span> <span class=s>&#39;text/html; charset=UTF-8&#39;</span> <span class=p>],</span>
+</span></span><span class=line><span class=cl>        <span class=p>[</span> <span class=s>&#34;&lt;h1&gt;訪問回数: $count&lt;/h1&gt;&#34;</span> <span class=p>],</span>
+</span></span><span class=line><span class=cl>    <span class=p>];</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>builder</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=n>enable</span> <span class=s>&#39;Session&#39;</span><span class=p>;</span>  <span class=c1># デフォルトでCookieベースのセッション</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$app</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=ミドルウェアの積み重ね>ミドルウェアの積み重ね</h3><p>複数のミドルウェアを組み合わせることで、強力なアプリケーションを構築できます：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># combined_middleware.psgi</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Plack::Builder</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Plack::Request</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$app</span> <span class=o>=</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$env</span> <span class=o>=</span> <span class=nb>shift</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$req</span> <span class=o>=</span> <span class=nn>Plack::Request</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=nv>$env</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$session</span> <span class=o>=</span> <span class=nv>$req</span><span class=o>-&gt;</span><span class=n>session</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$user</span> <span class=o>=</span> <span class=nv>$session</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>user</span><span class=p>}</span> <span class=o>||</span> <span class=s>&#39;ゲスト&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>[</span>
+</span></span><span class=line><span class=cl>        <span class=mi>200</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>[</span> <span class=s>&#39;Content-Type&#39;</span> <span class=o>=&gt;</span> <span class=s>&#39;text/html; charset=UTF-8&#39;</span> <span class=p>],</span>
+</span></span><span class=line><span class=cl>        <span class=p>[</span> <span class=s>&#34;&lt;h1&gt;ようこそ、${user}さん！&lt;/h1&gt;&#34;</span> <span class=p>],</span>
+</span></span><span class=line><span class=cl>    <span class=p>];</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>builder</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=c1># アクセスログ</span>
+</span></span><span class=line><span class=cl>    <span class=n>enable</span> <span class=s>&#39;AccessLog&#39;</span><span class=p>,</span> <span class=nb>format</span> <span class=o>=&gt;</span> <span class=s>&#39;combined&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=c1># 静的ファイル配信</span>
+</span></span><span class=line><span class=cl>    <span class=n>enable</span> <span class=s>&#39;Static&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>path</span> <span class=o>=&gt;</span> <span class=sx>qr{^/(images|css|js)/}</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>root</span> <span class=o>=&gt;</span> <span class=s>&#39;./public&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=c1># セッション管理</span>
+</span></span><span class=line><span class=cl>    <span class=n>enable</span> <span class=s>&#39;Session&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>store</span> <span class=o>=&gt;</span> <span class=s>&#39;File&#39;</span><span class=p>;</span>  <span class=c1># ファイルベースのセッション保存</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=c1># エラーページのカスタマイズ</span>
+</span></span><span class=line><span class=cl>    <span class=n>enable</span> <span class=s>&#39;HTTPExceptions&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=c1># レスポンスの圧縮</span>
+</span></span><span class=line><span class=cl>    <span class=n>enable</span> <span class=s>&#39;Deflater&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>content_type</span> <span class=o>=&gt;</span> <span class=p>[</span><span class=s>&#39;text/css&#39;</span><span class=p>,</span> <span class=s>&#39;text/html&#39;</span><span class=p>,</span> <span class=s>&#39;text/javascript&#39;</span><span class=p>,</span> <span class=s>&#39;application/javascript&#39;</span><span class=p>];</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=nv>$app</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span></code></pre></td></tr></table></div></div><p>ミドルウェアは上から順に適用され、レスポンスは逆順（下から上）に処理されます。これは、まさに「PSGI アプリケーションをミドルウェアが層状にラップする」という構造です。</p><h2 id=実用的なアプリケーション例>実用的なアプリケーション例</h2><h3 id=plackrequestを使った本格的なアプリケーション>Plack::Requestを使った本格的なアプリケーション</h3><p><code>Plack::Request</code> と <code>Plack::Response</code> を使うと、より直感的にリクエスト・レスポンスを扱えます：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span><span class=lnt>51
+</span><span class=lnt>52
+</span><span class=lnt>53
+</span><span class=lnt>54
+</span><span class=lnt>55
+</span><span class=lnt>56
+</span><span class=lnt>57
+</span><span class=lnt>58
+</span><span class=lnt>59
+</span><span class=lnt>60
+</span><span class=lnt>61
+</span><span class=lnt>62
+</span><span class=lnt>63
+</span><span class=lnt>64
+</span><span class=lnt>65
+</span><span class=lnt>66
+</span><span class=lnt>67
+</span><span class=lnt>68
+</span><span class=lnt>69
+</span><span class=lnt>70
+</span><span class=lnt>71
+</span><span class=lnt>72
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># todo_app.psgi</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Plack::Builder</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Plack::Request</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Plack::Response</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>JSON</span> <span class=sx>qw(encode_json decode_json)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 簡易的なTODOリスト（本来はDBやファイルに保存）</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>@todos</span> <span class=o>=</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=p>{</span> <span class=n>id</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span> <span class=n>title</span> <span class=o>=&gt;</span> <span class=s>&#39;Plackを学ぶ&#39;</span><span class=p>,</span> <span class=n>done</span> <span class=o>=&gt;</span> <span class=mi>0</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=p>{</span> <span class=n>id</span> <span class=o>=&gt;</span> <span class=mi>2</span><span class=p>,</span> <span class=n>title</span> <span class=o>=&gt;</span> <span class=s>&#39;PSGIアプリを作る&#39;</span><span class=p>,</span> <span class=n>done</span> <span class=o>=&gt;</span> <span class=mi>0</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$next_id</span> <span class=o>=</span> <span class=mi>3</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$app</span> <span class=o>=</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$env</span> <span class=o>=</span> <span class=nb>shift</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$req</span> <span class=o>=</span> <span class=nn>Plack::Request</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=nv>$env</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$res</span> <span class=o>=</span> <span class=nn>Plack::Response</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=mi>200</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$path</span> <span class=o>=</span> <span class=nv>$req</span><span class=o>-&gt;</span><span class=n>path_info</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$method</span> <span class=o>=</span> <span class=nv>$req</span><span class=o>-&gt;</span><span class=n>method</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=c1># ルーティング</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=nv>$path</span> <span class=ow>eq</span> <span class=s>&#39;/&#39;</span> <span class=o>&amp;&amp;</span> <span class=nv>$method</span> <span class=ow>eq</span> <span class=s>&#39;GET&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=c1># TODO一覧表示（HTML）</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$res</span><span class=o>-&gt;</span><span class=n>content_type</span><span class=p>(</span><span class=s>&#39;text/html; charset=UTF-8&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$html</span> <span class=o>=</span> <span class=s>&#34;&lt;html&gt;&lt;head&gt;&lt;title&gt;TODO App&lt;/title&gt;&lt;/head&gt;&lt;body&gt;&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$html</span> <span class=o>.=</span> <span class=s>&#34;&lt;h1&gt;TODO リスト&lt;/h1&gt;&lt;ul&gt;&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        
+</span></span><span class=line><span class=cl>        <span class=k>for</span> <span class=k>my</span> <span class=nv>$todo</span> <span class=p>(</span><span class=nv>@todos</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=k>my</span> <span class=nv>$status</span> <span class=o>=</span> <span class=nv>$todo</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>done</span><span class=p>}</span> <span class=p>?</span> <span class=s>&#39;✓&#39;</span> <span class=p>:</span> <span class=s>&#39;○&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$html</span> <span class=o>.=</span> <span class=s>&#34;&lt;li&gt;$status $todo-&gt;{title}&lt;/li&gt;&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>        
+</span></span><span class=line><span class=cl>        <span class=nv>$html</span> <span class=o>.=</span> <span class=s>&#34;&lt;/ul&gt;&lt;/body&gt;&lt;/html&gt;&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$res</span><span class=o>-&gt;</span><span class=n>body</span><span class=p>(</span><span class=nv>$html</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>elsif</span> <span class=p>(</span><span class=nv>$path</span> <span class=ow>eq</span> <span class=s>&#39;/api/todos&#39;</span> <span class=o>&amp;&amp;</span> <span class=nv>$method</span> <span class=ow>eq</span> <span class=s>&#39;GET&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=c1># API: TODO一覧取得（JSON）</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$res</span><span class=o>-&gt;</span><span class=n>content_type</span><span class=p>(</span><span class=s>&#39;application/json&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$res</span><span class=o>-&gt;</span><span class=n>body</span><span class=p>(</span><span class=n>encode_json</span><span class=p>(</span><span class=o>\</span><span class=nv>@todos</span><span class=p>));</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>elsif</span> <span class=p>(</span><span class=nv>$path</span> <span class=ow>eq</span> <span class=s>&#39;/api/todos&#39;</span> <span class=o>&amp;&amp;</span> <span class=nv>$method</span> <span class=ow>eq</span> <span class=s>&#39;POST&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=c1># API: TODO追加</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$params</span> <span class=o>=</span> <span class=n>decode_json</span><span class=p>(</span><span class=nv>$req</span><span class=o>-&gt;</span><span class=n>content</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        
+</span></span><span class=line><span class=cl>        <span class=nb>push</span> <span class=nv>@todos</span><span class=p>,</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=n>id</span> <span class=o>=&gt;</span> <span class=nv>$next_id</span><span class=o>++</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>title</span> <span class=o>=&gt;</span> <span class=nv>$params</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>title</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>            <span class=n>done</span> <span class=o>=&gt;</span> <span class=mi>0</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>};</span>
+</span></span><span class=line><span class=cl>        
+</span></span><span class=line><span class=cl>        <span class=nv>$res</span><span class=o>-&gt;</span><span class=n>status</span><span class=p>(</span><span class=mi>201</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$res</span><span class=o>-&gt;</span><span class=n>content_type</span><span class=p>(</span><span class=s>&#39;application/json&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$res</span><span class=o>-&gt;</span><span class=n>body</span><span class=p>(</span><span class=n>encode_json</span><span class=p>({</span> <span class=n>success</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>}));</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>else</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$res</span><span class=o>-&gt;</span><span class=n>status</span><span class=p>(</span><span class=mi>404</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$res</span><span class=o>-&gt;</span><span class=n>content_type</span><span class=p>(</span><span class=s>&#39;text/plain&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$res</span><span class=o>-&gt;</span><span class=n>body</span><span class=p>(</span><span class=s>&#34;Not Found&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$res</span><span class=o>-&gt;</span><span class=n>finalize</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>builder</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=n>enable</span> <span class=s>&#39;AccessLog&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>enable</span> <span class=s>&#39;Static&#39;</span><span class=p>,</span> <span class=n>path</span> <span class=o>=&gt;</span> <span class=sx>qr{^/static/}</span><span class=p>,</span> <span class=n>root</span> <span class=o>=&gt;</span> <span class=s>&#39;./public&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$app</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=テンプレートエンジンの利用>テンプレートエンジンの利用</h3><p>Text::Xslateなどのテンプレートエンジンと組み合わせることで、より保守性の高いアプリケーションになります：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># template_app.psgi</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Plack::Builder</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Plack::Request</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Text::Xslate</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$tx</span> <span class=o>=</span> <span class=nn>Text::Xslate</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>path</span> <span class=o>=&gt;</span> <span class=p>[</span><span class=s>&#39;templates&#39;</span><span class=p>],</span>
+</span></span><span class=line><span class=cl>    <span class=n>syntax</span> <span class=o>=&gt;</span> <span class=s>&#39;TTerse&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$app</span> <span class=o>=</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$env</span> <span class=o>=</span> <span class=nb>shift</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$req</span> <span class=o>=</span> <span class=nn>Plack::Request</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=nv>$env</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$html</span> <span class=o>=</span> <span class=nv>$tx</span><span class=o>-&gt;</span><span class=n>render</span><span class=p>(</span><span class=s>&#39;index.tx&#39;</span><span class=p>,</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>title</span> <span class=o>=&gt;</span> <span class=s>&#39;Plack Template Example&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>items</span> <span class=o>=&gt;</span> <span class=p>[</span>
+</span></span><span class=line><span class=cl>            <span class=p>{</span> <span class=n>name</span> <span class=o>=&gt;</span> <span class=s>&#39;Item 1&#39;</span><span class=p>,</span> <span class=n>price</span> <span class=o>=&gt;</span> <span class=mi>100</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>            <span class=p>{</span> <span class=n>name</span> <span class=o>=&gt;</span> <span class=s>&#39;Item 2&#39;</span><span class=p>,</span> <span class=n>price</span> <span class=o>=&gt;</span> <span class=mi>200</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>            <span class=p>{</span> <span class=n>name</span> <span class=o>=&gt;</span> <span class=s>&#39;Item 3&#39;</span><span class=p>,</span> <span class=n>price</span> <span class=o>=&gt;</span> <span class=mi>300</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>        <span class=p>],</span>
+</span></span><span class=line><span class=cl>    <span class=p>});</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>[</span>
+</span></span><span class=line><span class=cl>        <span class=mi>200</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>[</span> <span class=s>&#39;Content-Type&#39;</span> <span class=o>=&gt;</span> <span class=s>&#39;text/html; charset=UTF-8&#39;</span> <span class=p>],</span>
+</span></span><span class=line><span class=cl>        <span class=p>[</span> <span class=nv>$html</span> <span class=p>],</span>
+</span></span><span class=line><span class=cl>    <span class=p>];</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>builder</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=n>enable</span> <span class=s>&#39;Static&#39;</span><span class=p>,</span> <span class=n>path</span> <span class=o>=&gt;</span> <span class=sx>qr{^/static/}</span><span class=p>,</span> <span class=n>root</span> <span class=o>=&gt;</span> <span class=s>&#39;./public&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$app</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span></code></pre></td></tr></table></div></div><h2 id=デプロイと本番運用>デプロイと本番運用</h2><p>開発時は <code>plackup</code> で十分ですが、本番環境では高性能なPSGIサーバーを使用します。</p><h3 id=starlet---シンプルで高速>Starlet - シンプルで高速</h3><p>Starletは、プリフォーク型の高性能HTTPサーバーです：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl><span class=c1># インストール</span>
+</span></span><span class=line><span class=cl>cpanm Starlet
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 起動（ワーカープロセス10個）</span>
+</span></span><span class=line><span class=cl>plackup -s Starlet --max-workers<span class=o>=</span><span class=m>10</span> --port<span class=o>=</span><span class=m>5000</span> app.psgi
+</span></span></code></pre></td></tr></table></div></div><h3 id=starman---本番環境向け>Starman - 本番環境向け</h3><p>Starmanは、より本番環境向けに作られたサーバーです：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl><span class=c1># インストール</span>
+</span></span><span class=line><span class=cl>cpanm Starman
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 起動</span>
+</span></span><span class=line><span class=cl>starman --workers<span class=o>=</span><span class=m>10</span> --port<span class=o>=</span><span class=m>5000</span> app.psgi
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># デーモンとして起動</span>
+</span></span><span class=line><span class=cl>starman --daemonize --workers<span class=o>=</span><span class=m>10</span> --port<span class=o>=</span><span class=m>5000</span> app.psgi
+</span></span></code></pre></td></tr></table></div></div><h3 id=リバースプロキシ構成>リバースプロキシ構成</h3><p>本番環境では、NginxやApacheをリバースプロキシとして前段に置くのが一般的です：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-nginx data-lang=nginx><span class=line><span class=cl><span class=c1># Nginx設定例
+</span></span></span><span class=line><span class=cl><span class=k>upstream</span> <span class=s>backend</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=kn>server</span> <span class=n>127.0.0.1</span><span class=p>:</span><span class=mi>5000</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=kn>server</span> <span class=n>127.0.0.1</span><span class=p>:</span><span class=mi>5001</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>server</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=kn>listen</span> <span class=mi>80</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=kn>server_name</span> <span class=s>example.com</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=kn>location</span> <span class=s>/</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=kn>proxy_pass</span> <span class=s>http://backend</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=kn>proxy_set_header</span> <span class=s>Host</span> <span class=nv>$host</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=kn>proxy_set_header</span> <span class=s>X-Real-IP</span> <span class=nv>$remote_addr</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=kn>proxy_set_header</span> <span class=s>X-Forwarded-For</span> <span class=nv>$proxy_add_x_forwarded_for</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=kn>proxy_set_header</span> <span class=s>X-Forwarded-Proto</span> <span class=nv>$scheme</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=kn>location</span> <span class=s>/static/</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=kn>alias</span> <span class=s>/path/to/app/public/</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=systemdでのサービス化>Systemdでのサービス化</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ini data-lang=ini><span class=line><span class=cl><span class=c1># /etc/systemd/system/myapp.service</span>
+</span></span><span class=line><span class=cl><span class=k>[Unit]</span>
+</span></span><span class=line><span class=cl><span class=na>Description</span><span class=o>=</span><span class=s>My Plack Application</span>
+</span></span><span class=line><span class=cl><span class=na>After</span><span class=o>=</span><span class=s>network.target</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>[Service]</span>
+</span></span><span class=line><span class=cl><span class=na>Type</span><span class=o>=</span><span class=s>simple</span>
+</span></span><span class=line><span class=cl><span class=na>User</span><span class=o>=</span><span class=s>www-data</span>
+</span></span><span class=line><span class=cl><span class=na>WorkingDirectory</span><span class=o>=</span><span class=s>/path/to/app</span>
+</span></span><span class=line><span class=cl><span class=na>ExecStart</span><span class=o>=</span><span class=s>/usr/local/bin/starman --workers=10 --port=5000 app.psgi</span>
+</span></span><span class=line><span class=cl><span class=na>Restart</span><span class=o>=</span><span class=s>always</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>[Install]</span>
+</span></span><span class=line><span class=cl><span class=na>WantedBy</span><span class=o>=</span><span class=s>multi-user.target</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl><span class=c1># サービスの有効化と起動</span>
+</span></span><span class=line><span class=cl>systemctl <span class=nb>enable</span> myapp
+</span></span><span class=line><span class=cl>systemctl start myapp
+</span></span><span class=line><span class=cl>systemctl status myapp
+</span></span></code></pre></td></tr></table></div></div><h2 id=既存フレームワークとの関係>既存フレームワークとの関係</h2><h3 id=mojolicious>Mojolicious</h3><p>Mojoliciousは、Plack/PSGIに対応しています：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># Mojoliciousアプリを PSGI として動かす</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Mojolicious::Lite</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>get</span> <span class=s>&#39;/&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$c</span> <span class=o>=</span> <span class=nb>shift</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$c</span><span class=o>-&gt;</span><span class=n>render</span><span class=p>(</span><span class=n>text</span> <span class=o>=&gt;</span> <span class=s>&#39;Hello from Mojo!&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># PSGIアプリケーションとして起動</span>
+</span></span><span class=line><span class=cl><span class=nn>app</span><span class=o>-&gt;</span><span class=n>start</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl><span class=c1># plackup で起動可能</span>
+</span></span><span class=line><span class=cl>plackup myapp.pl
+</span></span></code></pre></td></tr></table></div></div><h3 id=dancer2>Dancer2</h3><p>Dancer2も完全にPSGI準拠です：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span><span class=lnt>9
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># Dancer2 アプリ</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Dancer2</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>get</span> <span class=s>&#39;/&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=s>&#39;Hello from Dancer2!&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># PSGIアプリケーションを返す</span>
+</span></span><span class=line><span class=cl><span class=n>to_app</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl>plackup -s Starman bin/app.psgi
+</span></span></code></pre></td></tr></table></div></div><h3 id=catalyst>Catalyst</h3><p>Catalystは初期からPSGIに対応しています：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl><span class=c1># Catalyst アプリをPSGIで起動</span>
+</span></span><span class=line><span class=cl>plackup -s Starman myapp.psgi
+</span></span></code></pre></td></tr></table></div></div><p>これらのフレームワークはすべてPSGIという共通基盤の上に構築されているため、デプロイ方法やミドルウェアの適用方法は共通です。フレームワークの選択は、アプリケーションの要件や開発者の好みによって自由に行えます。</p><h2 id=カスタムミドルウェアの作成>カスタムミドルウェアの作成</h2><p>独自のミドルウェアも簡単に作成できます：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/Plack/Middleware/Timer.pm</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Plack::Middleware::Timer</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>parent</span> <span class=sx>qw(Plack::Middleware)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Time::HiRes</span> <span class=sx>qw(gettimeofday tv_interval)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>call</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$env</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$start</span> <span class=o>=</span> <span class=p>[</span><span class=n>gettimeofday</span><span class=p>];</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$res</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>app</span><span class=o>-&gt;</span><span class=p>(</span><span class=nv>$env</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>response_cb</span><span class=p>(</span><span class=nv>$res</span><span class=p>,</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$res</span> <span class=o>=</span> <span class=nb>shift</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$elapsed</span> <span class=o>=</span> <span class=n>tv_interval</span><span class=p>(</span><span class=nv>$start</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        
+</span></span><span class=line><span class=cl>        <span class=c1># レスポンスヘッダーに処理時間を追加</span>
+</span></span><span class=line><span class=cl>        <span class=nb>push</span> <span class=nv>@</span><span class=p>{</span><span class=nv>$res</span><span class=o>-&gt;</span><span class=p>[</span><span class=mi>1</span><span class=p>]},</span> <span class=s>&#39;X-Runtime&#39;</span> <span class=o>=&gt;</span> <span class=nb>sprintf</span><span class=p>(</span><span class=s>&#34;%.6f&#34;</span><span class=p>,</span> <span class=nv>$elapsed</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        
+</span></span><span class=line><span class=cl>        <span class=nb>warn</span> <span class=nb>sprintf</span><span class=p>(</span><span class=s>&#34;Request processed in %.6f seconds\n&#34;</span><span class=p>,</span> <span class=nv>$elapsed</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>使用例：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># app_with_timer.psgi</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Plack::Builder</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>lib</span> <span class=s>&#39;lib&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$app</span> <span class=o>=</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=nb>sleep</span> <span class=mi>1</span><span class=p>;</span>  <span class=c1># 処理に時間がかかるシミュレーション</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>[</span> <span class=mi>200</span><span class=p>,</span> <span class=p>[</span> <span class=s>&#39;Content-Type&#39;</span> <span class=o>=&gt;</span> <span class=s>&#39;text/plain&#39;</span> <span class=p>],</span> <span class=p>[</span> <span class=s>&#34;Done&#34;</span> <span class=p>]</span> <span class=p>];</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>builder</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=n>enable</span> <span class=s>&#39;+Plack::Middleware::Timer&#39;</span><span class=p>;</span>  <span class=c1># + を付けてフルパッケージ名を指定</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$app</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span></code></pre></td></tr></table></div></div><h2 id=テストの容易さ>テストの容易さ</h2><p>PSGIアプリケーションは、Webサーバーを起動せずにテストできます：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># test.t</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Test::More</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Plack::Test</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>HTTP::Request::Common</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$app</span> <span class=o>=</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$env</span> <span class=o>=</span> <span class=nb>shift</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>[</span> <span class=mi>200</span><span class=p>,</span> <span class=p>[</span> <span class=s>&#39;Content-Type&#39;</span> <span class=o>=&gt;</span> <span class=s>&#39;text/plain&#39;</span> <span class=p>],</span> <span class=p>[</span> <span class=s>&#34;Hello&#34;</span> <span class=p>]</span> <span class=p>];</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>test_psgi</span> <span class=nv>$app</span><span class=p>,</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$cb</span> <span class=o>=</span> <span class=nb>shift</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$res</span> <span class=o>=</span> <span class=nv>$cb</span><span class=o>-&gt;</span><span class=p>(</span><span class=n>GET</span> <span class=s>&#34;/&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span> <span class=nv>$res</span><span class=o>-&gt;</span><span class=n>code</span><span class=p>,</span> <span class=mi>200</span><span class=p>,</span> <span class=s>&#39;status is 200&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span> <span class=nv>$res</span><span class=o>-&gt;</span><span class=n>content</span><span class=p>,</span> <span class=s>&#39;Hello&#39;</span><span class=p>,</span> <span class=s>&#39;content is Hello&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>done_testing</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>Plack::Test</code> を使えば、HTTPリクエストをシミュレートしてアプリケーションをテストできます。これは、Webサーバーの起動が不要で、高速にテストを実行できることを意味します。</p><h2 id=まとめ>まとめ</h2><p>Plack/PSGIは、Perl Web開発に以下の恩恵をもたらしました：</p><ol><li><strong>標準化されたインターフェース</strong>: アプリとサーバーの分離により、デプロイの選択肢が広がった</li><li><strong>再利用可能なミドルウェア</strong>: 認証、ロギング、セッション管理などを簡単に追加できる</li><li><strong>テストの容易さ</strong>: Webサーバー不要でユニットテストが可能</li><li><strong>フレームワーク非依存</strong>: Mojolicious、Dancer2、Catalystすべてが同じ基盤を共有</li><li><strong>シンプルな仕様</strong>: 学習コストが低く、理解しやすい</li></ol><p>PSGIの仕様は非常にシンプルですが、その上に構築されたPlackエコシステムは豊富で強力です。CPAN上には200以上のPlackミドルウェアが存在し、あらゆるニーズに対応できます。</p><p>Plack/PSGIを理解することは、モダンなPerl Web開発の基礎を理解することです。小さなスクリプトから大規模なWebアプリケーションまで、Plack/PSGIは常に選択肢に入る、頼れる基盤技術なのです。</p><h3 id=参考リンク>参考リンク</h3><ul><li><a class=link href=https://github.com/plack/psgi-specs target=_blank rel=noopener>PSGI specification</a></li><li><a class=link href=https://metacpan.org/pod/Plack target=_blank rel=noopener>Plack - CPAN</a></li><li><a class=link href="https://metacpan.org/search?q=Plack%3A%3AMiddleware" target=_blank rel=noopener>Plack::Middleware - CPAN</a></li><li><a class=link href=http://advent.plackperl.org/ target=_blank rel=noopener>Plack Advent Calendar</a></li></ul><p>Plack/PSGIは、PerlのWeb開発において避けて通れない重要技術です。ぜひ実際に手を動かして、その便利さを体感してください！</p></section><footer class=article-footer><section class=article-tags><a href=/tags/perl/>Perl</a>
+<a href=/tags/advent-calendar/>Advent-Calendar</a>
+<a href=/tags/plack/>Plack</a>
+<a href=/tags/psgi/>Psgi</a>
+<a href=/tags/web/>Web</a>
+<a href=/tags/middleware/>Middleware</a>
+<a href=/tags/starlet/>Starlet</a>
+<a href=/tags/starman/>Starman</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2025/12/11/000000/><div class=article-image><img src=/public_images/20251211-moose.jpg loading=lazy data-key data-hash=/public_images/20251211-moose.jpg></div><div class=article-details><h2 class=article-title>Moo/Moose - モダンなPerlオブジェクト指向プログラミング</h2></div></a></article><article class=has-image><a href=/2025/12/10/000000/><div class=article-image><img src=/public_images/20251210-carton.jpg loading=lazy data-key data-hash=/public_images/20251210-carton.jpg></div><div class=article-details><h2 class=article-title>Carton/cpanfile - モダンなPerl依存関係管理</h2></div></a></article><article class=has-image><a href=/2025/12/08/000000/><div class=article-image><img src=/public_images/20251208-context.jpg loading=lazy data-key data-hash=/public_images/20251208-context.jpg></div><div class=article-details><h2 class=article-title>Perlコンテキストの魔法 - スカラー・リスト・voidコンテキストを理解する</h2></div></a></article><article class=has-image><a href=/2006/10/22/022328/><div class=article-image><img src=/favicon.png loading=lazy data-key data-hash=/favicon.png></div><div class=article-details><h2 class=article-title>サブルーチンを使う</h2></div></a></article><article class=has-image><a href=/2026/02/28/070705/><div class=article-image><img src=/public_images/2026/code-doctor-mediator/header.webp loading=lazy data-key data-hash=/public_images/2026/code-doctor-mediator/header.webp></div><div class=article-details><h2 class=article-title>コードドクター【Mediator】全身感染症候群〜仲介者の処方箋〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

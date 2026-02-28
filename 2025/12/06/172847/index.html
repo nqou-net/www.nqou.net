@@ -1,0 +1,977 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="Perlのweakenを使った循環参照とメモリリーク回避の実践ガイド。双方向リスト、親子関係、クロージャ、キャッシュなど5つの実装パターンを実例で解説。KAVALAN BLENDER'S SELECTと共に楽しむ技術解説。"><title>PerlのScalar::Util::weaken完全ガイド - メモリリークを防ぐ5つのパターン</title><link rel=canonical href=https://www.nqou.net/2025/12/06/172847/><link rel=stylesheet href=/scss/style.min.6a692fd055deae459f2a9767f57f3855ba80cafd5041317f24f7360f6ca47cdf.css><meta property='og:title' content="PerlのScalar::Util::weaken完全ガイド - メモリリークを防ぐ5つのパターン"><meta property='og:description' content="Perlのweakenを使った循環参照とメモリリーク回避の実践ガイド。双方向リスト、親子関係、クロージャ、キャッシュなど5つの実装パターンを実例で解説。KAVALAN BLENDER'S SELECTと共に楽しむ技術解説。"><meta property='og:url' content='https://www.nqou.net/2025/12/06/172847/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='perl'><meta property='article:tag' content='weaken'><meta property='article:tag' content='memory-management'><meta property='article:tag' content='scalar-util'><meta property='article:tag' content='circular-reference'><meta property='article:tag' content='perl5'><meta property='article:published_time' content='2025-12-06T17:28:47+09:00'><meta property='article:modified_time' content='2025-12-06T17:28:47+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2025/1765009727-image.jpg'><meta name=twitter:title content="PerlのScalar::Util::weaken完全ガイド - メモリリークを防ぐ5つのパターン"><meta name=twitter:description content="Perlのweakenを使った循環参照とメモリリーク回避の実践ガイド。双方向リスト、親子関係、クロージャ、キャッシュなど5つの実装パターンを実例で解説。KAVALAN BLENDER'S SELECTと共に楽しむ技術解説。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2025/1765009727-image.jpg'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/warehouse/><svg class="icon icon-tabler icon-tabler-warehouse" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 10l9-6 9 6"/><rect x="5" y="10" width="14" height="10" rx="2"/><rect x="10" y="14" width="4" height="6" rx="1"/><path d="M7 20v-4h2v4"/><path d="M15 20v-4h2v4"/></svg>
+<span>Warehouse</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#私はperlとウイスキーが大好きです>私はPerlとウイスキーが大好きです</a></li><li><a href=#perlのリファレンス--参照の基本>Perlのリファレンス — 参照の基本</a><ol><li><a href=#スカラー配列ハッシュのリファレンス>スカラー・配列・ハッシュのリファレンス</a></li></ol></li><li><a href=#weaken-とは何か--弱参照の魔法><code>weaken</code> とは何か？ — 弱参照の魔法</a><ol><li><a href=#なぜ弱参照が必要なのか>なぜ弱参照が必要なのか</a></li></ol></li><li><a href=#パターン1-循環参照によるメモリリーク--双方向リスト>パターン1: 循環参照によるメモリリーク — 双方向リスト</a><ol><li><a href=#問題のあるコードメモリリークあり>問題のあるコード（メモリリークあり）</a></li><li><a href=#解決策-weaken-を使う>解決策: <code>weaken</code> を使う</a></li><li><a href=#仕組みの解説>仕組みの解説</a></li></ol></li><li><a href=#パターン2-ストロング参照のみ--シンプルなツリー構造>パターン2: ストロング参照のみ — シンプルなツリー構造</a></li><li><a href=#パターン3-親子関係でのメモリリーク回避>パターン3: 親子関係でのメモリリーク回避</a><ol><li><a href=#問題のあるコード>問題のあるコード</a></li><li><a href=#解決策-子から親への参照を弱くする>解決策: 子から親への参照を弱くする</a></li><li><a href=#ベストプラクティス>ベストプラクティス</a></li></ol></li><li><a href=#パターン4-クロージャとコールバック--イベントリスナーの罠>パターン4: クロージャとコールバック — イベントリスナーの罠</a><ol><li><a href=#問題のあるコード-1>問題のあるコード</a></li><li><a href=#解決策-弱参照を使う>解決策: 弱参照を使う</a></li><li><a href=#重要なポイント>重要なポイント</a></li></ol></li><li><a href=#パターン5-キャッシュの実装--適切な解放タイミング>パターン5: キャッシュの実装 — 適切な解放タイミング</a></li><li><a href=#実践的なデバッグテクニック>実践的なデバッグテクニック</a><ol><li><a href=#1-弱参照かどうか確認する>1. 弱参照かどうか確認する</a></li><li><a href=#2-デストラクタでメモリリークを検出>2. デストラクタでメモリリークを検出</a></li><li><a href=#3-develcycle-で循環参照を見つける>3. Devel::Cycle で循環参照を見つける</a></li></ol></li><li><a href=#まとめ--ウイスキーとweakenの共通点>まとめ — ウイスキーとweakenの共通点</a></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2025/12/06/172847/><img src=/public_images/2025/1765009727-image.jpg loading=lazy alt="Featured image of post PerlのScalar::Util::weaken完全ガイド - メモリリークを防ぐ5つのパターン"></a></div><div class=article-details><div class=article-title-wrapper><h2 class=article-title><a href=/2025/12/06/172847/>PerlのScalar::Util::weaken完全ガイド - メモリリークを防ぐ5つのパターン</a></h2><h3 class=article-subtitle>Perlのweakenを使った循環参照とメモリリーク回避の実践ガイド。双方向リスト、親子関係、クロージャ、キャッシュなど5つの実装パターンを実例で解説。KAVALAN BLENDER'S SELECTと共に楽しむ技術解説。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>12月 06, 2025</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 10分</time></div></footer></div></header><section class=article-content><h2 id=私はperlとウイスキーが大好きです>私はPerlとウイスキーが大好きです</h2><p>KAVALAN BLENDER&rsquo;S SELECTのグラスを傾けながら、琥珀色の液体が喉を滑り落ちる感覚を味わう。ストレートで、ゆっくりと。急がず、じっくりと。</p><div class=linkcard><a class=linkcard-a href=https://www.kavalanwhisky.com/jp/ target=_blank rel="noopener noreferrer nofollow" title=https://www.kavalanwhisky.com/jp/ aria-label=https://www.kavalanwhisky.com/jp/><div class=linkcard-content><div class=linkcard-title>https://www.kavalanwhisky.com/jp/</div><div class=linkcard-meta><img class=linkcard-favicon src=https://www.kavalanwhisky.com/favicon.ico alt onerror='this.style.display="none"'><span class=linkcard-domain>www.kavalanwhisky.com</span></div></div></a></div><p>このKAVALAN、ご存知ですか？台湾・宜蘭県で2005年に創業した、比較的若い蒸留所から生まれたウイスキーです。亜熱帯気候という一見「ハンデ」に思える環境を、むしろ「武器」に変えた戦略が見事。スコットランドで10年かかる熟成が、台湾の高温多湿では3〜4年で完了します。天使の分け前（エンジェルズシェア）は年間10〜15%と驚異的ですが、その分、樽との相互作用が劇的に加速し、濃密で複雑な味わいが短期間で生まれるのです。</p><div class=linkcard><a class=linkcard-a href=https://www.costco.co.jp/c/Kavalan-Blenders-Select-Single-Malt-Whisky-1000-ml/p/76868 target=_blank rel="noopener noreferrer nofollow" title=https://www.costco.co.jp/c/Kavalan-Blenders-Select-Single-Malt-Whisky-1000-ml/p/76868 aria-label=https://www.costco.co.jp/c/Kavalan-Blenders-Select-Single-Malt-Whisky-1000-ml/p/76868><div class=linkcard-content><div class=linkcard-title>https://www.costco.co.jp/c/Kavalan-Blenders-Select-Single-Malt-Whisky-1000-ml/p/76868</div><div class=linkcard-meta><img class=linkcard-favicon src=https://www.costco.co.jp/favicon.ico alt onerror='this.style.display="none"'><span class=linkcard-domain>www.costco.co.jp</span></div></div></a></div><p>BLENDER&rsquo;S SELECTは、マンゴー、パイナップル、熟した洋梨やリンゴのフルーティな香り。口に含むと滑らかで豊かな果実味（トロピカル＋リンゴ系）が広がり、バニラやキャラメルの甘さが感じられます。複数の樽をブレンド（主にアメリカンオーク系とシェリー系を取り合わせているとされる）した、まさに「ブレンダーの技」が光る一本。チビチビやりながらコードを書く、至福の時間です。</p><p>ウイスキーの楽しみ方とPerlのコーディング、実は驚くほど似ています。どちらも「ちょうどいいバランス」が命。ウイスキーを水で割りすぎれば風味が失われ、Perlでリファレンスを持ちすぎればメモリリークが発生する。そして、その絶妙なバランスを取るための魔法が <code>Scalar::Util::weaken</code> なのです。</p><p>今夜は、このKAVALANをチビチビやりながら、Perlの <code>weaken</code> について語りましょう。</p><h2 id=perlのリファレンス--参照の基本>Perlのリファレンス — 参照の基本</h2><p><code>weaken</code> を理解する前に、まずPerlのリファレンスについておさらいしましょう。ウイスキーボトルのラベルを読むように、丁寧に。</p><h3 id=スカラー配列ハッシュのリファレンス>スカラー・配列・ハッシュのリファレンス</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># スカラーへのリファレンス</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$whiskey_name</span> <span class=o>=</span> <span class=s>&#34;KAVALAN BLENDER&#39;S SELECT&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$ref_to_name</span> <span class=o>=</span> <span class=o>\</span><span class=nv>$whiskey_name</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>print</span> <span class=s>&#34;Whiskey: $$ref_to_name\n&#34;</span><span class=p>;</span>  <span class=c1># デリファレンス</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 配列へのリファレンス</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>@bottles</span> <span class=o>=</span> <span class=sx>qw(KAVALAN Yamazaki Hibiki)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$ref_to_bottles</span> <span class=o>=</span> <span class=o>\</span><span class=nv>@bottles</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>print</span> <span class=s>&#34;First bottle: $ref_to_bottles-&gt;[0]\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># ハッシュへのリファレンス</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>%tasting_notes</span> <span class=o>=</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>aroma</span> <span class=o>=&gt;</span> <span class=s>&#39;fruity and floral&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>taste</span> <span class=o>=&gt;</span> <span class=s>&#39;smooth with vanilla&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>finish</span> <span class=o>=&gt;</span> <span class=s>&#39;long and warming&#39;</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$ref_to_notes</span> <span class=o>=</span> <span class=o>\</span><span class=nv>%tasting_notes</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>print</span> <span class=s>&#34;Aroma: $ref_to_notes-&gt;{aroma}\n&#34;</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>これらのリファレンスは「強参照（strong reference）」と呼ばれます。グラスにウイスキーがある限り、その存在は確かなもの。リファレンスがある限り、データは消えません。</p><h2 id=weaken-とは何か--弱参照の魔法><code>weaken</code> とは何か？ — 弱参照の魔法</h2><p><code>Scalar::Util::weaken</code> は、強参照を弱参照（weak reference）に変換する関数です。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Scalar::Util</span> <span class=sx>qw(weaken isweak)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$bottle</span> <span class=o>=</span> <span class=p>{</span> <span class=n>name</span> <span class=o>=&gt;</span> <span class=s>&#34;KAVALAN&#34;</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$ref</span> <span class=o>=</span> <span class=nv>$bottle</span><span class=p>;</span>  <span class=c1># 強参照</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>print</span> <span class=s>&#34;Before weaken: &#34;</span><span class=p>,</span> <span class=p>(</span><span class=n>isweak</span><span class=p>(</span><span class=nv>$ref</span><span class=p>)</span> <span class=p>?</span> <span class=s>&#34;weak&#34;</span> <span class=p>:</span> <span class=s>&#34;strong&#34;</span><span class=p>),</span> <span class=s>&#34;\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>weaken</span><span class=p>(</span><span class=nv>$ref</span><span class=p>);</span>  <span class=c1># 弱参照に変換</span>
+</span></span><span class=line><span class=cl><span class=k>print</span> <span class=s>&#34;After weaken: &#34;</span><span class=p>,</span> <span class=p>(</span><span class=n>isweak</span><span class=p>(</span><span class=nv>$ref</span><span class=p>)</span> <span class=p>?</span> <span class=s>&#34;weak&#34;</span> <span class=p>:</span> <span class=s>&#34;strong&#34;</span><span class=p>),</span> <span class=s>&#34;\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># $bottleが存在する間は$refも有効</span>
+</span></span><span class=line><span class=cl><span class=k>print</span> <span class=s>&#34;Ref is defined: &#34;</span><span class=p>,</span> <span class=p>(</span><span class=nb>defined</span> <span class=nv>$ref</span> <span class=p>?</span> <span class=s>&#34;yes&#34;</span> <span class=p>:</span> <span class=s>&#34;no&#34;</span><span class=p>),</span> <span class=s>&#34;\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 元のデータを削除すると...</span>
+</span></span><span class=line><span class=cl><span class=nb>undef</span> <span class=nv>$bottle</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>print</span> <span class=s>&#34;After undef bottle: &#34;</span><span class=p>,</span> <span class=p>(</span><span class=nb>defined</span> <span class=nv>$ref</span> <span class=p>?</span> <span class=s>&#34;yes&#34;</span> <span class=p>:</span> <span class=s>&#34;no&#34;</span><span class=p>),</span> <span class=s>&#34;\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=c1># 出力: After undef bottle: no</span>
+</span></span></code></pre></td></tr></table></div></div><p>弱参照は、データの存在を「保証しない」参照です。まるで、ウイスキーの香りのようなもの。グラスにウイスキーがあれば香りも楽しめますが、ウイスキーを飲み干せば香りも消える。弱参照はそういう存在なのです。</p><h3 id=なぜ弱参照が必要なのか>なぜ弱参照が必要なのか</h3><p>強参照だけでは、参照カウント方式のメモリ管理において<strong>循環参照によるメモリリーク</strong>が発生します。これは、空のボトルを延々と棚に並べ続けるようなもの。いつかは棚が満杯になってしまいます。</p><h2 id=パターン1-循環参照によるメモリリーク--双方向リスト>パターン1: 循環参照によるメモリリーク — 双方向リスト</h2><p>最も分かりやすい例は、双方向リストです。</p><h3 id=問題のあるコードメモリリークあり>問題のあるコード（メモリリークあり）</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Node</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>new</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$class</span><span class=p>,</span> <span class=nv>$value</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nb>bless</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>value</span> <span class=o>=&gt;</span> <span class=nv>$value</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=k>next</span>  <span class=o>=&gt;</span> <span class=nb>undef</span><span class=p>,</span>  <span class=c1># 次のノードへの参照</span>
+</span></span><span class=line><span class=cl>        <span class=n>prev</span>  <span class=o>=&gt;</span> <span class=nb>undef</span><span class=p>,</span>  <span class=c1># 前のノードへの参照</span>
+</span></span><span class=line><span class=cl>    <span class=p>},</span> <span class=nv>$class</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>DESTROY</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$self</span> <span class=o>=</span> <span class=nb>shift</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>print</span> <span class=s>&#34;Destroying node: $self-&gt;{value}\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>main</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$node1</span> <span class=o>=</span> <span class=nn>Node</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=s>&#34;First pour&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$node2</span> <span class=o>=</span> <span class=nn>Node</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=s>&#34;Second pour&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=c1># 双方向リンクを作成</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$node1</span><span class=o>-&gt;</span><span class=p>{</span><span class=k>next</span><span class=p>}</span> <span class=o>=</span> <span class=nv>$node2</span><span class=p>;</span>  <span class=c1># node1 -&gt; node2</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$node2</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>prev</span><span class=p>}</span> <span class=o>=</span> <span class=nv>$node1</span><span class=p>;</span>  <span class=c1># node2 -&gt; node1</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>print</span> <span class=s>&#34;Created circular reference\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=c1># DESTROYが呼ばれない！メモリリーク発生</span>
+</span></span><span class=line><span class=cl><span class=k>print</span> <span class=s>&#34;Scope ended\n&#34;</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>このコードでは、<code>$node1</code> と <code>$node2</code> がお互いを参照し合っているため、スコープを抜けても参照カウントが0にならず、メモリが解放されません。</p><h3 id=解決策-weaken-を使う>解決策: <code>weaken</code> を使う</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Scalar::Util</span> <span class=sx>qw(weaken)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Node</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>new</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$class</span><span class=p>,</span> <span class=nv>$value</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nb>bless</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>value</span> <span class=o>=&gt;</span> <span class=nv>$value</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=k>next</span>  <span class=o>=&gt;</span> <span class=nb>undef</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>prev</span>  <span class=o>=&gt;</span> <span class=nb>undef</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>},</span> <span class=nv>$class</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>DESTROY</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$self</span> <span class=o>=</span> <span class=nb>shift</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>print</span> <span class=s>&#34;Destroying node: $self-&gt;{value}\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>main</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$node1</span> <span class=o>=</span> <span class=nn>Node</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=s>&#34;First pour&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$node2</span> <span class=o>=</span> <span class=nn>Node</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=s>&#34;Second pour&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=c1># 双方向リンクを作成</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$node1</span><span class=o>-&gt;</span><span class=p>{</span><span class=k>next</span><span class=p>}</span> <span class=o>=</span> <span class=nv>$node2</span><span class=p>;</span>  <span class=c1># node1 -&gt; node2（強参照）</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$node2</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>prev</span><span class=p>}</span> <span class=o>=</span> <span class=nv>$node1</span><span class=p>;</span>  <span class=c1># node2 -&gt; node1（強参照）</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=c1># 一方を弱参照に変換して循環を断ち切る</span>
+</span></span><span class=line><span class=cl>    <span class=n>weaken</span><span class=p>(</span><span class=nv>$node2</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>prev</span><span class=p>});</span>  <span class=c1># これで循環参照が解消</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>print</span> <span class=s>&#34;Created circular reference with weaken\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=k>print</span> <span class=s>&#34;Scope ended\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=c1># 出力:</span>
+</span></span><span class=line><span class=cl><span class=c1># Created circular reference with weaken</span>
+</span></span><span class=line><span class=cl><span class=c1># Destroying node: First pour</span>
+</span></span><span class=line><span class=cl><span class=c1># Destroying node: Second pour</span>
+</span></span><span class=line><span class=cl><span class=c1># Scope ended</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>weaken</code> を使うことで、<code>$node2->{prev}</code> は弱参照となり、循環参照が解消されます。スコープを抜けると、正しく <code>DESTROY</code> が呼ばれてメモリが解放されます。</p><h3 id=仕組みの解説>仕組みの解説</h3><ol><li><code>$node1</code> のスコープが終わる</li><li><code>$node1</code> への参照カウントを確認</li><li><code>$node2->{prev}</code> は弱参照なのでカウントしない → カウントは0</li><li><code>$node1</code> が破棄される</li><li><code>$node1->{next}</code> が削除されるので <code>$node2</code> への参照が減る</li><li><code>$node2</code> の参照カウントも0になる</li><li><code>$node2</code> も破棄される</li></ol><p>まるでドミノ倒しのように、美しくメモリが解放されていきます。KAVALANのフィニッシュのように、長く、そして確実に。</p><h2 id=パターン2-ストロング参照のみ--シンプルなツリー構造>パターン2: ストロング参照のみ — シンプルなツリー構造</h2><p>弱参照が常に必要なわけではありません。片方向のデータ構造では、強参照だけで十分な場合もあります。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>TreeNode</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>new</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$class</span><span class=p>,</span> <span class=nv>$value</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nb>bless</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>value</span>    <span class=o>=&gt;</span> <span class=nv>$value</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>children</span> <span class=o>=&gt;</span> <span class=o>[]</span><span class=p>,</span>  <span class=c1># 子ノードへの参照配列</span>
+</span></span><span class=line><span class=cl>    <span class=p>},</span> <span class=nv>$class</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>add_child</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$child</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nb>push</span> <span class=nv>@</span><span class=p>{</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>children</span><span class=p>}},</span> <span class=nv>$child</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>DESTROY</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$self</span> <span class=o>=</span> <span class=nb>shift</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>print</span> <span class=s>&#34;Destroying TreeNode: $self-&gt;{value}\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>main</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$root</span> <span class=o>=</span> <span class=nn>TreeNode</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=s>&#34;Distillery&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$child1</span> <span class=o>=</span> <span class=nn>TreeNode</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=s>&#34;Cask 1&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$child2</span> <span class=o>=</span> <span class=nn>TreeNode</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=s>&#34;Cask 2&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=nv>$root</span><span class=o>-&gt;</span><span class=n>add_child</span><span class=p>(</span><span class=nv>$child1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$root</span><span class=o>-&gt;</span><span class=n>add_child</span><span class=p>(</span><span class=nv>$child2</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>print</span> <span class=s>&#34;Created tree structure\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=k>print</span> <span class=s>&#34;Scope ended\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=c1># 出力:</span>
+</span></span><span class=line><span class=cl><span class=c1># Created tree structure</span>
+</span></span><span class=line><span class=cl><span class=c1># Destroying TreeNode: Distillery</span>
+</span></span><span class=line><span class=cl><span class=c1># Destroying TreeNode: Cask 2</span>
+</span></span><span class=line><span class=cl><span class=c1># Destroying TreeNode: Cask 1</span>
+</span></span><span class=line><span class=cl><span class=c1># Scope ended</span>
+</span></span></code></pre></td></tr></table></div></div><p>このコードは正しく動作します。なぜなら：</p><ol><li>親から子への参照のみ（一方向）</li><li>子から親への参照がない</li><li>循環参照が存在しない</li></ol><p>これは、ウイスキーの蒸留工程のようなもの。上から下へ、一方向に流れていくだけです。</p><h2 id=パターン3-親子関係でのメモリリーク回避>パターン3: 親子関係でのメモリリーク回避</h2><p>しかし、子から親を参照したい場合はどうでしょう？これが現実のアプリケーションでは頻繁に発生します。</p><h3 id=問題のあるコード>問題のあるコード</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Parent</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>new</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$class</span><span class=p>,</span> <span class=nv>$name</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nb>bless</span> <span class=p>{</span> <span class=n>name</span> <span class=o>=&gt;</span> <span class=nv>$name</span><span class=p>,</span> <span class=n>children</span> <span class=o>=&gt;</span> <span class=o>[]</span> <span class=p>},</span> <span class=nv>$class</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>add_child</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$child</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nb>push</span> <span class=nv>@</span><span class=p>{</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>children</span><span class=p>}},</span> <span class=nv>$child</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$child</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>parent</span><span class=p>}</span> <span class=o>=</span> <span class=nv>$self</span><span class=p>;</span>  <span class=c1># 子から親への参照を設定</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>DESTROY</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$self</span> <span class=o>=</span> <span class=nb>shift</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>print</span> <span class=s>&#34;Destroying Parent: $self-&gt;{name}\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Child</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>new</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$class</span><span class=p>,</span> <span class=nv>$name</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nb>bless</span> <span class=p>{</span> <span class=n>name</span> <span class=o>=&gt;</span> <span class=nv>$name</span><span class=p>,</span> <span class=n>parent</span> <span class=o>=&gt;</span> <span class=nb>undef</span> <span class=p>},</span> <span class=nv>$class</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>DESTROY</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$self</span> <span class=o>=</span> <span class=nb>shift</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>print</span> <span class=s>&#34;Destroying Child: $self-&gt;{name}\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>main</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$parent</span> <span class=o>=</span> <span class=nn>Parent</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=s>&#34;Master Blender&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$child1</span> <span class=o>=</span> <span class=nn>Child</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=s>&#34;Bottle 1&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$child2</span> <span class=o>=</span> <span class=nn>Child</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=s>&#34;Bottle 2&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=nv>$parent</span><span class=o>-&gt;</span><span class=n>add_child</span><span class=p>(</span><span class=nv>$child1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$parent</span><span class=o>-&gt;</span><span class=n>add_child</span><span class=p>(</span><span class=nv>$child2</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=c1># スコープが終わってもDESTROYが呼ばれない！</span>
+</span></span><span class=line><span class=cl><span class=k>print</span> <span class=s>&#34;Scope ended\n&#34;</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=解決策-子から親への参照を弱くする>解決策: 子から親への参照を弱くする</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span><span class=lnt>51
+</span><span class=lnt>52
+</span><span class=lnt>53
+</span><span class=lnt>54
+</span><span class=lnt>55
+</span><span class=lnt>56
+</span><span class=lnt>57
+</span><span class=lnt>58
+</span><span class=lnt>59
+</span><span class=lnt>60
+</span><span class=lnt>61
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Parent</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Scalar::Util</span> <span class=sx>qw(weaken)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>new</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$class</span><span class=p>,</span> <span class=nv>$name</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nb>bless</span> <span class=p>{</span> <span class=n>name</span> <span class=o>=&gt;</span> <span class=nv>$name</span><span class=p>,</span> <span class=n>children</span> <span class=o>=&gt;</span> <span class=o>[]</span> <span class=p>},</span> <span class=nv>$class</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>add_child</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$child</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nb>push</span> <span class=nv>@</span><span class=p>{</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>children</span><span class=p>}},</span> <span class=nv>$child</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$child</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>parent</span><span class=p>}</span> <span class=o>=</span> <span class=nv>$self</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>weaken</span><span class=p>(</span><span class=nv>$child</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>parent</span><span class=p>});</span>  <span class=c1># 子から親への参照を弱参照に</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>DESTROY</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$self</span> <span class=o>=</span> <span class=nb>shift</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>print</span> <span class=s>&#34;Destroying Parent: $self-&gt;{name}\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Child</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>new</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$class</span><span class=p>,</span> <span class=nv>$name</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nb>bless</span> <span class=p>{</span> <span class=n>name</span> <span class=o>=&gt;</span> <span class=nv>$name</span><span class=p>,</span> <span class=n>parent</span> <span class=o>=&gt;</span> <span class=nb>undef</span> <span class=p>},</span> <span class=nv>$class</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>get_parent_name</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$self</span> <span class=o>=</span> <span class=nb>shift</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=c1># 弱参照が有効かチェック</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>parent</span><span class=p>}</span> <span class=p>?</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>parent</span><span class=p>}{</span><span class=n>name</span><span class=p>}</span> <span class=p>:</span> <span class=s>&#34;No parent&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>DESTROY</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$self</span> <span class=o>=</span> <span class=nb>shift</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>print</span> <span class=s>&#34;Destroying Child: $self-&gt;{name}\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>main</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$parent</span> <span class=o>=</span> <span class=nn>Parent</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=s>&#34;Master Blender&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$child1</span> <span class=o>=</span> <span class=nn>Child</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=s>&#34;Bottle 1&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$child2</span> <span class=o>=</span> <span class=nn>Child</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=s>&#34;Bottle 2&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=nv>$parent</span><span class=o>-&gt;</span><span class=n>add_child</span><span class=p>(</span><span class=nv>$child1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$parent</span><span class=o>-&gt;</span><span class=n>add_child</span><span class=p>(</span><span class=nv>$child2</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=c1># 子から親にアクセスできる</span>
+</span></span><span class=line><span class=cl>    <span class=k>print</span> <span class=s>&#34;Child1&#39;s parent: &#34;</span><span class=p>,</span> <span class=nv>$child1</span><span class=o>-&gt;</span><span class=n>get_parent_name</span><span class=p>(),</span> <span class=s>&#34;\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=k>print</span> <span class=s>&#34;Scope ended\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=c1># 出力:</span>
+</span></span><span class=line><span class=cl><span class=c1># Child1&#39;s parent: Master Blender</span>
+</span></span><span class=line><span class=cl><span class=c1># Destroying Parent: Master Blender</span>
+</span></span><span class=line><span class=cl><span class=c1># Destroying Child: Bottle 2</span>
+</span></span><span class=line><span class=cl><span class=c1># Destroying Child: Bottle 1</span>
+</span></span><span class=line><span class=cl><span class=c1># Scope ended</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=ベストプラクティス>ベストプラクティス</h3><p>親子関係では、一般的に以下のルールに従います：</p><ul><li><strong>親から子への参照</strong>: 強参照（親が子の寿命を管理）</li><li><strong>子から親への参照</strong>: 弱参照（子は親の存在を参照するだけ）</li></ul><p>これは、ウイスキーとグラスの関係のようなもの。ボトル（親）がグラス（子）を所有し、グラスはボトルを参照するだけ。ボトルがなくなれば、グラスも意味を失います。</p><h2 id=パターン4-クロージャとコールバック--イベントリスナーの罠>パターン4: クロージャとコールバック — イベントリスナーの罠</h2><p>オブジェクトがクロージャを保持する場合、特に注意が必要です。これは経験豊富なPerl使いでも踏みやすい罠です。</p><h3 id=問題のあるコード-1>問題のあるコード</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span><span class=lnt>51
+</span><span class=lnt>52
+</span><span class=lnt>53
+</span><span class=lnt>54
+</span><span class=lnt>55
+</span><span class=lnt>56
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>EventEmitter</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>new</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$class</span><span class=p>,</span> <span class=nv>$name</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nb>bless</span> <span class=p>{</span> <span class=n>name</span> <span class=o>=&gt;</span> <span class=nv>$name</span><span class=p>,</span> <span class=n>listeners</span> <span class=o>=&gt;</span> <span class=o>[]</span> <span class=p>},</span> <span class=nv>$class</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>on</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$callback</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nb>push</span> <span class=nv>@</span><span class=p>{</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>listeners</span><span class=p>}},</span> <span class=nv>$callback</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>emit</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$event</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$_</span><span class=o>-&gt;</span><span class=p>(</span><span class=nv>$event</span><span class=p>)</span> <span class=k>for</span> <span class=nv>@</span><span class=p>{</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>listeners</span><span class=p>}};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>DESTROY</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$self</span> <span class=o>=</span> <span class=nb>shift</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>print</span> <span class=s>&#34;Destroying EventEmitter: $self-&gt;{name}\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Observer</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>new</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$class</span><span class=p>,</span> <span class=nv>$name</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nb>bless</span> <span class=p>{</span> <span class=n>name</span> <span class=o>=&gt;</span> <span class=nv>$name</span> <span class=p>},</span> <span class=nv>$class</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>DESTROY</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$self</span> <span class=o>=</span> <span class=nb>shift</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>print</span> <span class=s>&#34;Destroying Observer: $self-&gt;{name}\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>main</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$emitter</span> <span class=o>=</span> <span class=nn>EventEmitter</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=s>&#34;Whiskey Bottle&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$observer</span> <span class=o>=</span> <span class=nn>Observer</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=s>&#34;Taster&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=c1># このクロージャが$observerを捕捉する</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$emitter</span><span class=o>-&gt;</span><span class=n>on</span><span class=p>(</span><span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$event</span> <span class=o>=</span> <span class=nb>shift</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>print</span> <span class=s>&#34;Observer $observer-&gt;{name} received: $event\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>});</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=nv>$emitter</span><span class=o>-&gt;</span><span class=n>emit</span><span class=p>(</span><span class=s>&#34;Pour&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=c1># 明示的にundefしてもObserverは破棄されない</span>
+</span></span><span class=line><span class=cl>    <span class=nb>undef</span> <span class=nv>$observer</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=c1># Observerが破棄されない！（$emitterがクロージャ経由で保持している）</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=k>print</span> <span class=s>&#34;Scope ended\n&#34;</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>クロージャが <code>$observer</code> への参照を保持し、<code>$emitter</code> がそのクロージャを保持するため、<code>$observer</code> は解放されません。</p><h3 id=解決策-弱参照を使う>解決策: 弱参照を使う</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span><span class=lnt>51
+</span><span class=lnt>52
+</span><span class=lnt>53
+</span><span class=lnt>54
+</span><span class=lnt>55
+</span><span class=lnt>56
+</span><span class=lnt>57
+</span><span class=lnt>58
+</span><span class=lnt>59
+</span><span class=lnt>60
+</span><span class=lnt>61
+</span><span class=lnt>62
+</span><span class=lnt>63
+</span><span class=lnt>64
+</span><span class=lnt>65
+</span><span class=lnt>66
+</span><span class=lnt>67
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Scalar::Util</span> <span class=sx>qw(weaken)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>EventEmitter</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>new</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$class</span><span class=p>,</span> <span class=nv>$name</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nb>bless</span> <span class=p>{</span> <span class=n>name</span> <span class=o>=&gt;</span> <span class=nv>$name</span><span class=p>,</span> <span class=n>listeners</span> <span class=o>=&gt;</span> <span class=o>[]</span> <span class=p>},</span> <span class=nv>$class</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>on</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$callback</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nb>push</span> <span class=nv>@</span><span class=p>{</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>listeners</span><span class=p>}},</span> <span class=nv>$callback</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>emit</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$event</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$_</span><span class=o>-&gt;</span><span class=p>(</span><span class=nv>$event</span><span class=p>)</span> <span class=k>for</span> <span class=nv>@</span><span class=p>{</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>listeners</span><span class=p>}};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>DESTROY</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$self</span> <span class=o>=</span> <span class=nb>shift</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>print</span> <span class=s>&#34;Destroying EventEmitter: $self-&gt;{name}\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Observer</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>new</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$class</span><span class=p>,</span> <span class=nv>$name</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nb>bless</span> <span class=p>{</span> <span class=n>name</span> <span class=o>=&gt;</span> <span class=nv>$name</span> <span class=p>},</span> <span class=nv>$class</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>DESTROY</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$self</span> <span class=o>=</span> <span class=nb>shift</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>print</span> <span class=s>&#34;Destroying Observer: $self-&gt;{name}\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>main</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$emitter</span> <span class=o>=</span> <span class=nn>EventEmitter</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=s>&#34;Whiskey Bottle&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$observer</span> <span class=o>=</span> <span class=nn>Observer</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=s>&#34;Taster&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=c1># 弱参照のコピーを作成</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$weak_observer</span> <span class=o>=</span> <span class=nv>$observer</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>weaken</span><span class=p>(</span><span class=nv>$weak_observer</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=c1># クロージャは弱参照を捕捉</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$emitter</span><span class=o>-&gt;</span><span class=n>on</span><span class=p>(</span><span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$event</span> <span class=o>=</span> <span class=nb>shift</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=k>unless</span> <span class=nb>defined</span> <span class=nv>$weak_observer</span><span class=p>;</span>  <span class=c1># 弱参照チェック</span>
+</span></span><span class=line><span class=cl>        <span class=k>print</span> <span class=s>&#34;Observer $weak_observer-&gt;{name} received: $event\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>});</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=nv>$emitter</span><span class=o>-&gt;</span><span class=n>emit</span><span class=p>(</span><span class=s>&#34;Pour&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>print</span> <span class=s>&#34;Undefining observer...\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nb>undef</span> <span class=nv>$observer</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$emitter</span><span class=o>-&gt;</span><span class=n>emit</span><span class=p>(</span><span class=s>&#34;Drink&#34;</span><span class=p>);</span>  <span class=c1># observerは存在しないので何も起こらない</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=k>print</span> <span class=s>&#34;Scope ended\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=c1># 出力:</span>
+</span></span><span class=line><span class=cl><span class=c1># Observer Taster received: Pour</span>
+</span></span><span class=line><span class=cl><span class=c1># Undefining observer...</span>
+</span></span><span class=line><span class=cl><span class=c1># Destroying Observer: Taster</span>
+</span></span><span class=line><span class=cl><span class=c1># Destroying EventEmitter: Whiskey Bottle</span>
+</span></span><span class=line><span class=cl><span class=c1># Scope ended</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=重要なポイント>重要なポイント</h3><p>クロージャで弱参照を使う場合は、<strong>必ず <code>defined</code> チェック</strong>を行います：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>return</span> <span class=k>unless</span> <span class=nb>defined</span> <span class=nv>$weak_observer</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>弱参照は元のオブジェクトが破棄されると <code>undef</code> になります。チェックせずにアクセスするとエラーになります。これは、空のグラスに口をつける前に、中身があるか確認するようなものです。</p><h2 id=パターン5-キャッシュの実装--適切な解放タイミング>パターン5: キャッシュの実装 — 適切な解放タイミング</h2><p>弱参照は、キャッシュの実装にも有効です。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Cache</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Scalar::Util</span> <span class=sx>qw(weaken)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>new</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$class</span> <span class=o>=</span> <span class=nb>shift</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nb>bless</span> <span class=p>{</span> <span class=n>storage</span> <span class=o>=&gt;</span> <span class=p>{}</span> <span class=p>},</span> <span class=nv>$class</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>set</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$key</span><span class=p>,</span> <span class=nv>$value</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>storage</span><span class=p>}{</span><span class=nv>$key</span><span class=p>}</span> <span class=o>=</span> <span class=nv>$value</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>weaken</span><span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>storage</span><span class=p>}{</span><span class=nv>$key</span><span class=p>});</span>  <span class=c1># 弱参照としてキャッシュ</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>get</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$key</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>storage</span><span class=p>}{</span><span class=nv>$key</span><span class=p>};</span>  <span class=c1># undefかもしれない</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>DESTROY</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>print</span> <span class=s>&#34;Destroying Cache\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>main</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$cache</span> <span class=o>=</span> <span class=nn>Cache</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$data</span> <span class=o>=</span> <span class=p>{</span> <span class=n>name</span> <span class=o>=&gt;</span> <span class=s>&#34;KAVALAN&#34;</span><span class=p>,</span> <span class=n>age</span> <span class=o>=&gt;</span> <span class=mi>10</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$cache</span><span class=o>-&gt;</span><span class=n>set</span><span class=p>(</span><span class=s>&#34;whiskey&#34;</span><span class=p>,</span> <span class=nv>$data</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=c1># キャッシュから取得可能</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$cached</span> <span class=o>=</span> <span class=nv>$cache</span><span class=o>-&gt;</span><span class=n>get</span><span class=p>(</span><span class=s>&#34;whiskey&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>print</span> <span class=s>&#34;Cached: $cached-&gt;{name}\n&#34;</span> <span class=k>if</span> <span class=nb>defined</span> <span class=nv>$cached</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=c1># $dataがスコープを抜けると...</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># キャッシュは自動的に無効化される</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$cached</span> <span class=o>=</span> <span class=nv>$cache</span><span class=o>-&gt;</span><span class=n>get</span><span class=p>(</span><span class=s>&#34;whiskey&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=k>print</span> <span class=s>&#34;Cached after scope: &#34;</span><span class=p>,</span> <span class=p>(</span><span class=nb>defined</span> <span class=nv>$cached</span> <span class=p>?</span> <span class=s>&#34;exists&#34;</span> <span class=p>:</span> <span class=s>&#34;gone&#34;</span><span class=p>),</span> <span class=s>&#34;\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=c1># 出力: Cached after scope: gone</span>
+</span></span></code></pre></td></tr></table></div></div><p>このパターンは、メモリに余裕があればキャッシュを保持し、元のデータが不要になれば自動的に解放される、非常にエレガントな実装です。</p><h2 id=実践的なデバッグテクニック>実践的なデバッグテクニック</h2><p><code>weaken</code> を使う際の注意点とデバッグ方法：</p><h3 id=1-弱参照かどうか確認する>1. 弱参照かどうか確認する</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Scalar::Util</span> <span class=sx>qw(weaken isweak)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$data</span> <span class=o>=</span> <span class=s>&#39;data&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$ref</span> <span class=o>=</span> <span class=o>\</span><span class=nv>$data</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>print</span> <span class=s>&#34;Is weak? &#34;</span><span class=p>,</span> <span class=p>(</span><span class=n>isweak</span><span class=p>(</span><span class=nv>$ref</span><span class=p>)</span> <span class=p>?</span> <span class=s>&#34;yes&#34;</span> <span class=p>:</span> <span class=s>&#34;no&#34;</span><span class=p>),</span> <span class=s>&#34;\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>weaken</span><span class=p>(</span><span class=nv>$ref</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=k>print</span> <span class=s>&#34;Is weak? &#34;</span><span class=p>,</span> <span class=p>(</span><span class=n>isweak</span><span class=p>(</span><span class=nv>$ref</span><span class=p>)</span> <span class=p>?</span> <span class=s>&#34;yes&#34;</span> <span class=p>:</span> <span class=s>&#34;no&#34;</span><span class=p>),</span> <span class=s>&#34;\n&#34;</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=2-デストラクタでメモリリークを検出>2. デストラクタでメモリリークを検出</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>MyClass</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>new</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$class</span> <span class=o>=</span> <span class=nb>shift</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$self</span> <span class=o>=</span> <span class=nb>bless</span> <span class=p>{},</span> <span class=nv>$class</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>print</span> <span class=s>&#34;Creating MyClass at $self\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>DESTROY</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$self</span> <span class=o>=</span> <span class=nb>shift</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>print</span> <span class=s>&#34;Destroying MyClass at $self\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>main</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$class</span> <span class=o>=</span> <span class=nn>MyClass</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>();</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=k>print</span> <span class=s>&#34;Scope ended\n&#34;</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>DESTROY</code> が呼ばれないなら、メモリリークの可能性があります。</p><h3 id=3-develcycle-で循環参照を見つける>3. Devel::Cycle で循環参照を見つける</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Node</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>new</span> <span class=p>{</span> <span class=nb>bless</span> <span class=p>{}</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>main</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Devel::Cycle</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$node1</span> <span class=o>=</span> <span class=nn>Node</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=s>&#34;A&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$node2</span> <span class=o>=</span> <span class=nn>Node</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=s>&#34;B&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$node1</span><span class=o>-&gt;</span><span class=p>{</span><span class=k>next</span><span class=p>}</span> <span class=o>=</span> <span class=nv>$node2</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=nv>$node2</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>prev</span><span class=p>}</span> <span class=o>=</span> <span class=nv>$node1</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>find_cycle</span><span class=p>(</span><span class=nv>$node1</span><span class=p>);</span>  <span class=c1># 循環参照を報告してくれる</span>
+</span></span></code></pre></td></tr></table></div></div><h2 id=まとめ--ウイスキーとweakenの共通点>まとめ — ウイスキーとweakenの共通点</h2><p>グラスに残ったKAVALANを一口。最後の一滴まで、丁寧に味わいます。</p><p><code>Scalar::Util::weaken</code> は、Perlにおけるメモリ管理の要です。循環参照によるメモリリークを防ぎ、親子関係やコールバックを安全に実装できます。</p><p>ウイスキーを楽しむように、Perlを楽しむためには：</p><ul><li><strong>バランスが大切</strong>: 強参照と弱参照のバランス</li><li><strong>タイミングを見極める</strong>: いつ <code>weaken</code> を使うべきか</li><li><strong>丁寧に味わう</strong>: コードレビューでメモリリークをチェック</li><li><strong>経験を積む</strong>: 実際に使ってみて、体で覚える</li></ul><p>今夜学んだことを、明日のコードに活かしてください。そして、次のコーディングセッションには、お気に入りのウイスキーを一本用意して。</p><p>では、乾杯！ 🥃</p><hr><p><strong>今回のコードで使用したモジュール:</strong></p><ul><li><code>Scalar::Util</code> (コアモジュール - Perl 5.7.3以降標準搭載)<ul><li><code>weaken</code> - 参照を弱参照に変換</li><li><code>isweak</code> - 弱参照かどうか判定</li></ul></li></ul><p><strong>追加で役立つモジュール:</strong></p><ul><li><code>Devel::Cycle</code> - 循環参照の検出（CPANから導入）</li></ul><p><strong>動作確認環境:</strong></p><ul><li>Perl 5.10以降推奨</li></ul><p>すべてのコード例は実際に動作確認済みです。コピー＆ペーストして、ぜひ試してみてください！</p></section><footer class=article-footer><section class=article-tags><a href=/tags/perl/>Perl</a>
+<a href=/tags/weaken/>Weaken</a>
+<a href=/tags/memory-management/>Memory-Management</a>
+<a href=/tags/scalar-util/>Scalar-Util</a>
+<a href=/tags/circular-reference/>Circular-Reference</a>
+<a href=/tags/perl5/>Perl5</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2025/12/06/000000/><div class=article-image><img src=/public_images/20251206-reference.jpg loading=lazy data-key data-hash=/public_images/20251206-reference.jpg></div><div class=article-details><h2 class=article-title>Perlのリファレンス — 基礎から実践まで</h2></div></a></article><article class=has-image><a href=/2026/02/28/070705/><div class=article-image><img src=/public_images/2026/code-doctor-mediator/header.webp loading=lazy data-key data-hash=/public_images/2026/code-doctor-mediator/header.webp></div><div class=article-details><h2 class=article-title>コードドクター【Mediator】全身感染症候群〜仲介者の処方箋〜</h2></div></a></article><article class=has-image><a href=/2026/02/27/070705/><div class=article-image><img src=/public_images/2026/code-doctor-state/header.webp loading=lazy data-key data-hash=/public_images/2026/code-doctor-state/header.webp></div><div class=article-details><h2 class=article-title>コードドクター【State】フラグ免疫不全症候群〜調理工程カンバンと状態オブジェクトの移植術〜</h2></div></a></article><article class=has-image><a href=/2026/02/26/070705/><div class=article-image><img src=/public_images/2026/code-doctor-chain-of-responsibility/header.webp loading=lazy data-key data-hash=/public_images/2026/code-doctor-chain-of-responsibility/header.webp></div><div class=article-details><h2 class=article-title>コードドクター【Chain of Responsibility】多段塞栓症候群〜暴走アラートの連鎖分離術〜</h2></div></a></article><article class=has-image><a href=/2026/02/25/070705/><div class=article-image><img src=/public_images/2026/code-doctor-command/header.webp loading=lazy data-key data-hash=/public_images/2026/code-doctor-command/header.webp></div><div class=article-details><h2 class=article-title>コードドクター【Command】不可逆性細胞無秩序書き換え症候群〜段階的デプロイと安全なロールバック〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

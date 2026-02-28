@@ -1,0 +1,426 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="Repositoryパターンの応用演習です。既存コードを変更せずにSQLite永続化を追加し、JSON→SQLiteへの切り替えを実装。DBIとDBD::SQLiteの使い方も学びましょう。"><title>演習｜SQLiteで永続化を切り替えよう - シンプルなTodo CLIアプリ 第10回</title><link rel=canonical href=https://www.nqou.net/2026/01/04/011452/><link rel=stylesheet href=/scss/style.min.6a692fd055deae459f2a9767f57f3855ba80cafd5041317f24f7360f6ca47cdf.css><meta property='og:title' content="演習｜SQLiteで永続化を切り替えよう - シンプルなTodo CLIアプリ 第10回"><meta property='og:description' content="Repositoryパターンの応用演習です。既存コードを変更せずにSQLite永続化を追加し、JSON→SQLiteへの切り替えを実装。DBIとDBD::SQLiteの使い方も学びましょう。"><meta property='og:url' content='https://www.nqou.net/2026/01/04/011452/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='perl'><meta property='article:tag' content='sqlite'><meta property='article:tag' content='dbi'><meta property='article:tag' content='todo-app'><meta property='article:tag' content='repository-pattern'><meta property='article:published_time' content='2026-01-04T01:14:52+09:00'><meta property='article:modified_time' content='2026-01-04T01:14:52+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/todo-cli-series-image.jpg'><meta name=twitter:title content="演習｜SQLiteで永続化を切り替えよう - シンプルなTodo CLIアプリ 第10回"><meta name=twitter:description content="Repositoryパターンの応用演習です。既存コードを変更せずにSQLite永続化を追加し、JSON→SQLiteへの切り替えを実装。DBIとDBD::SQLiteの使い方も学びましょう。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/todo-cli-series-image.jpg'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/warehouse/><svg class="icon icon-tabler icon-tabler-warehouse" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 10l9-6 9 6"/><rect x="5" y="10" width="14" height="10" rx="2"/><rect x="10" y="14" width="4" height="6" rx="1"/><path d="M7 20v-4h2v4"/><path d="M15 20v-4h2v4"/></svg>
+<span>Warehouse</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#前回の振り返り>前回の振り返り</a></li><li><a href=#演習の目標>演習の目標</a><ol><li><a href=#やること>やること</a></li><li><a href=#期待される動作>期待される動作</a></li></ol></li><li><a href=#dbi-と-dbdsqlite-の基本>DBI と DBD::SQLite の基本</a><ol><li><a href=#必要なモジュール>必要なモジュール</a></li><li><a href=#データベース接続>データベース接続</a></li><li><a href=#テーブル作成>テーブル作成</a></li><li><a href=#crud操作>CRUD操作</a><ol><li><a href=#insert追加>INSERT（追加）</a></li><li><a href=#select取得>SELECT（取得）</a></li><li><a href=#update更新>UPDATE（更新）</a></li><li><a href=#delete削除>DELETE（削除）</a></li></ol></li></ol></li><li><a href=#taskrepositorysqlite-の実装ガイド>TaskRepository::SQLite の実装ガイド</a><ol><li><a href=#クラスの骨格>クラスの骨格</a></li><li><a href=#属性の説明>属性の説明</a></li><li><a href=#saveメソッドの実装ヒント>saveメソッドの実装ヒント</a></li><li><a href=#findメソッドの実装ヒント>findメソッドの実装ヒント</a></li><li><a href=#allメソッドの実装ヒント>allメソッドの実装ヒント</a></li><li><a href=#removeメソッドの実装ヒント>removeメソッドの実装ヒント</a></li></ol></li><li><a href=#リポジトリの切り替え>リポジトリの切り替え</a><ol><li><a href=#環境変数で切り替える>環境変数で切り替える</a></li><li><a href=#オプションで切り替える>オプションで切り替える</a></li></ol></li><li><a href=#演習のポイント>演習のポイント</a><ol><li><a href=#既存コードへの影響>既存コードへの影響</a></li><li><a href=#チェックリスト>チェックリスト</a></li></ol></li><li><a href=#発展課題>発展課題</a><ol><li><a href=#1-マイグレーション>1. マイグレーション</a></li><li><a href=#2-トランザクション対応>2. トランザクション対応</a></li><li><a href=#3-他のストレージ>3. 他のストレージ</a></li></ol></li><li><a href=#まとめ>まとめ</a></li><li><a href=#シリーズ完結>シリーズ完結</a><ol><li><a href=#学んだこと>学んだこと</a></li><li><a href=#次のステップ>次のステップ</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/01/04/011452/><img src=/public_images/2026/todo-cli-series-image.jpg loading=lazy alt="Featured image of post 演習｜SQLiteで永続化を切り替えよう - シンプルなTodo CLIアプリ 第10回"></a></div><div class=article-details><div class=article-title-wrapper><h2 class=article-title><a href=/2026/01/04/011452/>演習｜SQLiteで永続化を切り替えよう - シンプルなTodo CLIアプリ 第10回</a></h2><h3 class=article-subtitle>Repositoryパターンの応用演習です。既存コードを変更せずにSQLite永続化を追加し、JSON→SQLiteへの切り替えを実装。DBIとDBD::SQLiteの使い方も学びましょう。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>1月 04, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 6分</time></div></footer></div></header><section class=article-content><p><a class=link href=https://x.com/nqounet target=_blank rel=noopener>@nqounet</a>です。</p><p>シリーズ「シンプルなTodo CLIアプリ」の第10回（最終回）です。</p><h2 id=前回の振り返り>前回の振り返り</h2><div class=linkcard><a class=linkcard-a href=https://www.nqou.net/2026/01/04/011451/ target=_blank rel="noopener noreferrer nofollow" title=https://www.nqou.net/2026/01/04/011451/ aria-label=https://www.nqou.net/2026/01/04/011451/><div class=linkcard-content><div class=linkcard-title>https://www.nqou.net/2026/01/04/011451/</div><div class=linkcard-meta><img class=linkcard-favicon src=https://www.nqou.net/favicon.ico alt onerror='this.style.display="none"'><span class=linkcard-domain>設計パターンを疑え</span></div></div></a></div><p>前回は、シリーズ全体を振り返りました。</p><ul><li>素朴な実装から洗練された設計への変化</li><li>Repositoryパターン、Commandパターンの効果を確認</li><li>設計原則（SRP, OCP, DIP）を実践</li></ul><p>今回は 演習 として、SQLiteでの永続化 に挑戦します。Repositoryパターンの応用で、既存コードをほとんど変更せずにSQLite対応を追加しましょう。</p><h2 id=演習の目標>演習の目標</h2><h3 id=やること>やること</h3><ol><li><code>TaskRepository::SQLite</code> クラスを実装</li><li><code>TaskRepository::Role</code> を適用（既存と同じインターフェース）</li><li>環境変数やオプションでリポジトリを切り替え</li></ol><h3 id=期待される動作>期待される動作</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl><span class=c1># JSONファイルを使う（デフォルト）</span>
+</span></span><span class=line><span class=cl>$ perl todo.pl add <span class=s2>&#34;牛乳を買う&#34;</span>
+</span></span><span class=line><span class=cl>Added: 牛乳を買う <span class=o>(</span>ID: 1<span class=o>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># SQLiteを使う</span>
+</span></span><span class=line><span class=cl>$ <span class=nv>TODO_USE_SQLITE</span><span class=o>=</span><span class=m>1</span> perl todo.pl add <span class=s2>&#34;牛乳を買う&#34;</span>
+</span></span><span class=line><span class=cl>Added: 牛乳を買う <span class=o>(</span>ID: 1<span class=o>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>$ <span class=nv>TODO_USE_SQLITE</span><span class=o>=</span><span class=m>1</span> perl todo.pl list
+</span></span><span class=line><span class=cl>1. <span class=o>[</span> <span class=o>]</span> 牛乳を買う
+</span></span></code></pre></td></tr></table></div></div><h2 id=dbi-と-dbdsqlite-の基本>DBI と DBD::SQLite の基本</h2><h3 id=必要なモジュール>必要なモジュール</h3><p>SQLiteを使うには、以下のモジュールが必要です。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl><span class=c1># cpanmでインストール</span>
+</span></span><span class=line><span class=cl>$ cpanm DBI DBD::SQLite
+</span></span></code></pre></td></tr></table></div></div><ul><li><code>DBI</code> - Perlのデータベースインターフェース</li><li><code>DBD::SQLite</code> - SQLite用ドライバ</li></ul><h3 id=データベース接続>データベース接続</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>use</span> <span class=nn>DBI</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$dbh</span> <span class=o>=</span> <span class=nn>DBI</span><span class=o>-&gt;</span><span class=nb>connect</span><span class=p>(</span><span class=s>&#34;dbi:SQLite:dbname=tasks.db&#34;</span><span class=p>,</span> <span class=s>&#34;&#34;</span><span class=p>,</span> <span class=s>&#34;&#34;</span><span class=p>,</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=n>PrintError</span> <span class=o>=&gt;</span> <span class=mi>0</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>RaiseError</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>AutoCommit</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>})</span> <span class=ow>or</span> <span class=nb>die</span> <span class=nv>$</span><span class=nn>DBI::</span><span class=nv>errstr</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><div class=table-wrapper><table><thead><tr><th>オプション</th><th>説明</th></tr></thead><tbody><tr><td><code>PrintError => 0</code></td><td>エラーを標準エラー出力に出さない</td></tr><tr><td><code>RaiseError => 1</code></td><td>エラー時に例外を投げる</td></tr><tr><td><code>AutoCommit => 1</code></td><td>各SQLを自動コミット</td></tr></tbody></table></div><h3 id=テーブル作成>テーブル作成</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=nv>$dbh</span><span class=o>-&gt;</span><span class=k>do</span><span class=p>(</span><span class=sx>q{
+</span></span></span><span class=line><span class=cl><span class=sx>    CREATE TABLE IF NOT EXISTS tasks (
+</span></span></span><span class=line><span class=cl><span class=sx>        id INTEGER PRIMARY KEY AUTOINCREMENT,
+</span></span></span><span class=line><span class=cl><span class=sx>        title TEXT NOT NULL,
+</span></span></span><span class=line><span class=cl><span class=sx>        is_done INTEGER DEFAULT 0
+</span></span></span><span class=line><span class=cl><span class=sx>    )
+</span></span></span><span class=line><span class=cl><span class=sx>}</span><span class=p>);</span>
+</span></span></code></pre></td></tr></table></div></div><ul><li><code>id</code> は自動採番</li><li><code>is_done</code> は 0（未完了）または 1（完了）</li></ul><h3 id=crud操作>CRUD操作</h3><h4 id=insert追加>INSERT（追加）</h4><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=nv>$dbh</span><span class=o>-&gt;</span><span class=k>do</span><span class=p>(</span><span class=s>&#34;INSERT INTO tasks (title) VALUES (?)&#34;</span><span class=p>,</span> <span class=nb>undef</span><span class=p>,</span> <span class=nv>$title</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$id</span> <span class=o>=</span> <span class=nv>$dbh</span><span class=o>-&gt;</span><span class=n>last_insert_id</span><span class=p>(</span><span class=nb>undef</span><span class=p>,</span> <span class=nb>undef</span><span class=p>,</span> <span class=s>&#34;tasks&#34;</span><span class=p>,</span> <span class=s>&#34;id&#34;</span><span class=p>);</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>?</code> はプレースホルダで、SQLインジェクション対策になります。</p><h4 id=select取得>SELECT（取得）</h4><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># 全件取得</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$sth</span> <span class=o>=</span> <span class=nv>$dbh</span><span class=o>-&gt;</span><span class=n>prepare</span><span class=p>(</span><span class=s>&#34;SELECT id, title, is_done FROM tasks&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$sth</span><span class=o>-&gt;</span><span class=n>execute</span><span class=p>();</span>
+</span></span><span class=line><span class=cl><span class=k>while</span> <span class=p>(</span><span class=k>my</span> <span class=nv>$row</span> <span class=o>=</span> <span class=nv>$sth</span><span class=o>-&gt;</span><span class=n>fetchrow_hashref</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>print</span> <span class=s>&#34;$row-&gt;{id}: $row-&gt;{title}\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 1件取得</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$sth</span> <span class=o>=</span> <span class=nv>$dbh</span><span class=o>-&gt;</span><span class=n>prepare</span><span class=p>(</span><span class=s>&#34;SELECT id, title, is_done FROM tasks WHERE id = ?&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$sth</span><span class=o>-&gt;</span><span class=n>execute</span><span class=p>(</span><span class=nv>$id</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$row</span> <span class=o>=</span> <span class=nv>$sth</span><span class=o>-&gt;</span><span class=n>fetchrow_hashref</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><h4 id=update更新>UPDATE（更新）</h4><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=nv>$dbh</span><span class=o>-&gt;</span><span class=k>do</span><span class=p>(</span><span class=s>&#34;UPDATE tasks SET is_done = ? WHERE id = ?&#34;</span><span class=p>,</span> <span class=nb>undef</span><span class=p>,</span> <span class=mi>1</span><span class=p>,</span> <span class=nv>$id</span><span class=p>);</span>
+</span></span></code></pre></td></tr></table></div></div><h4 id=delete削除>DELETE（削除）</h4><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=nv>$dbh</span><span class=o>-&gt;</span><span class=k>do</span><span class=p>(</span><span class=s>&#34;DELETE FROM tasks WHERE id = ?&#34;</span><span class=p>,</span> <span class=nb>undef</span><span class=p>,</span> <span class=nv>$id</span><span class=p>);</span>
+</span></span></code></pre></td></tr></table></div></div><h2 id=taskrepositorysqlite-の実装ガイド>TaskRepository::SQLite の実装ガイド</h2><h3 id=クラスの骨格>クラスの骨格</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>TaskRepository::SQLite</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>DBI</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>with</span> <span class=s>&#39;TaskRepository::Role&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>dbfile</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>is</span>      <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=s>&#39;tasks.db&#39;</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>dbh</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>is</span>      <span class=o>=&gt;</span> <span class=s>&#39;lazy&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>builder</span> <span class=o>=&gt;</span> <span class=s>&#39;_build_dbh&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>_build_dbh</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$self</span> <span class=o>=</span> <span class=nb>shift</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$dbh</span> <span class=o>=</span> <span class=nn>DBI</span><span class=o>-&gt;</span><span class=nb>connect</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=s>&#34;dbi:SQLite:dbname=&#34;</span> <span class=o>.</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>dbfile</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=s>&#34;&#34;</span><span class=p>,</span> <span class=s>&#34;&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=p>{</span> <span class=n>PrintError</span> <span class=o>=&gt;</span> <span class=mi>0</span><span class=p>,</span> <span class=n>RaiseError</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span> <span class=n>AutoCommit</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=p>)</span> <span class=ow>or</span> <span class=nb>die</span> <span class=nv>$</span><span class=nn>DBI::</span><span class=nv>errstr</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=c1># テーブルが存在しなければ作成</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$dbh</span><span class=o>-&gt;</span><span class=k>do</span><span class=p>(</span><span class=sx>q{
+</span></span></span><span class=line><span class=cl><span class=sx>            CREATE TABLE IF NOT EXISTS tasks (
+</span></span></span><span class=line><span class=cl><span class=sx>                id INTEGER PRIMARY KEY AUTOINCREMENT,
+</span></span></span><span class=line><span class=cl><span class=sx>                title TEXT NOT NULL,
+</span></span></span><span class=line><span class=cl><span class=sx>                is_done INTEGER DEFAULT 0
+</span></span></span><span class=line><span class=cl><span class=sx>            )
+</span></span></span><span class=line><span class=cl><span class=sx>        }</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$dbh</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>save</span> <span class=p>{</span> <span class=o>...</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>find</span> <span class=p>{</span> <span class=o>...</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>all</span> <span class=p>{</span> <span class=o>...</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>remove</span> <span class=p>{</span> <span class=o>...</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=属性の説明>属性の説明</h3><div class=table-wrapper><table><thead><tr><th>属性</th><th>説明</th></tr></thead><tbody><tr><td><code>dbfile</code></td><td>SQLiteデータベースファイルのパス</td></tr><tr><td><code>dbh</code></td><td>データベースハンドル（遅延初期化）</td></tr></tbody></table></div><p><code>is => 'lazy'</code> を使うと、最初にアクセスした時だけ <code>_build_dbh</code> が呼ばれます。</p><h3 id=saveメソッドの実装ヒント>saveメソッドの実装ヒント</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>sub</span> <span class=nf>save</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$task</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=nv>$task</span><span class=o>-&gt;</span><span class=n>id</span> <span class=o>&amp;&amp;</span> <span class=nv>$task</span><span class=o>-&gt;</span><span class=n>id</span> <span class=o>&gt;</span> <span class=mi>0</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=c1># 既存タスクの更新</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>dbh</span><span class=o>-&gt;</span><span class=k>do</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=s>&#34;UPDATE tasks SET title = ?, is_done = ? WHERE id = ?&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=nb>undef</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$task</span><span class=o>-&gt;</span><span class=n>title</span><span class=p>,</span> <span class=nv>$task</span><span class=o>-&gt;</span><span class=n>is_done</span> <span class=p>?</span> <span class=mi>1</span> <span class=p>:</span> <span class=mi>0</span><span class=p>,</span> <span class=nv>$task</span><span class=o>-&gt;</span><span class=n>id</span>
+</span></span><span class=line><span class=cl>        <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>else</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=c1># 新規タスクの追加</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>dbh</span><span class=o>-&gt;</span><span class=k>do</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=s>&#34;INSERT INTO tasks (title, is_done) VALUES (?, ?)&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=nb>undef</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$task</span><span class=o>-&gt;</span><span class=n>title</span><span class=p>,</span> <span class=nv>$task</span><span class=o>-&gt;</span><span class=n>is_done</span> <span class=p>?</span> <span class=mi>1</span> <span class=p>:</span> <span class=mi>0</span>
+</span></span><span class=line><span class=cl>        <span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$task</span><span class=o>-&gt;</span><span class=n>id</span><span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>dbh</span><span class=o>-&gt;</span><span class=n>last_insert_id</span><span class=p>(</span><span class=nb>undef</span><span class=p>,</span> <span class=nb>undef</span><span class=p>,</span> <span class=s>&#34;tasks&#34;</span><span class=p>,</span> <span class=s>&#34;id&#34;</span><span class=p>));</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$task</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=findメソッドの実装ヒント>findメソッドの実装ヒント</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>sub</span> <span class=nf>find</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$id</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$sth</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>dbh</span><span class=o>-&gt;</span><span class=n>prepare</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=s>&#34;SELECT id, title, is_done FROM tasks WHERE id = ?&#34;</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$sth</span><span class=o>-&gt;</span><span class=n>execute</span><span class=p>(</span><span class=nv>$id</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$row</span> <span class=o>=</span> <span class=nv>$sth</span><span class=o>-&gt;</span><span class=n>fetchrow_hashref</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=k>unless</span> <span class=nv>$row</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nn>Task</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>id</span>      <span class=o>=&gt;</span> <span class=nv>$row</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>id</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>        <span class=n>title</span>   <span class=o>=&gt;</span> <span class=nv>$row</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>title</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>        <span class=n>is_done</span> <span class=o>=&gt;</span> <span class=nv>$row</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>is_done</span><span class=p>}</span> <span class=p>?</span> <span class=mi>1</span> <span class=p>:</span> <span class=mi>0</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=allメソッドの実装ヒント>allメソッドの実装ヒント</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>sub</span> <span class=nf>all</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$self</span> <span class=o>=</span> <span class=nb>shift</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$sth</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>dbh</span><span class=o>-&gt;</span><span class=n>prepare</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=s>&#34;SELECT id, title, is_done FROM tasks ORDER BY id&#34;</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$sth</span><span class=o>-&gt;</span><span class=n>execute</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>@tasks</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>while</span> <span class=p>(</span><span class=k>my</span> <span class=nv>$row</span> <span class=o>=</span> <span class=nv>$sth</span><span class=o>-&gt;</span><span class=n>fetchrow_hashref</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=nb>push</span> <span class=nv>@tasks</span><span class=p>,</span> <span class=nn>Task</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=n>id</span>      <span class=o>=&gt;</span> <span class=nv>$row</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>id</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>            <span class=n>title</span>   <span class=o>=&gt;</span> <span class=nv>$row</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>title</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>            <span class=n>is_done</span> <span class=o>=&gt;</span> <span class=nv>$row</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>is_done</span><span class=p>}</span> <span class=p>?</span> <span class=mi>1</span> <span class=p>:</span> <span class=mi>0</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>@tasks</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=removeメソッドの実装ヒント>removeメソッドの実装ヒント</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>sub</span> <span class=nf>remove</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$id</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$rows</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>dbh</span><span class=o>-&gt;</span><span class=k>do</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=s>&#34;DELETE FROM tasks WHERE id = ?&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=nb>undef</span><span class=p>,</span> <span class=nv>$id</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$rows</span> <span class=o>&gt;</span> <span class=mi>0</span> <span class=p>?</span> <span class=mi>1</span> <span class=p>:</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><h2 id=リポジトリの切り替え>リポジトリの切り替え</h2><h3 id=環境変数で切り替える>環境変数で切り替える</h3><p>メイン処理で、環境変数に応じてリポジトリを選択します。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>my</span> <span class=nv>$repository</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>if</span> <span class=p>(</span><span class=nv>$ENV</span><span class=p>{</span><span class=n>TODO_TEST_MODE</span><span class=p>})</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$repository</span> <span class=o>=</span> <span class=nn>TaskRepository::InMemory</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=k>elsif</span> <span class=p>(</span><span class=nv>$ENV</span><span class=p>{</span><span class=n>TODO_USE_SQLITE</span><span class=p>})</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$repository</span> <span class=o>=</span> <span class=nn>TaskRepository::SQLite</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>dbfile</span> <span class=o>=&gt;</span> <span class=s>&#39;tasks.db&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=k>else</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$repository</span> <span class=o>=</span> <span class=nn>TaskRepository::File</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>filepath</span> <span class=o>=&gt;</span> <span class=nv>$filepath</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=オプションで切り替える>オプションで切り替える</h3><p>Getopt::Longを使って、<code>--sqlite</code> オプションを追加することもできます。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>my</span> <span class=nv>$use_sqlite</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>GetOptions</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=s>&#39;verbose|v&#39;</span> <span class=o>=&gt;</span> <span class=o>\</span><span class=nv>$verbose</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=s>&#39;file|f=s&#39;</span>  <span class=o>=&gt;</span> <span class=o>\</span><span class=nv>$filepath</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=s>&#39;sqlite|s&#39;</span>  <span class=o>=&gt;</span> <span class=o>\</span><span class=nv>$use_sqlite</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=s>&#39;help|h&#39;</span>    <span class=o>=&gt;</span> <span class=o>\</span><span class=nv>$help</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>)</span> <span class=ow>or</span> <span class=nb>die</span> <span class=s>&#34;Error in command line arguments\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$repository</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>if</span> <span class=p>(</span><span class=nv>$use_sqlite</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$repository</span> <span class=o>=</span> <span class=nn>TaskRepository::SQLite</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=k>else</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$repository</span> <span class=o>=</span> <span class=nn>TaskRepository::File</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>filepath</span> <span class=o>=&gt;</span> <span class=nv>$filepath</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>使用例:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl>$ perl todo.pl --sqlite add <span class=s2>&#34;SQLiteでタスク管理&#34;</span>
+</span></span><span class=line><span class=cl>Added: SQLiteでタスク管理 <span class=o>(</span>ID: 1<span class=o>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>$ perl todo.pl --sqlite list
+</span></span><span class=line><span class=cl>1. <span class=o>[</span> <span class=o>]</span> SQLiteでタスク管理
+</span></span></code></pre></td></tr></table></div></div><h2 id=演習のポイント>演習のポイント</h2><h3 id=既存コードへの影響>既存コードへの影響</h3><p>SQLite対応を追加しても、以下のコードは 変更不要 です。</p><ul><li><code>Task</code> クラス</li><li><code>TaskRepository::Role</code></li><li><code>TaskRepository::File</code></li><li><code>TaskRepository::InMemory</code></li><li><code>Command::Add</code>, <code>Command::List</code>, <code>Command::Complete</code></li></ul><p>変更するのはメイン処理のリポジトリ選択部分だけ。これがRepositoryパターンの威力です。</p><h3 id=チェックリスト>チェックリスト</h3><p>演習を完了したら、以下を確認しましょう。</p><ul><li><input disabled type=checkbox> <code>TaskRepository::SQLite</code> が <code>TaskRepository::Role</code> を適用している</li><li><input disabled type=checkbox> <code>save</code>, <code>find</code>, <code>all</code>, <code>remove</code> の4メソッドが実装されている</li><li><input disabled type=checkbox> 環境変数またはオプションでリポジトリを切り替えられる</li><li><input disabled type=checkbox> 既存のテスト（InMemoryを使ったもの）が引き続き動作する</li></ul><h2 id=発展課題>発展課題</h2><h3 id=1-マイグレーション>1. マイグレーション</h3><p>JSONファイルからSQLiteへデータを移行するスクリプトを作成してみましょう。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span><span class=lnt>9
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># migration.pl</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$file_repo</span>   <span class=o>=</span> <span class=nn>TaskRepository::File</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$sqlite_repo</span> <span class=o>=</span> <span class=nn>TaskRepository::SQLite</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>for</span> <span class=k>my</span> <span class=nv>$task</span> <span class=p>(</span><span class=nv>$file_repo</span><span class=o>-&gt;</span><span class=n>all</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=c1># IDをリセットして新規追加</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$task</span><span class=o>-&gt;</span><span class=n>id</span><span class=p>(</span><span class=mi>0</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$sqlite_repo</span><span class=o>-&gt;</span><span class=n>save</span><span class=p>(</span><span class=nv>$task</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=2-トランザクション対応>2. トランザクション対応</h3><p>複数の操作をまとめて実行するトランザクション機能を追加してみましょう。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span><span class=lnt>9
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=nv>$dbh</span><span class=o>-&gt;</span><span class=n>begin_work</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=nb>eval</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=c1># 複数の操作</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$dbh</span><span class=o>-&gt;</span><span class=n>commit</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=k>if</span> <span class=p>(</span><span class=vg>$@</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$dbh</span><span class=o>-&gt;</span><span class=n>rollback</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nb>die</span> <span class=s>&#34;Transaction failed: $@&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=3-他のストレージ>3. 他のストレージ</h3><p>同じパターンで、他のストレージにも対応できます。</p><ul><li><code>TaskRepository::YAML</code> - YAML形式で保存</li><li><code>TaskRepository::CSV</code> - CSV形式で保存</li><li><code>TaskRepository::Redis</code> - Redisに保存</li></ul><h2 id=まとめ>まとめ</h2><p>今回は、演習としてSQLite永続化に挑戦しました。</p><ul><li><code>DBI</code> と <code>DBD::SQLite</code> の基本的な使い方</li><li><code>TaskRepository::SQLite</code> の実装ガイド</li><li>既存コードをほとんど変更せずにストレージを追加</li><li>Repositoryパターンの真価を体感</li></ul><h2 id=シリーズ完結>シリーズ完結</h2><p>「シンプルなTodo CLIアプリ」シリーズ全10回、お疲れ様でした！</p><h3 id=学んだこと>学んだこと</h3><ol><li>if-elsif分岐からの脱却 - Commandパターンで拡張しやすい構造に</li><li>永続化の抽象化 - Repositoryパターンでストレージを差し替え可能に</li><li>テスト容易性 - InMemoryRepositoryでファイルI/Oなしのテスト</li><li>CLI引数の整理 - Getopt::Longで堅牢なオプション解析</li><li>設計原則の実践 - SRP, OCP, DIPを実際のコードで体験</li></ol><h3 id=次のステップ>次のステップ</h3><ul><li>他のデザインパターンを学ぶ（Strategyパターン、Observerパターンなど）</li><li>ファイル分割とモジュール化</li><li>CPANモジュールの公開</li></ul><p>「Mooで覚えるオブジェクト指向プログラミング」で学んだ知識が、実践的なアプリケーション開発に活きたことを実感できたでしょうか。</p><p>ぜひ、このシリーズで学んだパターンを自分のプロジェクトに応用してみてください。</p><p>ありがとうございました！</p></section><footer class=article-footer><section class=article-tags><a href=/tags/perl/>Perl</a>
+<a href=/tags/sqlite/>Sqlite</a>
+<a href=/tags/dbi/>Dbi</a>
+<a href=/tags/todo-app/>Todo-App</a>
+<a href=/tags/repository-pattern/>Repository-Pattern</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/01/04/011447/><div class=article-image><img src=/public_images/2026/todo-cli-series-image.jpg loading=lazy data-key data-hash=/public_images/2026/todo-cli-series-image.jpg></div><div class=article-details><h2 class=article-title>テストしやすくする｜InMemoryRepository - シンプルなTodo CLIアプリ 第5回</h2></div></a></article><article class=has-image><a href=/2026/01/04/011446/><div class=article-image><img src=/public_images/2026/todo-cli-series-image.jpg loading=lazy data-key data-hash=/public_images/2026/todo-cli-series-image.jpg></div><div class=article-details><h2 class=article-title>保存処理を分離する｜Repository導入 - シンプルなTodo CLIアプリ 第4回</h2></div></a></article><article class=has-image><a href=/2026/01/04/210447/><div class=article-image><img src=/public_images/2026/url-shortener-series-image.jpg loading=lazy data-key data-hash=/public_images/2026/url-shortener-series-image.jpg></div><div class=article-details><h2 class=article-title>第6回-データの住所を決めよう — URL短縮サポーターを作ってみよう</h2></div></a></article><article class=has-image><a href=/2026/01/04/210446/><div class=article-image><img src=/public_images/2026/url-shortener-series-image.jpg loading=lazy data-key data-hash=/public_images/2026/url-shortener-series-image.jpg></div><div class=article-details><h2 class=article-title>第5回-忘れないように保存しよう — URL短縮サポーターを作ってみよう</h2></div></a></article><article class=has-image><a href=/2026/01/04/011453/><div class=article-image><img src=/public_images/2026/todo-cli-series-image.jpg loading=lazy data-key data-hash=/public_images/2026/todo-cli-series-image.jpg></div><div class=article-details><h2 class=article-title>シリーズ目次：シンプルなTodo CLIアプリ（全10回）</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>
