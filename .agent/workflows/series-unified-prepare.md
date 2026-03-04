@@ -14,7 +14,7 @@ description: "連載構造案から統合記事を作成する汎用ワークフ
 // turbo
 1. 知見ファイルの確認:
    ```bash
-   grep -A 20 "series-unified-prepare\|series-unified" agents/knowledge/workflow-insights.md 2>/dev/null | head -50
+   grep -A 10 "series-unified-prepare\|series-unified" agents/knowledge/workflow-insights.md 2>/dev/null | head -50
    ```
 2. 関連する知見を抽出し、今回の準備に活かす
 3. 特に「失敗パターン」に注目し、同じ問題を回避

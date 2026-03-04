@@ -14,7 +14,7 @@ description: "連載構造案から統合記事を作成する汎用ワークフ
 // turbo
 1. 知見ファイルの確認:
    ```bash
-   grep -A 20 "series-unified-review" agents/knowledge/workflow-insights.md 2>/dev/null
+   grep -A 10 "series-unified-review" agents/knowledge/workflow-insights.md 2>/dev/null
    ```
 2. 関連する知見を抽出し、今回のレビューに活かす
 3. 特に「失敗パターン」に注目
@@ -185,6 +185,26 @@ hugo server -D -F
 - [ ] 目次記事から各回へのリンクが有効
 - [ ] 公開日時が連続している
 - [ ] 各記事のfrontmatterが統一されている
+
+---
+
+## コード探偵シリーズの追加チェック（該当する場合のみ）
+
+本シリーズの場合は、最後に以下のキャラクター性・演出が守られているか確認する：
+
+### フロントマター規約
+
+- [ ] `categories: [tech]`（`Design Patterns` や `Perl` をカテゴリに入れない）
+- [ ] 必須タグ: `design-pattern`, `perl`, `moo`, `{pattern名}`, `{アンチパターン名}`, `refactoring`, `code-detective`
+- [ ] アンチパターン名タグが記事内容と一致している（例: God Class → `god-class`）
+- [ ] 禁止: 日本語タグ、`oop` 等のシリーズ外タグ
+
+### キャラクター・演出
+
+- [ ] ワトソン君が「物分かりが良すぎない」こと（知識はあるが解決策のひらめきがなく、困惑・驚きのリアクションをとっているか）
+- [ ] ワトソン君が読者の抱く「どうやって？」「なぜ？」という疑問を素直に代弁しているか
+- [ ] ロックのセリフが「翻訳ミステリー調」であり、傲慢だが頼りになる探偵として描かれているか
+- [ ] 「探偵の調査報告書」が記事末尾にフォーマット通りに配置されているか
 
 ---
 

@@ -14,7 +14,7 @@ description: "連載構造案から統合記事を作成する汎用ワークフ
 // turbo
 1. 知見ファイルの確認:
    ```bash
-   grep -A 20 "series-unified-code" agents/knowledge/workflow-insights.md 2>/dev/null
+   grep -A 10 "series-unified-code" agents/knowledge/workflow-insights.md 2>/dev/null
    ```
 2. 関連する知見を抽出し、今回のコード実装に活かす
 3. 特に「失敗パターン」に注目（UTF-8問題、パッケージ依存関係など）

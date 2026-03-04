@@ -14,7 +14,7 @@ description: "連載構造案から統合記事を作成する汎用ワークフ
 // turbo
 1. 知見ファイルの確認:
    ```bash
-   grep -A 20 "series-unified-write" agents/knowledge/workflow-insights.md 2>/dev/null
+   grep -A 10 "series-unified-write" agents/knowledge/workflow-insights.md 2>/dev/null
    ```
 2. 関連する知見を抽出し、今回の執筆に活かす
 3. 特に「成功パターン」と「失敗パターン」に注目
@@ -61,24 +61,37 @@ date: {公開日時}
 description: "{SEO最適化されたdescription（120文字以内）}"
 draft: false
 categories:
-  - {category-name} # English kebab-case only
+  - tech
 tags:
-  - {tag-name} # English kebab-case only
-
-  - {シリーズタグ}
-  - {パターン/技術タグ}
+  - design-pattern
+  - perl
+  - {pattern名}          # ケバブケース（例: strategy, template-method）
+  - {シリーズタグ}        # code-doctor or code-detective
 title: '{SEO最適化されたタイトル}'
 toc: true
 ---
 ```
 
-### タグの選定
+### タグスキーマ（シリーズ別）
 
-構造案の推奨タグを参考に、以下を含める：
+#### 共通必須タグ
+- `design-pattern` — 技術領域の横断キーワード
+- `perl` — 言語タグ
+- `{pattern名}` — パターン名のケバブケース（例: `strategy`, `factory-method`）
+- `{シリーズタグ}` — `code-doctor` または `code-detective`
 
-- 言語タグ（例: `perl`, `python`）
-- シリーズ固有タグ（例: `perl-design-patterns`）
-- 技術/パターンタグ（例: `command-pattern`, `factory-pattern`）
+#### コードドクターシリーズ追加ルール
+- `moo` — Moo ライブラリを使用している記事には必ず付ける
+
+#### コード探偵シリーズ追加ルール
+- `moo` — 必須（全話 Moo 使用）
+- `refactoring` — 必須（全話リファクタリング文脈）
+- `{アンチパターン名}` — 必須。容疑者のケバブケース（例: `god-class`, `shotgun-surgery`, `duplicated-code`）
+
+#### 禁止事項
+- 日本語タグ禁止
+- `oop`, `programming` 等のシリーズ外タグ禁止
+- `design-pattern` をカテゴリに入れない（タグのみ）
 
 ---
 
