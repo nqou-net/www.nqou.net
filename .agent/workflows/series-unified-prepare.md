@@ -62,11 +62,13 @@ description: "連載構造案から統合記事を作成する汎用ワークフ
 
 ### 0.4 ステータス更新
 
-PLANNING_STATUS.md を更新:
+SKR上のステータスを更新:
 
-1. ステータスを「✏️ 採用済み」に変更
-2. 採用案（案A/B/C等）を記録
-3. 更新日を本日に更新
+1. 以下のコマンドを実行し、ステータスを `status:adopted` に変更する:
+
+```bash
+node ~/.agents/skills/semantic-knowledge-repository/scripts/save_knowledge.cjs "series-status-<slug>" '{"facts":["Title: <タイトル>","Structure File: agents/structure/<slug>.md","Adopted Plan: <案Aなど>"],"keywords":["status:adopted","planning-status","<slug>"],"confidence_score":100,"summary":"Adopted article series: <タイトル>"}'
+```
 
 > [!NOTE]
 > 構造案が1案のみの場合、このステップはスキップ可能です。

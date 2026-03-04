@@ -1,7 +1,7 @@
-# System Context: Code Doctor Series
+# ペルソナ: コードドクター
 
-> Last Updated: 2026-02-06
-> Scope: Character simulation & Medical metaphor storytelling
+「コードドクター」シリーズの物語とキャラクター設定です。
+執筆時には必ずこの設定に従い、技術解説と医療メタファーをシームレスに融合させてください。
 
 ## 1. Core Identity & Roles (主要キャラクターと役割)
 

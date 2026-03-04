@@ -150,13 +150,13 @@ hugo server -D -F
 
 ---
 
-## Step 6: PLANNING_STATUS.md を更新
+## Step 6: SKRのステータスを更新
 
-挿絵生成が正常に完了したら、`PLANNING_STATUS.md` の該当記事の挿絵列を更新：
+挿絵生成が正常に完了したら、SKR上の該当記事のステータスを更新：
 
-1. `PLANNING_STATUS.md` を開く
-2. 公開済みセクションで該当する記事の行を見つける
-3. 挿絵列を「-」から「✓」に更新
+```bash
+node ~/.agents/skills/semantic-knowledge-repository/scripts/save_knowledge.cjs "series-status-<slug>" '{"facts":["Title: <タイトル>","Structure File: agents/structure/<slug>.md","Visuals: Generated"],"keywords":["status:published","planning-status","<slug>","has-visuals"],"confidence_score":100,"summary":"Published article series with visuals: <タイトル>"}'
+```
 
 ### 更新例
 

@@ -8,7 +8,7 @@ description: "コードドクターシリーズ記事を作成するワークフ
 > **このフェーズで初めて完全なキャラクター設定を参照します。**
 > Phase 1〜3では情報を絞って「指示の希釈化」を回避しています。
 
-> **キャラクター設定（完全版）**: [code-doctor-characters.md](../../agents/knowledge/code-doctor-characters.md)
+> **ペルソナ設定**: [.agent/components/personas/code-doctor.md](../../.agent/components/personas/code-doctor.md)
 > **連載構造案**: `agents/code-doctor-series/<slug>/plot.md` (Phase 2の結果)
 > **実装コード**: `agents/code-doctor-series/<slug>/tests/` (Phase 3の結果)
 
@@ -23,7 +23,7 @@ Phase 1~3の素材を統合し、実際に記事本文（Markdown）を執筆し
 あなたは熟練の小説家兼テクニカルライターです。
 
 > [!CAUTION]
-> 執筆前に必ず `code-doctor-characters.md` を読み込むこと。
+> 執筆前に必ず `.agent/components/personas/code-doctor.md` を読み込むこと。
 
 ### 厳守ルール
 

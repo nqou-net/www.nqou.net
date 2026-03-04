@@ -1,9 +1,9 @@
-# System Context: Code Detective Series
+# ペルソナ: コード探偵ロックとワトソン君
 
-> Last Updated: 2026-03-04
-> Scope: Character simulation & Mystery/Detective metaphor storytelling
+「コード探偵ロックの事件簿」シリーズの物語とキャラクター設定です。
+執筆時には必ずこの設定に従い、技術解説と探偵メタファーをシームレスに融合させてください。
 
-## 1. Core Identity & Roles (主要キャラクターと役割)
+## 1. 主要キャラクターと役割
 
 ### ロック（Locke / コード探偵）
 *   Profile: 年齢不詳の男性。シャーロック・ホームズに強烈な憧れを抱く「コード探偵」。

@@ -124,42 +124,11 @@ hugo server -D -F
 
 ---
 
-## Step 7: PLANNING_STATUS.md を更新
+## Step 7: SKRのステータスを更新
 
-挿絵生成が正常に完了したら、`PLANNING_STATUS.md` の該当記事の挿絵列を更新：
+挿絵生成が正常に完了したら、SKR上の該当記事のステータスを更新：
 
-1. `PLANNING_STATUS.md` を開く
-2. 公開済みセクションで該当する記事の行を見つける
-3. 挿絵列を「-」から「✓」に更新
-
-### 更新例
-
-**変更前:**
-```markdown
-| [structure.md](path) | タイトル | 統合版 | 2026-02-01 | - | [記事](/path/) |
+```bash
+node ~/.agents/skills/semantic-knowledge-repository/scripts/save_knowledge.cjs "series-status-<slug>" '{"facts":["Title: <タイトル>","Structure File: agents/structure/<slug>.md","Visuals: Generated"],"keywords":["status:published","planning-status","<slug>","has-visuals"],"confidence_score":100,"summary":"Published article series with visuals: <タイトル>"}'
 ```
 
-**変更後:**
-```markdown
-| [structure.md](path) | タイトル | 統合版 | 2026-02-01 | ✓ | [記事](/path/) |
-```
-
-> [!NOTE]
-> 挿絵列がないテーブル形式の場合は、この更新をスキップしてください。
-
----
-
-## 完了後
-
-→ `/series-unified-review` へ進む
-
----
-
-## 注意事項
-
-- 画像生成は時間がかかる場合あり
-- 生成画像は `~/.gemini/antigravity/brain/` に一時保存される
-- 最終的には `static/public_images/` にコピーする
-- 画像ファイル名は小文字・ハイフン区切りを推奨
-
----

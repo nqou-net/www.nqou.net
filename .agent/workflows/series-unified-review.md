@@ -144,13 +144,13 @@ hugo server -D -F
 
 ## Step 7: ステータス管理ファイルの更新
 
-### 7.1 PLANNING_STATUS.md の更新
+### 7.1 SKRステータスの更新
 
-1. 「進行中」セクションから該当行を削除
-2. 「公開済み」セクションに移動
-3. 以下の情報を記録:
-   - 公開日
-   - 成果物リンク（記事/目次記事へのURL）
+1. 以下のコマンドを実行し、ステータスを `status:published` に変更する:
+
+```bash
+node ~/.agents/skills/semantic-knowledge-repository/scripts/save_knowledge.cjs "series-status-<slug>" '{"facts":["Title: <タイトル>","Structure File: agents/structure/<slug>.md","Article File: content/post/<YYYY>/<MM>/<DD>/<HHMMSS>.md","Publication Date: <YYYY-MM-DD>"],"keywords":["status:published","planning-status","<slug>"],"confidence_score":100,"summary":"Published article series: <タイトル>"}'
+```
 
 ```markdown
 | [<slug>.md](agents/structure/<slug>.md) | <タイトル> | <形式> | YYYY-MM-DD | [記事](/YYYY/MM/DD/HHMMSS/) |

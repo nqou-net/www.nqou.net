@@ -44,10 +44,13 @@ touch content/post/2026/02/01/015106.md
 
 ## Step 1.5: ステータス更新
 
-PLANNING_STATUS.md を更新:
+SKR上のステータスを更新:
 
-1. ステータスを「⚙️ 執筆中」に変更
-2. 更新日を本日に更新
+1. 以下のコマンドを実行し、ステータスを `status:writing` に変更する:
+
+```bash
+node ~/.agents/skills/semantic-knowledge-repository/scripts/save_knowledge.cjs "series-status-<slug>" '{"facts":["Title: <タイトル>","Structure File: agents/structure/<slug>.md","Article File: content/post/<YYYY>/<MM>/<DD>/<HHMMSS>.md"],"keywords":["status:writing","planning-status","<slug>"],"confidence_score":100,"summary":"Writing article series: <タイトル>"}'
+```
 
 ---
 
@@ -109,31 +112,22 @@ toc: true
 
 ## Step 4: 本文の作成（統合版）
 
-構造案の各回を「章」として統合：
+構造案の各回を「章」として統合し、指定されたペルソナ（キャラクター設定）に合わせて執筆してください。
 
-### 各章の構成（医療メタファーを使用）
+### コンポーネントの読み込みと適用
 
-> 詳細は `agents/knowledge/code-doctor-characters.md` を参照
+執筆にあたり、以下のコンポーネントを読み込み、その指示に厳密に従ってください。
 
-```markdown
-## {問診/診断/手術/退院指導}: {章タイトル}
+1. **Role (役割)**: `.agent/components/roles/expert-engineer.md`
+2. **Format (フォーマット)**: `.agent/components/formats/hugo-markdown.md`
+3. **Task (手順)**: `.agent/components/tasks/write-article.md`
 
-### 前章の振り返り
-（第2章以降）
+### ペルソナの適用
 
-### 動く：最初の実装
-```コード例1（問題版）```
+作成するシリーズに応じて、以下の**いずれか**のペルソナを読み込み、その世界観（メタファー、口調、章のタイトル構成など）を記事全体に適用してください。
 
-### 破綻：問題が発生
-問題点の説明
-
-### 完成：パターン導入
-```コード例2（改善版）```
-
-### 今回のポイント
-- ポイント1
-- ポイント2
-```
+- **コード探偵シリーズの場合**: `.agent/components/personas/code-detective.md`
+- **コードドクターシリーズの場合**: `.agent/components/personas/code-doctor.md`
 
 ### 章間の接続
 
