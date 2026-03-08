@@ -33,7 +33,7 @@ Constraints: No text, no logos, no UI elements
 | **ドクター＆ナナコ（院内）** | `static/public_images/code-doctor/doctor-and-nanako-in-clinic.png` | 院内シーン（ドクター・ナナコ・クリニック背景を含む） |
 | **ドクター＆ナナコ（屋外）** | `static/public_images/code-doctor/doctor-and-nanako.jpg` | 屋外シーン（ドクター・ナナコ・背景なし） |
 | **クリニック入り口** | `static/public_images/code-doctor/clinic-facade.jpg` | 来院シーン（廊下から見た入り口） |
-| **患者** | `agents/code-doctor-series/{slug}/patient.png` | 患者登場シーン |
+| **患者** | `agents/code-doctor-series/{slug}/patient.webp` | 患者登場シーン |
 
 ### 参照画像の選択ルール
 
@@ -42,7 +42,7 @@ Constraints: No text, no logos, no UI elements
 | ドクター/ナナコ登場 + 院内 | `doctor-and-nanako-in-clinic.png` |
 | ドクター/ナナコ登場 + 屋外 | `doctor-and-nanako.jpg` |
 | 来院シーン（廊下） | `clinic-facade.jpg` |
-| 患者登場 | 上記に加えて `patient.png` |
+| 患者登場 | 上記に加えて `patient.webp` |
 
 ---
 

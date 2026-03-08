@@ -75,7 +75,7 @@ generate_image({
 mkdir -p static/public_images/$(date +%Y)/{SLUG}
 
 # 画像をコピー（{SOURCE}と{DEST}は実際のパスに置き換え）
-cp {GENERATED_IMAGE_PATH} static/public_images/$(date +%Y)/{SLUG}/{IMAGE_NAME}.png
+cp {GENERATED_IMAGE_PATH} static/public_images/$(date +%Y)/{SLUG}/{IMAGE_NAME}.webp
 ```
 
 ### ディレクトリ構造
@@ -84,8 +84,8 @@ cp {GENERATED_IMAGE_PATH} static/public_images/$(date +%Y)/{SLUG}/{IMAGE_NAME}.p
 static/public_images/
 └── 2026/
     └── {SLUG}/
-        ├── chapter1.png
-        ├── chapter2.png
+        ├── chapter1.webp
+        ├── chapter2.webp
         └── ...
 ```
 
@@ -96,7 +96,7 @@ static/public_images/
 Markdown形式で画像を埋め込み：
 
 ```markdown
-![画像の説明](/public_images/2026/{SLUG}/chapter1.png)
+![画像の説明](/public_images/2026/{SLUG}/chapter1.webp)
 ```
 
 ### 埋め込み位置

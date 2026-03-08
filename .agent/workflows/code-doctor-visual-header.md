@@ -24,7 +24,7 @@ description: "コードドクターシリーズ：ヘッダー画像生成"
 | 参照画像 | パス |
 |----------|------|
 | **ドクター＆ナナコ** | `static/public_images/code-doctor/doctor-and-nanako.jpg` |
-| **患者** | `agents/code-doctor-series/{slug}/patient.png` |
+| **患者** | `agents/code-doctor-series/{slug}/patient.webp` |
 
 > [!NOTE]
 > 患者画像がない場合は、先に `/code-doctor-1-profile` で生成してください。
@@ -113,7 +113,7 @@ Constraints: No text, no logos, no UI elements, no clinic interior
 
 Doctor (black hair, dark jacket): {ドクターの具体的な行動},
 Nanako (brown bob hair, white nurse uniform with navy trim): {ナナコの具体的な行動},
-Patient (based on patient.png reference - {患者の特徴}): {患者の具体的な行動},
+Patient (based on patient.webp reference - {患者の特徴}): {患者の具体的な行動},
 
 Each character acting with purpose and intention,
 Anime-inspired illustration with clean linework,
@@ -135,7 +135,7 @@ no text in image, no clinic interior
 ImageName: {slug}-header
 ImagePaths: [
   "static/public_images/code-doctor/doctor-and-nanako.jpg",
-  "agents/code-doctor-series/{slug}/patient.png"
+  "agents/code-doctor-series/{slug}/patient.webp"
 ]
 Prompt: [Step 4で作成したプロンプト]
 ```
@@ -198,7 +198,7 @@ hugo server -D -F
 ## 注意事項
 
 1. **3人全員必須**: ヘッダー画像には必ずドクター、ナナコ、患者の3人を含める
-2. **参照画像2枚**: `doctor-and-nanako.jpg` + `patient.png` を使用（clinic.jpgは使用しない）
+2. **参照画像2枚**: `doctor-and-nanako.jpg` + `patient.webp` を使用（clinic.jpgは使用しない）
 3. **抽象空間**: クリニックではなく、症状/処方を象徴する概念空間で描写
 4. **キャラクター行動**: 各キャラクターは静止ポーズではなく、意思ある行動をとる
 5. **テキスト禁止**: 画像内に文字を含めない

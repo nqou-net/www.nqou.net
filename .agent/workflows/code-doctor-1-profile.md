@@ -91,6 +91,6 @@ Simple white background, clean linework.
 ```
 
 **保存先**:
-`agents/code-doctor-series/<slug>/patient.png`
+`agents/code-doctor-series/<slug>/patient.webp`
 
 > **Note**: この立ち絵は後続のPhase（挿絵生成）で参照画像として使用されます。キャラクターの一貫性を保つため、プロファイルの内容を正確に反映してください。
