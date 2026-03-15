@@ -1,0 +1,255 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="JSON出力時の型が勝手に変わる！？ Perlのレガシーコードで頻発するPrimitive Obsession（プリミティブ型への執着）と、Value Objectを用いたカプセル化による鮮やかな解決劇。"><title>コード探偵ロックの事件簿【Value Object】偽造された身分証〜変数が型を失う日〜</title><link rel=canonical href=https://www.nqou.net/2026/03/10/070705/><link rel=stylesheet href=/scss/style.min.6a692fd055deae459f2a9767f57f3855ba80cafd5041317f24f7360f6ca47cdf.css><meta property='og:title' content="コード探偵ロックの事件簿【Value Object】偽造された身分証〜変数が型を失う日〜"><meta property='og:description' content="JSON出力時の型が勝手に変わる！？ Perlのレガシーコードで頻発するPrimitive Obsession（プリミティブ型への執着）と、Value Objectを用いたカプセル化による鮮やかな解決劇。"><meta property='og:url' content='https://www.nqou.net/2026/03/10/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='perl'><meta property='article:tag' content='moo'><meta property='article:tag' content='value-object'><meta property='article:tag' content='primitive-obsession'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-detective'><meta property='article:published_time' content='2026-03-10T07:07:05+09:00'><meta property='article:modified_time' content='2026-03-10T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-detective-value-object-primitive-obsession/header.webp'><meta name=twitter:title content="コード探偵ロックの事件簿【Value Object】偽造された身分証〜変数が型を失う日〜"><meta name=twitter:description content="JSON出力時の型が勝手に変わる！？ Perlのレガシーコードで頻発するPrimitive Obsession（プリミティブ型への執着）と、Value Objectを用いたカプセル化による鮮やかな解決劇。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-detective-value-object-primitive-obsession/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/warehouse/><svg class="icon icon-tabler icon-tabler-warehouse" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 10l9-6 9 6"/><rect x="5" y="10" width="14" height="10" rx="2"/><rect x="10" y="14" width="4" height="6" rx="1"/><path d="M7 20v-4h2v4"/><path d="M15 20v-4h2v4"/></svg>
+<span>Warehouse</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#i-現場検証コードの指紋>I. 現場検証：コードの指紋</a></li><li><a href=#ii-推理披露鮮やかなリファクタリング>II. 推理披露：鮮やかなリファクタリング</a><ol><li><a href=#value-object-の定義制服の作成>Value Object の定義（制服の作成）</a></li><li><a href=#コンテキストの簡略化と安定化>コンテキストの簡略化と安定化</a></li></ol></li><li><a href=#iii-解決事件の終わり>III. 解決：事件の終わり</a></li><li><a href=#探偵の調査報告書>探偵の調査報告書</a><ol><li><a href=#推理のステップ>推理のステップ</a></li><li><a href=#ロックより>ロックより</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/03/10/070705/><img src=/public_images/2026/code-detective-value-object-primitive-obsession/header.webp loading=lazy alt="Featured image of post コード探偵ロックの事件簿【Value Object】偽造された身分証〜変数が型を失う日〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/03/10/070705/>コード探偵ロックの事件簿【Value Object】偽造された身分証〜変数が型を失う日〜</a></h2><h3 class=article-subtitle>JSON出力時の型が勝手に変わる！？ Perlのレガシーコードで頻発するPrimitive Obsession（プリミティブ型への執着）と、Value Objectを用いたカプセル化による鮮やかな解決劇。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>3月 10, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 9分</time></div></footer></div></header><section class=article-content><p>「そもそも、なんで変数の型が勝手に変わるんですか！？ 他の言語じゃありえないのに！」</p><p>私の叫び声は、雑居ビルの一室に響き渡った。
+ここは「レガシー・コード・インベスティゲーション（LCI）」。熱暴走ギリギリのPCの排熱と、飲みかけのエナジードリンクの香りが充満する怪しげな探偵事務所だ。
+私は最近、型に厳密な別システムへのAPI連携（JSON出力）を担当することになった中堅エンジニア。だが、この数日、原因不明のエラーに完全に心を折られかけていた。</p><p>「落ち着きたまえ、ワトソン君」</p><p>奥の回転椅子から、時代錯誤なツイードのジャケットを着た男――コード探偵ロックが、ゆっくりとこちらを向いた。手には、キーボードの『Enter』キーだけをやたらと強く叩き抜いた痕跡がある使い込まれたHHKBが握られている。</p><p>「君の主張は分かった。だが、変数は勝手に変わったりなどしない。君たちが彼らを『裸のまま街（システム）を歩かせている』から、見知らぬ誰かに帽子を被らされたり、靴を履かされたりして、元の姿が分からなくなっているだけなのだよ」</p><p>ロックはニヤリと笑った。</p><p>「今日は、その『偽造された身分証（Primitive Obsession）』の正体を暴き、彼らに絶対脱げない『制服』を着せてやろうじゃないか」</p><h2 id=i-現場検証コードの指紋>I. 現場検証：コードの指紋</h2><p><img src=/public_images/2026/code-detective-value-object-primitive-obsession/chapter1.webp loading=lazy alt=様々な型（文字列や数値）が制御不能に飛び交い、予期せぬ型変換を引き起こしている混沌としたデータ処理の概念図></p><p>「まずは現状のコード（現場）を見せてもらおうか。ホシはどのようにして、その姿を変えているのかな？」</p><p>私はノートPCを開き、問題のコードをロックに見せた。
+ただのユーザーデータをJSONにエンコードして出力するだけの、ごく平均的なPerlのコードだ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>LegacyUser</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>JSON::MaybeXS</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>generate_json</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=c1># 実際はDBなどから取得するが、ここではハッシュリファレンスとして定義</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$user</span> <span class=o>=</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>id</span>    <span class=o>=&gt;</span> <span class=mi>12345</span><span class=p>,</span>         <span class=c1># DB等でauto_incrementの数値として取得されることが多いが...</span>
+</span></span><span class=line><span class=cl>        <span class=n>age</span>   <span class=o>=&gt;</span> <span class=s>&#39;25&#39;</span><span class=p>,</span>          <span class=c1># DBドライバによっては文字列として取得される</span>
+</span></span><span class=line><span class=cl>        <span class=n>phone</span> <span class=o>=&gt;</span> <span class=s>&#39;09012345678&#39;</span><span class=p>,</span> <span class=c1># 電話番号はゼロから始まるため文字列</span>
+</span></span><span class=line><span class=cl>    <span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=c1># 何らかの処理で数値として扱われると、Perl内部で数値フラグが立つ</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$user</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>age</span><span class=p>}</span> <span class=o>+=</span> <span class=mi>1</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=c1># id（数値）を文字列結合すると、文字列フラグが立ち、数値フラグよりも優先されることがある</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$log_msg</span> <span class=o>=</span> <span class=s>&#34;User ID: &#34;</span> <span class=o>.</span> <span class=nv>$user</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>id</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=c1># JSONにシリアライズ</span>
+</span></span><span class=line><span class=cl>    <span class=c1># JSONモジュールは内部フラグを見て型を決めるため、</span>
+</span></span><span class=line><span class=cl>    <span class=c1># 直前の処理によって型の推論結果が変わってしまう</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$json</span> <span class=o>=</span> <span class=n>encode_json</span><span class=p>(</span><span class=nv>$user</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$json</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「連携先からは、『日によって年齢が文字列になってる』とか『電話番号が数値になっていて先頭の0が消えてる』って怒られるんです。ログ出力のために文字列結合しただけなのに、なんでJSONの出力結果まで変わっちゃうんですか！」</p><p>ロックは満足げに頷いた。</p><p>「初歩的なにおい（コードスメル）だよ、ワトソン君。Perlのスカラー変数（<code>$var</code>）は、ただの『箱』だ。文字列を入れれば文字列になり、計算すれば数値になる。ここまでは君も知っているだろう？」</p><p>「ええ、便利ですよね」</p><p>「だが、それがJSONモジュールのような厳格な審査官（シリアライザ）の前に出た時、事件は起きる。箱の中身が『最後にどう扱われたか（内部フラグ：IV/NV/PV）』によって、出力される型が決まってしまうからだ」</p><p>ロックは立ち上がり、ホワイトボードに書き殴った。</p><p>「君のコードの変数は、言うなれば『誰でも手書きできる紙切れの身分証』だ。どこかで誰かが <code>+ 1</code> しただけで『私は数値です』という顔になり、<code>.</code> で文字列結合された瞬間に『私は文字列です』と言い張る。これこそが、Primitive Obsession（プリミティブ型への執着）が引き起こす悲劇さ」</p><p>なるほど。変なところで型が変わる原因は、私が良かれと思って組み込んでいたログ出力や、ちょっとした計算のせいだったのか……。</p><h2 id=ii-推理披露鮮やかなリファクタリング>II. 推理披露：鮮やかなリファクタリング</h2><p><img src=/public_images/2026/code-detective-value-object-primitive-obsession/chapter2.webp loading=lazy alt="生のデータが整然としたValue Objectという強固なブロックに格納され、安全に型が保証された状態で運ばれていく概念図"></p><p>「じゃあ、どうすればいいんですか？ 出力する直前に全部 <code>+ 0</code> したり <code>"" .</code> したりして、強制的に型を合わせる（キャストする）ハックでも入れます？」</p><p>「馬鹿なことを言うもんじゃない！ そんな場当たり的な対処は、絆創膏の上から絆創膏を貼るようなものだ」</p><p>ロックは呆れたようにため息をついた。</p><p>「彼らに、絶対に脱げない、偽造不可能な「制服（Value Object）」を着せるんだ。そうすれば、どこをどう歩こうが、審査官には正しい姿として認識される」</p><p>ロックの手が、猛烈な勢いでHHKBを叩き始めた。</p><h3 id=value-object-の定義制服の作成>Value Object の定義（制服の作成）</h3><p>「まずは年齢（Age）と電話番号（PhoneNumber）、そしてIDのための専用クラス（VO）を作る。今回は <code>Moo</code> の力を借りよう」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/User/Age.pm</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>User::Age</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(Int)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>value</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>isa</span>      <span class=o>=&gt;</span> <span class=n>Int</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>BUILD</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nb>die</span> <span class=s>&#34;Age must be positive&#34;</span> <span class=k>if</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>value</span> <span class=o>&lt;</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># JSON::MaybeXS (convert_blessed) などで呼ばれる</span>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>TO_JSON</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>value</span> <span class=o>+</span> <span class=mi>0</span><span class=p>;</span> <span class=c1># 確実に数値として出力</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/User/PhoneNumber.pm</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>User::PhoneNumber</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(Str)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>value</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>isa</span>      <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>BUILD</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nb>die</span> <span class=s>&#34;Invalid phone number&#34;</span> <span class=k>unless</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>value</span> <span class=o>=~</span><span class=sr> /^\d{10,11}$/</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>TO_JSON</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=s>&#34;&#34;</span> <span class=o>.</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>value</span><span class=p>;</span> <span class=c1># 確実に文字列として出力</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「ただの文字列や数値を保持するためだけのクラスですか？ なんだか大げさな気もしますが……」</p><p>私が首を傾げると、ロックはチッチッと指を振った。</p><p>「大げさなものか。このクラスには2つの重要な責務がカプセル化されている。1つ目は <code>BUILD</code> による生成時のバリデーション（身元保証）。マイナスの年齢や不正な電話番号は、そもそもこのシステムに存在できなくなる。
+そして2つ目。これが今回の事件の切り札、<code>TO_JSON</code> メソッドだ」</p><h3 id=コンテキストの簡略化と安定化>コンテキストの簡略化と安定化</h3><p>ロックはさらにコードを書き換え、元の処理を置き換えた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/RefactoredUser.pm</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>RefactoredUser</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>JSON::MaybeXS</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>User::Id</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>User::Age</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>User::PhoneNumber</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>generate_json</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=c1># 1. オブジェクトとして生成（この瞬間にバリデーションも完了する）</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$user</span> <span class=o>=</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>id</span>    <span class=o>=&gt;</span> <span class=nn>User::Id</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>value</span> <span class=o>=&gt;</span> <span class=mi>12345</span><span class=p>),</span>
+</span></span><span class=line><span class=cl>        <span class=n>age</span>   <span class=o>=&gt;</span> <span class=nn>User::Age</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>value</span> <span class=o>=&gt;</span> <span class=mi>25</span><span class=p>),</span>
+</span></span><span class=line><span class=cl>        <span class=n>phone</span> <span class=o>=&gt;</span> <span class=nn>User::PhoneNumber</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>value</span> <span class=o>=&gt;</span> <span class=s>&#39;09012345678&#39;</span><span class=p>),</span>
+</span></span><span class=line><span class=cl>    <span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=c1># 2. 値として取り出すことはできても、オブジェクト自体は不変（Immutable）</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$log_msg</span> <span class=o>=</span> <span class=s>&#34;User ID: &#34;</span> <span class=o>.</span> <span class=nv>$user</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>id</span><span class=p>}</span><span class=o>-&gt;</span><span class=n>value</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=c1># 3. JSON化時に convert_blessed を有効にする</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$coder</span> <span class=o>=</span> <span class=nn>JSON::MaybeXS</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>convert_blessed</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=c1># オブジェクトのTO_JSONが呼ばれ、設計者が意図した通りの型で確実に出力される</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$json</span> <span class=o>=</span> <span class=nv>$coder</span><span class=o>-&gt;</span><span class=n>encode</span><span class=p>(</span><span class=nv>$user</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$json</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「JSONモジュールに <code>convert_blessed</code> オプションを渡すと、モジュールはオブジェクトに対して <code>TO_JSON</code> メソッドを呼び出し、その戻り値をシリアライズの対象にする。
+この <code>TO_JSON</code> の中で <code>+ 0</code>（数値強制）や <code>"" .</code>（文字列強制）を行えば、途中で誰が文字列結合しようが計算しようが、<strong>出力される瞬間の型は、そのクラス自身が責任を持って保証する</strong>というわけだ」</p><pre class=mermaid>
+	sequenceDiagram
+    participant App as アプリケーション
+    participant VO as User::Age (Value Object)
+    participant JSON as JSONモジュール
+    
+    App-&gt;&gt;VO: new(value =&gt; 25)
+    VO--&gt;&gt;App: (オブジェクト)
+    App-&gt;&gt;App: ログ出力等の操作（内部フラグ変動）
+    App-&gt;&gt;JSON: encode($user)
+    JSON-&gt;&gt;VO: TO_JSON()
+    Note over VO: return $self-&gt;value + 0
+    VO--&gt;&gt;JSON: 25 (厳密な数値)
+    JSON--&gt;&gt;App: &#39;{&#34;age&#34;:25}&#39;
+</pre><h2 id=iii-解決事件の終わり>III. 解決：事件の終わり</h2><p>私は息を呑んだ。</p><p>たかが文字列一つ、数値一つをクラスにするなんて「大げさ」だと思っていた。
+しかし、至る所に散らばっていた「型を合わせるためのハック」や「同じ正規表現での重複したバリデーション」が、すべて1つの小さなクラス（Value Object）に綺麗に収まっているのを見せつけられ、それまでの自分の考えがいかに浅はかだったかを思い知った。</p><p>どこでどう使われようとも、その変数は「自分は数値の年齢だ」「自分は文字列の電話番号だ」という絶対的なアイデンティティを保ち続ける。もう他のシステムが異常終了する恐怖に怯える必要はないのだ。</p><p>「プリミティブ型は便利だが、それは無法地帯の便利さだよ。意味のあるデータには、意味のある名前を与え給え」</p><p>ロックが冷めたエナジードリンクを飲み干し、キザな台詞で事件を締めくくった。</p><p>「……なるほど。そういうことだったんですね！」</p><p>私の胸に、遅れてきた雷のようなインスピレーションが落ちた。
+そうだ。生のデータがこれほどまでに脆弱で扱いづらいものならば、逆に言えば、すべてのデータに強固な『制服』を着せてしまえばいい。システム内のすべての変数が、自分自身の正しさを保証してくれる世界——それこそが、バグのない完璧なユートピアではないか！
+生来の几帳面さが、パズルの最後のピースがはまったことで大爆発を起こした。</p><p>「つまり、ユーザー情報を構成するこの『名前』も、この『フラグ』も、『備考欄』も……！ 全部 Value Object のクラスを作っちゃえば、もう絶対にバグらない完璧なシステムになりますね！！ さっそく100個くらいクラス作ってきます！！」</p><p>勢いよく立ち上がり、目を輝かせる私を見て、ロックは深く頭を抱えて呻いた。</p><p>「……極端から極端へ走るのは君の悪い癖だ、ワトソン君。何事にも限度というものがある。すべての路地裏に信号機を立てる必要はないのだよ……」</p><hr><h2 id=探偵の調査報告書>探偵の調査報告書</h2><div class=table-wrapper><table><thead><tr><th style=text-align:left>容疑（アンチパターン）</th><th style=text-align:left>真実（パターン）</th><th style=text-align:left>証拠（効果）</th></tr></thead><tbody><tr><td style=text-align:left>Primitive Obsession（プリミティブ型への執着） 重要な概念（年齢・電話番号など）を単なる基本型（文字列や数値）のまま扱い、システム中に型変換やバリデーションのロジックを散在させてしまう状態。</td><td style=text-align:left>Value Object（値オブジェクト） 独自の概念を専用のクラスとして定義し、データに対する制約や出力時の振る舞いをカプセル化する設計。一度生成されると変更できない不変性を持つ。</td><td style=text-align:left>型の意図せぬ変動を防ぎ、不正な値の混入をブロックする。また、JSONシリアライズ時のフォーマット崩れなどをクラス内部に隠蔽し、システム全体の堅牢性を高める。</td></tr></tbody></table></div><h3 id=推理のステップ>推理のステップ</h3><ol><li><strong>ドメインの概念を見つけ出す</strong>: 「ただの文字列」「ただの数値」ではなく、それがシステム上で「電話番号」なのか「年齢」なのかを見極める。</li><li><strong>専用のクラス（VO）を定義する</strong>: <code>Moo</code> などを用いてクラス化し、生成（<code>BUILD</code>）時に厳格なバリデーションを行う。</li><li><strong>振る舞いをカプセル化し、不変にする</strong>: <code>TO_JSON</code> のような特定の出力フォーマットに対する振る舞いや、値の比較ロジックをクラス内に閉じ込める。外部から値が上書きされないよう、アトリビュートは Read-Only（<code>ro</code>）にする。</li></ol><h3 id=ロックより>ロックより</h3><p>今回は「JSON出力時の型のブレ」という、Perl特有とも言える泥臭い事件にお目にかかれて実に楽しかったよ。
+Value ObjectはGoFのデザインパターンというわけではないが、ドメイン駆動設計（DDD）などにおいて極めて強力な「におい消し」となるアイテムだ。</p><p>だが忘れないでくれたまえ。何でもかんでもクラス化すればいいというものではない。「その概念が、システム内で独立した振る舞いや制約を持つべきか」を見極めることこそが、真の探偵（プログラマー）の仕事なのだから。</p><p>次なる「コードのにおい」が漂う時まで、しばしのお別れだ。</p></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/perl/>Perl</a>
+<a href=/tags/moo/>Moo</a>
+<a href=/tags/value-object/>Value-Object</a>
+<a href=/tags/primitive-obsession/>Primitive-Obsession</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-detective/>Code-Detective</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/03/15/070705/><div class=article-image><img src=/public_images/2026/code-detective-command-fat-controller/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-command-fat-controller/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Command】逆戻りする時間の怪 〜実行履歴という名のタイムマシン〜</h2></div></a></article><article class=has-image><a href=/2026/03/14/070705/><div class=article-image><img src=/public_images/2026/code-detective-facade-god-class/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-facade-god-class/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Facade】崩壊寸前のワンマン体制〜絡みつくサブシステムの森〜</h2></div></a></article><article class=has-image><a href=/2026/03/13/070705/><div class=article-image><img src=/public_images/2026/code-detective-data-clumps-parameter-object/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-data-clumps-parameter-object/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Parameter Object】終わらないバケツリレーの悲劇 〜手荷物検査のない引数の海〜</h2></div></a></article><article class=has-image><a href=/2026/03/12/070705/><div class=article-image><img src=/public_images/2026/code-detective-singleton/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-singleton/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Singleton／DI】便利すぎる万能薬の副作用〜消えた証拠〜</h2></div></a></article><article class=has-image><a href=/2026/03/11/070705/><div class=article-image><img src=/public_images/2026/code-detective-anemic-domain-model/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-anemic-domain-model/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Tell, Don't Ask】奪われた自己決定権 〜全裸にされたデータたちと中央集権の悲劇〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

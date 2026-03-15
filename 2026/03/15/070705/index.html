@@ -1,0 +1,268 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="複雑な業務ロジックと外部API通信が絡み合うFat Controller。取り消し不可能な処理をオブジェクトに封じ込める、Commandパターンによる実行履歴の魔法。"><title>コード探偵ロックの事件簿【Command】逆戻りする時間の怪 〜実行履歴という名のタイムマシン〜</title><link rel=canonical href=https://www.nqou.net/2026/03/15/070705/><link rel=stylesheet href=/scss/style.min.6a692fd055deae459f2a9767f57f3855ba80cafd5041317f24f7360f6ca47cdf.css><meta property='og:title' content="コード探偵ロックの事件簿【Command】逆戻りする時間の怪 〜実行履歴という名のタイムマシン〜"><meta property='og:description' content="複雑な業務ロジックと外部API通信が絡み合うFat Controller。取り消し不可能な処理をオブジェクトに封じ込める、Commandパターンによる実行履歴の魔法。"><meta property='og:url' content='https://www.nqou.net/2026/03/15/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='perl'><meta property='article:tag' content='moo'><meta property='article:tag' content='command'><meta property='article:tag' content='fat-controller'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-detective'><meta property='article:published_time' content='2026-03-15T07:07:05+09:00'><meta property='article:modified_time' content='2026-03-15T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-detective-command-fat-controller/header.webp'><meta name=twitter:title content="コード探偵ロックの事件簿【Command】逆戻りする時間の怪 〜実行履歴という名のタイムマシン〜"><meta name=twitter:description content="複雑な業務ロジックと外部API通信が絡み合うFat Controller。取り消し不可能な処理をオブジェクトに封じ込める、Commandパターンによる実行履歴の魔法。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-detective-command-fat-controller/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/warehouse/><svg class="icon icon-tabler icon-tabler-warehouse" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 10l9-6 9 6"/><rect x="5" y="10" width="14" height="10" rx="2"/><rect x="10" y="14" width="4" height="6" rx="1"/><path d="M7 20v-4h2v4"/><path d="M15 20v-4h2v4"/></svg>
+<span>Warehouse</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#i-依頼事務所への来客>I. 依頼（事務所への来客）</a></li><li><a href=#ii-現場検証時間の不可逆性>II. 現場検証（時間の不可逆性）</a></li><li><a href=#iii-推理披露実行履歴という名のタイムマシン>III. 推理披露（実行履歴という名のタイムマシン）</a><ol><li><a href=#command-role-と具体的な役者の定義>Command Role と具体的な役者の定義</a></li><li><a href=#履歴管理者invokerの召喚>履歴管理者（Invoker）の召喚</a></li><li><a href=#context-の解放>Context の解放</a></li></ol></li><li><a href=#iv-解決事件の終わり>IV. 解決（事件の終わり）</a></li><li><a href=#探偵の調査報告書>探偵の調査報告書</a><ol><li><a href=#推理のステップ>推理のステップ</a></li><li><a href=#ロックより>ロックより</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/03/15/070705/><img src=/public_images/2026/code-detective-command-fat-controller/header.webp loading=lazy alt="Featured image of post コード探偵ロックの事件簿【Command】逆戻りする時間の怪 〜実行履歴という名のタイムマシン〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/03/15/070705/>コード探偵ロックの事件簿【Command】逆戻りする時間の怪 〜実行履歴という名のタイムマシン〜</a></h2><h3 class=article-subtitle>複雑な業務ロジックと外部API通信が絡み合うFat Controller。取り消し不可能な処理をオブジェクトに封じ込める、Commandパターンによる実行履歴の魔法。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>3月 15, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 8分</time></div></footer></div></header><section class=article-content><h2 id=i-依頼事務所への来客>I. 依頼（事務所への来客）</h2><p>深夜の「レガシー・コード・インベスティゲーション（LCI）」。
+雑居ビルの2階にある探偵事務所のドアを、私はふらつく足取りで押し開けた。</p><p>「助けてください。もう3日も家に帰れていません……！」</p><p>私の名前はハヤト。外資系決済サービスのAPI連携を担当している入社2年目の若手エンジニアだ。徹夜明けでボロボロの私を出迎えたのは、季節外れのヨレヨレのトレンチコートを羽織った男——自称コード探偵ロックだった。</p><p>彼はモニターから視線を外さず、手元の異様にヌルい特大エナジードリンクをストローで啜った。ズズズ、という下品な音が響く。</p><p>「ほう。随分と酷い顔をしているね、ワトソン君。目の下のクマが深すぎて、まるで3重にネストされた <code>for</code> ループのようだ」
+「ハヤトです。あの、システムで奇妙な不具合が起きていて……」
+「聞かせてみたまえ。君を路頭に迷わせている『におい』の正体を」</p><p>私は重いノートPCをデスクに置き、震える手でコードを映し出した。</p><p>「注文処理でエラーが発生したとき、DBはロールバックできるんですが、外部の『決済API』への課金リクエストが取り消せないんです。『お代は頂いたのに注文はキャンセルされる』という最悪の不整合が起きていて……もう経理からのクレーム電話に出るのが怖いんです！」</p><h2 id=ii-現場検証時間の不可逆性>II. 現場検証（時間の不可逆性）</h2><p><img src=/public_images/2026/code-detective-command-fat-controller/chapter1.webp loading=lazy alt=外部APIへの決済リクエストという不可逆な処理を、トランザクションだけで解決しようとする危うい現場の概念図></p><p>ロックは私の書いた決済処理 <code>OrderProcessor</code> クラスを覗き込んだ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>OrderProcessor</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>api</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=nn>External::PaymentAPI</span><span class=o>-&gt;</span><span class=k>new</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>db</span>  <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=nn>Database</span><span class=o>-&gt;</span><span class=k>new</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>process_order</span> <span class=p>($self, $order) {</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>db</span><span class=o>-&gt;</span><span class=n>begin_transaction</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=c1># 1. 外部APIで決済（ここで副作用が発生するがロールバック対象に入らない）</span>
+</span></span><span class=line><span class=cl>        <span class=nb>eval</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>api</span><span class=o>-&gt;</span><span class=n>charge</span><span class=p>(</span><span class=nv>$order</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>amount</span><span class=p>});</span>
+</span></span><span class=line><span class=cl>        <span class=p>};</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=vg>$@</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>db</span><span class=o>-&gt;</span><span class=n>rollback</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>            <span class=nb>die</span> <span class=s>&#34;Payment failed: $@&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=c1># 2. データベースに注文を保存</span>
+</span></span><span class=line><span class=cl>        <span class=nb>eval</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>db</span><span class=o>-&gt;</span><span class=n>save_order</span><span class=p>(</span><span class=nv>$order</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=p>};</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=vg>$@</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=c1># 💥 悲劇の発生ポイント</span>
+</span></span><span class=line><span class=cl>            <span class=c1># DBの保存に失敗した場合、DBはロールバックされるが、</span>
+</span></span><span class=line><span class=cl>            <span class=c1># 直前に叩いた APIの「課金（charge）」はそのまま残ってしまう！</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>db</span><span class=o>-&gt;</span><span class=n>rollback</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>            <span class=nb>die</span> <span class=s>&#34;Order save failed: $@&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>db</span><span class=o>-&gt;</span><span class=n>commit</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=mi>1</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「ご覧の通りです。DBへの保存が失敗したら <code>$self->db->rollback()</code> で戻しています。でも、その直前に走っている <code>charge</code> メソッドは外部APIへのHTTPリクエストなので、DBのトランザクションでは戻らないんです」</p><p>私が絶望まじりに説明すると、ロックは深くため息をついた。</p><p>「初歩的なことだよ、ワトソン君。君のコードは、コントローラーの中に直接『副作用（API通信）』をベタ書きしている。これは <strong>Fat Controller / Hardcoded Actions</strong> と呼ばれるにおいだ」</p><p>「じゃあ、失敗したときに手動で <code>refund</code>（返金API）を呼ぶコードを足せば……」
+「それこそが泥沼への入り口だ！ 『もしAが失敗したらBの返金を呼び、もしBが失敗したらAとBの返金を呼ぶ……』そんなエラーハンドリングのバケツリレーを書き始めたら、最後には君の正気ごとシステムがクラッシュする」</p><p>ロックは鋭い視線を画面に向けた。</p><p>「トランザクションという『魔法のキャンセルボタン』に甘えるのはやめたまえ。起きてしまった過去（外部通信）は、魔法では取り消せない。時間を巻き戻すには、自分が『何をしたか』を正確に記録したタイムマシンを作る必要があるのだよ」</p><h2 id=iii-推理披露実行履歴という名のタイムマシン>III. 推理披露（実行履歴という名のタイムマシン）</h2><p>ロックの指がキーボードの上で凄まじいスピードで踊り始めた。</p><p>「まず、君が無造作に呼び出していた『決済処理』や『DB保存』というただの「命令」を、独立した「オブジェクト」として切り離す。そして彼らに、実行（<code>execute</code>）と取り消し（<code>unexecute</code>）という2つの振る舞いを義務付けるんだ」</p><h3 id=command-role-と具体的な役者の定義>Command Role と具体的な役者の定義</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># -----------------------------------</span>
+</span></span><span class=line><span class=cl><span class=c1># 1. Command Role (約束事)</span>
+</span></span><span class=line><span class=cl><span class=c1># -----------------------------------</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Command::Role</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo::Role</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>requires</span> <span class=s>&#39;execute&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>requires</span> <span class=s>&#39;unexecute&#39;</span><span class=p>;</span> <span class=c1># 取り消し用・これがタイムマシンの鍵</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># -----------------------------------</span>
+</span></span><span class=line><span class=cl><span class=c1># 2. 具体的なCommandたち</span>
+</span></span><span class=line><span class=cl><span class=c1># -----------------------------------</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Command::Payment</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>with</span> <span class=s>&#39;Command::Role&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>api</span>    <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>amount</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>execute</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>api</span><span class=o>-&gt;</span><span class=n>charge</span><span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>amount</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>unexecute</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>        <span class=c1># 過去に行った処理を逆にたどる（返金）</span>
+</span></span><span class=line><span class=cl>        <span class=k>print</span> <span class=s>&#34;[UNDO] Reversing Payment...\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>api</span><span class=o>-&gt;</span><span class=n>refund</span><span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>amount</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「……命令を、わざわざクラスにするんですか？」
+「そうだ。こうすることで、『金額1000円の決済を行った』という事実が、物理的なオブジェクトとして手元に残る」</p><h3 id=履歴管理者invokerの召喚>履歴管理者（Invoker）の召喚</h3><p>ロックはさらに <code>OrderInvoker</code> というクラスを書き上げた。</p><p>「そして、これらのコマンドを順番に見届ける『歴史の記録者（Invoker）』を用意する。彼はコマンドが実行されるたびに、それをスタック（配列）に積み上げていくんだ」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># -----------------------------------</span>
+</span></span><span class=line><span class=cl><span class=c1># 3. Invoker (履歴管理者)</span>
+</span></span><span class=line><span class=cl><span class=c1># -----------------------------------</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>OrderInvoker</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>history</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=o>[]</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>execute_command</span> <span class=p>($self, $command) {</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$command</span><span class=o>-&gt;</span><span class=n>execute</span><span class=p>();</span>              <span class=c1># 実行し...</span>
+</span></span><span class=line><span class=cl>        <span class=nb>push</span> <span class=nv>@</span><span class=p>{</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>history</span><span class=p>},</span> <span class=nv>$command</span><span class=p>;</span> <span class=c1># 履歴に記録する</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>undo_all</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>        <span class=c1># 履歴を新しい順（最後に実行したものから）ポップして取り消す</span>
+</span></span><span class=line><span class=cl>        <span class=k>while</span> <span class=p>(</span><span class=k>my</span> <span class=nv>$cmd</span> <span class=o>=</span> <span class=nb>pop</span> <span class=nv>@</span><span class=p>{</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>history</span><span class=p>})</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$cmd</span><span class=o>-&gt;</span><span class=n>unexecute</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=context-の解放>Context の解放</h3><p><img src=/public_images/2026/code-detective-command-fat-controller/command.webp loading=lazy alt=Commandパターンの概念図。Invokerがコマンドをスタックに積み上げ、問題が起きれば逆順にUndoを実行していく、フラットでモダンなTechデザイン。></p><p>「さあ、ワトソン君。これですべての準備は整った。君のFat Controllerを安全な世界へ導こう」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># -----------------------------------</span>
+</span></span><span class=line><span class=cl><span class=c1># 4. Context (利用側・メインロジック)</span>
+</span></span><span class=line><span class=cl><span class=c1># -----------------------------------</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>OrderProcessorSmart</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>api</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=nn>External::PaymentAPI</span><span class=o>-&gt;</span><span class=k>new</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>db</span>  <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=nn>Database</span><span class=o>-&gt;</span><span class=k>new</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>process_order</span> <span class=p>($self, $order) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$invoker</span> <span class=o>=</span> <span class=nn>OrderInvoker</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>db</span><span class=o>-&gt;</span><span class=n>begin_transaction</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=nb>eval</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=c1># 決済コマンドの発行（Invoker経由）</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$invoker</span><span class=o>-&gt;</span><span class=n>execute_command</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>                <span class=nn>Command::Payment</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>api</span> <span class=o>=&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>api</span><span class=p>,</span> <span class=n>amount</span> <span class=o>=&gt;</span> <span class=nv>$order</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>amount</span><span class=p>})</span>
+</span></span><span class=line><span class=cl>            <span class=p>);</span>
+</span></span><span class=line><span class=cl>            
+</span></span><span class=line><span class=cl>            <span class=c1># 保存コマンドの発行</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$invoker</span><span class=o>-&gt;</span><span class=n>execute_command</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>                <span class=nn>Command::SaveOrder</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>db</span> <span class=o>=&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>db</span><span class=p>,</span> <span class=n>order</span> <span class=o>=&gt;</span> <span class=nv>$order</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>            <span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=p>};</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=vg>$@</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=k>print</span> <span class=s>&#34;[SYSTEM] Error occurred. Starting compensation process (Undo)...\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>db</span><span class=o>-&gt;</span><span class=n>rollback</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>            
+</span></span><span class=line><span class=cl>            <span class=c1># ✨ 履歴を逆再生して、APIなどの副作用を安全にロールバック！</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$invoker</span><span class=o>-&gt;</span><span class=n>undo_all</span><span class=p>();</span> 
+</span></span><span class=line><span class=cl>            <span class=nb>die</span> <span class=s>&#34;Order processing failed: $@&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>db</span><span class=o>-&gt;</span><span class=n>commit</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=mi>1</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>私は画面を見て息を呑んだ。
+あの煩わしかったエラーハンドリングのパズルが、たった1行の <code>$invoker->undo_all()</code> に置き換わっている。</p><p>「もし決済（API）だけ成功して、DB保存でエラーになったら……？」
+「Invokerの履歴（history）には、<code>Command::Payment</code> が1つだけ積まれている状態だ。<code>undo_all</code> が呼ばれると、積まれた最新の履歴から <code>unexecute</code>（取り消し）が呼ばれる。つまり、確実に返金APIが叩かれるというわけさ」</p><h2 id=iv-解決事件の終わり>IV. 解決（事件の終わり）</h2><p>テスト用の注文データを流し込むと、コンソールに見事な緑色の文字が並んだ。
+DBエラーが発生した瞬間、トランザクションのロールバックと同時に、APIへの返金処理が確実に行われたのだ。</p><p>「完璧です……！ これなら、後から『ポイント付与』や『在庫引当』のAPI呼び出しが増えても、新しく <code>Command::AddPoints</code> や <code>Command::ReserveStock</code> を作って <code>execute_command</code> するだけでいいんですね」</p><p>「ご名答。もう手動で複雑なエラーハンドリング関数を継ぎ接ぎする必要はない。各々のコマンドが、自分自身の『行い』と『その償い方（取り消し方）』を知っているのだからね」</p><p>ロックは満足げに、空になったエナジードリンクの缶をゴミ箱へ放り投げた。</p><p>「コマンドがオブジェクトとして実体化するということは、単に取り消し（Undo）ができるというだけではない。ログとしてDBにシリアライズして保存すれば、もしサーバーがクラッシュしても、再起動後に再実行（Redo）することすら可能なのだよ」</p><p>「履歴という名のタイムマシン……。すごい、すごすぎます、ロックさん！」
+「フッ。真名で呼んでくれたのは君が初めてかもしれないな。だが忘れないでくれたまえ。過去を正しくやり直すためには、現在の行いを正確に記録する知性が必要なのだ」</p><p>私は深々と頭を下げた。これでようやく、自宅のベッドで眠ることができる。経理からの恐怖の電話におびえることもない。</p><p>「あの、ロックさん。調査費用はいかほどで……？」
+「さてね。君のシステムが失わずに済んだ決済手数料と同じだけの、とびきり美味いピザを頼むとしようか。もちろん、注文を『取り消す』権利は放棄してもらうがね」</p><p>私は笑いながら、深夜のピザ屋のメニューを開いた。</p><hr><h2 id=探偵の調査報告書>探偵の調査報告書</h2><div class=table-wrapper><table><thead><tr><th style=text-align:left>容疑（アンチパターン）</th><th style=text-align:left>真実（パターン）</th><th style=text-align:left>証拠（効果）</th></tr></thead><tbody><tr><td style=text-align:left>Fat Controller / Hardcoded Actions。コントローラーの中に外部API呼び出し等の「副作用」が直書きされ、エラー発生時の取り消し（ロールバック）や再実行が不可能・複雑化している状態。</td><td style=text-align:left>Command パターン。「〜をする」という命令（振る舞い）そのものを1つのオブジェクト（クラス）としてカプセル化し、実行（execute）と取り消し（unexecute）を対にして定義する。</td><td style=text-align:left>コマンドをキューやスタックに積むことで、複数ステップの処理に対する安全な Undo (取り消し) や Redo (再実行)、非同期実行などが可能になる。</td></tr></tbody></table></div><h3 id=推理のステップ>推理のステップ</h3><ol><li><strong>Command Roleの定義</strong>: 『実行する（<code>execute</code>）』と『取り消す（<code>unexecute</code>）』のインターフェースを持つRoleを作成する。</li><li><strong>命令のオブジェクト化</strong>: 外部API通信やDB保存など、副作用の伴う具体的な処理をそれぞれ独立したCommandクラスとして切り出す。</li><li><strong>Invokerによる履歴管理</strong>: コマンドを直接実行するのではなく、管理役（Invoker）を通じて実行し、実行したコマンドをスタックに保存する。</li><li><strong>安全なロールバック</strong>: エラー発生時は、Invokerのスタックからコマンドを取り出し、逆の順番で <code>unexecute</code> を呼び出して状態を復元（補償トランザクション）する。</li></ol><h3 id=ロックより>ロックより</h3><p>ワトソン君。君が頼っていたデータベースのトランザクションは確かに強力だが、それはシステムという閉じた箱の中でのみ通用する魔法に過ぎない。
+一歩でも外（APIやメールなどの外部システム）へ足を踏み出せば、覆水は盆に返らないのだ。</p><p>システム設計において『取り消し』を想定することは敗北ではない。それは、世界が不確実であることを受け入れる勇気と知性の証だ。
+Commandオブジェクトとして封じ込められた君の「行い」は、きっと未来のトラブルから君自身を救ってくれることだろう。</p></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/perl/>Perl</a>
+<a href=/tags/moo/>Moo</a>
+<a href=/tags/command/>Command</a>
+<a href=/tags/fat-controller/>Fat-Controller</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-detective/>Code-Detective</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/03/14/070705/><div class=article-image><img src=/public_images/2026/code-detective-facade-god-class/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-facade-god-class/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Facade】崩壊寸前のワンマン体制〜絡みつくサブシステムの森〜</h2></div></a></article><article class=has-image><a href=/2026/03/13/070705/><div class=article-image><img src=/public_images/2026/code-detective-data-clumps-parameter-object/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-data-clumps-parameter-object/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Parameter Object】終わらないバケツリレーの悲劇 〜手荷物検査のない引数の海〜</h2></div></a></article><article class=has-image><a href=/2026/03/12/070705/><div class=article-image><img src=/public_images/2026/code-detective-singleton/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-singleton/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Singleton／DI】便利すぎる万能薬の副作用〜消えた証拠〜</h2></div></a></article><article class=has-image><a href=/2026/03/11/070705/><div class=article-image><img src=/public_images/2026/code-detective-anemic-domain-model/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-anemic-domain-model/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Tell, Don't Ask】奪われた自己決定権 〜全裸にされたデータたちと中央集権の悲劇〜</h2></div></a></article><article class=has-image><a href=/2026/03/10/070705/><div class=article-image><img src=/public_images/2026/code-detective-value-object-primitive-obsession/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-value-object-primitive-obsession/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Value Object】偽造された身分証〜変数が型を失う日〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>
