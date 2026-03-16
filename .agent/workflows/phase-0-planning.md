@@ -1,0 +1,42 @@
+---
+description: "統合汎用ワークフロー（Phase 0: 企画・設計）"
+---
+
+# Phase 0: 企画・設計（汎用）
+
+## 概要
+ユーザーの依頼を受け、指定された「シリーズマニフェスト」に基づき、記事の全体設計（テーマ、登場人物の設定、タイトル案）を行います。
+
+## Step 1: 入力情報の確認
+ユーザーから以下の情報を受け取ります。
+1. **シリーズマニフェスト名**: （例: `code-detective`, `code-doctor`）
+2. **テーマ / パターン名**: （例: `Strategy`, `God Class`）
+3. **slug**: ケバブケースで生成（例: `strategy-pattern`）
+
+## Step 2: マニフェストと部品の読み込み
+指定されたシリーズマニフェスト（`.agent/components/series/<マニフェスト名>.md`）を読み込みます。
+マニフェストに記載されている以下の部品（Markdownファイル）をさらに読み込み、コンテキストとして保持してください。
+- `Personas` (主人公、語り部など)
+- `Metaphors` (世界観、用語)
+- `Plots` (構成)
+
+## Step 3: Semantic Knowledge Repository (SKR) の検索
+過去の類似記事や設定の重複を避けるため、SKRを検索します。
+```bash
+node ~/.agents/skills/semantic-knowledge-repository/scripts/search_knowledge.cjs "<パターン名> <シリーズ名>"
+```
+
+## Step 4: 企画案の生成（対話プロセス）
+読み込んだマニフェスト（特に `Metaphors` と `Plots`）に基づき、以下の企画案を作成し、ユーザーに提示します。
+1. **今回のテーマ（技術的課題）**
+2. **語り部（依頼人/患者）のプロファイル**: 今回固有の属性（職種、悩みなど）
+3. **タイトル案**: マニフェストの「タイトル命名規則」に従った案を3つ提示。
+4. **物語のフック（見どころ）**: 今回のエピソードならではの展開。
+
+## Step 5: 承認と保存
+ユーザーから企画の承認を得たら、SKRにプランニング状態として保存します。
+```bash
+node ~/.agents/skills/semantic-knowledge-repository/scripts/save_knowledge.cjs "<シリーズ名>-<slug>" \
+'{"facts":["Title: <決定したタイトル>"],"keywords":["status:planning","planning-status","<slug>","<シリーズ名>"],"confidence_score":100,"summary":"Planning <シリーズ名> article: <タイトル>"}'
+```
+保存後、Phase 1へ進みます。
