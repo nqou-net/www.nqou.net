@@ -220,10 +220,10 @@ use MIME::Base64;      # コアモジュール
 
 ### 7.1 関連調査ドキュメント
 
-- `content/warehouse/observer-pattern.md`
-- `content/warehouse/decorator-pattern.md`
-- `content/warehouse/command-pattern.md`
-- `content/warehouse/design-pattern-combination-research.md`
+- `agents/warehouse/observer-pattern.md`
+- `agents/warehouse/decorator-pattern.md`
+- `agents/warehouse/command-pattern.md`
+- `agents/warehouse/design-pattern-combination-research.md`
 
 ### 7.2 出典
 

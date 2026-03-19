@@ -225,7 +225,7 @@ $hub->notify('status changed');
 
 **作成日**: 2026年1月17日  
 **担当エージェント**: GitHub Copilot  
-**保存先**: `content/warehouse/observer-pattern-series-2026.md`
+**保存先**: `agents/warehouse/observer-pattern-series-2026.md`
 
 ---
 

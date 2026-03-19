@@ -7,7 +7,7 @@ title: '連載構造案 - Flyweightパターン新シリーズ（全6回）'
 
 # 連載構造案：Flyweightパターンを学ぶ新シリーズ
 
-調査結果: `content/warehouse/flyweight-pattern.md` に基づく
+調査結果: `agents/warehouse/flyweight-pattern.md` に基づく
 
 ## 前提情報
 
@@ -382,7 +382,7 @@ title: '連載構造案 - Flyweightパターン新シリーズ（全6回）'
 - 作成担当: perl-monger エージェント
 - 3案（弾幕シューティング、ASCIIアートキャンバス、翻訳キャッシュ）を作成
 - 推薦案: 案A（弾幕シューティングエンジン）
-- 調査結果（`content/warehouse/flyweight-pattern.md`）に基づいて作成
+- 調査結果（`agents/warehouse/flyweight-pattern.md`）に基づいて作成
 
 ---
 
@@ -675,7 +675,7 @@ title: '連載構造案 - Flyweightパターン新シリーズ（全6回）'
 |---------|------|---------|
 | ストーリーの流れ | ◎ | 「大量オブジェクト問題→状態分離→Factory導入→外部状態渡し→完成→パターン明示」という一貫した問題解決ストーリーが構築されている |
 | 論理的繋がり | ◎ | 各回が前回の内容を前提として自然に発展している |
-| 調査結果との整合性 | ◎ | 調査ドキュメント（`content/warehouse/flyweight-pattern.md`）のFlyweightパターン構成要素と連載構造が正確に対応している |
+| 調査結果との整合性 | ◎ | 調査ドキュメント（`agents/warehouse/flyweight-pattern.md`）のFlyweightパターン構成要素と連載構造が正確に対応している |
 
 ---
 

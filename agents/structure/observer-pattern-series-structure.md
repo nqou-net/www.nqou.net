@@ -8,7 +8,7 @@ title: '連載構造案 - Observerパターンシリーズ（全10回）'
 
 # 連載構造案：Observerパターンを学ぶシリーズ
 
-調査結果: `content/warehouse/observer-pattern.md` に基づく
+調査結果: `agents/warehouse/observer-pattern.md` に基づく
 
 ## 前提情報
 
@@ -334,7 +334,7 @@ title: '連載構造案 - Observerパターンシリーズ（全10回）'
 
 **作成日**: 2026年1月12日
 **担当エージェント**: perl-monger エージェント
-**参照元**: `content/warehouse/observer-pattern.md`（Observerパターン調査ドキュメント）
+**参照元**: `agents/warehouse/observer-pattern.md`（Observerパターン調査ドキュメント）
 
 ---
 
@@ -456,7 +456,7 @@ title: '連載構造案 - Observerパターンシリーズ（全10回）'
 
 ## 参考文献
 
-- **調査ドキュメント**: `content/warehouse/observer-pattern.md`
+- **調査ドキュメント**: `agents/warehouse/observer-pattern.md`
 - **GoF書籍**: Design Patterns: Elements of Reusable Object-Oriented Software（1994年）
 - **Refactoring Guru**: https://refactoring.guru/ja/design-patterns/observer
 - **既存シリーズ参照**: `agents/structure/state-pattern-series-structure.md`
@@ -843,7 +843,7 @@ title: '連載構造案 - Observerパターンシリーズ（全10回）'
 | Observerパターンの構成要素 | ◎ | Subject、Observer、ConcreteSubject、ConcreteObserverが正しく扱われている |
 | Mooの使用法 | ◎ | has、Moo::Role、requires、does制約が正確に記載 |
 | 類似パターンとの違い | ◎ | Pub/Sub（間接的・非同期）、Mediator（多対多・中央集権）との違いが明確 |
-| 調査ドキュメントとの整合性 | ◎ | content/warehouse/observer-pattern.mdの調査結果と一致 |
+| 調査ドキュメントとの整合性 | ◎ | agents/warehouse/observer-pattern.mdの調査結果と一致 |
 
 **詳細評価:**
 

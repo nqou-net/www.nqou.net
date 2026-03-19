@@ -199,7 +199,7 @@ has 'attribute' => (
 
 **作成日**: <YYYY年MM月DD日>  
 **担当エージェント**: <エージェント名>  
-**保存先**: `content/warehouse/<slug>.md`
+**保存先**: `agents/warehouse/<slug>.md`
 
 ---
 

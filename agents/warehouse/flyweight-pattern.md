@@ -889,8 +889,8 @@ sub clear_unused {
 **grep結果**:
 
 - `/home/runner/work/www.nqou.net/www.nqou.net/content/post/2026/01/17/004437.md`: Prototypeパターンの記事で言及
-- `/home/runner/work/www.nqou.net/www.nqou.net/content/warehouse/design-patterns-overview.md`: 構造パターンの一覧で言及
-- `/home/runner/work/www.nqou.net/www.nqou.net/content/warehouse/composite-pattern.md`: 他のパターンとの比較で言及
+- `/home/runner/work/www.nqou.net/www.nqou.net/agents/warehouse/design-patterns-overview.md`: 構造パターンの一覧で言及
+- `/home/runner/work/www.nqou.net/www.nqou.net/agents/warehouse/composite-pattern.md`: 他のパターンとの比較で言及
 
 **重複状況**:
 

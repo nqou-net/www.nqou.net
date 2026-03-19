@@ -9,7 +9,7 @@ title: '連載構造案 - 複数サービス連携ツールで覚えるPerl'
 
 # 連載構造案：複数サービス連携ツールで覚えるPerl
 
-調査結果: `content/warehouse/adapter-pattern.md` に基づく
+調査結果: `agents/warehouse/adapter-pattern.md` に基づく
 
 ## 前提情報
 
@@ -182,7 +182,7 @@ title: '連載構造案 - 複数サービス連携ツールで覚えるPerl'
 5. **内部リンクの活用**
    - Mooシリーズ（/2021/10/31/191008/）への参照が自然に入れられる
    - デザインパターン全般の解説記事（Strategy パターン、Facade パターン等）へのリンクも可能
-   - 調査ドキュメント（content/warehouse/adapter-pattern.md）の内容を活用可能
+   - 調査ドキュメント（agents/warehouse/adapter-pattern.md）の内容を活用可能
 
 ### 代替案の選択指針
 
@@ -494,7 +494,7 @@ title: '連載構造案 - 複数サービス連携ツールで覚えるPerl'
 
 | 評価項目 | 評価 | コメント |
 |---------|------|---------|
-| 調査ドキュメントとの整合性 | ◎ | `content/warehouse/adapter-pattern.md`の内容と一致 |
+| 調査ドキュメントとの整合性 | ◎ | `agents/warehouse/adapter-pattern.md`の内容と一致 |
 | Adapterパターンの定義 | ◎ | GoFの定義に沿った正確な説明 |
 | 実装方式の選択 | ◎ | オブジェクトアダプター（委譲型）を採用。Perl/Mooでは柔軟性の観点から適切 |
 | Perl/Moo固有の考慮 | ◎ | `has`による委譲、`handles`の活用など、前シリーズとの連続性を考慮 |

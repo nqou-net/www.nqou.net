@@ -10,7 +10,7 @@ title: '連載構造案 - Mediatorパターン学習シリーズ'
 
 # 連載構造案：Mediatorパターン学習シリーズ
 
-調査結果: `content/warehouse/mediator-pattern.md` に基づく
+調査結果: `agents/warehouse/mediator-pattern.md` に基づく
 
 ## 前提情報
 

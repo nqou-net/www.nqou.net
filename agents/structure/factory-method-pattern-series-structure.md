@@ -6,7 +6,7 @@ title: '連載構造案 - Factory Methodパターン改善版（全8回）'
 
 # 連載構造案：Factory Methodパターン改善版
 
-調査結果: `content/warehouse/factory-method-pattern-revamp.md` の調査結果に基づく
+調査結果: `agents/warehouse/factory-method-pattern-revamp.md` の調査結果に基づく
 
 ## 前提情報
 
@@ -228,7 +228,7 @@ title: '連載構造案 - Factory Methodパターン改善版（全8回）'
 
 **作成日**: 2026年1月16日  
 **担当エージェント**: copilot  
-**参照元**: `content/warehouse/factory-method-pattern-revamp.md`
+**参照元**: `agents/warehouse/factory-method-pattern-revamp.md`
 
 ---
 

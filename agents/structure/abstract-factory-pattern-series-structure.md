@@ -9,7 +9,7 @@ approved_date: 2026-01-19
 
 # 連載構造案：Abstract Factoryパターンを学ぶ新シリーズ
 
-調査結果: `content/warehouse/abstract-factory-pattern.md` の調査結果に基づく
+調査結果: `agents/warehouse/abstract-factory-pattern.md` の調査結果に基づく
 
 ## 前提情報
 
@@ -247,7 +247,7 @@ approved_date: 2026-01-19
 
 **作成日**: 2026年1月19日  
 **担当エージェント**: copilot  
-**参照元**: `content/warehouse/abstract-factory-pattern.md`
+**参照元**: `agents/warehouse/abstract-factory-pattern.md`
 
 ---
 

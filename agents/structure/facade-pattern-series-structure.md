@@ -10,7 +10,7 @@ title: '連載構造案 - Facadeパターン学習シリーズ'
 
 # 連載構造案：Facadeパターン学習シリーズ
 
-調査結果: `content/warehouse/facade-pattern-research.md` に基づく
+調査結果: `agents/warehouse/facade-pattern-research.md` に基づく
 
 ## 前提情報
 

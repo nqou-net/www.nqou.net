@@ -896,13 +896,13 @@ class Square {
 **候補記事**:
 
 1. **デザインパターン関連**:
-   - `/content/warehouse/design-patterns-research.md` - デザインパターン調査
-   - `/content/warehouse/interpreter-pattern.md` - Interpreterパターン
-   - `/content/warehouse/mediator-pattern.md` - Mediatorパターン
-   - `/content/warehouse/memento-pattern.md` - Mementoパターン
+   - `/agents/warehouse/design-patterns-research.md` - デザインパターン調査
+   - `/agents/warehouse/interpreter-pattern.md` - Interpreterパターン
+   - `/agents/warehouse/mediator-pattern.md` - Mediatorパターン
+   - `/agents/warehouse/memento-pattern.md` - Mementoパターン
 
 2. **Moo/Moose関連**:
-   - `/content/warehouse/moo-oop-series-research.md` - Mooで覚えるOOP調査
+   - `/agents/warehouse/moo-oop-series-research.md` - Mooで覚えるOOP調査
    - `/content/post/2025/12/30/163810.md` - 第2回-データとロジックをまとめよう
    - `/content/post/2021/10/31/191008.md` - 第1回（想定）
 

@@ -436,8 +436,8 @@ if __name__ == "__main__":
 
 | ファイルパス | 内部リンク | 関連度 |
 |-------------|-----------|--------|
-| `/content/warehouse/design-patterns-overview.md` | （調査ドキュメント） | 高 |
-| `/content/warehouse/design-patterns-research.md` | （調査ドキュメント） | 高 |
+| `/agents/warehouse/design-patterns-overview.md` | （調査ドキュメント） | 高 |
+| `/agents/warehouse/design-patterns-research.md` | （調査ドキュメント） | 高 |
 | `/content/post/2021/10/31/191008.md` | `/2021/10/31/191008/` | 中（Moo OOP） |
 
 ---

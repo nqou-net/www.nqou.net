@@ -8,7 +8,7 @@ title: '連載構造案 - Observer × Decorator × Command パターン組み合
 
 # 連載構造案：Observer × Decorator × Command パターン組み合わせシリーズ
 
-調査結果: `content/warehouse/observer-decorator-command-combination.md` に基づく
+調査結果: `agents/warehouse/observer-decorator-command-combination.md` に基づく
 
 ## 前提情報
 

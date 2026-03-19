@@ -680,4 +680,4 @@ AIの基礎知識と推論能力が、シンプルな性格設定から適切な
 
 **調査完了日**: 2025-12-20
 **調査者**: investigative-research エージェント
-**保存場所**: `content/warehouse/agent-coordination-best-practices.md`
+**保存場所**: `agents/warehouse/agent-coordination-best-practices.md`

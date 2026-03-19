@@ -2,7 +2,7 @@
 created_at: 2026-01-08T22:39:33+09:00
 description: クレジットカード決済の多段審査処理を題材にしたChain of Responsibilityパターン学習シリーズの連載構造案3つ（案A/B/C）
 draft: false
-investigation_source: /content/warehouse/credit-card-payment-verification.md
+investigation_source: /agents/warehouse/credit-card-payment-verification.md
 series_title: 架空ECサイトで学ぶ決済審査システム
 target_audience: Perl入門者、Moo OOPシリーズ読了者、モダンPerl学習者
 tech_stack: Perl 5.36+, Moo
@@ -14,7 +14,7 @@ constraint_summary: 1記事1概念、コード例2つまで、完成コードは
 
 ## 調査結果の参照元
 
-**調査ドキュメント**: `/content/warehouse/credit-card-payment-verification.md`
+**調査ドキュメント**: `/agents/warehouse/credit-card-payment-verification.md`
 **調査実施日**: 2026年1月8日
 **技術スタック**: Perl 5.36+, Moo
 

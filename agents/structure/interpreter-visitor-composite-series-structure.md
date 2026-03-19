@@ -7,7 +7,7 @@ title: '連載構造案 - 正規表現リファインリー（Interpreter × Vis
 
 # 連載構造案：正規表現リファインリー
 
-調査結果: `content/warehouse/interpreter-visitor-composite-series.md` の調査結果に基づく
+調査結果: `agents/warehouse/interpreter-visitor-composite-series.md` の調査結果に基づく
 
 ## コンテキスト定義
 

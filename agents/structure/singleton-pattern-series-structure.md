@@ -10,7 +10,7 @@ title: '連載構造案 - Singletonパターン学習シリーズ'
 
 # 連載構造案：Singletonパターン学習シリーズ
 
-調査結果: `content/warehouse/singleton-pattern.md` に基づく
+調査結果: `agents/warehouse/singleton-pattern.md` に基づく
 
 ## 前提情報
 

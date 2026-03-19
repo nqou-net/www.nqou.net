@@ -80,7 +80,7 @@ Factory Methodは、GoFの23パターンのうち**生成パターン（Creation
 
 **出典**:
 
-- 内部warehouse: `/content/warehouse/design-patterns-overview.md`
+- 内部warehouse: `/agents/warehouse/design-patterns-overview.md`
 - GeeksforGeeks: Creational Design Patterns - https://www.geeksforgeeks.org/system-design/creational-design-pattern/
 
 **信頼度**: 9/10
@@ -975,12 +975,12 @@ flowchart LR
 
 | ドキュメント | 内容 | 関連度 |
 |-------------|------|--------|
-| `/content/warehouse/design-patterns-overview.md` | デザインパターン概要（GoF 23パターン分類） | **最高** |
-| `/content/warehouse/design-patterns-research.md` | GoF 23パターン調査 | 高 |
-| `/content/warehouse/strategy-pattern.md` | Strategyパターン詳細調査 | **高**（比較対象） |
-| `/content/warehouse/command-pattern.md` | Commandパターン調査 | 中 |
-| `/content/warehouse/moo-dispatcher-series-research.md` | ディスパッチャーシリーズ調査 | 高 |
-| `/content/warehouse/moo-oop-series-research.md` | Moo OOPシリーズ調査 | 高 |
+| `/agents/warehouse/design-patterns-overview.md` | デザインパターン概要（GoF 23パターン分類） | **最高** |
+| `/agents/warehouse/design-patterns-research.md` | GoF 23パターン調査 | 高 |
+| `/agents/warehouse/strategy-pattern.md` | Strategyパターン詳細調査 | **高**（比較対象） |
+| `/agents/warehouse/command-pattern.md` | Commandパターン調査 | 中 |
+| `/agents/warehouse/moo-dispatcher-series-research.md` | ディスパッチャーシリーズ調査 | 高 |
+| `/agents/warehouse/moo-oop-series-research.md` | Moo OOPシリーズ調査 | 高 |
 
 ---
 

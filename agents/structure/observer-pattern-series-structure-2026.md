@@ -10,7 +10,7 @@ title: '連載構造案 - Observerパターン新企画（全10回）'
 
 # 連載構造案：Observerパターン新企画
 
-調査結果: `content/warehouse/observer-pattern-series-2026.md` の調査結果に基づく
+調査結果: `agents/warehouse/observer-pattern-series-2026.md` の調査結果に基づく
 
 ## 前提情報
 
@@ -242,7 +242,7 @@ title: '連載構造案 - Observerパターン新企画（全10回）'
 
 **作成日**: 2026年1月17日  
 **担当エージェント**: GitHub Copilot  
-**参照元**: `content/warehouse/observer-pattern-series-2026.md`
+**参照元**: `agents/warehouse/observer-pattern-series-2026.md`
 
 ---
 

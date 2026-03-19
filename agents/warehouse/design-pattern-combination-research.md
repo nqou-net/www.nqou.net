@@ -417,15 +417,15 @@ say $_->report for @visitors;
 
 | パターン名 | ファイルパス（推定） | 内部リンク | 関連度 |
 |-----------|---------------------|-----------|--------|
-| Bridge | content/warehouse/bridge-pattern.md | 確認必要 | 高（Facade + Adapterとの対比） |
-| Flyweight | content/warehouse/flyweight-pattern.md | 確認必要 | 高（Compositeとの組み合わせ） |
-| Composite | content/warehouse/composite-pattern.md | 確認必要 | 高（Flyweightとの組み合わせ） |
-| Proxy | content/warehouse/proxy-pattern.md | 確認必要 | 中（Decoratorとの対比） |
-| Decorator | content/warehouse/decorator-pattern.md | 確認必要 | 中（Proxyとの対比） |
-| Abstract Factory | content/warehouse/abstract-factory-pattern.md | 確認必要 | 高（Prototypeとの組み合わせ） |
-| Prototype | content/warehouse/prototype-pattern.md | 確認必要 | 高（Abstract Factoryとの組み合わせ） |
+| Bridge | agents/warehouse/bridge-pattern.md | 確認必要 | 高（Facade + Adapterとの対比） |
+| Flyweight | agents/warehouse/flyweight-pattern.md | 確認必要 | 高（Compositeとの組み合わせ） |
+| Composite | agents/warehouse/composite-pattern.md | 確認必要 | 高（Flyweightとの組み合わせ） |
+| Proxy | agents/warehouse/proxy-pattern.md | 確認必要 | 中（Decoratorとの対比） |
+| Decorator | agents/warehouse/decorator-pattern.md | 確認必要 | 中（Proxyとの対比） |
+| Abstract Factory | agents/warehouse/abstract-factory-pattern.md | 確認必要 | 高（Prototypeとの組み合わせ） |
+| Prototype | agents/warehouse/prototype-pattern.md | 確認必要 | 高（Abstract Factoryとの組み合わせ） |
 | Iterator | 未作成？ | 確認必要 | 中 |
-| Visitor | content/warehouse/visitor-pattern.md | 確認必要 | 中（Iteratorとの組み合わせ） |
+| Visitor | agents/warehouse/visitor-pattern.md | 確認必要 | 中（Iteratorとの組み合わせ） |
 
 ### リンク戦略
 

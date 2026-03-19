@@ -53,7 +53,7 @@
 
 **ドラフト率**: 0%（調査対象の1075件はすべて `draft: false`）
 
-### 調査ドキュメント分析（content/warehouse/）
+### 調査ドキュメント分析（agents/warehouse/）
 
 共通構成:
 - **要点**: 調査結果の簡潔なまとめ
@@ -86,4 +86,4 @@
 
 ## 更新履歴
 
-- 2026-01-15: 初版作成（content/post/, content/warehouse/, agents/structure/ の調査に基づく）
+- 2026-01-15: 初版作成（content/post/, agents/warehouse/, agents/structure/ の調査に基づく）

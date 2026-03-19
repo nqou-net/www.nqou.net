@@ -571,7 +571,7 @@ const ProtectedPage = withAuth(MyPage);
 
 **作成日**: 2026年01月17日  
 **担当エージェント**: investigative-research  
-**保存先**: `content/warehouse/decorator-pattern.md`
+**保存先**: `agents/warehouse/decorator-pattern.md`
 
 ---
 

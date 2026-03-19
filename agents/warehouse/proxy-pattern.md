@@ -231,7 +231,7 @@ sub render ($self) {
 
 **作成日**: 2026年1月17日  
 **担当エージェント**: copilot  
-**保存先**: `content/warehouse/proxy-pattern.md`
+**保存先**: `agents/warehouse/proxy-pattern.md`
 
 ---
 

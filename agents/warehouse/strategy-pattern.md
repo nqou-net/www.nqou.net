@@ -935,11 +935,11 @@ if ($player_nearby) {
 
 | ドキュメント | 内容 | 関連度 |
 |-------------|------|--------|
-| `/content/warehouse/design-patterns-research.md` | GoF 23パターン概要調査 | 高 |
-| `/content/warehouse/design-patterns-overview.md` | デザインパターン概要 | 高 |
-| `/content/warehouse/solid-principles.md` | SOLID原則詳細調査 | 高 |
-| `/content/warehouse/command-pattern.md` | Commandパターン調査 | 高（比較対象） |
-| `/content/warehouse/moo-dispatcher-series-research.md` | ディスパッチャーシリーズ調査 | **最高** |
+| `/agents/warehouse/design-patterns-research.md` | GoF 23パターン概要調査 | 高 |
+| `/agents/warehouse/design-patterns-overview.md` | デザインパターン概要 | 高 |
+| `/agents/warehouse/solid-principles.md` | SOLID原則詳細調査 | 高 |
+| `/agents/warehouse/command-pattern.md` | Commandパターン調査 | 高（比較対象） |
+| `/agents/warehouse/moo-dispatcher-series-research.md` | ディスパッチャーシリーズ調査 | **最高** |
 
 ---
 

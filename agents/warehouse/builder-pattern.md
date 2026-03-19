@@ -621,7 +621,7 @@ new Product.Builder()
 
 **作成日**: 2026年01月17日  
 **担当エージェント**: investigative-research  
-**保存先**: `content/warehouse/builder-pattern.md`
+**保存先**: `agents/warehouse/builder-pattern.md`
 
 ---
 

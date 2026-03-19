@@ -8,7 +8,7 @@ title: '連載構造案 - Strategyパターン新シリーズ（全10〜12回）
 
 # 連載構造案：Strategyパターンを学ぶ新シリーズ
 
-調査結果: `content/warehouse/strategy-pattern.md` に基づく
+調査結果: `agents/warehouse/strategy-pattern.md` に基づく
 
 ## 前提情報
 

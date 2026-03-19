@@ -8,7 +8,7 @@ title: '連載構造案 - Stateパターンシリーズ（全10〜12回）'
 
 # 連載構造案：Stateパターンを学ぶシリーズ
 
-調査結果: `content/warehouse/state-pattern.md` に基づく
+調査結果: `agents/warehouse/state-pattern.md` に基づく
 
 ## 前提情報
 
@@ -319,7 +319,7 @@ title: '連載構造案 - Stateパターンシリーズ（全10〜12回）'
 
 **作成日**: 2026年1月8日  
 **担当エージェント**: perl-monger エージェント  
-**参照元**: `content/warehouse/state-pattern.md`（Stateパターン調査ドキュメント）
+**参照元**: `agents/warehouse/state-pattern.md`（Stateパターン調査ドキュメント）
 
 ---
 
@@ -795,7 +795,7 @@ title: '連載構造案 - Stateパターンシリーズ（全10〜12回）'
 
 ## 参考文献
 
-- **調査ドキュメント**: `content/warehouse/state-pattern.md`
+- **調査ドキュメント**: `agents/warehouse/state-pattern.md`
 - **GoF書籍**: Design Patterns: Elements of Reusable Object-Oriented Software（1994年）
 - **Refactoring Guru**: https://refactoring.guru/ja/design-patterns/state
 - **既存シリーズ参照**: `agents/structure/strategy-pattern-series-structure.md`

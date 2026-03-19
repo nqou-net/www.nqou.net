@@ -817,8 +817,8 @@ $dbh->disconnect;
 
 | ファイルパス | 内部リンク | 内容 | 関連度 |
 |-------------|-----------|------|--------|
-| デザインパターン概要調査 | `content/warehouse/design-patterns-research.md` | GoF 23パターン概要 | 中 |
-| Commandパターン調査 | `content/warehouse/command-pattern.md` | Commandパターン詳細調査 | 高 |
+| デザインパターン概要調査 | `agents/warehouse/design-patterns-research.md` | GoF 23パターン概要 | 中 |
+| Commandパターン調査 | `agents/warehouse/command-pattern.md` | Commandパターン詳細調査 | 高 |
 
 ---
 

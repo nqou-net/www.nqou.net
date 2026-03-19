@@ -241,7 +241,7 @@ classDiagram
 
 **根拠**:
 
-- 本リポジトリ調査ドキュメント: `content/warehouse/mediator-pattern.md`
+- 本リポジトリ調査ドキュメント: `agents/warehouse/mediator-pattern.md`
 - GeeksforGeeks: Mediator Design Pattern vs. Observer Design Pattern - https://www.geeksforgeeks.org/system-design/mediator-design-pattern-vs-observer-design-pattern/
 
 **出典**:

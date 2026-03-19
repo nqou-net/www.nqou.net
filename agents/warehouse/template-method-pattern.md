@@ -1045,9 +1045,9 @@ sub tear_down ($self) { }  # Hook Method
 
 | ドキュメント | 内容 | 関連度 |
 |-------------|------|--------|
-| `/content/warehouse/design-patterns-overview.md` | デザインパターン概要（GoF 23パターン分類） | **最高** |
-| `/content/warehouse/strategy-pattern.md` | Strategyパターン詳細調査 | **最高**（比較対象） |
-| `/content/warehouse/factory-method-pattern.md` | Factory Methodパターン調査 | **最高**（関連パターン） |
+| `/agents/warehouse/design-patterns-overview.md` | デザインパターン概要（GoF 23パターン分類） | **最高** |
+| `/agents/warehouse/strategy-pattern.md` | Strategyパターン詳細調査 | **最高**（比較対象） |
+| `/agents/warehouse/factory-method-pattern.md` | Factory Methodパターン調査 | **最高**（関連パターン） |
 
 ---
 
@@ -1101,7 +1101,7 @@ sub tear_down ($self) { }  # Hook Method
 
 **調査完了日**: 2026年1月15日  
 **担当エージェント**: investigative-research  
-**保存先**: `content/warehouse/template-method-pattern.md`
+**保存先**: `agents/warehouse/template-method-pattern.md`
 
 ---
 

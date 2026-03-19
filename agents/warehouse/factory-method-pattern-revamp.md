@@ -70,7 +70,7 @@ Factory Methodパターンの連載企画を設計するために、基礎定義
 
 - MetaCPAN: Moo https://metacpan.org/pod/Moo
 - MetaCPAN: Moo::Role https://metacpan.org/pod/Moo::Role
-- 内部資料: /content/warehouse/factory-method-pattern.md
+- 内部資料: /agents/warehouse/factory-method-pattern.md
 
 **信頼度**: 8/10（公式ドキュメントと内部資料）
 
@@ -92,7 +92,7 @@ Factory Methodパターンの連載企画を設計するために、基礎定義
 
 - GeeksforGeeks: https://www.geeksforgeeks.org/system-design/creational-design-pattern/
 - Refactoring Guru: https://refactoring.guru/design-patterns/factory-method
-- 内部資料: /content/warehouse/design-patterns-overview.md
+- 内部資料: /agents/warehouse/design-patterns-overview.md
 
 **信頼度**: 8/10
 
@@ -187,7 +187,7 @@ sub render ($self) {
 **出典**:
 
 - Refactoring Guru: https://refactoring.guru/design-patterns/factory-method
-- 内部資料: /content/warehouse/factory-method-pattern.md
+- 内部資料: /agents/warehouse/factory-method-pattern.md
 
 **信頼度**: 8/10
 
@@ -280,7 +280,7 @@ sub render ($self) {
 
 **作成日**: 2026年1月16日  
 **担当エージェント**: copilot  
-**保存先**: `content/warehouse/factory-method-pattern-revamp.md`
+**保存先**: `agents/warehouse/factory-method-pattern-revamp.md`
 
 ---
 

@@ -6,7 +6,7 @@ title: '連載構造案 - Visitorパターン（全8回）'
 
 # 連載構造案：Visitorパターン
 
-調査結果: `content/warehouse/visitor-pattern.md` の調査結果に基づく
+調査結果: `agents/warehouse/visitor-pattern.md` の調査結果に基づく
 
 ## 前提情報
 
@@ -255,7 +255,7 @@ Markdown文書を解析し、見出し・段落・コードブロック・リス
 
 **作成日**: 2026年1月21日  
 **担当エージェント**: copilot  
-**参照元**: `content/warehouse/visitor-pattern.md`
+**参照元**: `agents/warehouse/visitor-pattern.md`
 
 ---
 

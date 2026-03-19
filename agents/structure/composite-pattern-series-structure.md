@@ -6,7 +6,7 @@ title: '連載構造案 - Compositeパターン学習シリーズ'
 
 # 連載構造案：Compositeパターン学習シリーズ
 
-調査結果: `content/warehouse/composite-pattern.md` の調査結果に基づく
+調査結果: `agents/warehouse/composite-pattern.md` の調査結果に基づく
 
 ## 前提情報
 
@@ -337,7 +337,7 @@ title: '連載構造案 - Compositeパターン学習シリーズ'
 
 **作成日**: 2026年01月20日  
 **担当エージェント**: perl-monger  
-**参照元**: `content/warehouse/composite-pattern.md`
+**参照元**: `agents/warehouse/composite-pattern.md`
 
 ---
 

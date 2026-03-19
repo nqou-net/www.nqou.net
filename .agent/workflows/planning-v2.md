@@ -83,7 +83,7 @@ node ~/.agents/skills/semantic-knowledge-repository/scripts/search_knowledge.cjs
 // turbo
 1. 既存調査の確認:
    ```bash
-   ls -la content/warehouse/ | grep -i "<テーマに関連するキーワード>"
+   ls -la agents/warehouse/ | grep -i "<テーマに関連するキーワード>"
    ```
 
 2. 調査ファイルが存在しない場合、investigative-research エージェントとして以下を実行:
@@ -110,7 +110,7 @@ node ~/.agents/skills/semantic-knowledge-repository/scripts/search_knowledge.cjs
 | **鮮度** | 情報の更新日 |
 
 ### 2.4 出力
-`content/warehouse/<slug>.md`
+`agents/warehouse/<slug>.md`
 
 ---
 
@@ -144,7 +144,7 @@ grep -r "<関連キーワード>" content/post/ --include="*.md" -l | head -20
 競合分析の結果から、本コンテンツの独自価値を3つ以上定義
 
 ### 3.4 出力
-調査ファイル（`content/warehouse/<slug>.md`）に「競合分析」セクションとして追記
+調査ファイル（`agents/warehouse/<slug>.md`）に「競合分析」セクションとして追記
 
 ---
 

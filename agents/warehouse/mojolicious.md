@@ -173,7 +173,7 @@ Notes:
 
 ## Prototype / Testing Notes
 
-- 実験的なコードや最小サンプルは `content/warehouse/examples/` に置く可能性がある（ユーザ許可が必要）。
+- 実験的なコードや最小サンプルは `agents/warehouse/examples/` に置く可能性がある（ユーザ許可が必要）。
 
 ## Decision / Recommendation
 

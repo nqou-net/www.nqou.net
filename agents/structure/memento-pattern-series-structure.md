@@ -6,7 +6,7 @@ title: '連載構造案 - Mementoパターンシリーズ（全10回）'
 
 # 連載構造案：Mementoパターンを学ぶシリーズ
 
-調査結果: `content/warehouse/memento-pattern.md` の調査結果に基づく
+調査結果: `agents/warehouse/memento-pattern.md` の調査結果に基づく
 
 ## 前提情報
 
@@ -349,7 +349,7 @@ title: '連載構造案 - Mementoパターンシリーズ（全10回）'
 
 **作成日**: 2026年1月10日  
 **担当エージェント**: perl-monger エージェント  
-**参照元**: `content/warehouse/memento-pattern.md`（Mementoパターン調査ドキュメント）
+**参照元**: `agents/warehouse/memento-pattern.md`（Mementoパターン調査ドキュメント）
 
 ---
 

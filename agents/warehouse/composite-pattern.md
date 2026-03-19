@@ -789,7 +789,7 @@ requires 'add', 'remove', 'get_child';
 
 **作成日**: 2026年01月20日  
 **担当エージェント**: investigative-research  
-**保存先**: `content/warehouse/composite-pattern.md`
+**保存先**: `agents/warehouse/composite-pattern.md`
 
 ---
 

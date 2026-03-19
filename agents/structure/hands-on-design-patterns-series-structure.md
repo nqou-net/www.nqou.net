@@ -7,7 +7,7 @@ title: '連載構造案 - 手で覚えるデザインパターンシリーズ'
 
 # 連載構造案：Perlで学ぶ手で覚えるデザインパターンシリーズ
 
-調査結果: `content/warehouse/hands-on-design-patterns-series.md` に基づく
+調査結果: `agents/warehouse/hands-on-design-patterns-series.md` に基づく
 
 ## 前提情報
 
@@ -534,7 +534,7 @@ Twitter/Discord共有時のタイトルは20文字以内推奨：
 
 **作成日**: 2026年1月28日  
 **作成者**: creative-brainstorming agent  
-**ベース調査**: investigative-research agent報告書（`content/warehouse/hands-on-design-patterns-series.md`）
+**ベース調査**: investigative-research agent報告書（`agents/warehouse/hands-on-design-patterns-series.md`）
 
 ### 【2026-01-28】品質レビュー（reviewer agent）
 

@@ -10,7 +10,7 @@ title: '連載構造案 - Interpreterパターン新企画（全8回）'
 
 # 連載構造案：Interpreterパターン新企画
 
-調査結果: `content/warehouse/interpreter-pattern.md` の調査結果に基づく
+調査結果: `agents/warehouse/interpreter-pattern.md` の調査結果に基づく
 
 ## 前提情報
 
@@ -270,7 +270,7 @@ TRPGやボードゲームで使われる「ダイス記法」（例: `2d6+3`、`
 
 **作成日**: 2026年1月21日  
 **担当エージェント**: GitHub Copilot  
-**参照元**: `content/warehouse/interpreter-pattern.md`
+**参照元**: `agents/warehouse/interpreter-pattern.md`
 
 ---
 

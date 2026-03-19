@@ -100,7 +100,7 @@ Prototypeは、GoFの23パターンのうち**生成パターン（Creational Pa
 
 **出典**:
 
-- 内部warehouse: `/content/warehouse/design-patterns-overview.md`
+- 内部warehouse: `/agents/warehouse/design-patterns-overview.md`
 - GeeksforGeeks: Creational Design Patterns - https://www.geeksforgeeks.org/system-design/creational-design-pattern/
 - Baeldung: Factory Method vs. Factory vs. Abstract Factory - https://www.baeldung.com/cs/factory-method-vs-factory-vs-abstract-factory
 
@@ -671,9 +671,9 @@ say $copy->x;      # 100
 
 | ドキュメント | 内容 | 関連度 |
 |-------------|------|--------|
-| `/content/warehouse/design-patterns-overview.md` | デザインパターン概要（GoF 23パターン分類） | **最高** |
-| `/content/warehouse/design-patterns-research.md` | GoF 23パターン調査 | 高 |
-| `/content/warehouse/factory-method-pattern.md` | Factory Methodパターン調査 | **高**（生成パターンの比較） |
+| `/agents/warehouse/design-patterns-overview.md` | デザインパターン概要（GoF 23パターン分類） | **最高** |
+| `/agents/warehouse/design-patterns-research.md` | GoF 23パターン調査 | 高 |
+| `/agents/warehouse/factory-method-pattern.md` | Factory Methodパターン調査 | **高**（生成パターンの比較） |
 
 ### 8.3 Moo/オブジェクト指向関連
 

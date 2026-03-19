@@ -6,7 +6,7 @@ title: '連載構造案 - Builderパターン（全8回程度）'
 
 # 連載構造案：Builderパターン
 
-調査結果: `content/warehouse/builder-pattern.md` の調査結果に基づく
+調査結果: `agents/warehouse/builder-pattern.md` の調査結果に基づく
 
 ## 前提情報
 
@@ -274,7 +274,7 @@ Selenium/Playwright的なブラウザ自動化スクリプトをBuilderパター
 
 **作成日**: 2026年01月21日  
 **担当エージェント**: perl-monger  
-**参照元**: `content/warehouse/builder-pattern.md`
+**参照元**: `agents/warehouse/builder-pattern.md`
 
 ---
 

@@ -7,7 +7,7 @@ title: '連載構造案 - Proxyパターン新シリーズ（全5回）'
 
 # 連載構造案：Proxyパターンを学ぶ新シリーズ
 
-調査結果: `content/warehouse/proxy-pattern.md` に基づく
+調査結果: `agents/warehouse/proxy-pattern.md` に基づく
 
 ## 前提情報
 
@@ -223,7 +223,7 @@ title: '連載構造案 - Proxyパターン新シリーズ（全5回）'
 
 **作成日**: 2026年1月17日  
 **担当エージェント**: copilot  
-**参照元**: `content/warehouse/proxy-pattern.md`
+**参照元**: `agents/warehouse/proxy-pattern.md`
 
 ---
 

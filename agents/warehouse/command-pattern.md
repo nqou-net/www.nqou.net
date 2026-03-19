@@ -788,8 +788,8 @@ package JobQueue {
 
 | ファイルパス | 内部リンク | 内容 | 関連度 |
 |-------------|-----------|------|--------|
-| `/content/warehouse/design-patterns-research.md` | warehouse | GoF 23パターン概要調査 | 中 |
-| `/content/warehouse/solid-principles.md` | warehouse | SOLID原則詳細調査 | 高 |
+| `/agents/warehouse/design-patterns-research.md` | warehouse | GoF 23パターン概要調査 | 中 |
+| `/agents/warehouse/solid-principles.md` | warehouse | SOLID原則詳細調査 | 高 |
 
 ---
 
@@ -797,9 +797,9 @@ package JobQueue {
 
 | ファイルパス | 内容 | 関連度 |
 |-------------|------|--------|
-| `/content/warehouse/todo-cli-app-research.md` | Todo CLIアプリ調査（Commandパターン含む） | **最高** |
-| `/content/warehouse/password-tool-series.md` | パスワードツール調査（Commandパターン含む） | 高 |
-| `/content/warehouse/moo-dispatcher-series-research.md` | ディスパッチャーシリーズ調査（Strategyパターン） | 高 |
+| `/agents/warehouse/todo-cli-app-research.md` | Todo CLIアプリ調査（Commandパターン含む） | **最高** |
+| `/agents/warehouse/password-tool-series.md` | パスワードツール調査（Commandパターン含む） | 高 |
+| `/agents/warehouse/moo-dispatcher-series-research.md` | ディスパッチャーシリーズ調査（Strategyパターン） | 高 |
 
 ---
 

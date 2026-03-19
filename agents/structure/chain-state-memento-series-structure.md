@@ -7,7 +7,7 @@ title: '連載構造案 - 手で覚えるデザインパターン（Chain of Res
 
 # 連載構造案：手で覚えるデザインパターン実践シリーズ
 
-調査結果: `content/warehouse/chain-state-memento-series.md` の調査結果に基づく
+調査結果: `agents/warehouse/chain-state-memento-series.md` の調査結果に基づく
 
 ## コンテキスト定義
 

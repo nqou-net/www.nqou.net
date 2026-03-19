@@ -10,7 +10,7 @@ title: '連載構造案 - URL短縮サポーターを作ってみよう'
 
 # 連載構造案 - URL短縮サポーターを作ってみよう
 
-調査結果: `content/warehouse/url-shortener-series-research.md` に基づく
+調査結果: `agents/warehouse/url-shortener-series-research.md` に基づく
 
 ---
 
