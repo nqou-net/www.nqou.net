@@ -1,0 +1,231 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="「new」はただの演算子ではなく、最も強力な接着剤だ。通知クラス増殖に伴いスパゲッティ化する決済処理をFactory Methodパターンで解きほぐすコード探偵の推理。"><title>コード探偵ロックの事件簿【Factory Method】縛られた生成ライン〜newの呪縛と密室の工場〜</title><link rel=canonical href=https://www.nqou.net/2026/03/18/070705/><link rel=stylesheet href=/scss/style.min.6a692fd055deae459f2a9767f57f3855ba80cafd5041317f24f7360f6ca47cdf.css><meta property='og:title' content="コード探偵ロックの事件簿【Factory Method】縛られた生成ライン〜newの呪縛と密室の工場〜"><meta property='og:description' content="「new」はただの演算子ではなく、最も強力な接着剤だ。通知クラス増殖に伴いスパゲッティ化する決済処理をFactory Methodパターンで解きほぐすコード探偵の推理。"><meta property='og:url' content='https://www.nqou.net/2026/03/18/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='perl'><meta property='article:tag' content='moo'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-detective'><meta property='article:tag' content='factory-method'><meta property='article:tag' content='hardcoded-instantiation'><meta property='article:published_time' content='2026-03-18T07:07:05+09:00'><meta property='article:modified_time' content='2026-03-18T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-detective-factory-method/header.webp'><meta name=twitter:title content="コード探偵ロックの事件簿【Factory Method】縛られた生成ライン〜newの呪縛と密室の工場〜"><meta name=twitter:description content="「new」はただの演算子ではなく、最も強力な接着剤だ。通知クラス増殖に伴いスパゲッティ化する決済処理をFactory Methodパターンで解きほぐすコード探偵の推理。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-detective-factory-method/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><span>プライバシーポリシー</span></a></li><li><a href=/contact/><span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#現場検証hardcoded-instantiationnewの呪縛>現場検証：Hardcoded Instantiation（newの呪縛）</a></li><li><a href=#推理披露factory-methodの導入>推理披露：Factory Methodの導入</a><ol><li><a href=#鮮やかな切り離しafter>鮮やかな切り離し（After）</a></li></ol></li><li><a href=#事件の終わりテスト用のモック工場と平和なビルド>事件の終わり：テスト用の「モック工場」と平和なビルド</a></li><li><a href=#探偵の調査報告書>探偵の調査報告書</a><ol><li><a href=#推理のステップ>推理のステップ</a></li><li><a href=#ロックより>ロックより</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/03/18/070705/><img src=/public_images/2026/code-detective-factory-method/header.webp loading=lazy alt="Featured image of post コード探偵ロックの事件簿【Factory Method】縛られた生成ライン〜newの呪縛と密室の工場〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/03/18/070705/>コード探偵ロックの事件簿【Factory Method】縛られた生成ライン〜newの呪縛と密室の工場〜</a></h2><h3 class=article-subtitle>「new」はただの演算子ではなく、最も強力な接着剤だ。通知クラス増殖に伴いスパゲッティ化する決済処理をFactory Methodパターンで解きほぐすコード探偵の推理。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>18, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 8分</time></div></footer></div></header><section class=article-content><p>「誰か助けてくれ！ 俺の書いた素晴らしい決済ロジックが、ただの『通知屋さん』に成り下がってしまったんだ！」</p><p>僕——バックエンドエンジニアのマイク——は、藁にもすがる思いでその古びたドアを押し開けた。ガラスにはかすれた文字で「レガシー・コード・インベスティゲーション（LCI）」と書かれている。
+部屋の中は、サーバーラックと無数のモニターが発する熱気で息苦しいほどだった。デスクの上には飲みかけのカフェイン飲料が乱雑に置かれ、その奥の革張りの椅子に、季節外れのツイードのジャケットを着込んだ男が深く腰掛けていた。</p><p>「騒々しいね、ワトソン君。依頼なら静かにしたまえ」</p><p>自称・コード探偵のロックは、手元のキーボードから目を離さずに、電子タバコのパイプをふかした。</p><p>「マイクです。あの、決済完了のシステムが……」
+「名前など些細なことだよ。それより君のコードからは、ひどくベタついた接着剤のにおいがする。システム中が身動き取れなくなっているんじゃないかね？」</p><p>僕は図星を突かれて言葉に詰まった。
+「……はい。最初は『決済完了時にメールを送る』だけだったんです。でも、SMS対応しろ、Slackにも流せ、次はPush通知だ、と要求が絶え間なく続いて、今や身動きが取れません」</p><p>僕は持参したラップトップを開き、彼に画面を見せた。</p><hr><h2 id=現場検証hardcoded-instantiationnewの呪縛>現場検証：Hardcoded Instantiation（newの呪縛）</h2><p>僕のコードベースの中核、<code>OrderService.pm</code> には以下のような惨状が広がっていた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># --- 通知機能の各クラス ---</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>EmailNotifier</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>send</span> <span class=p>($self, $message) {</span> <span class=k>return</span> <span class=s>&#34;Email sent: $message&#34;</span><span class=p>;</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>SmsNotifier</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>send</span> <span class=p>($self, $message) {</span> <span class=k>return</span> <span class=s>&#34;SMS sent: $message&#34;</span><span class=p>;</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>SlackNotifier</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>send</span> <span class=p>($self, $message) {</span> <span class=k>return</span> <span class=s>&#34;Slack message sent: $message&#34;</span><span class=p>;</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># --- メインロジック（問題があるクラス） ---</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>OrderService</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Carp</span> <span class=sx>qw(croak)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>complete_order</span> <span class=p>($self, $order_id, $notification_type) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$message</span> <span class=o>=</span> <span class=s>&#34;Order $order_id has been completed.&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$notifier</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=c1># ！！強烈な接着剤（new）の現場！！</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=nv>$notification_type</span> <span class=ow>eq</span> <span class=s>&#39;email&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$notifier</span> <span class=o>=</span> <span class=nn>EmailNotifier</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span> <span class=k>elsif</span> <span class=p>(</span><span class=nv>$notification_type</span> <span class=ow>eq</span> <span class=s>&#39;sms&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$notifier</span> <span class=o>=</span> <span class=nn>SmsNotifier</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span> <span class=k>elsif</span> <span class=p>(</span><span class=nv>$notification_type</span> <span class=ow>eq</span> <span class=s>&#39;slack&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$notifier</span> <span class=o>=</span> <span class=nn>SlackNotifier</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span> <span class=k>else</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=n>croak</span> <span class=s>&#34;Unknown notification type: $notification_type&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=c1># 通知の実行</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$result</span> <span class=o>=</span> <span class=nv>$notifier</span><span class=o>-&gt;</span><span class=nb>send</span><span class=p>(</span><span class=nv>$message</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$result</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「どうです？ 動くことには動くんですけど……」僕は弁解するように言った。</p><p>ロックはパイプの煙をふっと吐き出し、大仰なため息をついた。
+「動けばいいというものではないよ、ワトソン君。君は大きな勘違いをしている。初歩的なことだが、<strong>『new』はただのインスタンス生成演算子じゃない。システム上で使える最も強力な『接着剤』だ。</strong>」</p><p>「接着剤？」僕は首を傾げた。</p><p>「そうだ。<code>OrderService</code> は、注文を完了させるのが本来の仕事のはずだ。なのに今のこいつは、<strong>『どの通知クラスをどうやって生成するか（newするか）』という余計な知識まで抱え込んでいる。</strong>」</p><p>ロックは画面の <code>if-elsif</code> ブロックを指差した。
+「通知の種類が増えるたびに、君はこの決済の心臓部である <code>OrderService</code> のお腹を切り開いて、新しい <code>elsif</code> をねじ込んでいる。これではいつか、心臓（決済ロジック）を傷つけてバグを生む。典型的なOpen-Closed Principle（開放閉鎖の原則）違反だね」</p><p>「じゃあ、ど、どうすれば……。通知しないわけにはいかないんですよ」</p><p>「簡単なことさ。<strong>『使う責任』と『作る責任』を切り離せばいい。</strong>」</p><p>ロックはエディタの新しいタブを開き、猛然とタイピングを始めた。</p><hr><h2 id=推理披露factory-methodの導入>推理披露：Factory Methodの導入</h2><p>「ピザ屋を想像したまえ」ロックは軽快なタッチ音を響かせながら語り始めた。「客は『マルゲリータをくれ』と注文して、出てきたピザを食べる。これが**『使う側（OrderService）』**だ」</p><p>僕は黙って頷いた。</p><p>「客がいちいち厨房に入って、小麦粉から生地をこねて、オーブンの温度を調整して焼き上げたりしないだろう？ それは**『作る側（Factory）』**の仕事だ。君の <code>OrderService</code> は、ピザの生地まで自分でこねているようなものなんだよ」</p><h3 id=鮮やかな切り離しafter>鮮やかな切り離し（After）</h3><p>ロックは、僕のコードからべったりと張り付いた <code>new</code> の塊を切り剥がし、新しいファイル <code>NotifierFactory.pm</code> に移した。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># --- Factory クラス ---</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>NotifierFactory</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Carp</span> <span class=sx>qw(croak)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=c1># 生成ロジック（どの種類をどう生成するか）をここに閉じ込める</span>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>create</span> <span class=p>($self, $type) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=nv>$type</span> <span class=ow>eq</span> <span class=s>&#39;email&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=k>return</span> <span class=nn>EmailNotifier</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span> <span class=k>elsif</span> <span class=p>(</span><span class=nv>$type</span> <span class=ow>eq</span> <span class=s>&#39;sms&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=k>return</span> <span class=nn>SmsNotifier</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span> <span class=k>elsif</span> <span class=p>(</span><span class=nv>$type</span> <span class=ow>eq</span> <span class=s>&#39;slack&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=k>return</span> <span class=nn>SlackNotifier</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span> <span class=k>else</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=n>croak</span> <span class=s>&#34;Unknown notification type: $type&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「そして、肝心の <code>OrderService</code> のお腹の中はこうなる」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># --- メインロジック（改善されたクラス） ---</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>OrderService</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=c1># 工場（Factory）を外部から受け取る</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=s>&#39;notifier_factory&#39;</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>complete_order</span> <span class=p>($self, $order_id, $notification_type) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$message</span> <span class=o>=</span> <span class=s>&#34;Order $order_id has been completed.&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=c1># 工場に「このタイプの通知器を作ってくれ！」と頼むだけ</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$notifier</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>notifier_factory</span><span class=o>-&gt;</span><span class=n>create</span><span class=p>(</span><span class=nv>$notification_type</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$result</span> <span class=o>=</span> <span class=nv>$notifier</span><span class=o>-&gt;</span><span class=nb>send</span><span class=p>(</span><span class=nv>$message</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$result</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>僕は画面を見て息を呑んだ。「<code>OrderService</code> から、<code>EmailNotifier</code> や <code>SlackNotifier</code> の名前が完全に消え去っている……！」</p><p>「その通り。<code>OrderService</code> が知っているのは、『工場に <code>create</code> と頼めば、自分に代わって正しい通知オブジェクト（Notifier）を作ってくれる』ことだけだ。そして受け取ったオブジェクトに対して <code>send</code> を呼ぶ（<strong>使う</strong>）ことに専念できるのさ」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># 実行する側（例えばコントローラーやバッチスクリプト）</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$factory</span> <span class=o>=</span> <span class=nn>NotifierFactory</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>();</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$service</span> <span class=o>=</span> <span class=nn>OrderService</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span> <span class=n>notifier_factory</span> <span class=o>=&gt;</span> <span class=nv>$factory</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 利用</span>
+</span></span><span class=line><span class=cl><span class=nv>$service</span><span class=o>-&gt;</span><span class=n>complete_order</span><span class=p>(</span><span class=s>&#39;12345&#39;</span><span class=p>,</span> <span class=s>&#39;email&#39;</span><span class=p>);</span>
+</span></span></code></pre></td></tr></table></div></div><p>「なるほど！」僕は思わず身を乗り出した。「これなら明日、営業部から『次はLINE通知を追加してくれ』って言われても、<code>OrderService</code> は一切変更しなくていい！ <code>NotifierFactory</code> の中に <code>line</code> 分岐を一つ足すだけで済むんですね！」</p><p>（※注：より高度な構成では、Factoryの中の <code>if</code> すらなくすために、設定ファイルや文字列から動的にモジュールを <code>require</code> する『Abstract Factory』的なアプローチに進むこともできるが、今回は基礎としての分離に留められているようだった）</p><hr><h2 id=事件の終わりテスト用のモック工場と平和なビルド>事件の終わり：テスト用の「モック工場」と平和なビルド</h2><p>「それだけではないよ、ワトソン君。この分離にはもう一つ決定的なメリットがある」</p><p>ロックは最後に、テストコードの断片を僕に見せた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># テスト専用の「偽物の工場」を作る</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>MockFactory</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>create</span> <span class=p>($self, $type) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nn>MockNotifier</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>();</span> <span class=c1># 絶対に外に通信しない偽物</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 決済完了テストを呼び出すときだけ、偽物を注入する</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$mock_factory</span> <span class=o>=</span> <span class=nn>MockFactory</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>();</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$test_service</span> <span class=o>=</span> <span class=nn>OrderService</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span> <span class=n>notifier_factory</span> <span class=o>=&gt;</span> <span class=nv>$mock_factory</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nv>$test_service</span><span class=o>-&gt;</span><span class=n>complete_order</span><span class=p>(</span><span class=s>&#39;999&#39;</span><span class=p>,</span> <span class=s>&#39;sms&#39;</span><span class=p>);</span> 
+</span></span></code></pre></td></tr></table></div></div><p>「『作る責任』を外部の Factory に完全に委譲したからこそ、テストの時だけ『絶対にメールやSMSを誤送信しない、ダミーの工場（MockFactory）』にすり替えることができるんだ」</p><p>「……完璧です、ロックさん」
+僕の顔から、さっきまでの絶望感は消え去っていた。「これなら他の開発者が触っても壊れないし、テストで本番の顧客に誤送信する事故も防げます。僕はこれで、決済処理という本業に堂々と集中できます！」</p><p>僕は深々と頭を下げ、熱気のこもった探偵事務所を後にした。
+背後では、コード探偵が次の獲物（レガシーコード）のにおいを嗅ぎつけるように、静かにパイプの煙を燻らせていた。</p><hr><h2 id=探偵の調査報告書>探偵の調査報告書</h2><div class=table-wrapper><table><thead><tr><th style=text-align:left>容疑（アンチパターン）</th><th style=text-align:left>真実（パターン）</th><th style=text-align:left>証拠（効果）</th></tr></thead><tbody><tr><td style=text-align:left>Hardcoded Instantiation（ハードコードされたインスタンス化）。メインロジック内で具象クラスを直接 <code>new</code> しており、新しいクラスを追加するたびにコアロジックの修正を余儀なくされる状態。</td><td style=text-align:left>Factory Method パターン。オブジェクトの生成ロジックを専用の工場（Factory）クラスに分離し、利用側は工場に生成を依頼する設計方式。</td><td style=text-align:left>オブジェクトの「生成」と「使用」の責任が完全に分離され、結合度が低下した。テスト時にはダミーの工場を注入（DI）することで、外部通信を伴わずに安全なユニットテストが可能になった。</td></tr></tbody></table></div><h3 id=推理のステップ>推理のステップ</h3><ol><li><strong>容疑者の特定</strong>: <code>OrderService</code> 内で具象クラス（<code>EmailNotifier</code>など）を直接 <code>new</code> している接着ポイントを特定する。</li><li><strong>工場の設立</strong>: 生成ロジック（<code>if-elsif</code>）を丸ごと引き剥がし、新しい <code>NotifierFactory</code> クラスに移動させる。</li><li><strong>依存性の注入</strong>: <code>OrderService</code> は自身で生成せず、外部から <code>notifier_factory</code> を受け取るように変更する。</li><li><strong>使用の専念</strong>: <code>OrderService</code> 内ではファクトリの <code>create</code> メソッドを呼び出し、生成されたオブジェクトの <code>send</code> メソッドを使用するだけにする。</li></ol><h3 id=ロックより>ロックより</h3><p>ワトソン君。君は「new」という魔法の言葉をあまりにも軽く使いすぎていたようだね。
+コードベースにおいて、具象クラスを直接名指しで呼び出す行為は、強力な接着剤で二つの部品を永遠にくっつけてしまうことと同義だ。</p><p>「生成」のコードが複雑になり始めたり、複数の場所で同じ <code>new</code> と <code>if</code> の羅列が現れたら、それは専門の工場を建てるべきタイミングだ。
+工場に生産を任せれば、君は「その部品をどう使うか」という本来の仕事に専念できる。</p><p>システムの心臓部には、接着剤を持ち込まないことだ。
+さて、次なる難事件（スパゲッティコード）が私を呼んでいる。さらばだ、ワトソン君！</p></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/perl/>Perl</a>
+<a href=/tags/moo/>Moo</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-detective/>Code-Detective</a>
+<a href=/tags/factory-method/>Factory-Method</a>
+<a href=/tags/hardcoded-instantiation/>Hardcoded-Instantiation</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/03/22/070705/><div class=article-image><img src=/public_images/2026/code-detective-prototype-template-perfection/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-prototype-template-perfection/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Prototype】複製される完璧な設計図〜17枚の帳票はなぜ同時に壊れたか〜</h2></div></a></article><article class=has-image><a href=/2026/03/21/070705/><div class=article-image><img src=/public_images/2026/code-detective-builder-telescoping-constructor/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-builder-telescoping-constructor/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Builder】果てしなき引数の行列〜コンストラクタの窒息事件〜</h2></div></a></article><article class=has-image><a href=/2026/03/20/070705/><div class=article-image><img src=/public_images/2026/code-detective-adapter-pattern/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-adapter-pattern/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Adapter】互換性なきシステムの壁〜探偵は通訳に頼らない〜</h2></div></a></article><article class=has-image><a href=/2026/03/19/070705/><div class=article-image><img src=/public_images/2026/code-detective-state/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-state/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【State】姿なき真犯人〜状態が移り変わる密室〜</h2></div></a></article><article class=has-image><a href=/2026/03/17/070705/><div class=article-image><img src=/public_images/2026/code-detective-proxy-inappropriate-intimacy/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-proxy-inappropriate-intimacy/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Proxy】覗き見る影の代理人〜禁じられた内部への侵入〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

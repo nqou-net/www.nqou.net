@@ -1,0 +1,216 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="便利すぎる「どこからでも呼べるクラス（Singleton）」が引き起こすデータの混線バグ。Dependency Injection（DI）を用いてグローバルな状態を安全に引き剥がす鮮やかな解決劇。"><title>コード探偵ロックの事件簿【Singleton／DI】便利すぎる万能薬の副作用〜消えた証拠〜</title><link rel=canonical href=https://www.nqou.net/2026/03/12/070705/><link rel=stylesheet href=/scss/style.min.6a692fd055deae459f2a9767f57f3855ba80cafd5041317f24f7360f6ca47cdf.css><meta property='og:title' content="コード探偵ロックの事件簿【Singleton／DI】便利すぎる万能薬の副作用〜消えた証拠〜"><meta property='og:description' content="便利すぎる「どこからでも呼べるクラス（Singleton）」が引き起こすデータの混線バグ。Dependency Injection（DI）を用いてグローバルな状態を安全に引き剥がす鮮やかな解決劇。"><meta property='og:url' content='https://www.nqou.net/2026/03/12/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='perl'><meta property='article:tag' content='moo'><meta property='article:tag' content='singleton'><meta property='article:tag' content='dependency-injection'><meta property='article:tag' content='anti-pattern'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-detective'><meta property='article:published_time' content='2026-03-12T07:07:05+09:00'><meta property='article:modified_time' content='2026-03-12T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-detective-singleton/header.webp'><meta name=twitter:title content="コード探偵ロックの事件簿【Singleton／DI】便利すぎる万能薬の副作用〜消えた証拠〜"><meta name=twitter:description content="便利すぎる「どこからでも呼べるクラス（Singleton）」が引き起こすデータの混線バグ。Dependency Injection（DI）を用いてグローバルな状態を安全に引き剥がす鮮やかな解決劇。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-detective-singleton/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><span>プライバシーポリシー</span></a></li><li><a href=/contact/><span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#i-現場検証コードの指紋>I. 現場検証：コードの指紋</a></li><li><a href=#ii-推理披露鮮やかなリファクタリング>II. 推理披露：鮮やかなリファクタリング</a><ol><li><a href=#dependency-injection依存性の注入への移行>Dependency Injection（依存性の注入）への移行</a></li><li><a href=#本物と偽物モックの入れ替え>本物と偽物（モック）の入れ替え</a></li></ol></li><li><a href=#iii-解決事件の終わり>III. 解決：事件の終わり</a></li><li><a href=#探偵の調査報告書>探偵の調査報告書</a><ol><li><a href=#推理のステップ>推理のステップ</a></li><li><a href=#ロックより>ロックより</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/03/12/070705/><img src=/public_images/2026/code-detective-singleton/header.webp loading=lazy alt="Featured image of post コード探偵ロックの事件簿【Singleton／DI】便利すぎる万能薬の副作用〜消えた証拠〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/03/12/070705/>コード探偵ロックの事件簿【Singleton／DI】便利すぎる万能薬の副作用〜消えた証拠〜</a></h2><h3 class=article-subtitle>便利すぎる「どこからでも呼べるクラス（Singleton）」が引き起こすデータの混線バグ。Dependency Injection（DI）を用いてグローバルな状態を安全に引き剥がす鮮やかな解決劇。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>12, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 9分</time></div></footer></div></header><section class=article-content><p>「ロックさん！ 夜間バッチを並列で動かしたら全員のレポートデータが完全に混ざりました！ テスト環境で動かしていたはずの処理が、本番のデータベースを書き換えてるんです！」</p><p>私の悲痛な叫び声が、ホコリとコーヒーの匂いが混ざり合う「レガシー・コード・インベスティゲーション（LCI）」の事務所に響き渡った。</p><p>私は真面目さと几帳面さだけが取り柄の中堅運用エンジニア。最近、前任者が「超絶便利だから」と言って残していったシステムの保守を引き継いだばかりだが、謎のデータ消失とホラー現象に怯える日々を過ごしている。</p><p>「落ち着きたまえ、ワトソン君」</p><p>奥の回転椅子から、時代遅れのツイードのジャケットを着た男――コード探偵ロックが、キーボードの『Enter』キーだけをやたらと強く叩き抜いた痕跡がある使い込まれたHHKBから手を離し、ゆっくりとこちらを向いた。</p><p>「君の言う『本番のデータベースを書き換えた』犯人は、外部からのサイバー攻撃でもなければ、謎のポルターガイストでもない。君たち自身が、コードのあちこちに『どこにでも繋がっている秘密のドア』を作ってしまったからだよ」</p><p>「秘密のドア……？ ですが、前任者は『どこからでも呼べる万能のクラス』だって自慢していましたよ！ あれがないと今やもうシステムがまともに動かないのに！」</p><p>ロックは呆れたように小さくため息をつき、ニヤリと片方の口角を上げた。</p><p>「万能薬ほど、副作用（サイドエフェクト）が強いものはないのだよ。今日はその『ガラの悪いグローバル変数』に引導を渡してやろうじゃないか」</p><h2 id=i-現場検証コードの指紋>I. 現場検証：コードの指紋</h2><p><img src=/public_images/2026/code-detective-singleton/chapter1.webp loading=lazy alt=無差別に繋がれた配線がショートしデータが漏洩するSingletonアンチパターンの概念図></p><p>「まずは現状のコード（現場）を見せてもらおうか。ホシはどのようにして、その姿を隠しているのかな？」</p><p>私は震える手でノートPCを開き、システムの中核を成すレポート生成クラスのコードをロックに見せた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>MyCompany::ReportGeneratorLegacy</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>MyCompany::Database</span><span class=p>;</span> <span class=c1># 前任者が残した超絶便利Singletonクラス</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>new</span> <span class=p>{</span> <span class=nb>bless</span> <span class=p>{},</span> <span class=nb>shift</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>generate</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$user_id</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=c1># クラスの内部で直接インスタンスを取得している</span>
+</span></span><span class=line><span class=cl>    <span class=c1># （呼び出し元からはこの依存関係が見えない！）</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$db</span> <span class=o>=</span> <span class=nn>MyCompany::Database</span><span class=o>-&gt;</span><span class=n>get_instance</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$data</span> <span class=o>=</span> <span class=nv>$db</span><span class=o>-&gt;</span><span class=n>fetch_user_data</span><span class=p>(</span><span class=nv>$user_id</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=s>&#34;Report for $data-&gt;{name}&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「これの何が悪いんですか？ <code>MyCompany::Database->get_instance()</code> を呼べば、どこからでもキャッシュされた同じDB接続使い回せるんですよ。毎回接続し直さなくていいから効率的じゃないですか！」</p><p>ロックは鋭い視線を画面に向け、首を横に振った。</p><p>「初歩的なにおい（コードスメル）だよ、ワトソン君。『どこからでも同じものを呼べる』ということは、『どこからでも同じものの状態を<strong>書き換えられるし、影響を受ける</strong>』ということだ」</p><p>「書き換えられる……？」</p><p>「その <code>MyCompany::Database</code> クラスの中身を見てみ給え」</p><p>慌てて前任者が実装したDBクラスの中身を開くと、そこには怪しいメソッドが一つ生えていた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>MyCompany::Database</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$INSTANCE</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>get_instance</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$class</span> <span class=o>=</span> <span class=nb>shift</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=c1># 一度作られたら、ずっと同じインスタンス（状態）を返す</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$INSTANCE</span> <span class=o>||=</span> <span class=nb>bless</span> <span class=p>{</span> <span class=n>data</span> <span class=o>=&gt;</span> <span class=p>{}</span> <span class=p>},</span> <span class=nv>$class</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$INSTANCE</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>fetch_user_data</span> <span class=p>{</span> <span class=o>...</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 問題の箇所：誰でも自由に内部状態を書き換えられてしまう！</span>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>overwrite_data</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$bad_data</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>data</span><span class=p>}</span> <span class=o>=</span> <span class=nv>$bad_data</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「並列で動いている別のバッチ処理や、あるいは行儀の悪いテストコードが、この <code>overwrite_data</code> （あるいはプロパティの直接操作）を行ったらどうなる？ このシステム全体にたった1つしか存在しないインスタンスが汚染される。
+すると、全く独立して動いているはずの <code>ReportGenerator</code> までが、その汚染されたデータを読み込んでしまうのだよ」</p><p>私は息を呑んだ。
+確かに、テスト間で互いに影響を及ぼし合ったり、並列バッチでユーザー情報が入れ替わったりする現象の辻褄が完全に合う。</p><p>「つまり、こいつは優れた設計手法（Singleton・シングルトン）でも何でもない。ただオブジェクト指向の皮を被った、単なる『ガラの悪いグローバル変数』だったわけか……！」</p><h2 id=ii-推理披露鮮やかなリファクタリング>II. 推理披露：鮮やかなリファクタリング</h2><p><img src=/public_images/2026/code-detective-singleton/chapter2.webp loading=lazy alt=外部から安全にエネルギー（依存）を注入される無菌室のようなモジュール群の概念図></p><p>「じゃあ、どうすればいいんですか？ この <code>get_instance()</code> を使わずに毎回 <code>new</code> したら、DB接続が溢れてシステムがパンクしちゃいます！」</p><p>「誰も毎回 <code>new</code> しろとは言っていない。自分が使う道具を、クラスの『隠し扉』から勝手に持ち出すのをやめろと言っているのだ」</p><p>ロックの手が、小気味良いタイピング音と共にコードを書き換え始めた。</p><h3 id=dependency-injection依存性の注入への移行>Dependency Injection（依存性の注入）への移行</h3><p>「必要な道具は、外から『堂々と』受け取るんだ。今回は <code>Moo</code> の力を借りて、依存関係をコンストラクタで明示的に定義する」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>MyCompany::ReportGeneratorRefactored</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># データベース接続は外から受け取る（依存性の注入）</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>db</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span> <span class=c1># 必ず外部から渡すことを強制する</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>generate</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$user_id</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=c1># コンストラクタで渡されたDBオブジェクトを利用する</span>
+</span></span><span class=line><span class=cl>    <span class=c1># このメソッドは、DBが「本物」か「モック」かを全く気にしなくて良い</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$data</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>db</span><span class=o>-&gt;</span><span class=n>fetch_user_data</span><span class=p>(</span><span class=nv>$user_id</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=s>&#34;Report for $data-&gt;{name}&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>あっという間に直されたコードを見て、私は眉をひそめた。</p><p>「たったこれだけですか？ 確かにクラスの中で <code>get_instance()</code> を呼ぶのはやめましたけど……代わりに呼ぶ側（使う側）がいちいちオブジェクトを渡してやらなきゃいけなくて、面倒になるだけじゃ？」</p><p>「そう、その『面倒』こそが責任の所在なのだよ」</p><p>ロックは自信ありげに、呼び出し元となるテストコードを書き始めた。</p><h3 id=本物と偽物モックの入れ替え>本物と偽物（モック）の入れ替え</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># 完全に隔離された状態を持つテスト用（モック）のDBクラス</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>MockDatabase</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>mock_data</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>      <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=p>{}</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>fetch_user_data</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$user_id</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>mock_data</span><span class=o>-&gt;</span><span class=p>{</span><span class=nv>$user_id</span><span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># --- ここからテストコード ---</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># テスト1: 完全に独立したMockDBを渡す（テスト用）</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$mock_db</span> <span class=o>=</span> <span class=nn>MockDatabase</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>mock_data</span> <span class=o>=&gt;</span> <span class=p>{</span> <span class=mi>99</span> <span class=o>=&gt;</span> <span class=p>{</span> <span class=n>name</span> <span class=o>=&gt;</span> <span class=s>&#34;Test User&#34;</span> <span class=p>}</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># ジェネレータに「モックDB」を注入する！</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$generator</span> <span class=o>=</span> <span class=nn>MyCompany::ReportGeneratorRefactored</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>db</span> <span class=o>=&gt;</span> <span class=nv>$mock_db</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>print</span> <span class=nv>$generator</span><span class=o>-&gt;</span><span class=n>generate</span><span class=p>(</span><span class=mi>99</span><span class=p>);</span> 
+</span></span><span class=line><span class=cl><span class=c1># =&gt; &#34;Report for Test User&#34; （本番システムには一切触れない）</span>
+</span></span></code></pre></td></tr></table></div></div><p>「すごい……！ <code>ReportGenerator</code> の中身を一言も書き換えないまま、外から渡すものを変えるだけで、テスト環境用のDBにすり替えることができた！」</p><p>「その通りだ。クラス内部でSingletonを呼ぶ（Pull・引っ張り込む）のではなく、外部から渡す（Push・注入する）。これが <strong>Dependency Injection（依存性の注入）</strong> だ」</p><pre class=mermaid>
+	sequenceDiagram
+    participant Test as テストコード/本番コード
+    participant Mock as 結合されたMockDB/実DB
+    participant Generator as ReportGeneratorRefactored
+    
+    Test-&gt;&gt;Mock: new(必要なデータ)
+    Test-&gt;&gt;Generator: new(db =&gt; Mock)
+    Note over Test,Generator: 依存性（使いたい道具）を外から注入する
+    Test-&gt;&gt;Generator: generate(99)
+    Generator-&gt;&gt;Mock: fetch_user_data(99)
+    Mock--&gt;&gt;Generator: { name: &#34;Test User&#34; }
+    Generator--&gt;&gt;Test: &#34;Report for Test User&#34;
+</pre><h2 id=iii-解決事件の終わり>III. 解決：事件の終わり</h2><p>私は歓喜した。長年私を苦しめていた「別のバッチ処理にお漏らしされるホラー現象」は、これでもう永遠にサヨナラだ。</p><p>「これなら絶対安全ですね！ 外から渡されたものしか使えないなら、誰かが見えない裏口からデータを書き換える心配もありません！」</p><p>「部品同士の『結合度』を下げるということだよ。必要な道具は、隠れて持ち込むのではなく、堂々と玄関（コンストラクタ）から受け取りたまえ。それが信頼されるコードの作法だ」</p><p>ロックがドヤ顔でキザな台詞を吐き捨てた。
+しかし、その声はほとんど私の耳には入っていなかった。</p><p>私のなかの几帳面レーダーが、かつてないほどの激しい警告音を鳴らし始めていたからだ。</p><p>「……なるほど。ということは、この『現在時刻』を取得している謎の関数も、この『文字列をフォーマット』しているだけの関数も、中で勝手にOSの時間やロケールを読み取っているから危険なんですね！ すべて外から渡してあげなきゃ！」</p><p>「……ん？ まあ、時刻に依存する処理なら <code>Clock</code> オブジェクトを渡すのは悪くないが……」</p><p>「よし！ じゃあ、ただ現在時刻をログに出力するだけの処理のために、<code>LoggerFactory</code> クラスと <code>TimeProviderInterface</code> クラスと <code>StringFormatterInterface</code> クラスを作って、それを生成するための <code>DIContainerBuilder</code> を構築して、それぞれにコンストラクタインジェクションするように全部書き直してきますね！」</p><p>「……！」</p><p>私はHHKBを叩きまくるロックを押し退け、一心不乱にコードを書き始めた。
+たった1行の「現在時刻を出力する」関数を呼び出すために、10層にも重なるインターフェースとFactoryの迷路を組み上げながら。</p><p>背後でロックが、深く頭を抱え、絶望に満ちた声を漏らした。</p><p>「……ただいまの時刻を知るために、時計職人の生い立ちとカレンダーの起源から、私にいちいち説明させるつもりか……」</p><p>極端から極端へ走る私の悪い癖は、今日も絶好調だった。</p><hr><h2 id=探偵の調査報告書>探偵の調査報告書</h2><div class=table-wrapper><table><thead><tr><th style=text-align:left>容疑（アンチパターン）</th><th style=text-align:left>真実（パターン）</th><th style=text-align:left>証拠（効果）</th></tr></thead><tbody><tr><td style=text-align:left>Singletonの誤用・グローバル変数化（Ambient Context） 本来はインスタンスを1つに保つためのパターンを「どこからでも手軽に呼べる便利な変数」として使い、見えない依存関係や予期せぬ状態の汚染を引き起こす行為。</td><td style=text-align:left>Dependency Injection（依存性の注入） クラス内部で自ら依存オブジェクトを取得するのではなく、コンストラクタなどの入り口を通じて、呼び出し元から必要な道具（依存）を注入してもらう設計。</td><td style=text-align:left>クラスの内部に隠れていた暗黙の依存が排除され、本番用とテスト用（モック）の部品を安全に差し替えられるようになる。グローバルな状態への依存が消え、副作用が局所化される。</td></tr></tbody></table></div><h3 id=推理のステップ>推理のステップ</h3><ol><li>暗黙の依存を洗い出す: クラスの中で <code>Config::getInstance()</code> や直接 <code>new</code> している外部リソース（DB、APIクライアント、時間等）を見つける。そこがテスト不能になる一番の元凶だ。</li><li>コンストラクタで受け取るように変更: その依存を自前で確保するのをやめ、コンストラクタの引数（アトリビュート）として定義し直す。</li><li>利用側が責任を持つ: 呼び出す側のプログラムが、責任を持って適切なオブジェクト（本番用なら実DB、テスト用ならモックDB）を生成し、注入（Inject）する。</li></ol><h3 id=ロックより>ロックより</h3><p>今回は「どこからでも呼べるものは、どこからでも壊せる」という、極めて古典的な惨劇の現場だったね。
+Singletonパターン自体が悪いわけではない。だが、それを『インスタンスを引き回すのをサボるための便利なグローバル変数』として使った瞬間、コードはその命脈を絶たれるのだ。</p><p>解決策であるDependency Injection（DI）は魔法のように聞こえるが、結局のところ「自分で勝手に取ってくるな、外から渡してもらえ」という単純な規律に過ぎない。</p><p>だが気をつけてくれたまえ。ワトソン君のように、何でもかんでもインターフェース化し、疎結合を追い求めすぎると、「一体誰が本当に仕事をしているのか分からない」過剰な抽象化の迷路が出来上がる。設計とは常にトレードオフだ。コードを読むための地図が、迷路そのものになっては本末転倒なのだから。</p><p>次なる「コードのにおい」が漂う時まで、しばしのお別れだ。</p></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/perl/>Perl</a>
+<a href=/tags/moo/>Moo</a>
+<a href=/tags/singleton/>Singleton</a>
+<a href=/tags/dependency-injection/>Dependency-Injection</a>
+<a href=/tags/anti-pattern/>Anti-Pattern</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-detective/>Code-Detective</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/03/22/070705/><div class=article-image><img src=/public_images/2026/code-detective-prototype-template-perfection/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-prototype-template-perfection/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Prototype】複製される完璧な設計図〜17枚の帳票はなぜ同時に壊れたか〜</h2></div></a></article><article class=has-image><a href=/2026/03/21/070705/><div class=article-image><img src=/public_images/2026/code-detective-builder-telescoping-constructor/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-builder-telescoping-constructor/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Builder】果てしなき引数の行列〜コンストラクタの窒息事件〜</h2></div></a></article><article class=has-image><a href=/2026/03/20/070705/><div class=article-image><img src=/public_images/2026/code-detective-adapter-pattern/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-adapter-pattern/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Adapter】互換性なきシステムの壁〜探偵は通訳に頼らない〜</h2></div></a></article><article class=has-image><a href=/2026/03/19/070705/><div class=article-image><img src=/public_images/2026/code-detective-state/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-state/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【State】姿なき真犯人〜状態が移り変わる密室〜</h2></div></a></article><article class=has-image><a href=/2026/03/18/070705/><div class=article-image><img src=/public_images/2026/code-detective-factory-method/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-factory-method/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Factory Method】縛られた生成ライン〜newの呪縛と密室の工場〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

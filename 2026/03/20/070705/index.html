@@ -1,0 +1,194 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="新旧システムのAPI連携で発生するif文地獄。互換性のないインターフェースを繋ぐ「Adapterパターン」を、コード探偵ロックが鮮やかに解説します。"><title>コード探偵ロックの事件簿【Adapter】互換性なきシステムの壁〜探偵は通訳に頼らない〜</title><link rel=canonical href=https://www.nqou.net/2026/03/20/070705/><link rel=stylesheet href=/scss/style.min.6a692fd055deae459f2a9767f57f3855ba80cafd5041317f24f7360f6ca47cdf.css><meta property='og:title' content="コード探偵ロックの事件簿【Adapter】互換性なきシステムの壁〜探偵は通訳に頼らない〜"><meta property='og:description' content="新旧システムのAPI連携で発生するif文地獄。互換性のないインターフェースを繋ぐ「Adapterパターン」を、コード探偵ロックが鮮やかに解説します。"><meta property='og:url' content='https://www.nqou.net/2026/03/20/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='perl'><meta property='article:tag' content='moo'><meta property='article:tag' content='adapter-pattern'><meta property='article:tag' content='incompatible-interfaces'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-detective'><meta property='article:published_time' content='2026-03-20T07:07:05+09:00'><meta property='article:modified_time' content='2026-03-20T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-detective-adapter-pattern/header.webp'><meta name=twitter:title content="コード探偵ロックの事件簿【Adapter】互換性なきシステムの壁〜探偵は通訳に頼らない〜"><meta name=twitter:description content="新旧システムのAPI連携で発生するif文地獄。互換性のないインターフェースを繋ぐ「Adapterパターン」を、コード探偵ロックが鮮やかに解説します。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-detective-adapter-pattern/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><span>プライバシーポリシー</span></a></li><li><a href=/contact/><span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#現場検証互換性なき泥沼のapi>現場検証：互換性なき泥沼のAPI</a></li><li><a href=#推理披露探偵は通訳adapterを雇う>推理披露：探偵は「通訳（Adapter）」を雇う</a></li><li><a href=#解決シームレスな対話>解決：シームレスな対話</a></li><li><a href=#探偵の調査報告書>探偵の調査報告書</a><ol><li><a href=#推理のステップ>推理のステップ</a></li><li><a href=#ロックより>ロックより</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/03/20/070705/><img src=/public_images/2026/code-detective-adapter-pattern/header.webp loading=lazy alt="Featured image of post コード探偵ロックの事件簿【Adapter】互換性なきシステムの壁〜探偵は通訳に頼らない〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/03/20/070705/>コード探偵ロックの事件簿【Adapter】互換性なきシステムの壁〜探偵は通訳に頼らない〜</a></h2><h3 class=article-subtitle>新旧システムのAPI連携で発生するif文地獄。互換性のないインターフェースを繋ぐ「Adapterパターン」を、コード探偵ロックが鮮やかに解説します。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>20, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 7分</time></div></footer></div></header><section class=article-content><p>雑居ビルの一室、むせ返るような排熱とエナジードリンクの甘ったるい匂いが漂うその部屋のドアに、「レガシー・コード・インベスティゲーション（LCI）」という怪しげな看板が掛かっている。</p><p>「違うシステムのAPI同士を繋ぐコードを書いたんですが、仕様変更のたびにif文が増えて、もうわけがわかりません！ ChatGPTに直させようとしたら文字数制限で途切れて……」</p><p>私はノートPCを抱え、文字通りすがる思いでこの奇妙な探偵事務所に駆け込んだ。私はコピペと最新AIツールを駆使してなんとか現場を生き抜いてきた新人プログラマだ。つい先日、自社の新しいシステムと、買収先企業の古いシステムを連携させるという無茶振りをされた結果、完全に泥沼にハマっていた。</p><p>部屋の奥から、年代物のメカニカルキーボードをけたたましく叩く音が止まった。</p><p>「AIに頼る前に、美しい設計という名の真実に目を向けたまえ、ワトソン君。初歩的なにおいだよ」</p><p>アンティーク調の椅子でふんぞり返るその男――自称「コード探偵」のロックは、気取った仕草でコーヒーカップを持ち上げた。</p><p>（ワトソン？ 誰のことだろ……まあいいか）「はい、じゃあとりあえずこれ見てください！」</p><p>私は構わずPCを開き、問題のコードを見せた。</p><h2 id=現場検証互換性なき泥沼のapi>現場検証：互換性なき泥沼のAPI</h2><p>「ご覧の通りです。新しいシステムの <code>UserService</code> と、古いシステムの <code>LegacyCustomerSystem</code> があるんですが……」</p><p><strong>【Before】問題の呼び出し元コード</strong></p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>lib</span> <span class=s>&#39;.&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>UserService</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>LegacyCustomerSystem</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># Client code with Incompatible Interfaces Anti-pattern</span>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>get_normalized_user</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$system_type</span><span class=p>,</span> <span class=nv>$id</span><span class=p>,</span> <span class=nv>$system_instance</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=nv>$system_type</span> <span class=ow>eq</span> <span class=s>&#39;new&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$system_instance</span><span class=o>-&gt;</span><span class=n>get_user_info</span><span class=p>(</span><span class=nv>$id</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span> <span class=k>elsif</span> <span class=p>(</span><span class=nv>$system_type</span> <span class=ow>eq</span> <span class=s>&#39;legacy&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=c1># ここで無理やりデータ構造を変換している</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$raw_data</span> <span class=o>=</span> <span class=nv>$system_instance</span><span class=o>-&gt;</span><span class=n>fetch_customer_data</span><span class=p>(</span><span class=nv>$id</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=n>id</span>    <span class=o>=&gt;</span> <span class=nv>$raw_data</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>customer_id</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>            <span class=n>name</span>  <span class=o>=&gt;</span> <span class=nv>$raw_data</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>full_name</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>            <span class=n>email</span> <span class=o>=&gt;</span> <span class=nv>$raw_data</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>mail_address</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>        <span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=nb>die</span> <span class=s>&#34;Unknown system type: $system_type&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「新しいシステムは『User』、古いシステムは『Customer』って呼んでいて、データを取得するメソッドも <code>get_user_info</code> と <code>fetch_customer_data</code> でバラバラなんです。だから使う側で <code>if</code> 文を書いて、無理やりデータ構造を揃えてるんですが……」</p><p>ロックは顔をしかめ、大きく息を吐いた。</p><p>「言語も文化も違う者同士を、無理やり同じ部屋に押し込めて会話させようとしている。これではいずれ暴動が起きる（バグが出る）のは当然だ」
+「えっ、暴動？ いや、DeepLのAPIとか繋げば自動翻訳できるんじゃないですか？」</p><p>私の現代的な提案に、探偵は冷ややかな視線を送ってきた。</p><p>「君は、プログラムの構造的欠陥を外部サービスで誤魔化そうというのかい？ このコードの真犯人はシステムの違いではない。**『互換性のないインターフェース（Incompatible Interfaces）』**をそのまま使おうとしているクライアントコードの怠慢だ」</p><h2 id=推理披露探偵は通訳adapterを雇う>推理披露：探偵は「通訳（Adapter）」を雇う</h2><p>探偵は私の手からPCを奪い取ると、ターミナルを開いておもむろに新しいファイルを作り始めた。</p><p>「レガシーな彼に、直接我々の言葉を喋らせるのではない。彼の言葉を我々の言葉に翻訳する『通訳』を間に入れるのだ」</p><p><strong>【After】Adapterクラスの作成</strong></p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>LegacyCustomerAdapter</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>legacy_system</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 新しいシステム（UserService）と同じインターフェースを提供する</span>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>get_user_info</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$id</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=c1># 内部で古いシステムに処理を委譲する</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$raw_data</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>legacy_system</span><span class=o>-&gt;</span><span class=n>fetch_customer_data</span><span class=p>(</span><span class=nv>$id</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=c1># 呼び出し元が期待するデータ構造に変換して返す</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>id</span>    <span class=o>=&gt;</span> <span class=nv>$raw_data</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>customer_id</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>        <span class=n>name</span>  <span class=o>=&gt;</span> <span class=nv>$raw_data</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>full_name</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>        <span class=n>email</span> <span class=o>=&gt;</span> <span class=nv>$raw_data</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>mail_address</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>探偵は得意げにエンターキーを叩いた。</p><p>「これが<strong>Adapterパターン</strong>だ。古いシステム（Adaptee）をこの通訳クラス（Adapter）で包み込むことで、外から見れば新しいシステムと全く同じように振る舞わせることができる」
+「なるほど！ ただのラッパークラスですね！ 最初からそう言ってくださいよ！」</p><p>私が簡潔に要約すると、探偵は少し不服そうな顔をした。</p><p>「……身も蓋もない言い方だが、まあ間違ってはいない。これによって、呼び出し元（クライアント）のコードは美しく生まれ変わるのだよ」</p><p><strong>【After】リファクタリングされた呼び出し元コード</strong></p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Test::More</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>lib</span> <span class=s>&#39;.&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>UserService</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>LegacyCustomerSystem</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>LegacyCustomerAdapter</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># もうシステムの違いを気にする必要はない</span>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>fetch_data</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$service</span><span class=p>,</span> <span class=nv>$id</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$service</span><span class=o>-&gt;</span><span class=n>get_user_info</span><span class=p>(</span><span class=nv>$id</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$new_system</span> <span class=o>=</span> <span class=nn>UserService</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>();</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$legacy_system</span> <span class=o>=</span> <span class=nn>LegacyCustomerSystem</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 古いシステムをAdapter（通訳）で包む</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$adapter</span> <span class=o>=</span> <span class=nn>LegacyCustomerAdapter</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>legacy_system</span> <span class=o>=&gt;</span> <span class=nv>$legacy_system</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 新しいシステムも、Adapter経由の古いシステムも、全く同じように扱える！</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$user1</span> <span class=o>=</span> <span class=n>fetch_data</span><span class=p>(</span><span class=nv>$new_system</span><span class=p>,</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>is</span><span class=p>(</span><span class=nv>$user1</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>name</span><span class=p>},</span> <span class=s>&#39;User 1&#39;</span><span class=p>,</span> <span class=s>&#39;New system User 1&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>is</span><span class=p>(</span><span class=nv>$user1</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>email</span><span class=p>},</span> <span class=s>&#39;user1@example.com&#39;</span><span class=p>,</span> <span class=s>&#39;New system User 1 email&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$user2</span> <span class=o>=</span> <span class=n>fetch_data</span><span class=p>(</span><span class=nv>$adapter</span><span class=p>,</span> <span class=mi>2</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>is</span><span class=p>(</span><span class=nv>$user2</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>name</span><span class=p>},</span> <span class=s>&#39;Customer 2&#39;</span><span class=p>,</span> <span class=s>&#39;Legacy system Customer 2 through adapter&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>is</span><span class=p>(</span><span class=nv>$user2</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>email</span><span class=p>},</span> <span class=s>&#39;customer2@legacy.local&#39;</span><span class=p>,</span> <span class=s>&#39;Legacy system Customer 2 email through adapter&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>done_testing</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><h2 id=解決シームレスな対話>解決：シームレスな対話</h2><p>「おお……あの忌まわしい <code>$system_type</code> による <code>if</code> 文の分岐が跡形もなく消え去っている……！」</p><p>私は画面を見て思わず声を上げた。呼び出し元の <code>fetch_data</code> 側は、引数で渡されたのが新しいシステムなのか古いシステムなのかをまったく知る必要がない。ただ <code>get_user_info</code> を呼び出すだけでいいのだ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl>$ perl test.pl
+</span></span><span class=line><span class=cl>ok <span class=m>1</span> - New system User <span class=m>1</span>
+</span></span><span class=line><span class=cl>ok <span class=m>2</span> - New system User <span class=m>1</span> email
+</span></span><span class=line><span class=cl>ok <span class=m>3</span> - Legacy system Customer <span class=m>2</span> through adapter
+</span></span><span class=line><span class=cl>ok <span class=m>4</span> - Legacy system Customer <span class=m>2</span> email through adapter
+</span></span><span class=line><span class=cl>1..4
+</span></span></code></pre></td></tr></table></div></div><p>テストコードもすべて緑色に点灯し、完璧な動作を証明していた。</p><p>「見事だ。これでシステム間の国境はなくなった。新旧のコードが平和なテーブルについて対話できるようになったのだよ、ワトソン君」</p><p>ロックは満足そうにコーヒーをすする。「通訳」という比喩は少し大げさな気もするが、確かにコードの見通しは驚くほど良くなっていた。</p><p>「ありがとうございます！ これなら僕にもできます！ じゃあ、このAdapterクラスのコードをベースにして、別のシステムの分もサクッとコピペで作ってみますね！ AIに変換させれば一瞬だし！」
+私は意気揚々とPCを閉じ、事務所を飛び出そうとした。</p><p>「ちょっと待て！！ 全くわかっていないじゃないか！ コピペで増やすなら結局クラス爆発が……おい、話を聞きたまえ！」</p><p>背後で探偵の叫び声が響いたが、私の足取りは羽のように軽かった。</p><hr><h2 id=探偵の調査報告書>探偵の調査報告書</h2><div class=table-wrapper><table><thead><tr><th style=text-align:left>容疑（アンチパターン）</th><th style=text-align:left>真実（パターン）</th><th style=text-align:left>証拠（効果）</th></tr></thead><tbody><tr><td style=text-align:left>互換性のないインターフェース（Incompatible Interfaces）。統合すべき複数のクラスがそれぞれ異なるメソッド名やデータ構造を持っており、呼び出し元で <code>if</code> 文による分岐と手動のデータ変換を強いられている状態。</td><td style=text-align:left>Adapter パターン。既存クラスを内部に保持するラッパークラス（Adapter）を作成し、クライアントが期待する統一されたインターフェースを提供する設計方式。</td><td style=text-align:left>呼び出し元からシステム固有の分岐と変換ロジックが完全に排除され、新旧どちらのシステムも同一のメソッドで透過的に利用可能になった。新たな外部システムの追加時もクライアントコードの変更が不要となり、Open-Closed Principle（開放閉鎖の原則）に準拠した拡張が可能になった。</td></tr></tbody></table></div><h3 id=推理のステップ>推理のステップ</h3><ol><li><strong>インターフェースの違いを特定する</strong>: 統合したい既存クラス群が、それぞれどのようなメソッド名やデータ構造を要求しているかを洗い出します。</li><li><strong>期待される標準（Target）を定義する</strong>: クライアント（呼び出し元）が本来使いたい、統一されたメソッドの形を決定します（今回の例では <code>get_user_info</code>）。</li><li><strong>Adapterクラスを作成する</strong>: 既存のクラスをメンバ変数として保持（カプセル化）し、Targetと同じインターフェースを持つAdapterクラスを作ります。</li><li><strong>処理を委譲（Delegate）する</strong>: Adapterクラスのメソッド内で、既存クラスのメソッドを呼び出し、必要に応じてデータ構造の変換（翻訳）を行います。</li><li><strong>クライアントから利用する</strong>: クライアントはAdapterを経由して既存クラスにアクセスするため、内部の違いを意識せずに統一的に処理できます。</li></ol><h3 id=ロックより>ロックより</h3><p>既存の堅牢な（あるいは手を触れたくないほど脆い）レガシーコードに新しい要件を組み込む際、直接コードを修正するのは無謀だ。だからと言って、呼び出し元に <code>if</code> 文を散らかせば、やがてその部屋はガラクタの山になる。</p><p>Adapterは、相手に変わることを強要せず、我々が相手の言葉を理解するための優雅なクッションなのだよ。既存の資産を活かしつつ、新しい世界の秩序に従わせる。これこそがソフトウェア工学における平和外交というものさ。</p><p>君も次からは、安易なコピペや「AI通訳」に頼る前に、美しい中継ぎ役について考えてみてくれたまえ。</p></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/perl/>Perl</a>
+<a href=/tags/moo/>Moo</a>
+<a href=/tags/adapter-pattern/>Adapter-Pattern</a>
+<a href=/tags/incompatible-interfaces/>Incompatible-Interfaces</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-detective/>Code-Detective</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/03/22/070705/><div class=article-image><img src=/public_images/2026/code-detective-prototype-template-perfection/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-prototype-template-perfection/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Prototype】複製される完璧な設計図〜17枚の帳票はなぜ同時に壊れたか〜</h2></div></a></article><article class=has-image><a href=/2026/03/21/070705/><div class=article-image><img src=/public_images/2026/code-detective-builder-telescoping-constructor/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-builder-telescoping-constructor/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Builder】果てしなき引数の行列〜コンストラクタの窒息事件〜</h2></div></a></article><article class=has-image><a href=/2026/03/19/070705/><div class=article-image><img src=/public_images/2026/code-detective-state/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-state/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【State】姿なき真犯人〜状態が移り変わる密室〜</h2></div></a></article><article class=has-image><a href=/2026/03/18/070705/><div class=article-image><img src=/public_images/2026/code-detective-factory-method/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-factory-method/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Factory Method】縛られた生成ライン〜newの呪縛と密室の工場〜</h2></div></a></article><article class=has-image><a href=/2026/03/17/070705/><div class=article-image><img src=/public_images/2026/code-detective-proxy-inappropriate-intimacy/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-proxy-inappropriate-intimacy/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Proxy】覗き見る影の代理人〜禁じられた内部への侵入〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>
