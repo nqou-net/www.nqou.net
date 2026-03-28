@@ -64,7 +64,7 @@ gitコマンド（`git add`/`git commit` 等）は並列実行しないこと。
 ### フロントマター（build.plが自動補完）
 - `title`, `date`（ISO8601 +09:00）, `epoch`, `iso8601`
 - `draft`（デフォルト true）, `image`（デフォルト /favicon.png）
-- `tags`（英小文字ハイフン区切り、最大5個。例: design-pattern, perl, moo）
+- `tags`（英小文字ハイフン区切り、最备10個。例: design-pattern, perl, moo）
 - `categories`, `description`
 
 ### 文体ルール
