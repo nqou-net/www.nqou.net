@@ -4,6 +4,8 @@ slug: "privacy-policy"
 menu:
     main:
         weight: 45
+        params:
+            icon: shield-lock
 comments: false
 ---
 

@@ -4,6 +4,8 @@ slug: "contact"
 menu:
     main:
         weight: 46
+        params:
+            icon: mail
 comments: false
 ---
 
