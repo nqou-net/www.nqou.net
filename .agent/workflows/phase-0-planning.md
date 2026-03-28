@@ -13,14 +13,24 @@ description: "統合汎用ワークフロー（Phase 0: 企画・設計）"
 2. **テーマ / パターン名**: （例: `Strategy`, `God Class`）
 3. **slug**: ケバブケースで生成（例: `strategy-pattern`）
 
-## Step 2: マニフェストと部品の読み込み
+## Step 2: テーマ調査（Phase 0-R）
+`phase-0-research.md` ワークフローに従い、テーマに関するウェブ調査を実行する。
+
+1. `agents/warehouse/<slug>.md` の存在と鮮度を確認
+2. 鮮度判定の結果に応じて、既存調査の再利用または再調査を決定
+3. 再調査が必要な場合は `investigative-research` または `websearch-nerd` サブエージェントに委任
+4. 調査結果を `agents/warehouse/<slug>.md` に保存
+
+調査結果は以降の全ステップでコンテキストとして活用する。
+
+## Step 3: マニフェストと部品の読み込み
 指定されたシリーズマニフェスト（`.agent/components/series/<マニフェスト名>.md`）を読み込みます。
 マニフェストに記載されている以下の部品（Markdownファイル）をさらに読み込み、コンテキストとして保持してください。
 - `Personas` (主人公、語り部など)
 - `Metaphors` (世界観、用語)
 - `Plots` (構成)
 
-## Step 3: Semantic Knowledge Repository (SKR) の検索
+## Step 4: Semantic Knowledge Repository (SKR) の検索
 過去の類似記事や設定の重複を避けるため、SKRを検索します。
 ```bash
 node ~/.agents/skills/semantic-knowledge-repository/scripts/search_knowledge.cjs "<パターン名> <シリーズ名>"
@@ -33,8 +43,8 @@ node ~/.agents/skills/semantic-knowledge-repository/scripts/search_knowledge.cjs
 - 同じ締めの型: 「報酬は○○と同じ杯数」と数量ネタで締める流れ
 - 同じ結語の型: 最後にロックが「〜するな／〜したまえ、ワトソン君」と標語のように締める流れ
 
-## Step 4: 企画案の生成（対話プロセス）
-読み込んだマニフェスト（特に `Metaphors` と `Plots`）に基づき、以下の企画案を作成し、ユーザーに提示します。
+## Step 5: 企画案の生成（対話プロセス）
+読み込んだマニフェスト（特に `Metaphors` と `Plots`）および調査結果（`agents/warehouse/<slug>.md`）に基づき、以下の企画案を作成し、ユーザーに提示します。
 1. **今回のテーマ（技術的課題）**
 2. **語り部（依頼人/患者）のプロファイル**: 今回固有の属性（職種、悩みなど）
 3. **タイトル案**: マニフェストの「タイトル命名規則」に従った案を3つ提示。
@@ -42,7 +52,7 @@ node ~/.agents/skills/semantic-knowledge-repository/scripts/search_knowledge.cjs
 5. **今回あえて避ける定型**: 直近回と重なる導入、決め台詞、オチを1つ以上明示する。
 6. **今回の変化点**: 導入、対話の温度、終わり方、報酬ギャグの有無などから3つ以上選ぶ。
 
-## Step 5: 承認と保存
+## Step 6: 承認と保存
 ユーザーから企画の承認を得たら、SKRにプランニング状態として保存します。
 ```bash
 node ~/.agents/skills/semantic-knowledge-repository/scripts/save_knowledge.cjs "<シリーズ名>-<slug>" \

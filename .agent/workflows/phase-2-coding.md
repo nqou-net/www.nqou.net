@@ -13,11 +13,11 @@ description: "統合汎用ワークフロー（Phase 2: コード実装・検証
 
 ## Step 2: Beforeコード（アンチパターン）の実装
 Phase 1で作成したプロットの「問題の状況」を再現するコードを実装します。
-- 保存先例: `agents/tests/<シリーズ名>-<slug>/before/`
+- 保存先例: `agents/<シリーズ名>/tests/<slug>/before/`
 
 ## Step 3: Afterコード（解決パターン）の実装
 Beforeコードに対して、指定されたデザインパターンを適用したリファクタリング後のコードを実装します。
-- 保存先例: `agents/tests/<シリーズ名>-<slug>/after/`
+- 保存先例: `agents/<シリーズ名>/tests/<slug>/after/`
 
 ## Step 4: テストの作成と検証
 Before/After 両方のコードが期待通りに動作することを確認するテストコードを書きます。

@@ -78,7 +78,7 @@ cpanfile に定義: Path::Tiny, Time::Moment, YAML, Moo, Types::Standard 等。
 
 - **SSOT (Single Source of Truth)**: 知見や設定は `agents/knowledge/` に集約する
 - **調査情報**: `agents/warehouse/` で管理する
-- **連載構造案**: `agents/structure/` で管理する
+- **中間ファイル**: `agents/<シリーズ名>/` にシリーズ単位で管理する（構造案・テストコード）
 - **プロンプトテンプレート**: `agents/prompts/` で管理する
 - **ワークフロー定義**: `.agent/workflows/` で管理する
 - **役割定義**: `.github/agents/*.agent.md` で管理する
