@@ -102,18 +102,17 @@ my $root = path(__FILE__)->absolute->parent(2);
             $modified = 1;
         }
 
-        # # 本文に文字列が含まれていたらタグを追加
-        # my $target = 'heroku';
-        # my $tag    = 'heroku';
-        # if ($after =~ /$target\b/i) {
-        #     my $tags = $info->{tags};
-        #
-        #     # undef が含まれていたら削除する
-        #     $tags = +[grep { $_ ne 'undef' and $_ ne $tag } @{$tags}];
-        #     push @{$tags}, $tag;
-        #     $info->{tags} = +[sort @{$tags}];
-        #     $modified = 1;
-        # }
+        # 本文が500文字未満の公開記事に noindex を自動付与
+        unless (exists $info->{noindex}) {
+            my $body_text = $after // '';
+            $body_text =~ s/\A\s+//;
+            $body_text =~ s/\s+\z//;
+            my $char_count = length($body_text);
+            if ($char_count < 500 && $info->{draft} eq 'false') {
+                $info->{noindex} = 'true';
+                $modified = 1;
+            }
+        }
 
         # 変更されていたら保存する
         if ($modified) {
