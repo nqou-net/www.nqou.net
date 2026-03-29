@@ -1,0 +1,557 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="ECサイトのバックエンド5モジュールが互いに直接参照し合い、1箇所の変更で全体が崩壊。クーポン機能追加の悪夢を「Mediatorパターン」で司令塔に集約するコード探偵ロックの推理。"><title>コード探偵ロックの事件簿【Mediator】蜘蛛の巣会議〜糸を引く者は誰か〜</title><link rel=canonical href=https://www.nqou.net/2026/03/25/070705/><link rel=stylesheet href=/scss/style.min.6a692fd055deae459f2a9767f57f3855ba80cafd5041317f24f7360f6ca47cdf.css><meta property='og:title' content="コード探偵ロックの事件簿【Mediator】蜘蛛の巣会議〜糸を引く者は誰か〜"><meta property='og:description' content="ECサイトのバックエンド5モジュールが互いに直接参照し合い、1箇所の変更で全体が崩壊。クーポン機能追加の悪夢を「Mediatorパターン」で司令塔に集約するコード探偵ロックの推理。"><meta property='og:url' content='https://www.nqou.net/2026/03/25/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='perl'><meta property='article:tag' content='moo'><meta property='article:tag' content='mediator'><meta property='article:tag' content='spaghetti-coupling'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-detective'><meta property='article:published_time' content='2026-03-25T07:07:05+09:00'><meta property='article:modified_time' content='2026-03-25T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-detective-mediator/header.webp'><meta name=twitter:title content="コード探偵ロックの事件簿【Mediator】蜘蛛の巣会議〜糸を引く者は誰か〜"><meta name=twitter:description content="ECサイトのバックエンド5モジュールが互いに直接参照し合い、1箇所の変更で全体が崩壊。クーポン機能追加の悪夢を「Mediatorパターン」で司令塔に集約するコード探偵ロックの推理。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-detective-mediator/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-03-25T07:07:05+09:00","datePublished":"2026-03-25T07:07:05+09:00","description":"ECサイトのバックエンド5モジュールが互いに直接参照し合い、1箇所の変更で全体が崩壊。クーポン機能追加の悪夢を「Mediatorパターン」で司令塔に集約するコード探偵ロックの推理。","headline":"コード探偵ロックの事件簿【Mediator】蜘蛛の巣会議〜糸を引く者は誰か〜","image":"https://www.nqou.net/public_images/2026/code-detective-mediator/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/03/25/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#現場検証5匹の蜘蛛が織る巣>現場検証：5匹の蜘蛛が織る巣</a></li><li><a href=#推理披露蜘蛛の巣の中心mediator>推理披露：蜘蛛の巣の中心（Mediator）</a></li><li><a href=#解決星形に生まれ変わった巣>解決：星形に生まれ変わった巣</a></li><li><a href=#探偵の調査報告書>探偵の調査報告書</a><ol><li><a href=#推理のステップ>推理のステップ</a></li><li><a href=#ロックより>ロックより</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/03/25/070705/><img src=/public_images/2026/code-detective-mediator/header.webp loading=lazy alt="Featured image of post コード探偵ロックの事件簿【Mediator】蜘蛛の巣会議〜糸を引く者は誰か〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/03/25/070705/>コード探偵ロックの事件簿【Mediator】蜘蛛の巣会議〜糸を引く者は誰か〜</a></h2><h3 class=article-subtitle>ECサイトのバックエンド5モジュールが互いに直接参照し合い、1箇所の変更で全体が崩壊。クーポン機能追加の悪夢を「Mediatorパターン」で司令塔に集約するコード探偵ロックの推理。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>25, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 12分</time></div></footer></div></header><section class=article-content><p>「どのファイルを触っても、他の全部が壊れるんです。もう、コードのどこにも安全な場所がない」</p><p>ワシは森田。アパレルEC「ThreadStyle」のバックエンドエンジニアじゃ。経験5年、28歳。ThreadStyleの初期メンバーで、バックエンドはワシが一人で書き始めた。</p><p>最初は単純だったんじゃよ。注文が来たら在庫を引き当てて、決済して、メールを飛ばす。小さなスクリプトみたいなもんじゃった。ところがサービスが成長して、処理が増え、モジュールを分割して——気づいたら5つのモジュールが、互いに直接参照し合う蜘蛛の巣になっておった。</p><p>受注管理、在庫管理、決済ゲートウェイ、通知サービス、監査ログ。どれを触っても他の4つが震える。</p><p>そして今朝、CTOがSlackでこう言いおった。</p><p>「森田くん、来月のセールに合わせてクーポン機能追加してほしいんだけど。2週間で行ける？」</p><p>クーポンエンジン。注文時に割引を適用し、在庫側で割引率を計算し、決済額を調整し、通知に割引情報を含め、監査ログに記録する。つまり、今ある5つのモジュール全部に手を入れる必要がある。さらに5つのモジュール全部からクーポンエンジンへの参照を追加して、クーポンエンジンから5つのモジュールへの参照も——。</p><p>ワシは「検討します」とだけ返し、昼休みに雑居ビルの階段を上がった。</p><p>「レガシー・コード・インベスティゲーション（LCI）」</p><p>ドアを開けると、キーボードの打鍵音とエナジードリンクの甘い残り香。デスクトップPCの排熱でやけに暖かい室内に、飲みかけの缶が散乱しておる。革張りの椅子の男は、三枚のモニターに映るコードを眺めておった。</p><p>「……ワトソン君。3分だけ待ちたまえ。今、微かなにおいを追っている」</p><p>「森田です。初めてなんじゃが……」</p><p>「初めてだろうと百回目だろうと、ここでは皆ワトソン君だ。さあ、今日の事件を聞こう」</p><p>ワトソン君って誰じゃ。まあいい。ワシはノートPCを開き、ThreadStyleのバックエンド構成を見せた。</p><h2 id=現場検証5匹の蜘蛛が織る巣>現場検証：5匹の蜘蛛が織る巣</h2><p>「まず全体像を見せたまえ」</p><p>ワシは受注管理モジュールを開いた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>OrderManager</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>inventory</span>    <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>payment</span>      <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>notification</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>audit</span>        <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>place_order</span> <span class=p>($self, $order) {</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>inventory</span><span class=o>-&gt;</span><span class=n>reserve</span><span class=p>(</span><span class=nv>$order</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>payment</span><span class=o>-&gt;</span><span class=n>charge</span><span class=p>(</span><span class=nv>$order</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>notification</span><span class=o>-&gt;</span><span class=n>notify</span><span class=p>(</span><span class=s>&#34;注文確定: $order-&gt;{id}&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>audit</span><span class=o>-&gt;</span><span class=nb>log</span><span class=p>(</span><span class=s>&#39;order_placed&#39;</span><span class=p>,</span> <span class=nv>$order</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「受注管理だけで他のモジュールを4つも参照しとります。在庫、決済、通知、ログ。じゃが問題は、これだけじゃなくて——」</p><p>ワシは他のモジュールも見せた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span><span class=lnt>51
+</span><span class=lnt>52
+</span><span class=lnt>53
+</span><span class=lnt>54
+</span><span class=lnt>55
+</span><span class=lnt>56
+</span><span class=lnt>57
+</span><span class=lnt>58
+</span><span class=lnt>59
+</span><span class=lnt>60
+</span><span class=lnt>61
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>PaymentGateway</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>inventory</span>    <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>notification</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>audit</span>        <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>charge</span> <span class=p>($self, $order) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$success</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_process_payment</span><span class=p>(</span><span class=nv>$order</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=o>!</span><span class=nv>$success</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>inventory</span><span class=o>-&gt;</span><span class=n>release</span><span class=p>(</span><span class=nv>$order</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>notification</span><span class=o>-&gt;</span><span class=n>notify</span><span class=p>(</span><span class=s>&#34;決済失敗: $order-&gt;{id}&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>audit</span><span class=o>-&gt;</span><span class=nb>log</span><span class=p>(</span><span class=s>&#39;payment_processed&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=p>{</span> <span class=n>order</span> <span class=o>=&gt;</span> <span class=nv>$order</span><span class=p>,</span> <span class=n>success</span> <span class=o>=&gt;</span> <span class=nv>$success</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$success</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>_process_payment</span> <span class=p>($self, $order) {</span> <span class=mi>1</span> <span class=p>}</span>  <span class=c1># 簡略化</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>InventoryManager</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>notification</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>audit</span>        <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>reserve</span> <span class=p>($self, $order) {</span>
+</span></span><span class=line><span class=cl>        <span class=c1># ... 在庫引き当て処理 ...</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_is_low_stock</span><span class=p>(</span><span class=nv>$order</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>item_id</span><span class=p>}))</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>notification</span><span class=o>-&gt;</span><span class=n>notify</span><span class=p>(</span><span class=s>&#34;在庫残少: $order-&gt;{item_id}&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>audit</span><span class=o>-&gt;</span><span class=nb>log</span><span class=p>(</span><span class=s>&#39;low_stock&#39;</span><span class=p>,</span> <span class=nv>$order</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>release</span> <span class=p>($self, $order) {</span>
+</span></span><span class=line><span class=cl>        <span class=c1># ... 在庫戻し処理 ...</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>audit</span><span class=o>-&gt;</span><span class=nb>log</span><span class=p>(</span><span class=s>&#39;stock_released&#39;</span><span class=p>,</span> <span class=nv>$order</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>_is_low_stock</span> <span class=p>($self, $item_id) {</span> <span class=mi>0</span> <span class=p>}</span>  <span class=c1># 簡略化</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>NotificationService</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>audit</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>notify</span> <span class=p>($self, $message) {</span>
+</span></span><span class=line><span class=cl>        <span class=c1># ... メール/Slack送信 ...</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>audit</span><span class=o>-&gt;</span><span class=nb>log</span><span class=p>(</span><span class=s>&#39;notification_sent&#39;</span><span class=p>,</span> <span class=p>{</span> <span class=n>message</span> <span class=o>=&gt;</span> <span class=nv>$message</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>AuditLogger</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>log</span> <span class=p>($self, $event, $data) {</span>
+</span></span><span class=line><span class=cl>        <span class=c1># ... ログ記録 ...</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「見てくだされ。決済が在庫と通知とログを参照し、在庫が通知とログを参照し、通知がログを参照しとる。全部が全部に繋がっとるんじゃ」</p><p>ロックはホワイトボードにモジュール名を書き、矢印を引き始めた。</p><pre class=mermaid>
+	graph LR
+    OM[OrderManager] --&gt; IM[InventoryManager]
+    OM --&gt; PG[PaymentGateway]
+    OM --&gt; NS[NotificationService]
+    OM --&gt; AL[AuditLogger]
+    PG --&gt; IM
+    PG --&gt; NS
+    PG --&gt; AL
+    IM --&gt; NS
+    IM --&gt; AL
+    NS --&gt; AL
+</pre><p>「10本。5つのモジュールから10本の直接依存線が伸びている」</p><p>ロックは一歩下がって全体を眺めた。</p><p>「見事な蜘蛛の巣だ。だが問題は、蜘蛛が5匹もいることだよ、ワトソン君」</p><p>「蜘蛛が5匹……？」</p><p>「蜘蛛の巣の中心には1匹の蜘蛛がいて、全ての糸の振動を感じ取る。だがこのシステムでは5匹の蜘蛛が全員、互いの巣に糸を張り合っている。誰が糸を引いているのか分からない」</p><p>ロックは初期化コードも見せろと言った。ワシはうなだれながらそれを開いた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># 初期化の地獄</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$audit</span>        <span class=o>=</span> <span class=nn>AuditLogger</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$notification</span> <span class=o>=</span> <span class=nn>NotificationService</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$inventory</span>    <span class=o>=</span> <span class=nn>InventoryManager</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$payment</span>      <span class=o>=</span> <span class=nn>PaymentGateway</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$order_mgr</span>    <span class=o>=</span> <span class=nn>OrderManager</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 後付けで全参照を注入（rw にせざるを得ない）</span>
+</span></span><span class=line><span class=cl><span class=nv>$notification</span><span class=o>-&gt;</span><span class=n>audit</span><span class=p>(</span><span class=nv>$audit</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nv>$inventory</span><span class=o>-&gt;</span><span class=n>notification</span><span class=p>(</span><span class=nv>$notification</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$inventory</span><span class=o>-&gt;</span><span class=n>audit</span><span class=p>(</span><span class=nv>$audit</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nv>$payment</span><span class=o>-&gt;</span><span class=n>inventory</span><span class=p>(</span><span class=nv>$inventory</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$payment</span><span class=o>-&gt;</span><span class=n>notification</span><span class=p>(</span><span class=nv>$notification</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$payment</span><span class=o>-&gt;</span><span class=n>audit</span><span class=p>(</span><span class=nv>$audit</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nv>$order_mgr</span><span class=o>-&gt;</span><span class=n>inventory</span><span class=p>(</span><span class=nv>$inventory</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$order_mgr</span><span class=o>-&gt;</span><span class=n>payment</span><span class=p>(</span><span class=nv>$payment</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$order_mgr</span><span class=o>-&gt;</span><span class=n>notification</span><span class=p>(</span><span class=nv>$notification</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$order_mgr</span><span class=o>-&gt;</span><span class=n>audit</span><span class=p>(</span><span class=nv>$audit</span><span class=p>);</span>
+</span></span></code></pre></td></tr></table></div></div><p>「これ、最初に全部 <code>rw</code> にしとるんじゃ。<code>required</code> にすると循環参照で初期化できんかったもんで……」</p><p>「不変であるべきものを可変にしている。設計の敗北だな」ロックは矢印を指した。「ここにクーポンエンジンを追加するとどうなる？」</p><p>「えっと、CouponEngine は在庫の割引率を見て、決済額を調整して、通知に割引情報を含めて、ログに記録するんで——OrderManager にクーポン参照を追加、PaymentGateway にも、InventoryManager にも、NotificationService にも……」</p><p>「つまり既存の4つのモジュール全てに手を入れる。さらにクーポンエンジン自身も他の4つを参照する。依存線は10本から——」</p><p>「15本に……」</p><p>「スパゲッティ結合。これが今回の犯人だよ、ワトソン君。モジュールが増えるたびに依存線が二次関数的に増殖し、やがて誰も手を出せなくなる」</p><p>なるほど、ワシのコードが犯人呼ばわりされるのは癪じゃが、否定できんのが辛いところじゃ。</p><h2 id=推理披露蜘蛛の巣の中心mediator>推理披露：蜘蛛の巣の中心（Mediator）</h2><p>「ワトソン君。蜘蛛の巣が美しいのは、なぜだと思う？」</p><p>「え……放射状に広がっとるから、ですかの？」</p><p>「そうだ。中心が1つあり、全ての糸がそこを通る。糸が振動すれば、中心の蜘蛛がそれを感じ取り、適切な方向へ信号を伝える。君のシステムに足りないのは、この中心——すなわち仲介者だ」</p><p>「仲介者……」</p><p>「まず、全員が従うルールを定める。各モジュールは仲介者を通じてのみ他のモジュールと通信する」</p><p>【After】共通のルール（Colleague ロール）</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span><span class=lnt>9
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Colleague</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo::Role</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>mediator</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>weak_ref</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>send_event</span> <span class=p>($self, $event, $data) {</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>mediator</span><span class=o>-&gt;</span><span class=n>relay</span><span class=p>(</span><span class=nv>$event</span><span class=p>,</span> <span class=nv>$self</span><span class=p>,</span> <span class=nv>$data</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<code>Colleague</code> ロールは、全モジュールに共通の約束事だ。各モジュールは <code>mediator</code> への参照だけを持ち、何かあれば <code>send_event</code> で仲介者に伝える。他のモジュールの存在を知る必要はない」</p><p>「他のモジュールへの <code>has</code> が全部消える……？」</p><p>ワシは耳を疑った。あの <code>has inventory =></code> や <code>has payment =></code> の山が消えるというのか。</p><p>「次に、蜘蛛の巣の中心——仲介者だ」</p><p>【After】蜘蛛の巣の中心（OrderMediator）</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>OrderMediator</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>colleagues</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=p>{}</span> <span class=p>}</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>register</span> <span class=p>($self, $name, $colleague) {</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>colleagues</span><span class=o>-&gt;</span><span class=p>{</span><span class=nv>$name</span><span class=p>}</span> <span class=o>=</span> <span class=nv>$colleague</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$colleague</span><span class=o>-&gt;</span><span class=n>mediator</span><span class=p>(</span><span class=nv>$self</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$self</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>relay</span> <span class=p>($self, $event, $sender, $data) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$c</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>colleagues</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=nv>$event</span> <span class=ow>eq</span> <span class=s>&#39;order_placed&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$c</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>coupon</span><span class=p>}</span><span class=o>-&gt;</span><span class=n>apply</span><span class=p>(</span><span class=nv>$data</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>                <span class=k>if</span> <span class=nv>$c</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>coupon</span><span class=p>}</span> <span class=o>&amp;&amp;</span> <span class=nv>$data</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>coupon_code</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$c</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>inventory</span><span class=p>}</span><span class=o>-&gt;</span><span class=n>reserve</span><span class=p>(</span><span class=nv>$data</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$c</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>payment</span><span class=p>}</span><span class=o>-&gt;</span><span class=n>charge</span><span class=p>(</span><span class=nv>$data</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$c</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>notification</span><span class=p>}</span><span class=o>-&gt;</span><span class=n>notify</span><span class=p>(</span><span class=s>&#34;注文確定: $data-&gt;{id}&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$c</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>audit</span><span class=p>}</span><span class=o>-&gt;</span><span class=nb>log</span><span class=p>(</span><span class=s>&#39;order_placed&#39;</span><span class=p>,</span> <span class=nv>$data</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=k>elsif</span> <span class=p>(</span><span class=nv>$event</span> <span class=ow>eq</span> <span class=s>&#39;low_stock&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$c</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>notification</span><span class=p>}</span><span class=o>-&gt;</span><span class=n>notify</span><span class=p>(</span><span class=s>&#34;在庫残少: $data-&gt;{item_id}&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$c</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>audit</span><span class=p>}</span><span class=o>-&gt;</span><span class=nb>log</span><span class=p>(</span><span class=s>&#39;low_stock&#39;</span><span class=p>,</span> <span class=nv>$data</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=k>elsif</span> <span class=p>(</span><span class=nv>$event</span> <span class=ow>eq</span> <span class=s>&#39;payment_failed&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$c</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>inventory</span><span class=p>}</span><span class=o>-&gt;</span><span class=n>release</span><span class=p>(</span><span class=nv>$data</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$c</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>notification</span><span class=p>}</span><span class=o>-&gt;</span><span class=n>notify</span><span class=p>(</span><span class=s>&#34;決済失敗: $data-&gt;{id}&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$c</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>audit</span><span class=p>}</span><span class=o>-&gt;</span><span class=nb>log</span><span class=p>(</span><span class=s>&#39;payment_failed&#39;</span><span class=p>,</span> <span class=nv>$data</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=k>elsif</span> <span class=p>(</span><span class=nv>$event</span> <span class=ow>eq</span> <span class=s>&#39;coupon_applied&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$c</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>notification</span><span class=p>}</span><span class=o>-&gt;</span><span class=n>notify</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>                <span class=s>&#34;クーポン適用: $data-&gt;{coupon_code}&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$c</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>audit</span><span class=p>}</span><span class=o>-&gt;</span><span class=nb>log</span><span class=p>(</span><span class=s>&#39;coupon_applied&#39;</span><span class=p>,</span> <span class=nv>$data</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<code>OrderMediator</code> がすべての連携ロジックを一手に引き受ける。誰が誰に何を伝えるかは、すべてここに集約される。各モジュールはイベントを発火するだけで、その先のことは関知しない」</p><p>「Before じゃと OrderManager に書いてあった <code>$self->inventory->reserve(...)</code> が、Mediator に移動した……というわけか」</p><p>「その通り。では各モジュールがどう変わるか見てみよう」</p><p>【After】身軽になったモジュールたち</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span><span class=lnt>51
+</span><span class=lnt>52
+</span><span class=lnt>53
+</span><span class=lnt>54
+</span><span class=lnt>55
+</span><span class=lnt>56
+</span><span class=lnt>57
+</span><span class=lnt>58
+</span><span class=lnt>59
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>OrderManager</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>with</span> <span class=s>&#39;Colleague&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>place_order</span> <span class=p>($self, $order) {</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>send_event</span><span class=p>(</span><span class=s>&#39;order_placed&#39;</span><span class=p>,</span> <span class=nv>$order</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>PaymentGateway</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>with</span> <span class=s>&#39;Colleague&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>charge</span> <span class=p>($self, $order) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$success</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_process_payment</span><span class=p>(</span><span class=nv>$order</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=o>!</span><span class=nv>$success</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>send_event</span><span class=p>(</span><span class=s>&#39;payment_failed&#39;</span><span class=p>,</span> <span class=nv>$order</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$success</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>_process_payment</span> <span class=p>($self, $order) {</span> <span class=mi>1</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>InventoryManager</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>with</span> <span class=s>&#39;Colleague&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>reserve</span> <span class=p>($self, $order) {</span>
+</span></span><span class=line><span class=cl>        <span class=c1># ... 在庫引き当て処理 ...</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_is_low_stock</span><span class=p>(</span><span class=nv>$order</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>item_id</span><span class=p>}))</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>send_event</span><span class=p>(</span><span class=s>&#39;low_stock&#39;</span><span class=p>,</span> <span class=nv>$order</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>release</span> <span class=p>($self, $order) {</span>
+</span></span><span class=line><span class=cl>        <span class=c1># ... 在庫戻し処理 ...</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>_is_low_stock</span> <span class=p>($self, $item_id) {</span> <span class=mi>0</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>NotificationService</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>with</span> <span class=s>&#39;Colleague&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>notify</span> <span class=p>($self, $message) {</span>
+</span></span><span class=line><span class=cl>        <span class=c1># ... メール/Slack送信 ...</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>AuditLogger</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>with</span> <span class=s>&#39;Colleague&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>log</span> <span class=p>($self, $event, $data) {</span>
+</span></span><span class=line><span class=cl>        <span class=c1># ... ログ記録 ...</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>ワシは画面を見つめた。各モジュールから <code>has inventory =></code> や <code>has payment =></code> が全て消えておる。残っておるのは <code>with 'Colleague'</code> だけじゃ。</p><p>「OrderManager の <code>place_order</code> を見てくだされ。Before では4行かけて在庫引き当て、決済、通知、ログを呼んでおった。今は <code>send_event</code> の1行だけ……」</p><p>「各モジュールは自分の仕事だけを知っていればいい。連携のことは仲介者に任せる。これが単一責任というものだ」</p><p>ロックはホワイトボードに新しい図を描いた。</p><pre class=mermaid>
+	graph TD
+    MED[OrderMediator]
+    OM[OrderManager] --&gt; MED
+    IM[InventoryManager] --&gt; MED
+    PG[PaymentGateway] --&gt; MED
+    NS[NotificationService] --&gt; MED
+    AL[AuditLogger] --&gt; MED
+</pre><p>「蜘蛛の巣から星形に変わった。全ての糸は中心を通る。依存線は10本から5本——各モジュールから仲介者への1本ずつだ」</p><p>「初期化も見せてくれんかの？」</p><p>「当然だ」</p><p>【After】明快な初期化</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>my</span> <span class=nv>$mediator</span> <span class=o>=</span> <span class=nn>OrderMediator</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nv>$mediator</span><span class=o>-&gt;</span><span class=n>register</span><span class=p>(</span><span class=n>order</span>        <span class=o>=&gt;</span> <span class=nn>OrderManager</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>         <span class=o>-&gt;</span><span class=n>register</span><span class=p>(</span><span class=n>inventory</span>    <span class=o>=&gt;</span> <span class=nn>InventoryManager</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>         <span class=o>-&gt;</span><span class=n>register</span><span class=p>(</span><span class=n>payment</span>      <span class=o>=&gt;</span> <span class=nn>PaymentGateway</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>         <span class=o>-&gt;</span><span class=n>register</span><span class=p>(</span><span class=n>notification</span> <span class=o>=&gt;</span> <span class=nn>NotificationService</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>         <span class=o>-&gt;</span><span class=n>register</span><span class=p>(</span><span class=n>audit</span>        <span class=o>=&gt;</span> <span class=nn>AuditLogger</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 注文を処理</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$order</span> <span class=o>=</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=n>id</span> <span class=o>=&gt;</span> <span class=s>&#39;TS-2026-0325&#39;</span><span class=p>,</span> <span class=n>item_id</span> <span class=o>=&gt;</span> <span class=s>&#39;HOODIE-BK-L&#39;</span><span class=p>,</span> <span class=n>quantity</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=nv>$mediator</span><span class=o>-&gt;</span><span class=nn>colleagues</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>order</span><span class=p>}</span><span class=o>-&gt;</span><span class=n>place_order</span><span class=p>(</span><span class=nv>$order</span><span class=p>);</span>
+</span></span></code></pre></td></tr></table></div></div><p>「Before の後付け <code>->audit($audit)</code> 地獄が、<code>register</code> チェーンの数行に。全モジュールの参照が <code>required</code> ではなく <code>rw</code> じゃったあの妥協も不要になったわけか」</p><p>「そういうことだ。そして——ワトソン君が恐れていたクーポンエンジンの追加だ」</p><p>【After】クーポンエンジンの追加</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>CouponEngine</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>with</span> <span class=s>&#39;Colleague&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>apply</span> <span class=p>($self, $order) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=k>my</span> <span class=nv>$code</span> <span class=o>=</span> <span class=nv>$order</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>coupon_code</span><span class=p>})</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$order</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>discount</span><span class=p>}</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_calculate_discount</span><span class=p>(</span><span class=nv>$code</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>send_event</span><span class=p>(</span><span class=s>&#39;coupon_applied&#39;</span><span class=p>,</span> <span class=nv>$order</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>_calculate_discount</span> <span class=p>($self, $code) {</span> <span class=mi>500</span> <span class=p>}</span>  <span class=c1># 簡略化</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># Mediator に登録するだけ</span>
+</span></span><span class=line><span class=cl><span class=nv>$mediator</span><span class=o>-&gt;</span><span class=n>register</span><span class=p>(</span><span class=n>coupon</span> <span class=o>=&gt;</span> <span class=nn>CouponEngine</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>);</span>
+</span></span></code></pre></td></tr></table></div></div><p>「……え、既存の OrderManager、PaymentGateway、InventoryManager は一切変更なしじゃと？」</p><p>「一切なしだ。CouponEngine は <code>Colleague</code> ロールを持ち、Mediator に登録される。連携ロジックは Mediator の <code>relay</code> に追加するだけ。既存モジュールは自分にクーポンなど存在することすら知らない」</p><p>ワシは唸った。Before じゃったら、5つのモジュール全部に <code>has coupon =></code> を追加して、初期化コードに5行追加して、各モジュールの処理にクーポン判定を埋め込んで……。あの悪夢はもう過去のものというわけか。</p><h2 id=解決星形に生まれ変わった巣>解決：星形に生まれ変わった巣</h2><p>ロックがテストを実行すると、ターミナルに結果が並んだ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl>$ prove -v t/mediator.t
+</span></span><span class=line><span class=cl><span class=c1># Subtest: Before: Spaghetti Coupling</span>
+</span></span><span class=line><span class=cl>    ok <span class=m>1</span> - OrderManager can place_order
+</span></span><span class=line><span class=cl>    ok <span class=m>2</span> - PaymentGateway references InventoryManager directly
+</span></span><span class=line><span class=cl>    ok <span class=m>3</span> - InventoryManager references NotificationService directly
+</span></span><span class=line><span class=cl>    ok <span class=m>4</span> - NotificationService references AuditLogger directly
+</span></span><span class=line><span class=cl>    ok <span class=m>5</span> - Adding CouponEngine requires modifying ALL existing modules
+</span></span><span class=line><span class=cl>ok <span class=m>1</span> - Before: Spaghetti Coupling
+</span></span><span class=line><span class=cl><span class=c1># Subtest: After: Mediator Pattern</span>
+</span></span><span class=line><span class=cl>    ok <span class=m>1</span> - OrderManager has no direct module references
+</span></span><span class=line><span class=cl>    ok <span class=m>2</span> - PaymentGateway has no direct module references
+</span></span><span class=line><span class=cl>    ok <span class=m>3</span> - InventoryManager has no direct module references
+</span></span><span class=line><span class=cl>    ok <span class=m>4</span> - NotificationService has no direct module references
+</span></span><span class=line><span class=cl>    ok <span class=m>5</span> - All <span class=m>5</span> modules registered with Mediator
+</span></span><span class=line><span class=cl>    ok <span class=m>6</span> - order_placed event triggers notification
+</span></span><span class=line><span class=cl>    ok <span class=m>7</span> - order_placed event triggers audit log
+</span></span><span class=line><span class=cl>    ok <span class=m>8</span> - Notification contains order confirmation
+</span></span><span class=line><span class=cl>    ok <span class=m>9</span> - payment_failed event triggers rollback notification
+</span></span><span class=line><span class=cl>    ok <span class=m>10</span> - CouponEngine added without modifying existing modules
+</span></span><span class=line><span class=cl>    ok <span class=m>11</span> - Coupon discount applied correctly
+</span></span><span class=line><span class=cl>    ok <span class=m>12</span> - coupon_applied event triggers notification
+</span></span><span class=line><span class=cl>    ok <span class=m>13</span> - coupon_applied event triggers audit log
+</span></span><span class=line><span class=cl>ok <span class=m>2</span> - After: Mediator Pattern
+</span></span><span class=line><span class=cl>All tests successful.
+</span></span></code></pre></td></tr></table></div></div><p>「Before のテスト2〜4を見たまえ。各モジュールが他のモジュールを直接参照している証拠だ。After のテスト1〜4——どのモジュールにも直接参照がない。テスト10、CouponEngine の追加で既存モジュールは一切触っていない。テスト11〜13、クーポンのイベントも正しく流れている」</p><p>「依存線が10本から5本に。新しいモジュールを追加しても、既存コードに触らんで済む。蜘蛛の巣が、星形に——」</p><p>「<strong>蜘蛛の巣に中心が生まれた</strong>。すべての振動は中心を通じて、正しい方向に伝えられる。これがMediatorパターンだ」</p><p>ワシはPCを閉じかけたが、ロックが手を上げた。</p><p>「報酬は——そうだな。依存線の削減率と同じパーセンテージのクーポンをいただこうか。50%オフだ」</p><p>「それ、CTOに怒られるやつじゃな……」</p><p>ロックは人差し指を立てた。</p><p>「最後に一つ。Mediator はスパゲッティ結合を星形に変える強力な手法だ。だが、全ての連携ロジックを仲介者に詰め込みすぎると、今度は仲介者自身が神オブジェクトになる。蜘蛛の巣の中心にいる蜘蛛が太りすぎれば、巣は再び崩壊するよ」</p><p>「仲介者が肥大化したら、どうすればええんじゃ？」</p><p>「イベントハンドラをクラスに分離するか、ドメインごとに仲介者を分割する。中心は軽くあるべきだ。それを忘れなければ、糸は美しく張り続けるだろう」</p><p>ワシはLCIを出て、CTOへの返信を書いた。「クーポン機能、1週間で行けます」</p><hr><h2 id=探偵の調査報告書>探偵の調査報告書</h2><div class=table-wrapper><table><thead><tr><th style=text-align:left>容疑（アンチパターン）</th><th style=text-align:left>真実（パターン）</th><th style=text-align:left>証拠（効果）</th></tr></thead><tbody><tr><td style=text-align:left>Spaghetti Coupling（スパゲッティ結合）。5つのモジュールが互いに直接参照し合い、10本の依存線が蜘蛛の巣状に絡み合う。新モジュール追加で既存の全モジュールの修正が必要になり、影響範囲が予測不能。</td><td style=text-align:left>Mediator パターン。モジュール間の通信を1つの仲介者オブジェクトに集約し、各モジュールは仲介者のみを参照する。N×NをN×1のスター型に変換。</td><td style=text-align:left>依存線が10本から5本に削減。新モジュール（CouponEngine）追加で既存コードの修正がゼロ。1モジュールの変更影響がMediatorに局所化。初期化コードが後付け参照注入からregisterチェーンに簡素化。</td></tr></tbody></table></div><h3 id=推理のステップ>推理のステップ</h3><ol><li>Colleague ロールを定義する: 全モジュールが守るべき契約——<code>mediator</code> への参照と <code>send_event</code> メソッド——をRoleとして定義する。他モジュールへの直接参照を全て削除する。</li><li>Mediator を実装する: 全モジュールを <code>register</code> で登録し、<code>relay</code> メソッドでイベントに応じた連携ロジックを一元管理する。</li><li>各モジュールをリファクタリングする: 他モジュールへの直接呼び出しを <code>send_event</code> に置き換える。各モジュールは自分の責務だけを遂行する。</li><li>新モジュールを追加する: <code>Colleague</code> ロールを適用してMediatorに登録し、<code>relay</code> にイベントハンドラを追加するだけ。既存モジュールは一切変更しない。</li></ol><h3 id=ロックより>ロックより</h3><p>ワトソン君。モジュール同士が直接参照し合うのは、一見すると素朴で効率的に見える。だがそれは、全員が全員の携帯番号を知っている組織と同じだ。3人なら3本の電話線で済む。5人なら10本。10人なら45本。人数が増えるたびに通信網は二次関数的に複雑化し、やがて誰が誰に何を伝えたか追跡不能になる。</p><p>Mediatorは「交換手」の配置だ。全員が交換手にだけ電話をかけ、交換手が適切な相手に繋ぐ。新しいメンバーが加わっても、交換手に番号を登録するだけで既存メンバーの電話帳は変わらない。ただし、交換手にすべてを任せすぎると、交換手自身がボトルネックになる。イベントの種類が数十に膨れ上がったら、それは仲介者を分割するサインだ。蜘蛛の巣の中心は、軽く、しなやかでなければならない。</p></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/perl/>Perl</a>
+<a href=/tags/moo/>Moo</a>
+<a href=/tags/mediator/>Mediator</a>
+<a href=/tags/spaghetti-coupling/>Spaghetti-Coupling</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-detective/>Code-Detective</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/03/29/070705/><div class=article-image><img src=/public_images/2026/code-detective-memento/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-memento/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Memento】失われた条項の記憶〜状態を封じるタイムカプセル〜</h2></div></a></article><article class=has-image><a href=/2026/03/28/070705/><div class=article-image><img src=/public_images/2026/code-detective-flyweight/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-flyweight/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Flyweight】十万体の分身術〜共有すべき素顔の秘密〜</h2></div></a></article><article class=has-image><a href=/2026/03/27/070705/><div class=article-image><img src=/public_images/2026/code-detective-bridge/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-bridge/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Bridge】交差する二つの系譜〜掛け算の呪いを解く架け橋〜</h2></div></a></article><article class=has-image><a href=/2026/03/26/070705/><div class=article-image><img src=/public_images/2026/code-detective-abstract-factory/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-abstract-factory/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Abstract Factory】混沌の箱庭〜血統を守らぬ創造主〜</h2></div></a></article><article class=has-image><a href=/2026/03/24/070705/><div class=article-image><img src=/public_images/2026/code-detective-composite/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-composite/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Composite】地下組織の系譜図〜末端まで届かない指令〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

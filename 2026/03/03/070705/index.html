@@ -1,0 +1,320 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="eval()でクーポンルールを動的評価していた自信家テックリード。セキュリティ監査でコードインジェクション判定を受け来院。コードドクターが下した診断は「急性eval中毒」。Interpreterパターンによる文法オブジェクトの処方箋。"><title>コードドクター【Interpreter】急性eval中毒〜文法オブジェクトの処方箋〜</title><link rel=canonical href=https://www.nqou.net/2026/03/03/070705/><link rel=stylesheet href=/scss/style.min.6a692fd055deae459f2a9767f57f3855ba80cafd5041317f24f7360f6ca47cdf.css><meta property='og:title' content="コードドクター【Interpreter】急性eval中毒〜文法オブジェクトの処方箋〜"><meta property='og:description' content="eval()でクーポンルールを動的評価していた自信家テックリード。セキュリティ監査でコードインジェクション判定を受け来院。コードドクターが下した診断は「急性eval中毒」。Interpreterパターンによる文法オブジェクトの処方箋。"><meta property='og:url' content='https://www.nqou.net/2026/03/03/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='interpreter'><meta property='article:tag' content='perl'><meta property='article:tag' content='code-doctor'><meta property='article:published_time' content='2026-03-03T07:07:05+09:00'><meta property='article:modified_time' content='2026-03-03T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-doctor-interpreter/header.webp'><meta name=twitter:title content="コードドクター【Interpreter】急性eval中毒〜文法オブジェクトの処方箋〜"><meta name=twitter:description content="eval()でクーポンルールを動的評価していた自信家テックリード。セキュリティ監査でコードインジェクション判定を受け来院。コードドクターが下した診断は「急性eval中毒」。Interpreterパターンによる文法オブジェクトの処方箋。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-doctor-interpreter/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-03-03T07:07:05+09:00","datePublished":"2026-03-03T07:07:05+09:00","description":"eval()でクーポンルールを動的評価していた自信家テックリード。セキュリティ監査でコードインジェクション判定を受け来院。コードドクターが下した診断は「急性eval中毒」。Interpreterパターンによる文法オブジェクトの処方箋。","headline":"コードドクター【Interpreter】急性eval中毒〜文法オブジェクトの処方箋〜","image":"https://www.nqou.net/public_images/2026/code-doctor-interpreter/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/03/03/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#来院>来院</a></li><li><a href=#触診>触診</a></li><li><a href=#診断>診断</a></li><li><a href=#処方箋>処方箋</a><ol><li><a href=#成分の分離>成分の分離</a></li><li><a href=#投薬プロトコル>投薬プロトコル</a></li><li><a href=#排毒>排毒</a></li></ol></li><li><a href=#術後経過>術後経過</a></li><li><a href=#処方箋まとめ>処方箋まとめ</a><ol><li><a href=#治療のステップ>治療のステップ</a></li><li><a href=#助手より>助手より</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/03/03/070705/><img src=/public_images/2026/code-doctor-interpreter/header.webp loading=lazy alt="Featured image of post コードドクター【Interpreter】急性eval中毒〜文法オブジェクトの処方箋〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/03/03/070705/>コードドクター【Interpreter】急性eval中毒〜文法オブジェクトの処方箋〜</a></h2><h3 class=article-subtitle>eval()でクーポンルールを動的評価していた自信家テックリード。セキュリティ監査でコードインジェクション判定を受け来院。コードドクターが下した診断は「急性eval中毒」。Interpreterパターンによる文法オブジェクトの処方箋。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>03, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 14分</time></div></footer></div></header><section class=article-content><p>雑居ビルの2階。磨かれたリノリウムの床が、古めかしい蛍光灯の光を鈍く反射している。</p><p>俺——桐山蓮、29歳、中堅アパレルEC「ClothCraft」のバックエンド・テックリード——は、知人に渡されたメモを見ながら廊下を歩いていた。メモには住所と「コード診療所」とだけ書かれている。</p><p>「……マジか」</p><p>重厚な鉄扉に、白地に黒文字のプレート。飾り気のないゴシック体で「コード診療所」。それだけだ。病院のようなロゴも、営業時間の案内もない。</p><p>俺はドアの取っ手を引いた。</p><p>目の前に壁ができていた。O&rsquo;Reilly本の壁。背表紙に動物のイラストが描かれた技術書が天井近くまで積まれ、その隙間からマザーボードやケーブルの束が顔を覗かせている。</p><p>「……病院っていうか、倉庫じゃねえか」</p><p>本の山を避けながら奥に進むと、ようやく受付カウンターらしきものが見えた。その向こう——ブラインドの降りた窓を背にしたトリプルディスプレイの前に、黒いシャツを着た男が座っている。微動だにしない。キーボードに両手を置いたまま、画面を凝視している。</p><p>「あの、すみません——」</p><p>「大丈夫ですよ、ここはコード診療所です」</p><p>カウンターの横から声がした。</p><p>「助手のナナコと申します。こちらがコードドクターの先生です。どうぞおかけになってください」</p><p>ナナコと名乗ったその人は、柔らかい白のブラウスにカーディガンを羽織り、穏やかな笑顔を浮かべていた。</p><p>先生と呼ばれた男は、俺が座っても振り向かなかった。画面から目を離さない。失礼なやつだ——というのが正直な第一印象だった。</p><h2 id=来院>来院</h2><p>「えっと、知り合いのエンジニアに紹介されて来たんすけど」</p><p>俺はノートPCを鞄から取り出し、テーブルの上で開いた。管理画面のURLを叩く。ClothCraftの内部ツール——俺が2年かけて育てた、クーポンルールエンジンの管理画面だ。</p><p>「実は、セキュリティ監査ってやつに引っかかっちゃって。でも、正直、俺のシステムは問題ないと思ってるんすよ」</p><p>ナナコが隣に立ち、画面を覗き込んだ。</p><p>「監査の報告書、見せていただけますか？」</p><p>俺は監査レポートのPDFを開いた。赤字で「コードインジェクション: Critical」と書いてある。</p><p>「これっすね。でも、管理画面だから外部入力じゃないし——ちょっと見てもらえます？」</p><p>俺はルール入力欄に <code>cart_total >= 5000 && member_rank eq "gold"</code> と打ち込んで、実行ボタンを押した。画面の右側に「適用: ゴールド会員5000円以上割引」と表示される。</p><p>「ほら、リアルタイムで反映されるんすよ。コード変更なしで。マーケのやつらも大喜びで——」</p><p>背後で椅子が軋む音がした。</p><p>先生がいつの間にかトリプルディスプレイから離れ、俺のノートPCを覗き込んでいた。ただし、管理画面ではなく、俺が裏で開いていたソースコードのタブを。<code>CouponEngine.pm</code> の eval が書かれた行を、無言で指差している。</p><p>「あ、そこ見ます？ eval っすけど、柔軟にやるにはこれが——」</p><p>先生が片手を上げた。「止まれ」とでも言うような、静かだが有無を言わせない動作だった。</p><p>「……劇薬だ」</p><p>先生の声は低く、短かった。</p><p>ナナコが俺の方を向いて微笑んだ。「eval は確かに即効性がありますけど、副作用も大きいお薬なんです。用法・用量を間違えると……大変なことになりますよ」</p><p>「いや、でも2年間ちゃんと——」</p><p>先生は俺の言葉には何の反応も見せず、ソースコードをスクロールし始めた。</p><hr><h2 id=触診>触診</h2><p>先生の指がトラックパッドを滑り、俺のコードが画面を流れていく。止まった場所は <code>evaluate</code> メソッドの中核部分だった。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># evalで評価！ これが俺の最強の武器</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$result</span> <span class=o>=</span> <span class=nb>eval</span> <span class=nv>$expr</span><span class=p>;</span>  <span class=c1>## no critic -- 桐山は気にしない</span>
+</span></span><span class=line><span class=cl><span class=k>if</span> <span class=p>(</span><span class=vg>$@</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=c1># エラーは「条件不一致」として処理</span>
+</span></span><span class=line><span class=cl>    <span class=c1># FIXME: ログくらい出したほうがいい気がするけど...まあいいか</span>
+</span></span><span class=line><span class=cl>    <span class=k>next</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>先生が eval の行を指で叩いた。コツ、コツ、と。</p><p>「注射……直接、フィルタなし」</p><p>ナナコが通訳した。「外部から入力された文字列を、そのまま Perl のコードとして実行しているんです。点滴に何でも混ぜられる状態——いえ、注射器で直接血管に異物を打ち込める状態ですね」</p><p>「いや、でも管理画面からしか——」</p><p>「管理画面にログインできる方全員が、Perl のコードを自由に実行できるということですよ」</p><p>ナナコの声は穏やかだったが、俺の背筋が凍った。</p><p>「マーケ部門の人も、アルバイトの子も、アカウントさえあれば？」</p><p>「はい」</p><p>俺は自分が作ったルール入力欄を見た。テキストボックスだ。自由入力のテキストボックス。その中身が eval に流し込まれる。</p><p>……やばい。</p><p>先生はさらにスクロールし、<code>$@</code> の処理を指差した。</p><p>「もう一つ。痛覚が死んでいる」</p><p>俺は <code>if ($@) { next; }</code> の行を見つめた。エラーを……握りつぶしている。eval でエラーが起きても、「条件不一致」として静かに next しているだけ。ログも出していない。</p><p>ナナコが続けた。「エラーを握りつぶしているので、異変に気づけないんです。痛みを感じない体は、怪我をしても気づけないんですよ」</p><p>「あれは……ルールがマッチしなかったってことだと思って……」</p><p>「不正な式が混入しても、壊れたルールが紛れ込んでも、全部 &ldquo;条件不一致&rdquo; で片づけられてしまいますね」</p><p>先生が画面から目を離し、俺の方を向いた。いや、正確には俺を通り越した先の壁を見ているのかもしれない。判断がつかなかった。</p><p>「急性eval中毒。 <strong>重症</strong>」</p><hr><h2 id=診断>診断</h2><p>ナナコが俺の前にメモを差し出した。きれいな字で箇条書きが並んでいる。</p><p>「整理しますね。桐山さんのシステムには3つの症状があります」</p><blockquote><ol><li><strong>eval 依存</strong>: ルール文字列をそのまま <code>eval</code> で実行。コードインジェクションのリスク</li><li><strong>エラーの握りつぶし</strong>: <code>$@</code> を無視し、異常を「条件不一致」として処理</li><li><strong>デバッグ不能</strong>: 40以上のルールのどれがマッチ/エラーしたか追跡できない</li></ol></blockquote><p>「2年間動いていたのは偶然ではありません。桐山さんのルール設計がしっかりしていたからです。でも、eval という土台が危ないんです」</p><p>ナナコの言葉は俺の自尊心を傷つけないように選ばれていた——ように聞こえた。</p><p>「じゃあ、eval を外せばいいって話っすか？ でもそしたらルールの動的評価ができなくなる——」</p><p>先生が口を開いた。</p><p>「できる」</p><p>一語。それだけだった。</p><hr><h2 id=処方箋>処方箋</h2><p>先生は自分の席に戻り、トリプルディスプレイに向かった。新しいファイルを開き、キーボードを叩き始める。あの小さなキーボード——HHKBというやつだろうか——から乾いた打鍵音が響く。</p><p>ナナコが俺の横に椅子を持ってきて座った。</p><p>「先生が今から書くコードを、一緒に見ていきましょう。eval を使わずにルールを動的に評価する方法があるんですよ」</p><h3 id=成分の分離>成分の分離</h3><p>先生の指が最初に作ったのは、驚くほど短いクラスだった。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>ClothCraft::Expression</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Carp</span> <span class=sx>qw(croak)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>new</span> <span class=p>($class, %args) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nb>bless</span> <span class=o>\</span><span class=nv>%args</span><span class=p>,</span> <span class=nv>$class</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>interpret</span> <span class=p>($self, $context) {</span>
+</span></span><span class=line><span class=cl>    <span class=n>croak</span> <span class=nb>ref</span><span class=p>(</span><span class=nv>$self</span><span class=p>)</span> <span class=o>.</span> <span class=s>&#39;::interpret() is not implemented&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「……文法」</p><p>先生がぼそりと呟いた。</p><p>「ルールの文法を、クラスで表現するんです」ナナコが俺に向かって言った。「文字列ではなくオブジェクトとして」</p><p>「オブジェクト？ 文字列を eval に渡すんじゃなくて？」</p><p>「はい。まず、ルールを構成する最小の部品——単語カードのようなものを作ります」</p><p>先生は続けて、3つのクラスを書いた。数値や文字列を表す <code>Literal</code>、コンテキスト変数を参照する <code>Variable</code>、そして比較演算を行う <code>Comparison</code>。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>ClothCraft::Expression::Literal</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>parent</span> <span class=s>&#39;ClothCraft::Expression&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>new</span> <span class=p>($class, $value) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$class</span><span class=o>-&gt;</span><span class=nn>SUPER::</span><span class=k>new</span><span class=p>(</span><span class=n>value</span> <span class=o>=&gt;</span> <span class=nv>$value</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>interpret</span> <span class=p>($self, $context) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>value</span><span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>ClothCraft::Expression::Variable</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>parent</span> <span class=s>&#39;ClothCraft::Expression&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Carp</span> <span class=sx>qw(croak)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>new</span> <span class=p>($class, $name) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$class</span><span class=o>-&gt;</span><span class=nn>SUPER::</span><span class=k>new</span><span class=p>(</span><span class=n>name</span> <span class=o>=&gt;</span> <span class=nv>$name</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>interpret</span> <span class=p>($self, $context) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$name</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>name</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=n>croak</span> <span class=s>&#34;Unknown variable: $name&#34;</span> <span class=k>unless</span> <span class=nb>exists</span> <span class=nv>$context</span><span class=o>-&gt;</span><span class=p>{</span><span class=nv>$name</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$context</span><span class=o>-&gt;</span><span class=p>{</span><span class=nv>$name</span><span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>ClothCraft::Expression::Comparison</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>parent</span> <span class=s>&#39;ClothCraft::Expression&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Carp</span> <span class=sx>qw(croak)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>%OPS</span> <span class=o>=</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=s>&#39;&gt;=&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>($a, $b) {</span> <span class=nv>$a</span> <span class=o>&gt;=</span> <span class=nv>$b</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=s>&#39;&lt;=&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>($a, $b) {</span> <span class=nv>$a</span> <span class=o>&lt;=</span> <span class=nv>$b</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=s>&#39;==&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>($a, $b) {</span> <span class=nv>$a</span> <span class=o>==</span> <span class=nv>$b</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=s>&#39;!=&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>($a, $b) {</span> <span class=nv>$a</span> <span class=o>!=</span> <span class=nv>$b</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=s>&#39;eq&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>($a, $b) {</span> <span class=nv>$a</span> <span class=ow>eq</span> <span class=nv>$b</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=s>&#39;ne&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>($a, $b) {</span> <span class=nv>$a</span> <span class=ow>ne</span> <span class=nv>$b</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>new</span> <span class=p>($class, $left, $op, $right) {</span>
+</span></span><span class=line><span class=cl>    <span class=n>croak</span> <span class=s>&#34;Unknown operator: $op&#34;</span> <span class=k>unless</span> <span class=nb>exists</span> <span class=nv>$OPS</span><span class=p>{</span><span class=nv>$op</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$class</span><span class=o>-&gt;</span><span class=nn>SUPER::</span><span class=k>new</span><span class=p>(</span><span class=n>left</span> <span class=o>=&gt;</span> <span class=nv>$left</span><span class=p>,</span> <span class=n>op</span> <span class=o>=&gt;</span> <span class=nv>$op</span><span class=p>,</span> <span class=n>right</span> <span class=o>=&gt;</span> <span class=nv>$right</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>interpret</span> <span class=p>($self, $context) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$left_val</span>  <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>left</span><span class=p>}</span><span class=o>-&gt;</span><span class=n>interpret</span><span class=p>(</span><span class=nv>$context</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$right_val</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>right</span><span class=p>}</span><span class=o>-&gt;</span><span class=n>interpret</span><span class=p>(</span><span class=nv>$context</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$OPS</span><span class=p>{</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>op</span><span class=p>}}</span><span class=o>-&gt;</span><span class=p>(</span><span class=nv>$left_val</span><span class=p>,</span> <span class=nv>$right_val</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>ナナコが微笑んだ。「 <code>cart_total >= 5000</code> という式は、 <code>Variable("cart_total")</code>、 <code>Comparison(>=)</code>、 <code>Literal(5000)</code> という3枚のカードに分解されるんです。1枚1枚のカードは安全で、 注射器（eval）を使わなくても結果が出せます 」</p><p>「なるほど……各カードが自分で <code>interpret</code> を呼ぶから、eval を通さなくていいのか」</p><p>先生がちらりと俺を見た。いや、俺の隣のナナコを見たのかもしれない。一瞬だったので分からなかった。</p><h3 id=投薬プロトコル>投薬プロトコル</h3><p>先生の打鍵が続いた。次に現れたのは <code>And</code>、<code>Or</code>、<code>Not</code> の3つのクラスだった。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>ClothCraft::Expression::And</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>parent</span> <span class=s>&#39;ClothCraft::Expression&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>new</span> <span class=p>($class, $left, $right) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$class</span><span class=o>-&gt;</span><span class=nn>SUPER::</span><span class=k>new</span><span class=p>(</span><span class=n>left</span> <span class=o>=&gt;</span> <span class=nv>$left</span><span class=p>,</span> <span class=n>right</span> <span class=o>=&gt;</span> <span class=nv>$right</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>interpret</span> <span class=p>($self, $context) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>left</span><span class=p>}</span><span class=o>-&gt;</span><span class=n>interpret</span><span class=p>(</span><span class=nv>$context</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=o>&amp;&amp;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>right</span><span class=p>}</span><span class=o>-&gt;</span><span class=n>interpret</span><span class=p>(</span><span class=nv>$context</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>ClothCraft::Expression::Or</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>parent</span> <span class=s>&#39;ClothCraft::Expression&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>new</span> <span class=p>($class, $left, $right) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$class</span><span class=o>-&gt;</span><span class=nn>SUPER::</span><span class=k>new</span><span class=p>(</span><span class=n>left</span> <span class=o>=&gt;</span> <span class=nv>$left</span><span class=p>,</span> <span class=n>right</span> <span class=o>=&gt;</span> <span class=nv>$right</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>interpret</span> <span class=p>($self, $context) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>left</span><span class=p>}</span><span class=o>-&gt;</span><span class=n>interpret</span><span class=p>(</span><span class=nv>$context</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=o>||</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>right</span><span class=p>}</span><span class=o>-&gt;</span><span class=n>interpret</span><span class=p>(</span><span class=nv>$context</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「……構文木」</p><p>先生がまた短く呟いた。</p><p>ナナコが頷いた。「カードを木のように組み合わせるんです。 <code>A AND B</code> なら、AND の下に A と B がぶら下がる。 <code>A AND (B OR C)</code> なら、AND の下に A と <code>B OR C</code> のサブツリーがぶら下がる——CTスキャンの画像みたいに、ルールの構造が見えるようになりますよ」</p><p>「CTスキャン……」</p><p>俺の eval エンジンは、文字列を丸ごと飲み込んで胃液で溶かすような仕組みだった。中身は見えない。何が起きているかも分からない。だから <code>$@</code> を握りつぶしても気づかなかった。</p><p>でもこの構文木なら、どのノードがどう評価されたか、全部追える。</p><p>先生はさらにパーサーを書き始めた。ルール文字列をトークンに分解し、Expression オブジェクトのツリーに変換する <code>RuleParser</code> クラス。トークナイザの正規表現と再帰下降パーサーが、驚くほど整然と組み上がっていく。</p><p>打鍵が止まった。先生が立ち上がった。俺の方に近づいてくる。</p><p>——え、何だ。俺のノートPC見てくれるのか？ 俺のコードを評価してくれるってことか？</p><p>先生の手が俺のほうに伸びた。俺は思わず姿勢を正した。</p><p>先生の手は俺のノートPCの脇に置いてあった缶コーヒーをつかみ、そのまま自分の席に戻った。プシュ、とプルタブを開け、一口飲んで、またキーボードに向かう。</p><p>「……え、俺のコーヒー？」</p><p>ナナコが申し訳なさそうに小声で言った。「すみません。先生は手の届くところにあるものは自分のものだと思うフシがありまして……。新しいのお持ちしますね」</p><p>先生は満足げな——かどうかは読めないが——無表情のまま、缶コーヒーを啜りながらコーディングを再開した。</p><p>……まあ、いいか。</p><h3 id=排毒>排毒</h3><p>先生が最後に書いたのは、新しい <code>CouponEngine</code> だった。eval は完全に消え、代わりに <code>RuleParser</code> と Expression ツリーが座っている。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>ClothCraft::CouponEngine</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Carp</span> <span class=sx>qw(croak)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>ClothCraft::RuleParser</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>new</span> <span class=p>($class) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$parser</span> <span class=o>=</span> <span class=nn>ClothCraft::RuleParser</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nb>bless</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>rules</span>  <span class=o>=&gt;</span> <span class=o>[]</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>parser</span> <span class=o>=&gt;</span> <span class=nv>$parser</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>},</span> <span class=nv>$class</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>add_rule</span> <span class=p>($self, %rule) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$expr</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>parser</span><span class=p>}</span><span class=o>-&gt;</span><span class=n>parse</span><span class=p>(</span><span class=nv>$rule</span><span class=p>{</span><span class=n>condition</span><span class=p>});</span>
+</span></span><span class=line><span class=cl>    <span class=nb>push</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>rules</span><span class=p>}</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>,</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>name</span>     <span class=o>=&gt;</span> <span class=nv>$rule</span><span class=p>{</span><span class=n>name</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>        <span class=n>expr</span>     <span class=o>=&gt;</span> <span class=nv>$expr</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>discount</span> <span class=o>=&gt;</span> <span class=nv>$rule</span><span class=p>{</span><span class=n>discount</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>evaluate</span> <span class=p>($self, $context) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>@applicable</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=k>my</span> <span class=nv>$rule</span> <span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>rules</span><span class=p>}</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=nv>$rule</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>expr</span><span class=p>}</span><span class=o>-&gt;</span><span class=n>interpret</span><span class=p>(</span><span class=nv>$context</span><span class=p>))</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nb>push</span> <span class=nv>@applicable</span><span class=p>,</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>                <span class=n>name</span>     <span class=o>=&gt;</span> <span class=nv>$rule</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>name</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>                <span class=n>discount</span> <span class=o>=&gt;</span> <span class=nv>$rule</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>discount</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>            <span class=p>};</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=o>\</span><span class=nv>@applicable</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「……排毒完了」</p><p>先生がそう呟いた瞬間、俺は画面を見つめた。<code>add_rule</code> の中にある <code>$self->{parser}->parse(...)</code> が目に入る。ルール文字列は登録時にパースされ、Expression ツリーに変換される。もし文字列がおかしければ、この時点でエラーになる。<code>evaluate</code> は純粋にツリーを <code>interpret</code> するだけだ。</p><p>「消えた……」俺は呟いた。「eval が、消えた」</p><p>「大丈夫ですよ」ナナコが微笑んだ。「もっと安全で、構造が分かる治療法に変わったんです。試しに不正な式を入れてみましょうか」</p><p>先生が端末に壊れたルール文字列を入力した。パーサーが即座にエラーを投げた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>Unexpected token at position 3: &#39;&gt;===&#39;
+</span></span></code></pre></td></tr></table></div></div><p>「前は黙って飲み込んでたのに……ちゃんとエラーになる」</p><p>先生が小さく頷いた——ように見えた。</p><hr><h2 id=術後経過>術後経過</h2><p>先生がテストを走らせた。俺が管理画面から登録していた46件のルール——同等の条件式をすべて新しいエンジンに移行し、同じコンテキストで評価する。</p><p>画面にテスト結果が流れた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>ok 1 - ゴールド会員8000円で1ルール適用
+</span></span><span class=line><span class=cl>ok 2 - 正しいルールが適用
+</span></span><span class=line><span class=cl>ok 3 - 割引額500円
+</span></span><span class=line><span class=cl>...
+</span></span><span class=line><span class=cl>ok 24 - 不正なルールは登録時にエラーになる
+</span></span><span class=line><span class=cl>...
+</span></span><span class=line><span class=cl>1..27
+</span></span></code></pre></td></tr></table></div></div><p>「全部……通ってる」</p><p>27件のテスト、全パス。eval 時代と同じ結果が、eval なしで実現されている。</p><p>「新しい演算子を追加してみましょうか」ナナコが俺に向かって言った。「先生、 <code>CONTAINS</code> はどうですか？」</p><p>先生は無言で新しいクラスを書き始めた。ファイルを一つ追加し、パーサーのトークナイザに一語追加しただけ。10行にも満たない変更。既存の Expression クラスには一切手を入れていない。</p><p>「……追加完了」</p><p>「え、これだけ？ 既存のコード触ってないっすよね」</p><p>「新しいお薬を棚に追加しただけですよ。他のお薬には影響しません」ナナコが穏やかに言った。</p><p>俺は画面を見つめた。eval 時代なら、正規表現に1行追加するだけで済んだ。確かにそっちのほうが短い。でも——</p><p>「eval のほうが短かったっすけど……こっちのほうが何やってるか分かる」</p><p>先生が席を立った。奥の部屋に向かって歩き始めた。</p><p>「コミットメント」</p><p>「先生の治療費はテストコードです」ナナコが振り返って言った。「新しいルールを追加するたびに、テストを書いてくださいね」</p><p>「テスト……ああ、eval 時代はそもそもテスト書けなかったっすもんね。文字列をそのまま eval に突っ込んでたから、ユニットテストの書きようがなくて」</p><p>先生は奥の部屋のドアに手をかけた。振り返らない。</p><p>「感謝は、このコードに」</p><p>ドアが閉まった。乾いた打鍵音が、ドアの向こうから微かに聞こえた。もう次の仕事に取りかかっているのだろう。</p><p>ナナコが俺の方に向き直り、にっこり笑った。</p><p>「おだいじに。監査の再試験、きっとうまくいきますよ」</p><p>「……ありがとうございます」</p><p>俺はノートPCを閉じ、鞄に入れて立ち上がった。O&rsquo;Reilly本の山を避けながら入口に向かい、鉄の扉を押して廊下に出た。</p><p>リノリウムの床が蛍光灯の光を反射している。来た時と同じ景色のはずなのに、少しだけ明るく見えた。</p><p>——悔しいけど、俺の「最強の武器」は eval じゃなかった。</p><p>エレベーターのボタンを押しながら、俺は頭の中で <code>Expression</code> クラスのツリー構造を描いていた。<code>AND</code> の下に <code>Comparison</code> がぶら下がり、その末端に <code>Variable</code> と <code>Literal</code> がある。CTスキャンの画像だ。自分のシステムの内臓が、初めて見えた気がした。</p><p>明日、まずテストを書こう。46件のルール全部に。</p><hr><h2 id=処方箋まとめ>処方箋まとめ</h2><div class=table-wrapper><table><thead><tr><th>症状</th><th style=text-align:center>適用すべき</th><th style=text-align:center>経過観察</th></tr></thead><tbody><tr><td>文字列で構成された条件式を動的に評価したい</td><td style=text-align:center>✓</td><td style=text-align:center></td></tr><tr><td>eval / exec で文字列を直接実行している</td><td style=text-align:center>✓</td><td style=text-align:center></td></tr><tr><td>ルール追加にコード変更が必要になっている</td><td style=text-align:center>✓</td><td style=text-align:center></td></tr><tr><td>条件式のネスト（括弧）に対応できていない</td><td style=text-align:center>✓</td><td style=text-align:center></td></tr><tr><td>固定的な if/else 分岐が5個以下で済んでいる</td><td style=text-align:center></td><td style=text-align:center>✓</td></tr><tr><td>DSLの文法が今後拡張される見込みがない</td><td style=text-align:center></td><td style=text-align:center>✓</td></tr></tbody></table></div><h3 id=治療のステップ>治療のステップ</h3><ol><li><strong>Expression 基底クラスの定義</strong> — <code>interpret($context)</code> インターフェースを持つ共通の親クラスを作成する</li><li><strong>終端式（Terminal Expression）の実装</strong> — <code>Literal</code>（リテラル値）、<code>Variable</code>（変数参照）、<code>Comparison</code>（比較演算）など、これ以上分解できない最小単位の式を実装する</li><li><strong>非終端式（NonTerminal Expression）の実装</strong> — <code>And</code>、<code>Or</code>、<code>Not</code> など、他の Expression を子に持つ複合式を実装する</li><li><strong>パーサーの実装</strong> — ルール文字列をトークンに分解し、Expression オブジェクトのツリー（構文木）に変換するパーサーを作成する</li><li><strong>eval の除去と置換</strong> — 既存の eval 呼び出しを、パーサー + <code>interpret()</code> の呼び出しに置き換える</li><li><strong>テストの記述</strong> — 各 Expression クラスの単体テスト、パーサーのテスト、統合テストを記述する</li></ol><h3 id=助手より>助手より</h3><p>eval は確かに万能薬のように見えますよね。「何でも評価できる」という力は魅力的です。でも、その力がそのままリスクでもあるんです。</p><p>Interpreter パターンは、eval の「柔軟さ」を捨てずに「安全性」を取り戻す治療法です。式をオブジェクトのツリーとして表現することで、何が評価されているかが見えるようになります。CTスキャンのように。</p><p>桐山さんの2年間は無駄ではありません。あのルール設計があったからこそ、新しいエンジンにスムーズに移行できたんですよ。これからはテストという心強い味方と一緒に、もっと安全なシステムを育ててくださいね。</p><p>——ナナコ</p></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/interpreter/>Interpreter</a>
+<a href=/tags/perl/>Perl</a>
+<a href=/tags/code-doctor/>Code-Doctor</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/03/02/070705/><div class=article-image><img src=/public_images/2026/code-doctor-visitor/header.webp loading=lazy data-key data-hash=/public_images/2026/code-doctor-visitor/header.webp></div><div class=article-details><h2 class=article-title>コードドクター【Visitor】多発性分岐硬化症〜全身に散らばったref()を切除せよ〜</h2></div></a></article><article class=has-image><a href=/2026/03/01/070705/><div class=article-image><img src=/public_images/2026/code-doctor-memento/header.webp loading=lazy data-key data-hash=/public_images/2026/code-doctor-memento/header.webp></div><div class=article-details><h2 class=article-title>コードドクター【Memento】多重記憶喪失症候群〜消えた最高の一杯と記憶カプセルの処方箋〜</h2></div></a></article><article class=has-image><a href=/2026/02/28/070705/><div class=article-image><img src=/public_images/2026/code-doctor-mediator/header.webp loading=lazy data-key data-hash=/public_images/2026/code-doctor-mediator/header.webp></div><div class=article-details><h2 class=article-title>コードドクター【Mediator】全身感染症候群〜仲介者の処方箋〜</h2></div></a></article><article class=has-image><a href=/2026/02/27/070705/><div class=article-image><img src=/public_images/2026/code-doctor-state/header.webp loading=lazy data-key data-hash=/public_images/2026/code-doctor-state/header.webp></div><div class=article-details><h2 class=article-title>コードドクター【State】フラグ免疫不全症候群〜調理工程カンバンと状態オブジェクトの移植術〜</h2></div></a></article><article class=has-image><a href=/2026/02/26/070705/><div class=article-image><img src=/public_images/2026/code-doctor-chain-of-responsibility/header.webp loading=lazy data-key data-hash=/public_images/2026/code-doctor-chain-of-responsibility/header.webp></div><div class=article-details><h2 class=article-title>コードドクター【Chain of Responsibility】多段塞栓症候群〜暴走アラートの連鎖分離術〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

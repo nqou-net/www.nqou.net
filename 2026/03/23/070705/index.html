@@ -1,0 +1,595 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="通知システムの保守を引き継いだら、サブクラスが30個以上。機能の組み合わせごとにクラスが爆発する地獄を、Decoratorパターンで「重ね着」に変えるコード探偵ロックの推理。"><title>コード探偵ロックの事件簿【Decorator】二十面相のコード〜終わらない継承の連鎖〜</title><link rel=canonical href=https://www.nqou.net/2026/03/23/070705/><link rel=stylesheet href=/scss/style.min.6a692fd055deae459f2a9767f57f3855ba80cafd5041317f24f7360f6ca47cdf.css><meta property='og:title' content="コード探偵ロックの事件簿【Decorator】二十面相のコード〜終わらない継承の連鎖〜"><meta property='og:description' content="通知システムの保守を引き継いだら、サブクラスが30個以上。機能の組み合わせごとにクラスが爆発する地獄を、Decoratorパターンで「重ね着」に変えるコード探偵ロックの推理。"><meta property='og:url' content='https://www.nqou.net/2026/03/23/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='perl'><meta property='article:tag' content='moo'><meta property='article:tag' content='decorator'><meta property='article:tag' content='combinatorial-explosion'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-detective'><meta property='article:published_time' content='2026-03-23T07:07:05+09:00'><meta property='article:modified_time' content='2026-03-23T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-detective-decorator/header.webp'><meta name=twitter:title content="コード探偵ロックの事件簿【Decorator】二十面相のコード〜終わらない継承の連鎖〜"><meta name=twitter:description content="通知システムの保守を引き継いだら、サブクラスが30個以上。機能の組み合わせごとにクラスが爆発する地獄を、Decoratorパターンで「重ね着」に変えるコード探偵ロックの推理。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-detective-decorator/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-03-23T07:07:05+09:00","datePublished":"2026-03-23T07:07:05+09:00","description":"通知システムの保守を引き継いだら、サブクラスが30個以上。機能の組み合わせごとにクラスが爆発する地獄を、Decoratorパターンで「重ね着」に変えるコード探偵ロックの推理。","headline":"コード探偵ロックの事件簿【Decorator】二十面相のコード〜終わらない継承の連鎖〜","image":"https://www.nqou.net/public_images/2026/code-detective-decorator/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/03/23/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#現場検証三十の仮面>現場検証：三十の仮面</a></li><li><a href=#推理披露重ね着の技法decorator>推理披露：重ね着の技法（Decorator）</a></li><li><a href=#解決仮面の怪人の正体>解決：仮面の怪人の正体</a></li><li><a href=#探偵の調査報告書>探偵の調査報告書</a><ol><li><a href=#推理のステップ>推理のステップ</a></li><li><a href=#ロックより>ロックより</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/03/23/070705/><img src=/public_images/2026/code-detective-decorator/header.webp loading=lazy alt="Featured image of post コード探偵ロックの事件簿【Decorator】二十面相のコード〜終わらない継承の連鎖〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/03/23/070705/>コード探偵ロックの事件簿【Decorator】二十面相のコード〜終わらない継承の連鎖〜</a></h2><h3 class=article-subtitle>通知システムの保守を引き継いだら、サブクラスが30個以上。機能の組み合わせごとにクラスが爆発する地獄を、Decoratorパターンで「重ね着」に変えるコード探偵ロックの推理。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>23, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 11分</time></div></footer></div></header><section class=article-content><p>「助けてください！ 通知システムのサブクラスが30個以上あって、もう1個も増やせないんです！」</p><p>私は佐伯。中堅SaaS企業でバックエンドを担当して5年になる。先月まではそれなりに自信もあった。通知システムの保守を引き継ぐまでは。</p><p>前任の山岸先輩は、退職前に分厚い引き継ぎ資料を残してくれた。そこには「通知機能を拡張するときは、既存クラスを継承して新しいサブクラスを作ること」と書かれていた。親切な指示だと思った。最初の1週間だけは。</p><p>メール通知。Slack通知。リトライ付きメール通知。ログ付きSlack通知。リトライ＋ログ付きメール通知。リトライ＋ログ付きSlack通知――。</p><p>サブクラスの一覧をExcelに書き出したとき、私は自分の目を疑った。30を超えていた。そして今朝、上司がにこやかに言った。</p><p>「佐伯さん、SMS通知も追加してもらえる？ 来週までに」</p><p>その瞬間、私の視界が暗くなった。SMS通知を追加するということは、既存の組み合わせの数だけ新しいサブクラスが必要になるということだ。私はノートPCを抱え、雑居ビルの薄暗い階段を駆け上がった。</p><p>「レガシー・コード・インベスティゲーション（LCI）」</p><p>ガラス扉の文字が目に入る。ドアを引くと、サーバーラックの排熱とエナジードリンクの甘い残り香が鼻を突いた。革張りの椅子にふんぞり返った男が、私のノートPCを一瞥してから顔を見た。</p><p>「おやおや。ずいぶん分厚い紙束だね、ワトソン君。容疑者リストかね？」</p><p>「佐伯です。容疑者じゃなくてサブクラスの一覧です。30個以上あるんです」</p><p>自称「コード探偵」のロックは紙束を受け取り、鼻を近づけてにおいを嗅ぐような仕草をした。何をしているのかは聞かないことにした。</p><p>「ふむ……この犯人は<strong>変装の名人</strong>だよ、ワトソン君。30の顔を持っているが、正体は一つだ」</p><h2 id=現場検証三十の仮面>現場検証：三十の仮面</h2><p>「まず全貌を見せたまえ」</p><p>私はクラスの継承ツリーを開いた。</p><pre class=mermaid>
+	classDiagram
+    BaseNotifier &lt;|-- EmailNotifier
+    BaseNotifier &lt;|-- SlackNotifier
+    EmailNotifier &lt;|-- EmailRetryNotifier
+    EmailNotifier &lt;|-- EmailLogNotifier
+    EmailNotifier &lt;|-- EmailRetryLogNotifier
+    SlackNotifier &lt;|-- SlackRetryNotifier
+    SlackNotifier &lt;|-- SlackLogNotifier
+    SlackNotifier &lt;|-- SlackRetryLogNotifier
+
+    class BaseNotifier {
+        +recipient
+        +send(message)
+    }
+    class EmailNotifier {
+        +send(message)
+    }
+    class SlackNotifier {
+        +send(message)
+    }
+    class EmailRetryNotifier {
+        +max_retries
+        +send(message)
+    }
+    class EmailLogNotifier {
+        +log
+        +send(message)
+    }
+    class EmailRetryLogNotifier {
+        +max_retries
+        +log
+        +send(message)
+    }
+    class SlackRetryNotifier {
+        +max_retries
+        +send(message)
+    }
+    class SlackLogNotifier {
+        +log
+        +send(message)
+    }
+    class SlackRetryLogNotifier {
+        +max_retries
+        +log
+        +send(message)
+    }
+</pre><p>「見てください。<code>EmailRetryNotifier</code>、<code>EmailLogNotifier</code>、<code>EmailRetryLogNotifier</code>……メール側だけでこれです。Slack側にも全く同じ組み合わせがあって、リトライのロジックなんてコピペです」</p><p>ロックは椅子の背もたれに深く沈み込み、天井を見上げた。</p><p>「初歩的なにおいだよ、ワトソン君。犯人は<strong>組み合わせ爆発</strong>——継承の仮面を被り、分身を無限に増やす怪人だ」</p><p><strong>【Before】サブクラスが爆発した通知システム</strong></p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>BaseNotifier</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>recipient</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>send</span> <span class=p>($self, $message) {</span>
+</span></span><span class=line><span class=cl>        <span class=nb>die</span> <span class=s>&#34;send() must be overridden&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>EmailNotifier</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>extends</span> <span class=s>&#39;BaseNotifier&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>send</span> <span class=p>($self, $message) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=s>&#34;[Email to &#34;</span> <span class=o>.</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>recipient</span> <span class=o>.</span> <span class=s>&#34;] $message&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>SlackNotifier</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>extends</span> <span class=s>&#39;BaseNotifier&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>send</span> <span class=p>($self, $message) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=s>&#34;[Slack to &#34;</span> <span class=o>.</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>recipient</span> <span class=o>.</span> <span class=s>&#34;] $message&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>ここまではいい。問題はここからだ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># Email + Retry</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>EmailRetryNotifier</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>extends</span> <span class=s>&#39;EmailNotifier&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>max_retries</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=mi>3</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>send</span> <span class=p>($self, $message) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$result</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>for</span> <span class=k>my</span> <span class=nv>$attempt</span> <span class=p>(</span><span class=mi>1</span> <span class=o>..</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>max_retries</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$result</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>SUPER::</span><span class=nb>send</span><span class=p>(</span><span class=nv>$message</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>            <span class=k>last</span> <span class=k>if</span> <span class=nv>$result</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=s>&#34;$result (retried up to &#34;</span> <span class=o>.</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>max_retries</span> <span class=o>.</span> <span class=s>&#34; times)&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># Email + Log</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>EmailLogNotifier</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>extends</span> <span class=s>&#39;EmailNotifier&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=nb>log</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=o>[]</span> <span class=p>}</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>send</span> <span class=p>($self, $message) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$result</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>SUPER::</span><span class=nb>send</span><span class=p>(</span><span class=nv>$message</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=nb>push</span> <span class=nv>@</span><span class=p>{</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=nb>log</span><span class=p>},</span> <span class=s>&#34;LOG: $result&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$result</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># Email + Retry + Log（両方必要 → また新しいサブクラス！）</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>EmailRetryLogNotifier</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>extends</span> <span class=s>&#39;EmailNotifier&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>max_retries</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=mi>3</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=nb>log</span>         <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=o>[]</span> <span class=p>}</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>send</span> <span class=p>($self, $message) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$result</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>for</span> <span class=k>my</span> <span class=nv>$attempt</span> <span class=p>(</span><span class=mi>1</span> <span class=o>..</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>max_retries</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$result</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>SUPER::</span><span class=nb>send</span><span class=p>(</span><span class=nv>$message</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>            <span class=k>last</span> <span class=k>if</span> <span class=nv>$result</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$result</span> <span class=o>=</span> <span class=s>&#34;$result (retried up to &#34;</span> <span class=o>.</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>max_retries</span> <span class=o>.</span> <span class=s>&#34; times)&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=nb>push</span> <span class=nv>@</span><span class=p>{</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=nb>log</span><span class=p>},</span> <span class=s>&#34;LOG: $result&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$result</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「そしてSlack側にも、まったく同じリトライとログのロジックがコピペされている」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># Slack + Retry（Emailと同じリトライロジックをコピペ！）</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>SlackRetryNotifier</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>extends</span> <span class=s>&#39;SlackNotifier&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>max_retries</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=mi>3</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>send</span> <span class=p>($self, $message) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$result</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>for</span> <span class=k>my</span> <span class=nv>$attempt</span> <span class=p>(</span><span class=mi>1</span> <span class=o>..</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>max_retries</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$result</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>SUPER::</span><span class=nb>send</span><span class=p>(</span><span class=nv>$message</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>            <span class=k>last</span> <span class=k>if</span> <span class=nv>$result</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=s>&#34;$result (retried up to &#34;</span> <span class=o>.</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>max_retries</span> <span class=o>.</span> <span class=s>&#34; times)&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># Slack + Retry + Log（もはやカオス）</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>SlackRetryLogNotifier</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>extends</span> <span class=s>&#39;SlackNotifier&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>max_retries</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=mi>3</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=nb>log</span>         <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=o>[]</span> <span class=p>}</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>send</span> <span class=p>($self, $message) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$result</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>for</span> <span class=k>my</span> <span class=nv>$attempt</span> <span class=p>(</span><span class=mi>1</span> <span class=o>..</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>max_retries</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$result</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>SUPER::</span><span class=nb>send</span><span class=p>(</span><span class=nv>$message</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>            <span class=k>last</span> <span class=k>if</span> <span class=nv>$result</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$result</span> <span class=o>=</span> <span class=s>&#34;$result (retried up to &#34;</span> <span class=o>.</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>max_retries</span> <span class=o>.</span> <span class=s>&#34; times)&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=nb>push</span> <span class=nv>@</span><span class=p>{</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=nb>log</span><span class=p>},</span> <span class=s>&#34;LOG: $result&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$result</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「通知先2種 × 機能3パターンで、すでにサブクラスが6つ。ここにフィルタ機能を足すと2の4乗で……ここにSMS通知を追加したら……」</p><p>私は計算するのをやめた。</p><p>ロックは立ち上がり、ホワイトボードに数式を書いた。</p><p>「通知先N種 × 機能の組み合わせ2のM乗。通知先3種で機能が4つなら、最大で48クラス。君の先輩は<strong>怪人四十八面相</strong>を量産していたのだよ」</p><p>「先輩を悪く言わないでください……でも、どうすればいいんですか？ 継承以外に機能を追加する方法なんて……」</p><p>ロックは薄く笑った。</p><p>「<strong>変装を剥がすのではない。重ね着の技法を教えてやるのさ</strong>」</p><h2 id=推理披露重ね着の技法decorator>推理披露：重ね着の技法（Decorator）</h2><p>「ワトソン君。君が着ているコートの上にマフラーを巻き、さらに帽子を被ったとしよう。コートもマフラーも帽子も、それぞれ独立した『装飾品』だ。コートを脱いでもマフラーは残る。帽子だけ外すこともできる」</p><p>「はあ……」</p><p>「だが今の君のコードは、『コート＋マフラー』専用の服を1着、『コート＋帽子』専用の服を1着、すべての組み合わせ分の一体型スーツを仕立てているのだよ。着替えるたびに全身を脱がなければならない」</p><p>言われてみれば、確かにそうだ。リトライとログを別々の「装飾品」として扱えれば、組み合わせごとに新しいクラスを作る必要はない。</p><p>「まず、共通のインターフェースを決める」</p><p><strong>【After】共通ロール（インターフェース）の定義</strong></p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Notifier</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo::Role</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>requires</span> <span class=s>&#39;send&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>recipient</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「Mooの <code>Role</code> だね。<code>send</code> メソッドを持つものはすべて <code>Notifier</code> として扱える。メール送信もSlack送信も、リトライもログも、全員がこの契約を守る」</p><p><strong>【After】基本の通知クラス（具象コンポーネント）</strong></p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>EmailSender</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>with</span> <span class=s>&#39;Notifier&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>send</span> <span class=p>($self, $message) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=s>&#34;[Email to &#34;</span> <span class=o>.</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>recipient</span> <span class=o>.</span> <span class=s>&#34;] $message&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>SlackSender</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>with</span> <span class=s>&#39;Notifier&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>send</span> <span class=p>($self, $message) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=s>&#34;[Slack to &#34;</span> <span class=o>.</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>recipient</span> <span class=o>.</span> <span class=s>&#34;] $message&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>SmsSender</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>with</span> <span class=s>&#39;Notifier&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>send</span> <span class=p>($self, $message) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=s>&#34;[SMS to &#34;</span> <span class=o>.</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>recipient</span> <span class=o>.</span> <span class=s>&#34;] $message&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「SMS通知を追加するには <code>SmsSender</code> を1つ作るだけ。それだけだよ」</p><p>「え、本当にそれだけ……？」</p><p>「慌てるなワトソン君。ここからが本題だ」</p><p>ロックはホワイトボードに大きく「Decorator」と書いた。</p><p><strong>【After】Decorator基底クラスと具象Decorator</strong></p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span><span class=lnt>51
+</span><span class=lnt>52
+</span><span class=lnt>53
+</span><span class=lnt>54
+</span><span class=lnt>55
+</span><span class=lnt>56
+</span><span class=lnt>57
+</span><span class=lnt>58
+</span><span class=lnt>59
+</span><span class=lnt>60
+</span><span class=lnt>61
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># Decorator基底クラス</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>NotifierDecorator</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>with</span> <span class=s>&#39;Notifier&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>notifier</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=s>&#39;+recipient&#39;</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>0</span><span class=p>,</span> <span class=n>lazy</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>notifier</span><span class=o>-&gt;</span><span class=n>recipient</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>send</span> <span class=p>($self, $message) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>notifier</span><span class=o>-&gt;</span><span class=nb>send</span><span class=p>(</span><span class=nv>$message</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># リトライ機能を追加するDecorator</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>RetryDecorator</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>extends</span> <span class=s>&#39;NotifierDecorator&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>max_retries</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=mi>3</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>send</span> <span class=p>($self, $message) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$result</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>for</span> <span class=k>my</span> <span class=nv>$attempt</span> <span class=p>(</span><span class=mi>1</span> <span class=o>..</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>max_retries</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$result</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>notifier</span><span class=o>-&gt;</span><span class=nb>send</span><span class=p>(</span><span class=nv>$message</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>            <span class=k>last</span> <span class=k>if</span> <span class=nv>$result</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=s>&#34;$result (retried up to &#34;</span> <span class=o>.</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>max_retries</span> <span class=o>.</span> <span class=s>&#34; times)&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># ログ記録を追加するDecorator</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>LogDecorator</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>extends</span> <span class=s>&#39;NotifierDecorator&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=nb>log</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=o>[]</span> <span class=p>}</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>send</span> <span class=p>($self, $message) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$result</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>notifier</span><span class=o>-&gt;</span><span class=nb>send</span><span class=p>(</span><span class=nv>$message</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=nb>push</span> <span class=nv>@</span><span class=p>{</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=nb>log</span><span class=p>},</span> <span class=s>&#34;LOG: $result&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$result</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># フィルタリングを追加するDecorator</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>FilterDecorator</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>extends</span> <span class=s>&#39;NotifierDecorator&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>filter_word</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>send</span> <span class=p>($self, $message) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=nb>index</span><span class=p>(</span><span class=nv>$message</span><span class=p>,</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>filter_word</span><span class=p>)</span> <span class=o>&gt;=</span> <span class=mi>0</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=k>return</span> <span class=s>&#34;[FILTERED] Message contained &#39;&#34;</span> <span class=o>.</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>filter_word</span> <span class=o>.</span> <span class=s>&#34;&#39;&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>notifier</span><span class=o>-&gt;</span><span class=nb>send</span><span class=p>(</span><span class=nv>$message</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>私は画面を食い入るように見つめた。</p><p>「<code>NotifierDecorator</code> が内側に <code>notifier</code> を持っていて、<code>send</code> を呼ぶと内側に委譲する……。各Decoratorは、委譲の前後に自分の仕事だけ追加しているんですね」</p><p>「その通り。<strong>証拠品を保護袋で包む</strong>ようなものだ。中身はそのまま、外側の袋が機能を追加する。袋は何枚でも重ねられるし、どの順番でも構わない」</p><pre class=mermaid>
+	classDiagram
+    class Notifier {
+        &lt;&lt;Role&gt;&gt;
+        +recipient
+        +send(message)*
+    }
+    Notifier &lt;|.. EmailSender
+    Notifier &lt;|.. SlackSender
+    Notifier &lt;|.. SmsSender
+    Notifier &lt;|.. NotifierDecorator
+    NotifierDecorator &lt;|-- RetryDecorator
+    NotifierDecorator &lt;|-- LogDecorator
+    NotifierDecorator &lt;|-- FilterDecorator
+    NotifierDecorator o-- Notifier : notifier
+
+    class EmailSender {
+        +send(message)
+    }
+    class SlackSender {
+        +send(message)
+    }
+    class SmsSender {
+        +send(message)
+    }
+    class NotifierDecorator {
+        +notifier
+        +send(message)
+    }
+    class RetryDecorator {
+        +max_retries
+        +send(message)
+    }
+    class LogDecorator {
+        +log
+        +send(message)
+    }
+    class FilterDecorator {
+        +filter_word
+        +send(message)
+    }
+</pre><p>「そしてこれが、使う側のコードだ」</p><p><strong>【After】Decoratorを自由に組み合わせる</strong></p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># Email + Retry + Log（かつて EmailRetryLogNotifier だったもの）</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$notifier</span> <span class=o>=</span> <span class=nn>LogDecorator</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>notifier</span> <span class=o>=&gt;</span> <span class=nn>RetryDecorator</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>notifier</span> <span class=o>=&gt;</span> <span class=nn>EmailSender</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>recipient</span> <span class=o>=&gt;</span> <span class=s>&#39;user@example.com&#39;</span><span class=p>),</span>
+</span></span><span class=line><span class=cl>    <span class=p>),</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$notifier</span><span class=o>-&gt;</span><span class=nb>send</span><span class=p>(</span><span class=s>&#34;サーバー障害が発生しました&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># SMS + Retry + Filter（新しいクラスは一切不要！）</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$sms</span> <span class=o>=</span> <span class=nn>FilterDecorator</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>notifier</span>    <span class=o>=&gt;</span> <span class=nn>RetryDecorator</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>notifier</span> <span class=o>=&gt;</span> <span class=nn>SmsSender</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>recipient</span> <span class=o>=&gt;</span> <span class=s>&#39;090-1234-5678&#39;</span><span class=p>),</span>
+</span></span><span class=line><span class=cl>    <span class=p>),</span>
+</span></span><span class=line><span class=cl>    <span class=n>filter_word</span> <span class=o>=&gt;</span> <span class=s>&#39;test&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$sms</span><span class=o>-&gt;</span><span class=nb>send</span><span class=p>(</span><span class=s>&#34;本番アラート&#34;</span><span class=p>);</span>
+</span></span></code></pre></td></tr></table></div></div><p>「30個のサブクラスが……基本3つとDecorator3つの、合計6つに？」</p><p>「すべての不吉な継承を排除して残ったものが、いかにシンプルであっても、それが真実（デザインパターン）なんだ」</p><h2 id=解決仮面の怪人の正体>解決：仮面の怪人の正体</h2><p>ロックがテストを実行すると、ターミナルに整然とした結果が並んだ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl>$ prove -v t/01_decorator.t
+</span></span><span class=line><span class=cl><span class=c1># Subtest: Problem: Combinatorial Explosion of Subclasses</span>
+</span></span><span class=line><span class=cl>    ok <span class=m>1</span> - Basic notifiers work
+</span></span><span class=line><span class=cl>    ok <span class=m>2</span> - Email + Retry subclass
+</span></span><span class=line><span class=cl>    ok <span class=m>3</span> - Email + Log subclass
+</span></span><span class=line><span class=cl>    ok <span class=m>4</span> - Email + Retry + Log subclass <span class=o>(</span>copy-paste hell<span class=o>)</span>
+</span></span><span class=line><span class=cl>    ok <span class=m>5</span> - Slack + Retry subclass <span class=o>(</span>duplicated retry logic<span class=o>)</span>
+</span></span><span class=line><span class=cl>    ok <span class=m>6</span> - Slack + Retry + Log subclass <span class=o>(</span>more duplication<span class=o>)</span>
+</span></span><span class=line><span class=cl>    ok <span class=m>7</span> - PROBLEM: Adding SMS would require 4+ more subclasses
+</span></span><span class=line><span class=cl>ok <span class=m>1</span> - Problem: Combinatorial Explosion of Subclasses
+</span></span><span class=line><span class=cl><span class=c1># Subtest: Solution: Decorator Pattern</span>
+</span></span><span class=line><span class=cl>    ok <span class=m>1</span> - Basic senders work
+</span></span><span class=line><span class=cl>    ok <span class=m>2</span> - RetryDecorator wraps any notifier
+</span></span><span class=line><span class=cl>    ok <span class=m>3</span> - LogDecorator wraps any notifier
+</span></span><span class=line><span class=cl>    ok <span class=m>4</span> - FilterDecorator blocks matching messages
+</span></span><span class=line><span class=cl>    ok <span class=m>5</span> - Decorators can be stacked freely
+</span></span><span class=line><span class=cl>    ok <span class=m>6</span> - Adding SMS requires only ONE new class
+</span></span><span class=line><span class=cl>    ok <span class=m>7</span> - Recipient is delegated from inner notifier
+</span></span><span class=line><span class=cl>ok <span class=m>2</span> - Solution: Decorator Pattern
+</span></span><span class=line><span class=cl>All tests successful.
+</span></span></code></pre></td></tr></table></div></div><p>「Beforeではメールとリトライの組み合わせのためだけに専用クラスが必要だった。Afterでは <code>RetryDecorator</code> がメールにもSlackにもSMSにも使える。<strong>一枚のマフラーがどのコートにも合う</strong>のと同じことだ」</p><p>「すごい……。じゃあ、もしWebhook通知を追加しろって言われたら？」</p><p>「<code>WebhookSender</code> を1つ作るだけだ。既存のDecoratorはそのまま使える」</p><p>「1つ……だけ？」</p><p>私は思わず目頭が熱くなった。あの30個のサブクラスを前に、毎晩遅くまでコピペを繰り返していた自分が馬鹿みたいだ。</p><p>「報酬は……そうだな、このクラス階層の深さと同じミリリットル数のバーボンをいただこうか。いや待て、Beforeの継承ツリーの深さだぞ。Afterのほうを基準にされては、舌を湿らすことすらできん」</p><p>「先輩のコードをここまで見事に片付けてくれたんです。バーボンくらいお安い御用です！」</p><p>「ふむ。ワトソン君、最後に一つ」</p><p>ロックは人差し指を立てた。</p><p>「Decoratorは<strong>実行時に自由に組み合わせたい場面</strong>で威力を発揮する。だが、組み合わせが常に固定で変わらないのなら、わざわざDecoratorにする必要はない。怪人二十面相を捕まえたからといって、すべての市民に変装術を教える必要はないのだよ」</p><p>私はPCを閉じて立ち上がった。来週のSMS通知、もう怖くない。</p><hr><h2 id=探偵の調査報告書>探偵の調査報告書</h2><div class=table-wrapper><table><thead><tr><th style=text-align:left>容疑（アンチパターン）</th><th style=text-align:left>真実（パターン）</th><th style=text-align:left>証拠（効果）</th></tr></thead><tbody><tr><td style=text-align:left>組み合わせ爆発（Combinatorial Explosion）。機能の組み合わせごとにサブクラスを作成し、通知先N × 機能2のM乗のクラスが乱立。同じロジックが複数のサブクラスにコピペされ、新しい通知先や機能の追加で爆発的にクラス数が増加する。</td><td style=text-align:left>Decorator パターン。共通インターフェース（Role）を通じて、基本の通知クラスに機能を「重ね着」のように動的に追加する設計方式。各機能を独立したDecoratorクラスに分離し、委譲によって自由に組み合わせる。</td><td style=text-align:left>クラス数が30以上から約6に削減。新しい通知先の追加は1クラスのみ。リトライ・ログ・フィルタの各ロジックが1箇所に集約され、コピペが完全に解消。</td></tr></tbody></table></div><h3 id=推理のステップ>推理のステップ</h3><ol><li><strong>共通インターフェースを定義する</strong>: すべての通知クラスとDecoratorが守るべき契約（<code>send</code> メソッド）をRoleとして定義する。</li><li><strong>基本コンポーネントを分離する</strong>: メール送信、Slack送信など、純粋な通知機能だけを持つクラスを作る。「送る」以外の責務を持たせない。</li><li><strong>Decorator基底クラスを作る</strong>: 内側に <code>notifier</code> を保持し、デフォルトでは委譲するだけの基底クラスを用意する。</li><li><strong>各機能をDecoratorとして実装する</strong>: リトライ、ログ、フィルタなど、付加的な機能をそれぞれ独立したDecoratorクラスに切り出す。委譲の前後に自分の処理を挟む。</li><li><strong>利用側で自由に組み合わせる</strong>: 必要なDecoratorを必要なだけネストして、実行時に通知パイプラインを構築する。</li></ol><h3 id=ロックより>ロックより</h3><p>ワトソン君。継承は便利な道具だが、「機能の追加＝サブクラスの追加」という思い込みに縛られると、クラスは恐ろしい速度で増殖する。怪人二十面相の変装のように、見かけは違っても中身は同じコピペが何十体も並ぶことになる。</p><p>Decoratorは「重ね着」の発想だ。コートの上にマフラーを巻き、その上に帽子を被る。どれも独立した装飾品であり、自由に着脱できる。コート専用マフラーや、マフラー一体型帽子を仕立てる必要はないのだよ。</p><p>ただし、重ね着の順番が結果に影響する場合がある。フィルタの後にリトライするのか、リトライの後にフィルタするのかで挙動は変わる。自由には責任が伴う。それを忘れなければ、君の通知システムは何十通りの組み合わせにも、たった数枚の衣装で対応できるだろう。</p></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/perl/>Perl</a>
+<a href=/tags/moo/>Moo</a>
+<a href=/tags/decorator/>Decorator</a>
+<a href=/tags/combinatorial-explosion/>Combinatorial-Explosion</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-detective/>Code-Detective</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/03/08/070705/><div class=article-image><img src=/public_images/2026/code-detective-decorator-class-explosion/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-decorator-class-explosion/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Decorator】着膨れした容疑者〜クラス増殖トリックと重ね着の法則〜</h2></div></a></article><article class=has-image><a href=/2026/03/29/070705/><div class=article-image><img src=/public_images/2026/code-detective-memento/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-memento/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Memento】失われた条項の記憶〜状態を封じるタイムカプセル〜</h2></div></a></article><article class=has-image><a href=/2026/03/28/070705/><div class=article-image><img src=/public_images/2026/code-detective-flyweight/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-flyweight/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Flyweight】十万体の分身術〜共有すべき素顔の秘密〜</h2></div></a></article><article class=has-image><a href=/2026/03/27/070705/><div class=article-image><img src=/public_images/2026/code-detective-bridge/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-bridge/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Bridge】交差する二つの系譜〜掛け算の呪いを解く架け橋〜</h2></div></a></article><article class=has-image><a href=/2026/03/26/070705/><div class=article-image><img src=/public_images/2026/code-detective-abstract-factory/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-abstract-factory/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Abstract Factory】混沌の箱庭〜血統を守らぬ創造主〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

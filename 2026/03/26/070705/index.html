@@ -1,0 +1,566 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="オープンワールドRPGの世界生成で砂漠にクラーケン、森に砂嵐——バイオームごとの地形・生物・天候がバラバラに生成される不整合バグを「Abstract Factoryパターン」でファミリー単位の生成に統一するコード探偵ロックの推理。"><title>コード探偵ロックの事件簿【Abstract Factory】混沌の箱庭〜血統を守らぬ創造主〜</title><link rel=canonical href=https://www.nqou.net/2026/03/26/070705/><link rel=stylesheet href=/scss/style.min.6a692fd055deae459f2a9767f57f3855ba80cafd5041317f24f7360f6ca47cdf.css><meta property='og:title' content="コード探偵ロックの事件簿【Abstract Factory】混沌の箱庭〜血統を守らぬ創造主〜"><meta property='og:description' content="オープンワールドRPGの世界生成で砂漠にクラーケン、森に砂嵐——バイオームごとの地形・生物・天候がバラバラに生成される不整合バグを「Abstract Factoryパターン」でファミリー単位の生成に統一するコード探偵ロックの推理。"><meta property='og:url' content='https://www.nqou.net/2026/03/26/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='perl'><meta property='article:tag' content='moo'><meta property='article:tag' content='abstract-factory'><meta property='article:tag' content='mismatched-product-family'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-detective'><meta property='article:published_time' content='2026-03-26T07:07:05+09:00'><meta property='article:modified_time' content='2026-03-26T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-detective-abstract-factory/header.webp'><meta name=twitter:title content="コード探偵ロックの事件簿【Abstract Factory】混沌の箱庭〜血統を守らぬ創造主〜"><meta name=twitter:description content="オープンワールドRPGの世界生成で砂漠にクラーケン、森に砂嵐——バイオームごとの地形・生物・天候がバラバラに生成される不整合バグを「Abstract Factoryパターン」でファミリー単位の生成に統一するコード探偵ロックの推理。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-detective-abstract-factory/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-03-26T07:07:05+09:00","datePublished":"2026-03-26T07:07:05+09:00","description":"オープンワールドRPGの世界生成で砂漠にクラーケン、森に砂嵐——バイオームごとの地形・生物・天候がバラバラに生成される不整合バグを「Abstract Factoryパターン」でファミリー単位の生成に統一するコード探偵ロックの推理。","headline":"コード探偵ロックの事件簿【Abstract Factory】混沌の箱庭〜血統を守らぬ創造主〜","image":"https://www.nqou.net/public_images/2026/code-detective-abstract-factory/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/03/26/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#現場検証壊れた箱庭>現場検証：壊れた箱庭</a></li><li><a href=#推理披露血統を守る工場abstract-factory>推理披露：血統を守る工場（Abstract Factory）</a></li><li><a href=#解決血統書のある世界>解決：血統書のある世界</a></li><li><a href=#探偵の調査報告書>探偵の調査報告書</a><ol><li><a href=#推理のステップ>推理のステップ</a></li><li><a href=#ロックより>ロックより</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/03/26/070705/><img src=/public_images/2026/code-detective-abstract-factory/header.webp loading=lazy alt="Featured image of post コード探偵ロックの事件簿【Abstract Factory】混沌の箱庭〜血統を守らぬ創造主〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/03/26/070705/>コード探偵ロックの事件簿【Abstract Factory】混沌の箱庭〜血統を守らぬ創造主〜</a></h2><h3 class=article-subtitle>オープンワールドRPGの世界生成で砂漠にクラーケン、森に砂嵐——バイオームごとの地形・生物・天候がバラバラに生成される不整合バグを「Abstract Factoryパターン」でファミリー単位の生成に統一するコード探偵ロックの推理。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>26, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 14分</time></div></footer></div></header><section class=article-content><p>「砂漠にクラーケンが出るんです。森では砂嵐が吹いて、海底にサボテンが生えてて……プレイヤーからの報告が止まらなくて」</p><p>僕は神崎。ゲーム会社「Arclight Studios」のサーバーサイドエンジニアだ。経験4年、26歳。うちの看板タイトル「Elysium Online」のプロシージャル世界生成を担当している。</p><p>最初は3つのバイオーム——森、砂漠、海——だけだった。地形を作って、生物を配置して、天候を設定する。シンプルなスクリプトで十分だった。</p><p>ところがサービスが成長して、バイオームが増え、プランナーから「バイオーム間の遷移ゾーンも作ってくれ」と言われて——気づいたら、世界がおかしくなっていた。</p><p>森の中をサンドワームが泳ぎ、砂漠の上空に渦潮が渦巻き、海底でエルフが弓を引いている。</p><p>そして今朝、ディレクターがSlackでこう言った。</p><p>「神崎くん、次のアプデで火山バイオーム追加ね。2週間で」</p><p>火山。新しい地形、新しいモンスター、新しい天候。つまり、あの地獄のif文を3つのメソッド全部に追加して、遷移ゾーンのバグもさらに増えて——。</p><p>僕は「検討します」とだけ返し、昼休みに雑居ビルの階段を上がった。</p><p>「レガシー・コード・インベスティゲーション（LCI）」</p><p>ドアを開けると、三枚のモニターに異世界のマップらしきものが映っていた。デスクトップPCの排熱で妙に暖かい室内。飲みかけのエナジードリンク缶が散乱している。革張りの椅子の男は缶を傾けながら、地図上の何かを凝視していた。</p><p>「……ほう。珍しいクライアントだな。ゲームの世界からお越しか」</p><p>「あの、初めてなんですが——」</p><p>「初めてだろうと百回目だろうと、ここでは皆ワトソン君だ。さあ、今日の事件を聞こう」</p><p>僕はノートPCを開き、Elysium Onlineの世界生成コードを見せた。</p><h2 id=現場検証壊れた箱庭>現場検証：壊れた箱庭</h2><p>「まず全体像を見せたまえ」</p><p>僕は世界生成の中核モジュールを開いた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span><span class=lnt>51
+</span><span class=lnt>52
+</span><span class=lnt>53
+</span><span class=lnt>54
+</span><span class=lnt>55
+</span><span class=lnt>56
+</span><span class=lnt>57
+</span><span class=lnt>58
+</span><span class=lnt>59
+</span><span class=lnt>60
+</span><span class=lnt>61
+</span><span class=lnt>62
+</span><span class=lnt>63
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>WorldGenerator</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>generate_zone</span> <span class=p>($self, $biome) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$terrain</span>  <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_create_terrain</span><span class=p>(</span><span class=nv>$biome</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$creature</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_create_creature</span><span class=p>(</span><span class=nv>$biome</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$weather</span>  <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_create_weather</span><span class=p>(</span><span class=nv>$biome</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=n>terrain</span>  <span class=o>=&gt;</span> <span class=nv>$terrain</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>creature</span> <span class=o>=&gt;</span> <span class=nv>$creature</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>weather</span>  <span class=o>=&gt;</span> <span class=nv>$weather</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>_create_terrain</span> <span class=p>($self, $type) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=nv>$type</span> <span class=ow>eq</span> <span class=s>&#39;forest&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=k>return</span> <span class=p>{</span> <span class=n>name</span> <span class=o>=&gt;</span> <span class=s>&#39;古代樹の森&#39;</span><span class=p>,</span> <span class=n>ground</span> <span class=o>=&gt;</span> <span class=s>&#39;苔むした腐葉土&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>                     <span class=n>obstacle</span> <span class=o>=&gt;</span> <span class=s>&#39;巨木の根&#39;</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=k>elsif</span> <span class=p>(</span><span class=nv>$type</span> <span class=ow>eq</span> <span class=s>&#39;desert&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=k>return</span> <span class=p>{</span> <span class=n>name</span> <span class=o>=&gt;</span> <span class=s>&#39;灼熱の砂漠&#39;</span><span class=p>,</span> <span class=n>ground</span> <span class=o>=&gt;</span> <span class=s>&#39;流砂&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>                     <span class=n>obstacle</span> <span class=o>=&gt;</span> <span class=s>&#39;サボテンの壁&#39;</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=k>elsif</span> <span class=p>(</span><span class=nv>$type</span> <span class=ow>eq</span> <span class=s>&#39;ocean&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=k>return</span> <span class=p>{</span> <span class=n>name</span> <span class=o>=&gt;</span> <span class=s>&#39;深淵の海底&#39;</span><span class=p>,</span> <span class=n>ground</span> <span class=o>=&gt;</span> <span class=s>&#39;珊瑚礁&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>                     <span class=n>obstacle</span> <span class=o>=&gt;</span> <span class=s>&#39;海溝の裂け目&#39;</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=k>else</span> <span class=p>{</span> <span class=nb>die</span> <span class=s>&#34;Unknown biome: $type&#34;</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>_create_creature</span> <span class=p>($self, $type) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=nv>$type</span> <span class=ow>eq</span> <span class=s>&#39;forest&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=k>return</span> <span class=p>{</span> <span class=n>name</span> <span class=o>=&gt;</span> <span class=s>&#39;エルフの弓兵&#39;</span><span class=p>,</span> <span class=n>hp</span> <span class=o>=&gt;</span> <span class=mi>80</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>                     <span class=n>attack</span> <span class=o>=&gt;</span> <span class=s>&#39;精霊の矢&#39;</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=k>elsif</span> <span class=p>(</span><span class=nv>$type</span> <span class=ow>eq</span> <span class=s>&#39;desert&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=k>return</span> <span class=p>{</span> <span class=n>name</span> <span class=o>=&gt;</span> <span class=s>&#39;サンドワーム&#39;</span><span class=p>,</span> <span class=n>hp</span> <span class=o>=&gt;</span> <span class=mi>200</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>                     <span class=n>attack</span> <span class=o>=&gt;</span> <span class=s>&#39;地中突進&#39;</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=k>elsif</span> <span class=p>(</span><span class=nv>$type</span> <span class=ow>eq</span> <span class=s>&#39;ocean&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=k>return</span> <span class=p>{</span> <span class=n>name</span> <span class=o>=&gt;</span> <span class=s>&#39;クラーケン&#39;</span><span class=p>,</span> <span class=n>hp</span> <span class=o>=&gt;</span> <span class=mi>300</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>                     <span class=n>attack</span> <span class=o>=&gt;</span> <span class=s>&#39;触手の嵐&#39;</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=k>else</span> <span class=p>{</span> <span class=nb>die</span> <span class=s>&#34;Unknown biome: $type&#34;</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>_create_weather</span> <span class=p>($self, $type) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=nv>$type</span> <span class=ow>eq</span> <span class=s>&#39;forest&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=k>return</span> <span class=p>{</span> <span class=n>name</span> <span class=o>=&gt;</span> <span class=s>&#39;精霊の霧&#39;</span><span class=p>,</span> <span class=n>visibility</span> <span class=o>=&gt;</span> <span class=mf>0.6</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>                     <span class=n>damage</span> <span class=o>=&gt;</span> <span class=mi>0</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=k>elsif</span> <span class=p>(</span><span class=nv>$type</span> <span class=ow>eq</span> <span class=s>&#39;desert&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=k>return</span> <span class=p>{</span> <span class=n>name</span> <span class=o>=&gt;</span> <span class=s>&#39;砂嵐&#39;</span><span class=p>,</span> <span class=n>visibility</span> <span class=o>=&gt;</span> <span class=mf>0.2</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>                     <span class=n>damage</span> <span class=o>=&gt;</span> <span class=mi>5</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=k>elsif</span> <span class=p>(</span><span class=nv>$type</span> <span class=ow>eq</span> <span class=s>&#39;ocean&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=k>return</span> <span class=p>{</span> <span class=n>name</span> <span class=o>=&gt;</span> <span class=s>&#39;大渦潮&#39;</span><span class=p>,</span> <span class=n>visibility</span> <span class=o>=&gt;</span> <span class=mf>0.4</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>                     <span class=n>damage</span> <span class=o>=&gt;</span> <span class=mi>10</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=k>else</span> <span class=p>{</span> <span class=nb>die</span> <span class=s>&#34;Unknown biome: $type&#34;</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「3つのメソッドが全部同じ構造です。<code>$type</code> で分岐して、それぞれのバイオームに合った地形・生物・天候を返す。でも問題は——」</p><p>「3つのメソッドが独立していることだろう？」ロックが先に言った。</p><p>「え、はい。地形は地形、生物は生物、天候は天候で、バラバラに生成しています。同じ <code>$type</code> を渡してるから普通は揃うんですが……」</p><p>「普通は、な。では普通でなくなった瞬間を見せたまえ」</p><p>僕はうなだれながら、遷移ゾーン生成のコードを開いた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># バイオーム間の遷移ゾーン生成（バグ混入）</span>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>generate_transition</span> <span class=p>($self, $from, $to) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$terrain</span>  <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_create_terrain</span><span class=p>(</span><span class=nv>$from</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$creature</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_create_creature</span><span class=p>(</span><span class=nv>$to</span><span class=p>);</span>    <span class=c1># ← ここ！</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$weather</span>  <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_create_weather</span><span class=p>(</span><span class=nv>$from</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>terrain</span>  <span class=o>=&gt;</span> <span class=nv>$terrain</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>creature</span> <span class=o>=&gt;</span> <span class=nv>$creature</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>weather</span>  <span class=o>=&gt;</span> <span class=nv>$weather</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「遷移ゾーンは2つのバイオームの要素を混ぜるつもりだったんです。でも、誰がどの引数を渡すかはプログラマの記憶頼みで……」</p><p>「結果、森の地形に海の生物が配置された。砂漠にクラーケン、深海に砂嵐——すべてはここから生まれた」</p><p>ロックはホワイトボードに図を描き始めた。</p><pre class=mermaid>
+	graph TD
+    WG[WorldGenerator]
+    WG --&gt;|&#34;$type 引き回し&#34;| T[&#34;_create_terrain(if/elsif)&#34;]
+    WG --&gt;|&#34;$type 引き回し&#34;| C[&#34;_create_creature(if/elsif)&#34;]
+    WG --&gt;|&#34;$type 引き回し&#34;| W[&#34;_create_weather(if/elsif)&#34;]
+
+    subgraph &#34;森ファミリー&#34;
+        FT[古代樹の森]
+        FC[エルフの弓兵]
+        FW[精霊の霧]
+    end
+
+    subgraph &#34;海ファミリー&#34;
+        OC[クラーケン]
+    end
+
+    T --&gt; FT
+    C -.-&gt;|&#34;$to = ocean&#34;| OC
+    W --&gt; FW
+
+    style OC fill:#f66,stroke:#333
+</pre><p>「森の地形と霧の中に、海のクラーケンが立っている。ファミリーが壊れているんだ」</p><p>「ファミリー……？」</p><p>「世界の生き物には血統がある、ワトソン君。森のエルフは森の霧雨の中でこそ美しく、砂漠のサンドワームは砂嵐の中でこそ恐ろしい。地形・生物・天候は同じ血統に属する一族であるべきだ。ところが君のコードでは、3つの生成メソッドが独立しているから、血統の異なる者同士を混ぜ合わせることができてしまう」</p><p>「確かに、<code>_create_terrain</code> と <code>_create_creature</code> に別々の <code>$type</code> を渡しても、コンパイラは何も文句を言わない……」</p><p>「そしてもう一つの問題。火山バイオームを追加するとどうなる？」</p><p>「3つのメソッド全部に <code>elsif ($type eq 'volcano')</code> を追加します。遷移ゾーンのテストケースも増えて……」</p><p>「すべてのif文に手を入れる。そして手を入れるたびに、新たな血統汚染のリスクが生まれる。これが今回の犯人だ——Mismatched Product Family（製品ファミリー不一致）。関連するオブジェクト群を個別に生成するがゆえに、異なるファミリーの部品が混在する」</p><h2 id=推理披露血統を守る工場abstract-factory>推理披露：血統を守る工場（Abstract Factory）</h2><p>「ワトソン君。品種の純血を守る方法を知っているかね？」</p><p>「品種……ブリーダーが血統書を管理する、とか？」</p><p>「その通り。一つの血統に属する者は、一つの工場から送り出す。工場が血統書の役割を果たし、異なる血統の混入を構造的に不可能にする」</p><p>「工場……Factory Methodとは違うんですか？ 前に聞いたことがあって」</p><p>「Factory Methodは単一の製品の生成をサブクラスに委ねる。だがAbstract Factoryは違う。製品ファミリー全体——地形も生物も天候も——を一つの工場で生成する。一族をまとめて送り出すのさ」</p><p>ロックはキーボードを叩き始めた。</p><p>【After】製品クラスの定義</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Terrain</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>name</span>     <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>ground</span>   <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>obstacle</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Creature</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>name</span>   <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>hp</span>     <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>attack</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Weather</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>name</span>       <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>visibility</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>damage</span>     <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「まず、地形・生物・天候をそれぞれ <code>required</code> な属性を持つクラスにする。ハッシュリファレンスではなく、型付きのオブジェクトだ。不完全な生成を防ぐ」</p><p>【After】血統書（BiomeFactory ロール）</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>BiomeFactory</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo::Role</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>requires</span> <span class=s>&#39;create_terrain&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>requires</span> <span class=s>&#39;create_creature&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>requires</span> <span class=s>&#39;create_weather&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<code>BiomeFactory</code> ロールは、全てのバイオーム工場が守るべき契約だ。地形・生物・天候——この3つをセットで生成する責務を負う。1つだけ作ることも、別のファミリーから借りてくることもできない」</p><p>【After】各血統の工場</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span><span class=lnt>51
+</span><span class=lnt>52
+</span><span class=lnt>53
+</span><span class=lnt>54
+</span><span class=lnt>55
+</span><span class=lnt>56
+</span><span class=lnt>57
+</span><span class=lnt>58
+</span><span class=lnt>59
+</span><span class=lnt>60
+</span><span class=lnt>61
+</span><span class=lnt>62
+</span><span class=lnt>63
+</span><span class=lnt>64
+</span><span class=lnt>65
+</span><span class=lnt>66
+</span><span class=lnt>67
+</span><span class=lnt>68
+</span><span class=lnt>69
+</span><span class=lnt>70
+</span><span class=lnt>71
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>ForestFactory</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>with</span> <span class=s>&#39;BiomeFactory&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>create_terrain</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>        <span class=nn>Terrain</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=n>name</span> <span class=o>=&gt;</span> <span class=s>&#39;古代樹の森&#39;</span><span class=p>,</span> <span class=n>ground</span> <span class=o>=&gt;</span> <span class=s>&#39;苔むした腐葉土&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>obstacle</span> <span class=o>=&gt;</span> <span class=s>&#39;巨木の根&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>create_creature</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>        <span class=nn>Creature</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=n>name</span> <span class=o>=&gt;</span> <span class=s>&#39;エルフの弓兵&#39;</span><span class=p>,</span> <span class=n>hp</span> <span class=o>=&gt;</span> <span class=mi>80</span><span class=p>,</span> <span class=n>attack</span> <span class=o>=&gt;</span> <span class=s>&#39;精霊の矢&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>create_weather</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>        <span class=nn>Weather</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=n>name</span> <span class=o>=&gt;</span> <span class=s>&#39;精霊の霧&#39;</span><span class=p>,</span> <span class=n>visibility</span> <span class=o>=&gt;</span> <span class=mf>0.6</span><span class=p>,</span> <span class=n>damage</span> <span class=o>=&gt;</span> <span class=mi>0</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>DesertFactory</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>with</span> <span class=s>&#39;BiomeFactory&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>create_terrain</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>        <span class=nn>Terrain</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=n>name</span> <span class=o>=&gt;</span> <span class=s>&#39;灼熱の砂漠&#39;</span><span class=p>,</span> <span class=n>ground</span> <span class=o>=&gt;</span> <span class=s>&#39;流砂&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>obstacle</span> <span class=o>=&gt;</span> <span class=s>&#39;サボテンの壁&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>create_creature</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>        <span class=nn>Creature</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=n>name</span> <span class=o>=&gt;</span> <span class=s>&#39;サンドワーム&#39;</span><span class=p>,</span> <span class=n>hp</span> <span class=o>=&gt;</span> <span class=mi>200</span><span class=p>,</span> <span class=n>attack</span> <span class=o>=&gt;</span> <span class=s>&#39;地中突進&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>create_weather</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>        <span class=nn>Weather</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=n>name</span> <span class=o>=&gt;</span> <span class=s>&#39;砂嵐&#39;</span><span class=p>,</span> <span class=n>visibility</span> <span class=o>=&gt;</span> <span class=mf>0.2</span><span class=p>,</span> <span class=n>damage</span> <span class=o>=&gt;</span> <span class=mi>5</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>OceanFactory</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>with</span> <span class=s>&#39;BiomeFactory&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>create_terrain</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>        <span class=nn>Terrain</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=n>name</span> <span class=o>=&gt;</span> <span class=s>&#39;深淵の海底&#39;</span><span class=p>,</span> <span class=n>ground</span> <span class=o>=&gt;</span> <span class=s>&#39;珊瑚礁&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>obstacle</span> <span class=o>=&gt;</span> <span class=s>&#39;海溝の裂け目&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>create_creature</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>        <span class=nn>Creature</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=n>name</span> <span class=o>=&gt;</span> <span class=s>&#39;クラーケン&#39;</span><span class=p>,</span> <span class=n>hp</span> <span class=o>=&gt;</span> <span class=mi>300</span><span class=p>,</span> <span class=n>attack</span> <span class=o>=&gt;</span> <span class=s>&#39;触手の嵐&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>create_weather</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>        <span class=nn>Weather</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=n>name</span> <span class=o>=&gt;</span> <span class=s>&#39;大渦潮&#39;</span><span class=p>,</span> <span class=n>visibility</span> <span class=o>=&gt;</span> <span class=mf>0.4</span><span class=p>,</span> <span class=n>damage</span> <span class=o>=&gt;</span> <span class=mi>10</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<code>ForestFactory</code> は森の地形・森の生物・森の天候だけを生成する。<code>OceanFactory</code> は海のものだけ。<strong>工場を選んだ時点で、ファミリーが確定する</strong>。異なる血統の混入は、構造的に起こり得ない」</p><p>「でも、WorldGenerator はどう変わるんですか？」</p><p>【After】ファクトリーに委ねる世界生成</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>WorldGenerator</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>factory</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>generate</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=n>terrain</span>  <span class=o>=&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>factory</span><span class=o>-&gt;</span><span class=n>create_terrain</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>creature</span> <span class=o>=&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>factory</span><span class=o>-&gt;</span><span class=n>create_creature</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>weather</span>  <span class=o>=&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>factory</span><span class=o>-&gt;</span><span class=n>create_weather</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>僕は画面を見つめた。Before では <code>$type</code> を3つのメソッドに引き回していた if/elsif の壁が、すべて消えている。</p><p>「WorldGenerator はもう <code>$type</code> を知らない。知る必要がない。どのファクトリーを受け取ったかだけで、すべてが決まる」</p><p>「Before だと <code>generate_transition</code> で <code>$from</code> と <code>$to</code> を間違えてクラーケンが森に出ていた……。今の構造だと、ファクトリーを渡す時点でファミリーが決まるから、混ぜようがない」</p><p>「その通りだ」</p><p>ロックはホワイトボードに新しい図を描いた。</p><pre class=mermaid>
+	graph TD
+    WG[WorldGenerator]
+    WG --&gt;|&#34;has factory&#34;| BF[&#34;BiomeFactory (Role)&#34;]
+    BF -.-&gt;|with| FF[ForestFactory]
+    BF -.-&gt;|with| DF[DesertFactory]
+    BF -.-&gt;|with| OF[OceanFactory]
+
+    FF --&gt; FT[古代樹の森]
+    FF --&gt; FC[エルフの弓兵]
+    FF --&gt; FW[精霊の霧]
+
+    DF --&gt; DT[灼熱の砂漠]
+    DF --&gt; DC[サンドワーム]
+    DF --&gt; DW[砂嵐]
+
+    OF --&gt; OT[深淵の海底]
+    OF --&gt; OC[クラーケン]
+    OF --&gt; OW[大渦潮]
+</pre><p>「WorldGenerator は BiomeFactory ロールだけに依存する。どの具体工場が来るかは知らない。そして各工場は自分の血統だけを送り出す。これが血統書のある世界だ」</p><p>「初期化はどうなりますか？」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span><span class=lnt>9
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># 森ゾーンの生成</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$forest_gen</span> <span class=o>=</span> <span class=nn>WorldGenerator</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>factory</span> <span class=o>=&gt;</span> <span class=nn>ForestFactory</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$forest_zone</span> <span class=o>=</span> <span class=nv>$forest_gen</span><span class=o>-&gt;</span><span class=n>generate</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=c1># =&gt; terrain: 古代樹の森, creature: エルフの弓兵, weather: 精霊の霧</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 砂漠ゾーンの生成</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$desert_gen</span> <span class=o>=</span> <span class=nn>WorldGenerator</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>factory</span> <span class=o>=&gt;</span> <span class=nn>DesertFactory</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$desert_zone</span> <span class=o>=</span> <span class=nv>$desert_gen</span><span class=o>-&gt;</span><span class=n>generate</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=c1># =&gt; terrain: 灼熱の砂漠, creature: サンドワーム, weather: 砂嵐</span>
+</span></span></code></pre></td></tr></table></div></div><p>「Before の <code>generate_zone('forest')</code> が <code>WorldGenerator->new(factory => ForestFactory->new)->generate</code> に変わった。長くなったように見えるが、ファクトリーを受け取った時点で血統が保証される。呼び出し側が <code>$type</code> を間違える余地がない」</p><p>「そして——ワトソン君が恐れていた火山バイオームの追加だ」</p><p>【After】火山の血統——VolcanoFactory</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>VolcanoFactory</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>with</span> <span class=s>&#39;BiomeFactory&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>create_terrain</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>        <span class=nn>Terrain</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=n>name</span> <span class=o>=&gt;</span> <span class=s>&#39;溶岩の大地&#39;</span><span class=p>,</span> <span class=n>ground</span> <span class=o>=&gt;</span> <span class=s>&#39;黒曜石&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>obstacle</span> <span class=o>=&gt;</span> <span class=s>&#39;噴火口&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>create_creature</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>        <span class=nn>Creature</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=n>name</span> <span class=o>=&gt;</span> <span class=s>&#39;サラマンダー&#39;</span><span class=p>,</span> <span class=n>hp</span> <span class=o>=&gt;</span> <span class=mi>250</span><span class=p>,</span> <span class=n>attack</span> <span class=o>=&gt;</span> <span class=s>&#39;火炎ブレス&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>create_weather</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>        <span class=nn>Weather</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=n>name</span> <span class=o>=&gt;</span> <span class=s>&#39;火山灰の雨&#39;</span><span class=p>,</span> <span class=n>visibility</span> <span class=o>=&gt;</span> <span class=mf>0.3</span><span class=p>,</span> <span class=n>damage</span> <span class=o>=&gt;</span> <span class=mi>8</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># 火山ゾーンの生成——既存コードは一切変更なし</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$volcano_gen</span> <span class=o>=</span> <span class=nn>WorldGenerator</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>factory</span> <span class=o>=&gt;</span> <span class=nn>VolcanoFactory</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$volcano_zone</span> <span class=o>=</span> <span class=nv>$volcano_gen</span><span class=o>-&gt;</span><span class=n>generate</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「……え、ForestFactory も DesertFactory も OceanFactory も WorldGenerator も何も触ってないですか？」</p><p>「一切触っていない。<code>VolcanoFactory</code> は <code>BiomeFactory</code> ロールを満たしているから、WorldGenerator はそのまま受け入れる。新しい血統を追加しても、既存の血統には一切影響しない」</p><p>「Before だったら、3つのメソッド全部に <code>elsif ($type eq 'volcano')</code> を追加して、遷移ゾーンのテストケースも追加して……」</p><p>「その恐怖はもう過去のものだ」</p><h2 id=解決血統書のある世界>解決：血統書のある世界</h2><p>ロックがテストを実行すると、ターミナルに結果が並んだ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl>$ prove -v t/abstract_factory.t
+</span></span><span class=line><span class=cl><span class=c1># Subtest: Before: Mismatched Product Family</span>
+</span></span><span class=line><span class=cl>    ok <span class=m>1</span> - forest zone: terrain OK
+</span></span><span class=line><span class=cl>    ok <span class=m>2</span> - forest zone: creature OK
+</span></span><span class=line><span class=cl>    ok <span class=m>3</span> - forest zone: weather OK
+</span></span><span class=line><span class=cl>    ok <span class=m>4</span> - transition: terrain from forest
+</span></span><span class=line><span class=cl>    ok <span class=m>5</span> - BUG: creature from ocean in forest terrain!
+</span></span><span class=line><span class=cl>    ok <span class=m>6</span> - transition: weather from forest
+</span></span><span class=line><span class=cl>    ok <span class=m>7</span> - Adding volcano requires modifying <span class=m>3</span> methods
+</span></span><span class=line><span class=cl>ok <span class=m>1</span> - Before: Mismatched Product Family
+</span></span><span class=line><span class=cl><span class=c1># Subtest: After: Abstract Factory Pattern</span>
+</span></span><span class=line><span class=cl>    ok <span class=m>1</span> - ForestFactory: terrain
+</span></span><span class=line><span class=cl>    ok <span class=m>2</span> - ForestFactory: creature
+</span></span><span class=line><span class=cl>    ok <span class=m>3</span> - ForestFactory: weather
+</span></span><span class=line><span class=cl>    ok <span class=m>4</span> - DesertFactory: terrain
+</span></span><span class=line><span class=cl>    ok <span class=m>5</span> - DesertFactory: creature
+</span></span><span class=line><span class=cl>    ok <span class=m>6</span> - OceanFactory: creature
+</span></span><span class=line><span class=cl>    ok <span class=m>7</span> - Products are proper objects
+</span></span><span class=line><span class=cl>    ok <span class=m>8</span> - Creature is proper object
+</span></span><span class=line><span class=cl>    ok <span class=m>9</span> - VolcanoFactory: terrain
+</span></span><span class=line><span class=cl>    ok <span class=m>10</span> - VolcanoFactory: creature
+</span></span><span class=line><span class=cl>    ok <span class=m>11</span> - VolcanoFactory: weather
+</span></span><span class=line><span class=cl>    ok <span class=m>12</span> - ForestFactory works with WorldGenerator
+</span></span><span class=line><span class=cl>    ok <span class=m>13</span> - DesertFactory works with WorldGenerator
+</span></span><span class=line><span class=cl>    ok <span class=m>14</span> - OceanFactory works with WorldGenerator
+</span></span><span class=line><span class=cl>    ok <span class=m>15</span> - VolcanoFactory works with WorldGenerator
+</span></span><span class=line><span class=cl>ok <span class=m>2</span> - After: Abstract Factory Pattern
+</span></span><span class=line><span class=cl>All tests successful.
+</span></span></code></pre></td></tr></table></div></div><p>「Before のテスト5を見たまえ。遷移ゾーンで森の地形に海のクラーケンが混入している。After のテスト7〜8——製品はハッシュではなく型付きオブジェクトだ。テスト9〜11、火山ファミリーが正しく生成されている。テスト12〜15、どのファクトリーでもWorldGeneratorは動く」</p><p>「砂漠にクラーケンが出る世界は、もう終わりだ……」</p><p>「血統書が世界を守る。一族は一族として生まれ、異なる血が混じることはない。これがAbstract Factoryパターンだ」</p><p>僕はPCを閉じかけたが、ロックが手を上げた。</p><p>「報酬は——そうだな。Elysium Online の限定マウント『黒曜石のドラゴン』をいただこうか。火山バイオーム初クリア報酬のやつだ」</p><p>「それ、まだ実装してないんですけど……」</p><p>ロックは人差し指を立てた。</p><p>「最後に一つ。Abstract Factoryはファミリーの一貫性を守る強力な手法だ。新しいバイオーム——つまり新しいファミリーの追加は容易い。だが新しい製品種の追加は重い。たとえば全バイオームに『BGM』を追加したくなったら、<code>BiomeFactory</code> ロールに <code>create_bgm</code> を追加し、既存の全ファクトリーに実装を強いることになる」</p><p>「全ファクトリーに……」</p><p>「ファミリーの数が増えるのは得意だが、ファミリーの中身が増えるのは苦手。血統を増やすのは容易いが、血統の定義を変えるのは重い。それを忘れなければ、君の箱庭は美しく保たれるだろう」</p><p>僕はLCIを出て、ディレクターへの返信を書いた。「火山バイオーム、1週間で行けます」</p><hr><h2 id=探偵の調査報告書>探偵の調査報告書</h2><div class=table-wrapper><table><thead><tr><th style=text-align:left>容疑（アンチパターン）</th><th style=text-align:left>真実（パターン）</th><th style=text-align:left>証拠（効果）</th></tr></thead><tbody><tr><td style=text-align:left>Mismatched Product Family（製品ファミリー不一致）。関連するオブジェクト群（地形・生物・天候）を個別のメソッドで生成し、<code>$type</code> 引数の引き回しに依存。呼び出し側の引数ミスで異なるファミリーの混在が発生し、世界の整合性が崩壊。</td><td style=text-align:left>Abstract Factory パターン。製品ファミリー全体を1つのファクトリーで生成し、ファクトリーを選んだ時点でファミリーの一貫性が保証される。WorldGenerator は具体ファクトリーを知らず、BiomeFactory ロールにのみ依存。</td><td style=text-align:left>ファミリー不一致が構造的に不可能に。新バイオーム追加で既存コード修正ゼロ。if/elsif 分岐が全メソッドから完全に消滅。製品がハッシュから型付きオブジェクト（Terrain/Creature/Weather）に昇格し、不完全な生成を防止。</td></tr></tbody></table></div><h3 id=推理のステップ>推理のステップ</h3><ol><li>製品クラスを定義する: 地形（Terrain）・生物（Creature）・天候（Weather）をそれぞれ <code>required</code> な属性を持つ独立したクラスとして定義する。ハッシュリファレンスからの卒業。</li><li>Abstract Factory ロールを定義する: <code>BiomeFactory</code> ロールで <code>create_terrain</code> / <code>create_creature</code> / <code>create_weather</code> の3メソッドを <code>requires</code> として宣言する。ファミリーの契約を明示する。</li><li>Concrete Factory を実装する: <code>ForestFactory</code> / <code>DesertFactory</code> / <code>OceanFactory</code> の各ファクトリーが <code>BiomeFactory</code> ロールを消費し、自分の血統に属する製品だけを生成する。</li><li>WorldGenerator をファクトリーに依存させる: <code>has factory</code> でファクトリーを受け取り、<code>generate</code> メソッドではファクトリー経由で全製品を生成する。<code>$type</code> の引き回しを完全に排除する。</li><li>新ファミリーを追加する: <code>VolcanoFactory</code> のように新しいファクトリーを1つ追加するだけ。既存のファクトリーもWorldGeneratorも一切変更しない。</li></ol><h3 id=ロックより>ロックより</h3><p>ワトソン君。Factory Methodは1種類の製品を子クラスに委ねる手法だった。Abstract Factoryはその発展形——製品ファミリー全体を1つの工場に委ねる。地形だけ、生物だけではない。地形も生物も天候も——血を同じくする者たちを、一つの血統として送り出す。</p><p>この手法の強みは「ファミリーの追加が軽いこと」だ。新しいバイオームを追加するとき、既存の工場には指一本触れない。だがその裏返しとして、「ファミリーの定義変更は重い」。全バイオームにBGMを追加しようとすれば、全工場の改修が必要になる。</p><p>だから適用するなら、まず自問したまえ。「増えるのはファミリーの種類か、それともファミリーの中身か」。種類が増えるならAbstract Factory。中身が増えるなら、別の手法を探るべきだ。血統書は、血統の定義が安定しているからこそ価値を持つのだから。</p></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/perl/>Perl</a>
+<a href=/tags/moo/>Moo</a>
+<a href=/tags/abstract-factory/>Abstract-Factory</a>
+<a href=/tags/mismatched-product-family/>Mismatched-Product-Family</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-detective/>Code-Detective</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/03/29/070705/><div class=article-image><img src=/public_images/2026/code-detective-memento/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-memento/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Memento】失われた条項の記憶〜状態を封じるタイムカプセル〜</h2></div></a></article><article class=has-image><a href=/2026/03/28/070705/><div class=article-image><img src=/public_images/2026/code-detective-flyweight/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-flyweight/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Flyweight】十万体の分身術〜共有すべき素顔の秘密〜</h2></div></a></article><article class=has-image><a href=/2026/03/27/070705/><div class=article-image><img src=/public_images/2026/code-detective-bridge/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-bridge/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Bridge】交差する二つの系譜〜掛け算の呪いを解く架け橋〜</h2></div></a></article><article class=has-image><a href=/2026/03/25/070705/><div class=article-image><img src=/public_images/2026/code-detective-mediator/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-mediator/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Mediator】蜘蛛の巣会議〜糸を引く者は誰か〜</h2></div></a></article><article class=has-image><a href=/2026/03/24/070705/><div class=article-image><img src=/public_images/2026/code-detective-composite/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-composite/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Composite】地下組織の系譜図〜末端まで届かない指令〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>
