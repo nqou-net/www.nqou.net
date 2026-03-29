@@ -36,6 +36,6 @@ Phase 1で作成したプロットと、Phase 2で検証したコードを統合
 
 ## Step 4: ファイルへの保存
 執筆が完了したら、指定された日付のディレクトリに Hugo の記事ファイルとして保存します。
-- 保存先例: `content/post/YYYY/MM/DD/<slug>.md`
+- 保存先例: `content/post/YYYY/MM/DD/HHMMSS.md`
 
 保存後、Phase 4（レビュー）へ進みます。
