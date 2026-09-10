@@ -1,0 +1,381 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="観客へ合図なく引き金を引く猟師人形。同期input()の確認がイベントループごと舞台を止める理由と、asyncio.Eventで安全に一時停止・再開するHuman-in-the-Loopの実装を追う。"><title>コードパペッティア【Human-in-the-Loop】待ったなしの猟師人形〜凍りつく舞台裏と、遅れて届く合図〜</title><link rel=canonical href=https://www.nqou.net/2026/07/27/070705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コードパペッティア【Human-in-the-Loop】待ったなしの猟師人形〜凍りつく舞台裏と、遅れて届く合図〜"><meta property='og:description' content="観客へ合図なく引き金を引く猟師人形。同期input()の確認がイベントループごと舞台を止める理由と、asyncio.Eventで安全に一時停止・再開するHuman-in-the-Loopの実装を追う。"><meta property='og:url' content='https://www.nqou.net/2026/07/27/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='python'><meta property='article:tag' content='human-in-the-loop'><meta property='article:tag' content='code-puppeteer'><meta property='article:published_time' content='2026-07-27T07:07:05+09:00'><meta property='article:modified_time' content='2026-07-27T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-puppeteer-human-in-the-loop/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コードパペッティア【Human-in-the-Loop】待ったなしの猟師人形〜凍りつく舞台裏と、遅れて届く合図〜"><meta name=twitter:description content="観客へ合図なく引き金を引く猟師人形。同期input()の確認がイベントループごと舞台を止める理由と、asyncio.Eventで安全に一時停止・再開するHuman-in-the-Loopの実装を追う。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-puppeteer-human-in-the-loop/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-07-27T07:07:05+09:00","datePublished":"2026-07-27T07:07:05+09:00","description":"観客へ合図なく引き金を引く猟師人形。同期input()の確認がイベントループごと舞台を止める理由と、asyncio.Eventで安全に一時停止・再開するHuman-in-the-Loopの実装を追う。","headline":"コードパペッティア【Human-in-the-Loop】待ったなしの猟師人形〜凍りつく舞台裏と、遅れて届く合図〜","image":"https://www.nqou.net/public_images/2026/code-puppeteer-human-in-the-loop/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/07/27/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#第1幕-予兆と調律--待てと言われても待てない人形>第1幕: 予兆と調律 ── 待てと言われても、待てない人形</a></li><li><a href=#第2幕-絡糸と破綻--正しく見える一手が舞台ごと沈黙させる>第2幕: 絡糸と破綻 ── 正しく見える一手が、舞台ごと沈黙させる</a></li><li><a href=#第3幕-示唆と編み直し--主軸を掴んだのは誰か>第3幕: 示唆と編み直し ── 主軸を掴んだのは、誰か</a></li><li><a href=#第4幕-開演と調和--認可灯が灯り静かに消える>第4幕: 開演と調和 ── 認可灯が灯り、静かに消える</a><ol><li><a href=#-操り人形師の覚書colettes-puppeteer-log>🎭 操り人形師の覚書（Colette&rsquo;s Puppeteer Log）</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/07/27/070705/><img src=/public_images/2026/code-puppeteer-human-in-the-loop/header.webp loading=lazy alt="Featured image of post コードパペッティア【Human-in-the-Loop】待ったなしの猟師人形〜凍りつく舞台裏と、遅れて届く合図〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/07/27/070705/>コードパペッティア【Human-in-the-Loop】待ったなしの猟師人形〜凍りつく舞台裏と、遅れて届く合図〜</a></h2><h3 class=article-subtitle>観客へ合図なく引き金を引く猟師人形。同期input()の確認がイベントループごと舞台を止める理由と、asyncio.Eventで安全に一時停止・再開するHuman-in-the-Loopの実装を追う。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>27, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 25分</time></div></footer></div></header><section class=article-content><p>西日が工房の窓から斜めに差し込んで、作業台に並んだ道具箱の真鍮を、燃えるような橙色に染めていました。私は明日に回すはずだった調整簿を脇へ避け、指先に残ったかすかな匂いに気付きます──硝煙です。少し前まで、空砲での試し撃ちをしていた名残でした。膝の上には、猟師の格好をしたからくり人形。使い込まれた革のダスターコートの袖口をめくり、まだ仄かに温かい真鍮の銃身を、布でゆっくり拭っているところでした。</p><p>今夜、たった一度の発砲に、旅回り一座の行く先すべてが懸かっていました。</p><h2 id=第1幕-予兆と調律--待てと言われても待てない人形>第1幕: 予兆と調律 ── 待てと言われても、待てない人形</h2><p>工房の扉が、叩かれるより先に開きました。蝶番が跳ねるような音を立て、外の生ぬるい風がひとかたまり、工房の中へ流れ込んできます。</p><p>「頼む、話を聞いてくれ……いや、まず座らせてくれ」</p><p>飛び込んできたのは、革のロングコートを着た壮年の男でした。よく日に焼けた顔、身振りの大きな、いかにも興行師らしい佇まい。コートの裾には旅の埃がまだらに乗っていて、遠方から急いで馬を飛ばしてきたのだと、見ただけで分かります。そう言うだけ言って、本人はそれどころではない様子で、腰を下ろす暇すら惜しみ、立ったまま身振り手振りで話し始めます。口では余裕を装おうとして、体がまるでついてきていないのが丸分かりの、隠しようのない動揺でした。</p><p>「隼一座の座長、ソーンだ。今夜、うちの一座の目玉演目を見てもらいたい……いや、見てもらう前に、直してもらいたいんだ」</p><p>言葉の順序が、彼自身の焦りをそのまま映していました。私は道具を置いて、椅子を勧めます。ソーン座長は座らないまま、それでも少し声を落として、前夜の出来事を語り始めました。話しながらも、興行師の癖が抜けきらないのでしょう、「まあ聞いてくれ、これがまた大変な見世物でな」と、場を沸かせるような節回しがふと混じっては、自分でもそれに気付いて、慌てて真顔に戻る──そんな不釣り合いな瞬間が、何度かありました。</p><p>隼一座の目玉は、凄腕の猟師人形が、離れた標的を寸分違わず撃ち抜くという射撃演目だそうです。これまでは動かない的を相手にしてきましたが、今回、初日を前にして新しい演出に挑みました──相方が硝子細工を高く掲げ、それを人形が撃ち抜くという、人の動きが絡む一幕です。「うちの若い座員でな。度胸だけは一座で一番の子だ」と、ソーン座長はその名を口にせず、ただそう紹介しました。</p><p>「昨夜の稽古でな。相方が硝子細工を構えようとしたその瞬間、誰かが叫んだんだ。『待った、待った!』とな。……だが、声が終わるより先に、あいつは撃っていた」</p><p>硝子細工は間一髪で相方の手から離れておらず、代わりに近くの支柱にひびが走ったといいます。ソーン座長は、その場の空気を思い出すように、ひとつ息をついてから続けました。</p><p>「居合わせた誰かが、青い顔でこう漏らしたよ。『……待ったなし、か』とな」</p><p>その一言を、ソーン座長自身がそのまま口にしたとき、私の中で、あの人形の呼び名が静かに定まりました。待ったなしの猟師人形。以来、私はそう呼ぶことにしています。</p><p>「今夜、興行組合の安全検査官が客席にいる。あれが失敗を見れば、うちの一座は……もう、どこの巡業にも乗せてもらえなくなる」</p><p>ソーン座長の声が、一段低くなりました。声を張ることに慣れた喉が、無理やり抑え込まれているような、不自然な低さでした。後戻りのきかない、たった一度の舞台。私は静かに頷き、まずは自分の目で確かめることにしました。</p><p>安全な空砲を人形に込め、標的の代わりに古い木箱を据えます。ソーン座長は工房の隅に立ち、両手を握りしめたまま、口を挟むこともせずに見守っていました。私自身が木箱の前に立ち、人形が狙いを定めた瞬間を見計らって、声を上げました。</p><p>「待って」</p><p>声が届くより先に、乾いた発射音が鳴りました。空砲とはいえ、耳のすぐ側で弾ける音に、私は思わず肩をすくめます。木箱には、届くはずのない発砲の勢いが、うっすらとした焦げ跡を残していました。人間の言葉は、人形の判断に、ほんの一呼吸すら割り込む隙がありません。私は人形の「思考のゼンマイ」を覗き込み、標的を捕捉してから発砲に至る手順を辿ってみました。捕捉。判定。発砲。それだけです。確認のための一呼吸が、手順のどこにも組み込まれていませんでした。</p><p>「捕捉したら、即・発砲。それだけ、なんだ……」</p><p>思わず声が漏れます。指先で人形の肩口の継ぎ目をなぞりながら、私は苦い納得をひとつ飲み込みました。これまで動かない的だけを撃ってきたこの人形にとって、「待つ」という手順そのものが、そもそも存在しなかったのです。工房の隅で道具の手入れをしているはずのマエストロが、今日は道具に手も伸ばさず、いつもより一歩近い位置に立って、黙ってこちらを見ていることに、私はふと気付きました。何も言われたわけではないのに、いつもと違う距離感を、肌で感じます。</p><h2 id=第2幕-絡糸と破綻--正しく見える一手が舞台ごと沈黙させる>第2幕: 絡糸と破綻 ── 正しく見える一手が、舞台ごと沈黙させる</h2><p>「人間が途中で確認できるようにすればいいのね」</p><p>答えは、そう難しいことではないように思えました。標的への発砲直前に、人間への確認を一段挟めばいい。これまでの私なら、糸をきつく張り直すことばかり考えていたはずです。今回は違う、と自分でも思いました。人形の腕を縛るのではなく、ただ一言、人に尋ねるだけ。力任せの指示でも、複雑な条件分岐でもない、筋の通った安全策のはずです。人形一体一体の処理は、途中で中断・再開できる「コルーチン」という単位で書かれています。私はさっそく、羽根ペンよりも先に机の上の紙へ手順を書き出し、それからコードに手を入れます。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=c1># file: agents/code-puppeteer/tests/human-in-the-loop/before.py</span>
+</span></span><span class=line><span class=cl><span class=s2>&#34;&#34;&#34;待ったなしの猟師人形の発砲確認(Before): 同期ブロッキングinput()。
+</span></span></span><span class=line><span class=cl><span class=s2>
+</span></span></span><span class=line><span class=cl><span class=s2>猟師人形が標的への発砲直前に、人間の確認を同期関数input()で待つ。input()は
+</span></span></span><span class=line><span class=cl><span class=s2>awaitを持たない通常の同期呼び出しであり、呼び出された瞬間、Pythonインタプリタは
+</span></span></span><span class=line><span class=cl><span class=s2>戻り値が得られるまでスレッドを丸ごと明け渡さない。asyncio.gatherで他のコルーチン
+</span></span></span><span class=line><span class=cl><span class=s2>(照明の点滅などother_stage_business)と同時に走らせても、他方はhunterの
+</span></span></span><span class=line><span class=cl><span class=s2>take_aim_and_fireがinput()から戻ってくるまで、実行を始めることさえできない
+</span></span></span><span class=line><span class=cl><span class=s2>(核心公理=承認を待つ間、主軸(イベントループ)を明け渡すかどうか、への違反)。
+</span></span></span><span class=line><span class=cl><span class=s2>&#34;&#34;&#34;</span>
+</span></span><span class=line><span class=cl><span class=kn>import</span> <span class=nn>sys</span>
+</span></span><span class=line><span class=cl><span class=kn>import</span> <span class=nn>os</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># sys.path に `agents/code-puppeteer` を追加して `base.py` から `BaseAgent` をインポートする</span>
+</span></span><span class=line><span class=cl><span class=n>current_dir</span> <span class=o>=</span> <span class=n>os</span><span class=o>.</span><span class=n>path</span><span class=o>.</span><span class=n>dirname</span><span class=p>(</span><span class=n>os</span><span class=o>.</span><span class=n>path</span><span class=o>.</span><span class=n>abspath</span><span class=p>(</span><span class=vm>__file__</span><span class=p>))</span>
+</span></span><span class=line><span class=cl><span class=n>code_puppeteer_dir</span> <span class=o>=</span> <span class=n>os</span><span class=o>.</span><span class=n>path</span><span class=o>.</span><span class=n>abspath</span><span class=p>(</span><span class=n>os</span><span class=o>.</span><span class=n>path</span><span class=o>.</span><span class=n>join</span><span class=p>(</span><span class=n>current_dir</span><span class=p>,</span> <span class=s2>&#34;../..&#34;</span><span class=p>))</span>
+</span></span><span class=line><span class=cl><span class=k>if</span> <span class=n>code_puppeteer_dir</span> <span class=ow>not</span> <span class=ow>in</span> <span class=n>sys</span><span class=o>.</span><span class=n>path</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>    <span class=n>sys</span><span class=o>.</span><span class=n>path</span><span class=o>.</span><span class=n>append</span><span class=p>(</span><span class=n>code_puppeteer_dir</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kn>from</span> <span class=nn>base</span> <span class=kn>import</span> <span class=n>BaseAgent</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>class</span> <span class=nc>HunterPuppet</span><span class=p>(</span><span class=n>BaseAgent</span><span class=p>):</span>
+</span></span><span class=line><span class=cl>    <span class=s2>&#34;&#34;&#34;射撃演目を担う、待ったなしの猟師人形&#34;&#34;&#34;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>def</span> <span class=fm>__init__</span><span class=p>(</span><span class=bp>self</span><span class=p>)</span> <span class=o>-&gt;</span> <span class=kc>None</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>        <span class=nb>super</span><span class=p>()</span><span class=o>.</span><span class=fm>__init__</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=n>name</span><span class=o>=</span><span class=s2>&#34;待ったなしの猟師人形&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>system_prompt</span><span class=o>=</span><span class=s2>&#34;標的を確実に捕捉できたときに限り、必ず人間の確認を得てから発砲しなさい。&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>async</span> <span class=k>def</span> <span class=nf>take_aim_and_fire</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span> <span class=n>target</span><span class=p>:</span> <span class=nb>str</span><span class=p>)</span> <span class=o>-&gt;</span> <span class=nb>bool</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>        <span class=s2>&#34;&#34;&#34;標的を捕捉した後、人間の確認を得てから発砲する&#34;&#34;&#34;</span>
+</span></span><span class=line><span class=cl>        <span class=n>answer</span> <span class=o>=</span> <span class=nb>input</span><span class=p>(</span><span class=sa>f</span><span class=s2>&#34;『</span><span class=si>{</span><span class=n>target</span><span class=si>}</span><span class=s2>』へ発砲しますか？ (yes/no): &#34;</span><span class=p>)</span>  <span class=c1># 同期ブロッキング</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=n>answer</span><span class=o>.</span><span class=n>strip</span><span class=p>()</span><span class=o>.</span><span class=n>lower</span><span class=p>()</span> <span class=o>!=</span> <span class=s2>&#34;yes&#34;</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>            <span class=k>return</span> <span class=kc>False</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=kc>True</span>  <span class=c1># 発砲</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>async</span> <span class=k>def</span> <span class=nf>other_stage_business</span><span class=p>(</span><span class=n>log</span><span class=p>:</span> <span class=nb>list</span><span class=p>[</span><span class=nb>str</span><span class=p>])</span> <span class=o>-&gt;</span> <span class=kc>None</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>    <span class=s2>&#34;&#34;&#34;猟師人形とは無関係な、他の人形の通常運転(照明の点滅など)を表す最小のコルーチン&#34;&#34;&#34;</span>
+</span></span><span class=line><span class=cl>    <span class=n>log</span><span class=o>.</span><span class=n>append</span><span class=p>(</span><span class=s2>&#34;other-business-ran&#34;</span><span class=p>)</span>
+</span></span></code></pre></td></tr></table></div></div><p>単体で試すと、狙い通りに動きました。「発砲しますか」と尋ねられ、<code>yes</code>と答えれば撃ち、拒めば撃たない。何度試しても同じ結果が返ってきて、私は少しずつ肩の力が抜けていくのを感じました。今回は力任せの指示でも、複雑な条件分岐でもありません。むしろ、筋の通った安全策のはずでした。</p><p>通りかかったアンが、コードを一瞥します。いつもなら容赦のない一言が飛んでくるところですが、今日は違いました。</p><p>「へえ、今日はまともに見えるじゃないの」</p><p>それだけ言って、アンは行ってしまいます。珍しく突っかかってこない、その素っ気なさに、私はむしろ気を良くしました。今回ばかりは、太鼓判をもらったつもりでいたのです。窓の外はすっかり日も落ちて、開演までの時間が、着実に減っていくのを感じながらも、私は久しぶりに、落ち着いた気持ちで工具を片付けました。</p><p>本番同様の通し稽古が始まります。舞台袖には、ソーン座長の言っていた度胸自慢の若い座員が、硝子細工を両手で抱えて立っていました。緊張のせいか、細工を持つ指先が、かすかに震えているのが見えます。発砲の演出用に焚いた薄い霧が、舞台の上をゆっくり漂っていました。離れた場所では、別の人形が普段通りの持ち場をこなしています。待ったなしの猟師人形が標的を捕捉し、肩に据えられた小さな認可灯──今回新しく組み込んだ、確認待ちを示す琥珀色の真鍮ランプです──が灯った、その瞬間でした。</p><p>何もかもが、止まりました。</p><p>漂っていた霧が、風もないのに、宙で静止します。離れた場所の人形の動きも、物音も、すべてが凍りついたように途切れました。若い座員が、硝子細工を抱えたまま、困惑した顔でこちらを振り返ります。私は舞台裏の制御盤に飛びつき、「発砲しますか」の確認欄を探しましたが、返事を打ち込める場所などどこにもありません──本番の舞台に、確認を打ち返す誰かがいることなど、端から想定していなかったのです。人形そのものは、彫像のように固まったままでした。</p><p>焦った私は、猟師人形の腕を直接押して、動かそうとします。けれど、掴んだ瞬間に伝わってきたのは、単に止まっているのではない感触でした。何か大きな力に噛み合ったまま、押さえつけられているかのような、異様な硬さ。まるで、劇場そのものの心棒を、両手で無理やり押さえつけているような感覚でした。無理に動かせば壊れると分かり、私はすぐに手を離しました。</p><p>何をどうすればいいのか分からず、立ち尽くす私の前に、ソーン座長の青ざめた顔があります。検査官の到着まで、もう数刻もありませんでした。若い座員は、抱えたままの硝子細工を、そっと足元へ下ろします。誰も声を上げず、工房と舞台のあいだに、重い沈黙だけが残りました。</p><h2 id=第3幕-示唆と編み直し--主軸を掴んだのは誰か>第3幕: 示唆と編み直し ── 主軸を掴んだのは、誰か</h2><p>静止したままの舞台を見渡し、マエストロが口を開きました。</p><p>「……止めたのは、糸か。舞台か」</p><p>答えではなく、問いから始まる。それ自体が、いつもと違うことに、私は遅れて気付きます。いつもなら、短い一言を残して工房の方へ引き上げていくはずのマエストロが、今日は微動だにせず、私の答えを待っていました。私は<code>input()</code>案の意図を、慌てて説明しました。猟師人形の発砲、その一点だけを止めるつもりだったのだと。</p><p>マエストロは何も言わず、まだ宙に留まったままの霧と、離れた場所で固まった人形を、目だけで示します。長い沈黙でした。私は、自分の心音が耳の奥で鳴っているのを感じながら、次の言葉を待ちました。そして、間を置かずに続けました。</p><p>「なら、なぜあれも止まっている」</p><p>言葉に詰まりました。他の何もかもを止めるつもりは、決してなかったのです。けれど、その理屈が、まだ言葉になりません。視線を落とした私の目に、足元まで垂れ込めたままの霧が映ります。</p><p>そこへ、アンの声が割り込んできました。マエストロの問いが終わるか終わらないかの間隙を、迷わず突いてきます。</p><p>「あなたが緩めたかったのは、たった一本の糸のはずよ。なのに、舞台の主軸ごと縛り付けてしまったの」</p><p>主軸。劇場の全ての人形は、舞台下に通った一本の主軸から伸びる糸で動いています。各人形は自分の出番の間だけ、小さな連動歯車を主軸に噛み合わせて動力を受け取り、出番でないときは歯車を外して、主軸の回転を一切妨げません。同じ主軸を、大勢の人形が入れ替わり立ち替わり使い回している──アンの一言で、私はようやくその仕組みを思い出しました。恥ずかしさに、頬が熱くなるのが分かります。</p><p>マエストロが、アンの言葉を継ぐように、なお立ち去らずに言葉を重ねます。</p><p>「……ゼンマイを一つ止めるのに、他の全部を巻き込む道理はない」</p><p>その一言が、胸の奥に落ちてきました。私が作った認可灯は、連動歯車を外すという手順を踏まないまま、主軸そのものを直接掴んで待ってしまっていたのです。掴まれた主軸は、そこに繋がる霧の送風機も、離れた人形の動きも、等しく道連れにします。しばらくの間、私は口を開けませんでした。ソーン座長の視線も、若い座員の視線も、痛いほどに感じます。それでも、頭の中では、ばらばらだった糸が一本にまとまっていくような感覚がありました。</p><p>「……動かすことだけが、人形の命じゃない、のね」</p><p>自分の口から零れた言葉に、私自身が少し驚きました。発砲を止めて待つこと自体は、間違いではなかったのです。間違っていたのは、待ち方でした。</p><p>マエストロは、いつものように黙って背を向けて去ることをせず、その場に留まったまま、短く言いました。</p><p>「……悪くない」</p><p>答えを与えられたわけではありません。けれど、見放されたのでも、叱られたのでもない。今日、私は初めて、対等な人形遣いとして扱われている手応えを覚えていました。ソーン座長が、恐る恐るといった様子で「……直せるのか」と尋ねてきます。私は道具箱を引き寄せながら、今度こそ確信を持って頷きました。</p><p>さて、編み直しです。</p><p>Human-in-the-Loop（HITL）──自動化された処理の中に、人間が明示的に承認・却下するまで先へ進めない地点を設ける設計を、こう呼びます。そして、その処理を一時停止し、後から正確に再開する仕組みを、Suspend/Resume（一時停止と再開）と呼びます。私が組んだ認可灯は、この二つを掛け合わせたものでなければなりませんでした。</p><p>なぜ<code>input()</code>一つが、猟師人形だけでなく舞台全体を止めてしまうのか。asyncioは単一スレッドの協調的マルチタスキングです。先ほど触れた「コルーチン」は、<code>await</code>という一語のたびに、連動歯車を主軸から外すように、他の処理へ順番を譲ります。ところが<code>input()</code>は<code>await</code>を持たない、ただの同期呼び出しです。猟師人形はこれを呼んだ瞬間、歯車を外すという手順を踏まずに、主軸そのものを直接掴んでしまう。主軸が止まれば、そこに繋がるすべての人形が、等しく止まります。</p><p>「なら、確認だけ、別の作業員に任せればいいのでは」──そう考えたくもなります。実際、<code>input()</code>を別の作業員（スレッド）に逃がす仕組みも、Pythonにはあります。ですがそれだけでは足りません。主軸そのものは止まらなくなりますが、人間の承認は一瞬で返るとは限らない──数分かかることもあります。作業員の頭数には限りがあり、大勢の人形が一斉に確認を求めれば、作業員はすぐに出払い、無関係な他の仕事まで待たされてしまいます。真に要るのは、作業員を専有しない待ち方でした。コルーチンは、作業員のように頭数の決まった枠を占有しません。眠っている間、誰かの席を塞ぐことがないのです。</p><p>もう一つ、見落としてはいけないことがありました。作業員に確認を逃がすのをやめた以上、人間の返事は、発砲を頼んだその場へまっすぐには返ってきません。合図紐は、また別の時、別の場所から引かれます。だとすれば、「今、誰の、どの発砲への返事なのか」を取り違えないための札が要ります。要るのは、発砲という行為そのものを、一つの記録として切り出すことでした。私は机の上に、新しい仕立てを描き起こしました。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span><span class=lnt>51
+</span><span class=lnt>52
+</span><span class=lnt>53
+</span><span class=lnt>54
+</span><span class=lnt>55
+</span><span class=lnt>56
+</span><span class=lnt>57
+</span><span class=lnt>58
+</span><span class=lnt>59
+</span><span class=lnt>60
+</span><span class=lnt>61
+</span><span class=lnt>62
+</span><span class=lnt>63
+</span><span class=lnt>64
+</span><span class=lnt>65
+</span><span class=lnt>66
+</span><span class=lnt>67
+</span><span class=lnt>68
+</span><span class=lnt>69
+</span><span class=lnt>70
+</span><span class=lnt>71
+</span><span class=lnt>72
+</span><span class=lnt>73
+</span><span class=lnt>74
+</span><span class=lnt>75
+</span><span class=lnt>76
+</span><span class=lnt>77
+</span><span class=lnt>78
+</span><span class=lnt>79
+</span><span class=lnt>80
+</span><span class=lnt>81
+</span><span class=lnt>82
+</span><span class=lnt>83
+</span><span class=lnt>84
+</span><span class=lnt>85
+</span><span class=lnt>86
+</span><span class=lnt>87
+</span><span class=lnt>88
+</span><span class=lnt>89
+</span><span class=lnt>90
+</span><span class=lnt>91
+</span><span class=lnt>92
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=c1># file: agents/code-puppeteer/tests/human-in-the-loop/after.py</span>
+</span></span><span class=line><span class=cl><span class=s2>&#34;&#34;&#34;待ったなしの猟師人形の発砲確認(After): 認可灯(asyncio.Event)による一時停止と再開。
+</span></span></span><span class=line><span class=cl><span class=s2>
+</span></span></span><span class=line><span class=cl><span class=s2>発砲という行為をPendingShotという記録に切り出し、ApprovalGateが発砲(shot_id)ごとに
+</span></span></span><span class=line><span class=cl><span class=s2>使い捨ての連動歯車(asyncio.Event)を用意する。猟師人形はその歯車を主軸(イベント
+</span></span></span><span class=line><span class=cl><span class=s2>ループ)からきちんと外してから待つ(await asyncio.wait_for)ため、待っている間も
+</span></span></span><span class=line><span class=cl><span class=s2>他のコルーチンは通常通り進行できる。タイムアウトを引数で必須にすることで、
+</span></span></span><span class=line><span class=cl><span class=s2>「応答なしは無限に待つ」という別の失敗モードを防ぎ、応答なしは不発として扱う
+</span></span></span><span class=line><span class=cl><span class=s2>(fail-closed)。Beforeと変えないのは「承認が下りなければ発砲しない」という
+</span></span></span><span class=line><span class=cl><span class=s2>安全側の結論そのもの、変えるのは待ち方だけ(単一差分)。
+</span></span></span><span class=line><span class=cl><span class=s2>&#34;&#34;&#34;</span>
+</span></span><span class=line><span class=cl><span class=kn>import</span> <span class=nn>asyncio</span>
+</span></span><span class=line><span class=cl><span class=kn>import</span> <span class=nn>sys</span>
+</span></span><span class=line><span class=cl><span class=kn>import</span> <span class=nn>os</span>
+</span></span><span class=line><span class=cl><span class=kn>from</span> <span class=nn>datetime</span> <span class=kn>import</span> <span class=n>datetime</span><span class=p>,</span> <span class=n>timezone</span>
+</span></span><span class=line><span class=cl><span class=kn>from</span> <span class=nn>typing</span> <span class=kn>import</span> <span class=n>Literal</span>
+</span></span><span class=line><span class=cl><span class=kn>from</span> <span class=nn>uuid</span> <span class=kn>import</span> <span class=n>UUID</span><span class=p>,</span> <span class=n>uuid4</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kn>from</span> <span class=nn>pydantic</span> <span class=kn>import</span> <span class=n>BaseModel</span><span class=p>,</span> <span class=n>Field</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># sys.path に `agents/code-puppeteer` を追加して `base.py` から `BaseAgent` をインポートする</span>
+</span></span><span class=line><span class=cl><span class=n>current_dir</span> <span class=o>=</span> <span class=n>os</span><span class=o>.</span><span class=n>path</span><span class=o>.</span><span class=n>dirname</span><span class=p>(</span><span class=n>os</span><span class=o>.</span><span class=n>path</span><span class=o>.</span><span class=n>abspath</span><span class=p>(</span><span class=vm>__file__</span><span class=p>))</span>
+</span></span><span class=line><span class=cl><span class=n>code_puppeteer_dir</span> <span class=o>=</span> <span class=n>os</span><span class=o>.</span><span class=n>path</span><span class=o>.</span><span class=n>abspath</span><span class=p>(</span><span class=n>os</span><span class=o>.</span><span class=n>path</span><span class=o>.</span><span class=n>join</span><span class=p>(</span><span class=n>current_dir</span><span class=p>,</span> <span class=s2>&#34;../..&#34;</span><span class=p>))</span>
+</span></span><span class=line><span class=cl><span class=k>if</span> <span class=n>code_puppeteer_dir</span> <span class=ow>not</span> <span class=ow>in</span> <span class=n>sys</span><span class=o>.</span><span class=n>path</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>    <span class=n>sys</span><span class=o>.</span><span class=n>path</span><span class=o>.</span><span class=n>append</span><span class=p>(</span><span class=n>code_puppeteer_dir</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kn>from</span> <span class=nn>base</span> <span class=kn>import</span> <span class=n>BaseAgent</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>class</span> <span class=nc>PendingShot</span><span class=p>(</span><span class=n>BaseModel</span><span class=p>):</span>
+</span></span><span class=line><span class=cl>    <span class=s2>&#34;&#34;&#34;承認待ちで一時停止している発砲1回分の状態&#34;&#34;&#34;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>shot_id</span><span class=p>:</span> <span class=n>UUID</span> <span class=o>=</span> <span class=n>Field</span><span class=p>(</span><span class=n>default_factory</span><span class=o>=</span><span class=n>uuid4</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=n>target</span><span class=p>:</span> <span class=nb>str</span>
+</span></span><span class=line><span class=cl>    <span class=n>status</span><span class=p>:</span> <span class=n>Literal</span><span class=p>[</span><span class=s2>&#34;pending&#34;</span><span class=p>,</span> <span class=s2>&#34;approved&#34;</span><span class=p>,</span> <span class=s2>&#34;rejected&#34;</span><span class=p>,</span> <span class=s2>&#34;timed_out&#34;</span><span class=p>]</span> <span class=o>=</span> <span class=s2>&#34;pending&#34;</span>
+</span></span><span class=line><span class=cl>    <span class=n>requested_at</span><span class=p>:</span> <span class=n>datetime</span> <span class=o>=</span> <span class=n>Field</span><span class=p>(</span><span class=n>default_factory</span><span class=o>=</span><span class=k>lambda</span><span class=p>:</span> <span class=n>datetime</span><span class=o>.</span><span class=n>now</span><span class=p>(</span><span class=n>timezone</span><span class=o>.</span><span class=n>utc</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>class</span> <span class=nc>ApprovalGate</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>    <span class=s2>&#34;&#34;&#34;発砲(shot_id)ごとに使い捨てのasyncio.Eventを管理する認可灯。
+</span></span></span><span class=line><span class=cl><span class=s2>
+</span></span></span><span class=line><span class=cl><span class=s2>    判定の読み出しは公開メソッドdecision_for()に限る。内部辞書_decisionsへ
+</span></span></span><span class=line><span class=cl><span class=s2>    外部から直接アクセスしてはならない。
+</span></span></span><span class=line><span class=cl><span class=s2>    &#34;&#34;&#34;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>def</span> <span class=fm>__init__</span><span class=p>(</span><span class=bp>self</span><span class=p>)</span> <span class=o>-&gt;</span> <span class=kc>None</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>        <span class=bp>self</span><span class=o>.</span><span class=n>_events</span><span class=p>:</span> <span class=nb>dict</span><span class=p>[</span><span class=n>UUID</span><span class=p>,</span> <span class=n>asyncio</span><span class=o>.</span><span class=n>Event</span><span class=p>]</span> <span class=o>=</span> <span class=p>{}</span>
+</span></span><span class=line><span class=cl>        <span class=bp>self</span><span class=o>.</span><span class=n>_decisions</span><span class=p>:</span> <span class=nb>dict</span><span class=p>[</span><span class=n>UUID</span><span class=p>,</span> <span class=nb>bool</span><span class=p>]</span> <span class=o>=</span> <span class=p>{}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>def</span> <span class=nf>create_wait</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span> <span class=n>shot_id</span><span class=p>:</span> <span class=n>UUID</span><span class=p>)</span> <span class=o>-&gt;</span> <span class=n>asyncio</span><span class=o>.</span><span class=n>Event</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>        <span class=n>event</span> <span class=o>=</span> <span class=n>asyncio</span><span class=o>.</span><span class=n>Event</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>        <span class=bp>self</span><span class=o>.</span><span class=n>_events</span><span class=p>[</span><span class=n>shot_id</span><span class=p>]</span> <span class=o>=</span> <span class=n>event</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=n>event</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>def</span> <span class=nf>resolve</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span> <span class=n>shot_id</span><span class=p>:</span> <span class=n>UUID</span><span class=p>,</span> <span class=n>approved</span><span class=p>:</span> <span class=nb>bool</span><span class=p>)</span> <span class=o>-&gt;</span> <span class=kc>None</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>        <span class=s2>&#34;&#34;&#34;合図紐(外部の人間の承認)から呼ばれる。主軸には一切触れない&#34;&#34;&#34;</span>
+</span></span><span class=line><span class=cl>        <span class=bp>self</span><span class=o>.</span><span class=n>_decisions</span><span class=p>[</span><span class=n>shot_id</span><span class=p>]</span> <span class=o>=</span> <span class=n>approved</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=n>event</span> <span class=o>:=</span> <span class=bp>self</span><span class=o>.</span><span class=n>_events</span><span class=o>.</span><span class=n>get</span><span class=p>(</span><span class=n>shot_id</span><span class=p>):</span>
+</span></span><span class=line><span class=cl>            <span class=n>event</span><span class=o>.</span><span class=n>set</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>def</span> <span class=nf>decision_for</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span> <span class=n>shot_id</span><span class=p>:</span> <span class=n>UUID</span><span class=p>)</span> <span class=o>-&gt;</span> <span class=nb>bool</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>        <span class=s2>&#34;&#34;&#34;解決済みの判定を公開インターフェース経由で取り出す(内部辞書への直接アクセスを避ける)&#34;&#34;&#34;</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=bp>self</span><span class=o>.</span><span class=n>_decisions</span><span class=o>.</span><span class=n>get</span><span class=p>(</span><span class=n>shot_id</span><span class=p>,</span> <span class=kc>False</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>class</span> <span class=nc>HunterPuppet</span><span class=p>(</span><span class=n>BaseAgent</span><span class=p>):</span>
+</span></span><span class=line><span class=cl>    <span class=s2>&#34;&#34;&#34;射撃演目を担う、待ったなしの猟師人形(After)。クラス名はBeforeと同一(=同じ人形の同じ役目)&#34;&#34;&#34;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>def</span> <span class=fm>__init__</span><span class=p>(</span><span class=bp>self</span><span class=p>)</span> <span class=o>-&gt;</span> <span class=kc>None</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>        <span class=nb>super</span><span class=p>()</span><span class=o>.</span><span class=fm>__init__</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=n>name</span><span class=o>=</span><span class=s2>&#34;待ったなしの猟師人形&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>system_prompt</span><span class=o>=</span><span class=s2>&#34;標的を確実に捕捉できたときに限り、必ず人間の確認を得てから発砲しなさい。&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>async</span> <span class=k>def</span> <span class=nf>take_aim_and_fire</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=bp>self</span><span class=p>,</span> <span class=n>shot</span><span class=p>:</span> <span class=n>PendingShot</span><span class=p>,</span> <span class=n>gate</span><span class=p>:</span> <span class=n>ApprovalGate</span><span class=p>,</span> <span class=n>timeout</span><span class=p>:</span> <span class=nb>float</span>
+</span></span><span class=line><span class=cl>    <span class=p>)</span> <span class=o>-&gt;</span> <span class=nb>bool</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>        <span class=s2>&#34;&#34;&#34;標的を捕捉した後、認可灯(ApprovalGate)を介して人間の確認を得てから発砲する&#34;&#34;&#34;</span>
+</span></span><span class=line><span class=cl>        <span class=n>event</span> <span class=o>=</span> <span class=n>gate</span><span class=o>.</span><span class=n>create_wait</span><span class=p>(</span><span class=n>shot</span><span class=o>.</span><span class=n>shot_id</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=k>try</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>            <span class=k>await</span> <span class=n>asyncio</span><span class=o>.</span><span class=n>wait_for</span><span class=p>(</span><span class=n>event</span><span class=o>.</span><span class=n>wait</span><span class=p>(),</span> <span class=n>timeout</span><span class=o>=</span><span class=n>timeout</span><span class=p>)</span>  <span class=c1># 連動歯車を外して待つ</span>
+</span></span><span class=line><span class=cl>        <span class=k>except</span> <span class=ne>TimeoutError</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>            <span class=n>shot</span><span class=o>.</span><span class=n>status</span> <span class=o>=</span> <span class=s2>&#34;timed_out&#34;</span>  <span class=c1># fail-closed: 応答なしは不発として扱う</span>
+</span></span><span class=line><span class=cl>            <span class=k>return</span> <span class=kc>False</span>
+</span></span><span class=line><span class=cl>        <span class=n>approved</span> <span class=o>=</span> <span class=n>gate</span><span class=o>.</span><span class=n>decision_for</span><span class=p>(</span><span class=n>shot</span><span class=o>.</span><span class=n>shot_id</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=n>shot</span><span class=o>.</span><span class=n>status</span> <span class=o>=</span> <span class=s2>&#34;approved&#34;</span> <span class=k>if</span> <span class=n>approved</span> <span class=k>else</span> <span class=s2>&#34;rejected&#34;</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=n>approved</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>async</span> <span class=k>def</span> <span class=nf>other_stage_business</span><span class=p>(</span><span class=n>log</span><span class=p>:</span> <span class=nb>list</span><span class=p>[</span><span class=nb>str</span><span class=p>])</span> <span class=o>-&gt;</span> <span class=kc>None</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>    <span class=s2>&#34;&#34;&#34;猟師人形とは無関係な、他の人形の通常運転(照明の点滅など)を表す最小のコルーチン&#34;&#34;&#34;</span>
+</span></span><span class=line><span class=cl>    <span class=n>log</span><span class=o>.</span><span class=n>append</span><span class=p>(</span><span class=s2>&#34;other-business-ran&#34;</span><span class=p>)</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>PendingShot</code>は、承認待ちの発砲一回分を表す記録です。<code>status</code>を<code>Literal</code>──取りうる値をあらかじめ閉じた型ヒント──で縛ることで、「承認待ち」「承認済み」「却下」「時間切れ」以外の状態が紛れ込む隙をなくしました。<code>take_aim_and_fire</code>は結末が分かった時点で、この<code>status</code>を必ず書き換えます──承認・却下ならその通りに、応答なしならタイムアウトの旨を刻んで、記録自体が今の状態を語るようにしました。<code>ApprovalGate</code>は、発砲一回ごとに使い捨ての<code>asyncio.Event</code>を発行します。人形はこの歯車を、<code>await asyncio.wait_for(event.wait(), timeout=timeout)</code>という形で、きちんと主軸から外してから待ちます。<code>asyncio.Event</code>にはタイムアウトを直接指定する仕組みがないため、<code>asyncio.wait_for</code>で包むことは必須です。これを怠れば、「誰も応答しないまま、永遠に待ち続ける」という、また別の失敗を招きます。</p><p>そして、判定の受け渡しには、必ず<code>decision_for()</code>という公開の窓口を通すことにしました。<code>resolve()</code>は、判定を<code>_decisions</code>へ書き込むのと同時に、待っている歯車を<code>event.set()</code>で起こす役目も担っています。もし誰かが<code>_decisions</code>という帳面へ、この二つ目の役目を素通りして直接書き込んでしまえば、判定だけが記録されて、肝心の歯車は眠ったまま――発砲するはずの人形が、いつまでも目を覚まさないという、また別の凍りつきを生みかねません。窓口を一つに絞ることは、誰かの内側へ土足で踏み込まないという、今日の学びをコードの隅々にまで行き渡らせる仕事でもありました。</p><p>言葉だけを目で追っていると、誰が何を抱えているのか、かえって見失いそうになります。私は紙の端に、今度は仕立てそのものの配置を描き起こしてみることにしました。人形一人がすべてを抱え込んでいた頃の姿と、記録と認可灯と人形とに役目を分けた今の姿を、並べて置いてみるのです。</p><p><img src=/public_images/2026/code-puppeteer-human-in-the-loop/infographic_1.webp loading=lazy alt=猟師人形の発砲確認をBeforeとAfterで比較する責務構造図。Beforeは人形一人がinput()の同期呼び出しを抱え込み、主軸(イベントループ)を直接掴んで止める。AfterはPendingShot(記録)・ApprovalGate(_events/_decisions/resolve)・猟師人形に役目が分かれ、resolveが判定の記録と歯車を起こす動作の2つを同時に担うことが示される></p><p>配置さえ間違えなければ、あとは動く順番だけの問題です。</p><p>Beforeの流れとAfterの流れを、時間の軸に沿って並べてみると、違いがはっきりします。</p><p><img src=/public_images/2026/code-puppeteer-human-in-the-loop/infographic_2.webp loading=lazy alt=Beforeのシーケンス図。主軸(イベントループ)がtake_aim_and_fire()を開始すると、待ったなしの猟師人形がinput()の同期ブロッキングで確認待ちに入り、主軸ごと止まって離れた場所の人形は着手すらできない。input()から戻って発砲した後、ようやく主軸から離れた場所の人形へ順番が回る></p><p>Beforeでは、<code>Other</code>（離れた場所の人形）は<code>Hunter</code>が<code>input()</code>から戻るまで、一手も動けません。動けないのではなく、そもそも順番が回ってこないのです。</p><p><img src=/public_images/2026/code-puppeteer-human-in-the-loop/infographic_3.webp loading=lazy alt="Afterのシーケンス図。猟師人形はcreate_wait(shot_id)でApprovalGate(認可灯)に連動歯車を用意させ、await asyncio.wait_for(event.wait())で自分のコルーチンの中だけで眠る。主軸は空いたままなので離れた場所の人形は並行して着手・完了できる。合図紐(人間の承認)からのresolve(shot_id, True)でevent.set()が呼ばれ、目覚めた猟師人形が発砲する"></p><p>Afterでは、<code>Hunter</code>が待っている間も、<code>Other</code>は普段通り動けます。<code>Hunter</code>が眠っているのは自分自身のコルーチンの中だけで、主軸そのものは一度も掴まれていません。</p><p>模擬公演で、この違いを数字として確かめておきます。まずは、Beforeがどう壊れるかの再現からです。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=nd>@patch</span><span class=p>(</span><span class=s2>&#34;builtins.input&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=k>def</span> <span class=nf>test_blocks_other_coroutine_while_waiting_for_confirmation</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span> <span class=n>mock_input</span><span class=p>):</span>
+</span></span><span class=line><span class=cl>    <span class=n>log</span><span class=p>:</span> <span class=nb>list</span><span class=p>[</span><span class=nb>str</span><span class=p>]</span> <span class=o>=</span> <span class=p>[]</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>def</span> <span class=nf>_answer_after_asserting_other_business_has_not_run</span><span class=p>(</span><span class=n>prompt</span><span class=p>:</span> <span class=nb>str</span><span class=p>)</span> <span class=o>-&gt;</span> <span class=nb>str</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>        <span class=bp>self</span><span class=o>.</span><span class=n>assertEqual</span><span class=p>(</span><span class=n>log</span><span class=p>,</span> <span class=p>[])</span>  <span class=c1># input()が呼ばれた時点で、他方はまだ一歩も進んでいない</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=s2>&#34;yes&#34;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>mock_input</span><span class=o>.</span><span class=n>side_effect</span> <span class=o>=</span> <span class=n>_answer_after_asserting_other_business_has_not_run</span>
+</span></span><span class=line><span class=cl>    <span class=n>hunter</span> <span class=o>=</span> <span class=n>BeforeModule</span><span class=o>.</span><span class=n>HunterPuppet</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>async</span> <span class=k>def</span> <span class=nf>_run</span><span class=p>():</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=k>await</span> <span class=n>asyncio</span><span class=o>.</span><span class=n>gather</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=n>hunter</span><span class=o>.</span><span class=n>take_aim_and_fire</span><span class=p>(</span><span class=s2>&#34;硝子細工&#34;</span><span class=p>),</span>
+</span></span><span class=line><span class=cl>            <span class=n>BeforeModule</span><span class=o>.</span><span class=n>other_stage_business</span><span class=p>(</span><span class=n>log</span><span class=p>),</span>
+</span></span><span class=line><span class=cl>        <span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>results</span> <span class=o>=</span> <span class=n>asyncio</span><span class=o>.</span><span class=n>run</span><span class=p>(</span><span class=n>_run</span><span class=p>())</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=bp>self</span><span class=o>.</span><span class=n>assertEqual</span><span class=p>(</span><span class=n>results</span><span class=p>,</span> <span class=p>[</span><span class=kc>True</span><span class=p>,</span> <span class=kc>None</span><span class=p>])</span>
+</span></span><span class=line><span class=cl>    <span class=bp>self</span><span class=o>.</span><span class=n>assertEqual</span><span class=p>(</span><span class=n>log</span><span class=p>,</span> <span class=p>[</span><span class=s2>&#34;other-business-ran&#34;</span><span class=p>])</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>input()</code>が呼ばれたその瞬間、<code>log</code>はまだ空です。これは、離れた場所の人形の仕事が、一歩も進めていないことの動かぬ証拠でした。そして、Afterでは、この道連れが起きないことを確かめます。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=k>def</span> <span class=nf>test_approved_fires_while_other_coroutine_proceeds_concurrently</span><span class=p>(</span><span class=bp>self</span><span class=p>):</span>
+</span></span><span class=line><span class=cl>    <span class=n>log</span><span class=p>:</span> <span class=nb>list</span><span class=p>[</span><span class=nb>str</span><span class=p>]</span> <span class=o>=</span> <span class=p>[]</span>
+</span></span><span class=line><span class=cl>    <span class=n>gate</span> <span class=o>=</span> <span class=n>ApprovalGate</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>    <span class=n>shot</span> <span class=o>=</span> <span class=n>PendingShot</span><span class=p>(</span><span class=n>target</span><span class=o>=</span><span class=s2>&#34;硝子細工&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>async</span> <span class=k>def</span> <span class=nf>_run</span><span class=p>():</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=k>await</span> <span class=n>asyncio</span><span class=o>.</span><span class=n>gather</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=bp>self</span><span class=o>.</span><span class=n>hunter</span><span class=o>.</span><span class=n>take_aim_and_fire</span><span class=p>(</span><span class=n>shot</span><span class=p>,</span> <span class=n>gate</span><span class=p>,</span> <span class=n>timeout</span><span class=o>=</span><span class=mf>1.0</span><span class=p>),</span>
+</span></span><span class=line><span class=cl>            <span class=n>AfterModule</span><span class=o>.</span><span class=n>other_stage_business</span><span class=p>(</span><span class=n>log</span><span class=p>),</span>
+</span></span><span class=line><span class=cl>            <span class=n>resolve_soon</span><span class=p>(</span><span class=n>gate</span><span class=p>,</span> <span class=n>shot</span><span class=o>.</span><span class=n>shot_id</span><span class=p>,</span> <span class=kc>True</span><span class=p>,</span> <span class=n>log</span><span class=p>),</span>
+</span></span><span class=line><span class=cl>        <span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>results</span> <span class=o>=</span> <span class=n>asyncio</span><span class=o>.</span><span class=n>run</span><span class=p>(</span><span class=n>_run</span><span class=p>())</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=bp>self</span><span class=o>.</span><span class=n>assertTrue</span><span class=p>(</span><span class=n>results</span><span class=p>[</span><span class=mi>0</span><span class=p>])</span>
+</span></span><span class=line><span class=cl>    <span class=bp>self</span><span class=o>.</span><span class=n>assertEqual</span><span class=p>(</span><span class=n>log</span><span class=p>,</span> <span class=p>[</span><span class=s2>&#34;other-business-ran&#34;</span><span class=p>,</span> <span class=s2>&#34;resolved&#34;</span><span class=p>])</span>
+</span></span></code></pre></td></tr></table></div></div><p>この模擬公演では、合図紐を引く役を<code>resolve_soon</code>という短い助っ人のコルーチンに演じてもらっています。<code>await asyncio.sleep(0)</code>で一呼吸だけ置いてから<code>gate.resolve(...)</code>を呼ぶ、それだけの仕掛けです。この一呼吸が要るのは、猟師人形が確実に<code>event.wait()</code>で待ち始めてから合図を送るためでした──先に合図を送ってしまうと、まだ誰も待っていない空の認可灯に向かって声を掛けるようなもので、届くはずの合図が宙に消えてしまいます。</p><p><code>log</code>の並びは<code>["other-business-ran", "resolved"]</code>──猟師人形が合図を待っている間に、離れた人形の仕事は先に終わり、合図はその後から遅れて届きます。誰も道連れにされていません。</p><p>もちろん、良いことばかりではありません。誰も応答しない場合、いつまでも待たせるわけにはいかないので、タイムアウトを切って安全側に倒す確認もしておきます。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=k>def</span> <span class=nf>test_timeout_when_nobody_responds_fails_closed</span><span class=p>(</span><span class=bp>self</span><span class=p>):</span>
+</span></span><span class=line><span class=cl>    <span class=n>gate</span> <span class=o>=</span> <span class=n>ApprovalGate</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>    <span class=n>shot</span> <span class=o>=</span> <span class=n>PendingShot</span><span class=p>(</span><span class=n>target</span><span class=o>=</span><span class=s2>&#34;硝子細工&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>result</span> <span class=o>=</span> <span class=n>asyncio</span><span class=o>.</span><span class=n>run</span><span class=p>(</span><span class=bp>self</span><span class=o>.</span><span class=n>hunter</span><span class=o>.</span><span class=n>take_aim_and_fire</span><span class=p>(</span><span class=n>shot</span><span class=p>,</span> <span class=n>gate</span><span class=p>,</span> <span class=n>timeout</span><span class=o>=</span><span class=mf>0.01</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=bp>self</span><span class=o>.</span><span class=n>assertFalse</span><span class=p>(</span><span class=n>result</span><span class=p>)</span>
+</span></span></code></pre></td></tr></table></div></div><p>却下された場合に発砲しないこと、そして<code>PendingShot</code>に<code>Literal</code>の外の値──たとえば<code>"misfired"</code>のような、想定していない状態名──を渡すと、Pydanticがきちんと撥ねつけることも確かめました。誰かが誤って知らない状態を紛れ込ませても、そこで止まる。これで、承認・却下・時間切れの三つの経路と、記録そのものの健全性が、すべて確かめられたことになります。</p><p>一つ、正直に線を引いておかなければならないことがあります。この認可灯は、劇場が動き続けている限りの一時停止を、完璧に解決します。けれど、劇場そのものの灯りが落ちれば──つまり、この処理を動かしているプロセスが止まれば──認可灯が覚えていた「誰が何を待っていたか」という記憶は、跡形もなく消えてしまいます。公演をまたいで承認待ちの記録を残したいなら、<code>PendingShot</code>そのものをどこか外の場所へ書き残す仕組みが、いずれ要るでしょう。今夜は、その一歩手前で立ち止まっておくことにしました。</p><h2 id=第4幕-開演と調和--認可灯が灯り静かに消える>第4幕: 開演と調和 ── 認可灯が灯り、静かに消える</h2><p>本番。客席の一角に、地味な身なりの検査官が、静かに腰を下ろしています。私は舞台袖の暗がりから、その様子を見守っていました。若い座員が、震える指先を落ち着けるように一度だけ深く息を吸い、硝子細工を高く掲げます。待ったなしの猟師人形が標的を捕捉し、肩の認可灯が琥珀色に灯りました。</p><p>同時に、舞台の霧は変わらず漂い続け、離れた場所の人形も、何事もなく自分の出番をこなしています。誰一人、猟師人形が待っていることに気付きません。客席のざわめきも、遠くの舞台音楽も、何一つ途切れないまま、猟師人形だけが静かに、次の合図を待っていました。私は、拳を強く握りしめて見つめます。</p><p>若い座員が、腕を伸ばしきったまま、しっかりと足を踏ん張っているのを見て、袖に控えたソーン座長が合図紐を引きます。認可灯が色を変え、乾いた発射音とともに、澄んだ音を立てて硝子細工が砕けました。客席から、拍手が上がります。若い座員が、安堵の表情を浮かべながら、深々と一礼しました。</p><p>検査官が、遠目に小さく頷くのが見えました。台詞はありません。それだけで、隼一座の巡業契約が守られたことが、私にも伝わってきます。</p><p>袖に戻ってきたソーン座長が、肩の力が抜けきった様子で、深く頭を下げました。</p><p>「……先生のおかげだ」</p><p>柄にもない敬称に、私は思わず戸惑います。</p><p>「先生だなんて、そんな……」</p><p>言葉が続きませんでした。ソーン座長は謝礼の品を並べる余裕もなく、短い礼だけを残して、客席の方へ戻っていきます。</p><p>「あなたにしては上出来だったわね」</p><p>通りかかったアンが、軽く言い捨てました。</p><p>「次はもう少し早く気付いてくれると、こっちも冷や汗をかかずに済むのだけれど」</p><p>いつもの調子でしたが、その辛辣さの奥に、何かをねぎらう響きが混じっているような気がしました。</p><p>マエストロは、今回、工房へ戻ることをせず、舞台の袖にそのまま残っていました。ふと見上げると、目が合います。それだけで、何かを労われているのが伝わってきました。</p><p>一つの人形の動きを正すことと、劇場全体の動きを守ることは、同じ理屈では解けない。今日、私はそれを、身体で覚えました。そして、マエストロが今夜、答えを一つも寄越さないまま、それでも最後までそこに残っていたことこそが、これまでとは違う何かの始まりなのだと、静かに気付いていました。これまでの私なら、失敗のたびに一人で反省文を書くようにして、覚書の頁を埋めていたのだと思います。けれど今日は、誰かと一緒にたどり着いた答えでした。</p><p>部屋に戻った私は、いつものように自分の言葉から書き始めることをしませんでした。ペン先を紙に置いたまま、しばらく迷います。まず今日聞いた言葉を、聞いたそのままの形で、紙の上に書き写すことにしました。</p><p>「ゼンマイを一つ止めるのに、他の全部を巻き込む道理はない」</p><p>書き写し終えてから、初めて自分の言葉で、今日の出来事を続けました。人に確認を求めることは、間違いではない。間違えていたのは、その待ち方だった、と。</p><hr><h3 id=-操り人形師の覚書colettes-puppeteer-log>🎭 操り人形師の覚書（Colette&rsquo;s Puppeteer Log）</h3><ul><li><strong>調整したからくり（モジュール/関数名）</strong>: <code>HunterPuppet.take_aim_and_fire</code>（Before: 同期<code>input()</code>による確認 → After: <code>PendingShot</code>〔Pydantic〕と<code>ApprovalGate</code>〔<code>asyncio.Event</code>を発砲ごとに使い捨てで発行〕による非同期のSuspend/Resume。<code>asyncio.wait_for</code>による必須タイムアウトでfail-closed）</li><li><strong>思考のゼンマイ（思考素子/LLMの特性）</strong>:<ul><li>猟師人形の「標的を捕捉したか」という判断自体は今回の焦点ではない。焦点はLLMの揺らぎではなく、承認を待つという非同期処理の待ち方そのものの設計</li></ul></li><li><strong>操り糸の張り具合（運糸の法/プロンプトと制御）</strong>:<ul><li>Pydantic <code>PendingShot</code>（<code>Literal</code>で状態を閉じる）+ 発砲ごとに使い捨ての<code>asyncio.Event</code>を管理する<code>ApprovalGate</code> + <code>asyncio.wait_for</code>による必須タイムアウト（応答なしは不発として扱うfail-closed設計）</li></ul></li><li><strong>舞台裏の絡まり（背伸びの過ち/避けるべき罠）</strong>:<ul><li>一見正しく見える安全策（<code>input()</code>による確認）が、非同期処理系の心臓部（劇場の主軸）を丸ごと掴んで止め、無関係な他の人形の動きまで巻き添えにしたこと</li></ul></li><li><strong>模擬公演の記録（検証のポイント）</strong>:<ul><li>Beforeが単体では正しく動くのに、他の処理と同時に走らせると道連れにして止めること、Afterが承認を待つ間も他の処理は進み続けること、承認・却下・タイムアウトの3経路が正しく安全側に倒れること、Pydanticが不正な状態値を拒むこと</li></ul></li><li><strong>マエストロの言葉</strong>:<ul><li><em>「……ゼンマイを一つ止めるのに、他の全部を巻き込む道理はない」</em></li></ul></li></ul></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/python/>Python</a>
+<a href=/tags/human-in-the-loop/>Human-in-the-Loop</a>
+<a href=/tags/code-puppeteer/>Code-Puppeteer</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/07/29/070705/><div class=article-image><img src=/public_images/2026/code-puppeteer-code-puppeteer-integrated/header.webp loading=lazy data-key data-hash=/public_images/2026/code-puppeteer-code-puppeteer-integrated/header.webp></div><div class=article-details><h2 class=article-title>コードパペッティア【KISS Principle】鍵と歯車で着膨れた扉番からくり〜積み上げた十の備えと、選び抜いた三本の糸〜</h2></div></a></article><article class=has-image><a href=/2026/07/28/070705/><div class=article-image><img src=/public_images/2026/code-puppeteer-agent-self-reflection/header.webp loading=lazy data-key data-hash=/public_images/2026/code-puppeteer-agent-self-reflection/header.webp></div><div class=article-details><h2 class=article-title>コードパペッティア【Reflection Loop】まだ足りないと繰り返す肖像人形〜逃げ水の完成と、閉じられる採点表〜</h2></div></a></article><article class=has-image><a href=/2026/07/26/070705/><div class=article-image><img src=/public_images/2026/code-puppeteer-multi-agent-orchestration/header.webp loading=lazy data-key data-hash=/public_images/2026/code-puppeteer-multi-agent-orchestration/header.webp></div><div class=article-details><h2 class=article-title>コードパペッティア【Blackboard Pattern】互いの出番を譲り合う二人の裏方人形〜暗く沈む舞台と、共有された進行表〜</h2></div></a></article><article class=has-image><a href=/2026/07/25/070705/><div class=article-image><img src=/public_images/2026/code-puppeteer-self-correction-retry/header.webp loading=lazy data-key data-hash=/public_images/2026/code-puppeteer-self-correction-retry/header.webp></div><div class=article-details><h2 class=article-title>コードパペッティア【Self-Correction Loop】いつもの毒舌を失くした相棒のオルゴール〜過熱する繰り言と、正しく止める勇気〜</h2></div></a></article><article class=has-image><a href=/2026/07/24/070705/><div class=article-image><img src=/public_images/2026/code-puppeteer-sliding-window-memory/header.webp loading=lazy data-key data-hash=/public_images/2026/code-puppeteer-sliding-window-memory/header.webp></div><div class=article-details><h2 class=article-title>コードパペッティア【Sliding Window Memory】夜更けに任務を忘れる夜警人形〜膨らむ今夜と、石盤ひと枚の覚え〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

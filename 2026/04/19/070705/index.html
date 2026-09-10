@@ -1,0 +1,478 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="evalで文字列ルールを実行するキャンペーンエンジンの脆弱性を、Interpreterパターンで文法をオブジェクトツリー化し安全に評価する手法をPerl/Mooで解説"><title>コード探偵ロックの事件簿【Interpreter】偽りの翻訳者〜文字列が語る嘘と文法の真実〜</title><link rel=canonical href=https://www.nqou.net/2026/04/19/070705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コード探偵ロックの事件簿【Interpreter】偽りの翻訳者〜文字列が語る嘘と文法の真実〜"><meta property='og:description' content="evalで文字列ルールを実行するキャンペーンエンジンの脆弱性を、Interpreterパターンで文法をオブジェクトツリー化し安全に評価する手法をPerl/Mooで解説"><meta property='og:url' content='https://www.nqou.net/2026/04/19/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='perl'><meta property='article:tag' content='moo'><meta property='article:tag' content='interpreter'><meta property='article:tag' content='eval-hell'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-detective'><meta property='article:published_time' content='2026-04-19T07:07:05+09:00'><meta property='article:modified_time' content='2026-04-19T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-detective-interpreter/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コード探偵ロックの事件簿【Interpreter】偽りの翻訳者〜文字列が語る嘘と文法の真実〜"><meta name=twitter:description content="evalで文字列ルールを実行するキャンペーンエンジンの脆弱性を、Interpreterパターンで文法をオブジェクトツリー化し安全に評価する手法をPerl/Mooで解説"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-detective-interpreter/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-04-19T07:07:05+09:00","datePublished":"2026-04-19T07:07:05+09:00","description":"evalで文字列ルールを実行するキャンペーンエンジンの脆弱性を、Interpreterパターンで文法をオブジェクトツリー化し安全に評価する手法をPerl/Mooで解説","headline":"コード探偵ロックの事件簿【Interpreter】偽りの翻訳者〜文字列が語る嘘と文法の真実〜","image":"https://www.nqou.net/public_images/2026/code-detective-interpreter/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/04/19/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#事件現場evalの中身>事件現場——evalの中身</a></li><li><a href=#容疑者の浮上文法なき言語>容疑者の浮上——文法なき言語</a></li><li><a href=#推理披露interpreter-パターン>推理披露——Interpreter パターン</a><ol><li><a href=#expression-ロール文法の契約>Expression ロール——文法の契約</a></li><li><a href=#terminalexpression終端式>TerminalExpression——終端式</a></li><li><a href=#nonterminalexpression非終端式>NonterminalExpression——非終端式</a></li><li><a href=#構文木の構築翻訳は構造に宿る>構文木の構築——翻訳は構造に宿る</a></li></ol></li><li><a href=#事件の終わりリファクタリング後の-campaignengine>事件の終わり——リファクタリング後の CampaignEngine</a></li><li><a href=#エピローグ>エピローグ</a></li><li><a href=#探偵の調査報告書>探偵の調査報告書</a><ol><li><a href=#推理のステップ>推理のステップ</a></li><li><a href=#ロックより>ロックより</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/04/19/070705/><img src=/public_images/2026/code-detective-interpreter/header.webp loading=lazy alt="Featured image of post コード探偵ロックの事件簿【Interpreter】偽りの翻訳者〜文字列が語る嘘と文法の真実〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/04/19/070705/>コード探偵ロックの事件簿【Interpreter】偽りの翻訳者〜文字列が語る嘘と文法の真実〜</a></h2><h3 class=article-subtitle>evalで文字列ルールを実行するキャンペーンエンジンの脆弱性を、Interpreterパターンで文法をオブジェクトツリー化し安全に評価する手法をPerl/Mooで解説</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>19, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 10分</time></div></footer></div></header><section class=article-content><p>サーバールーム横の会議室は、空調の風だけが低く唸っている。私はノートPCを開いて、約束の時刻を待っていた。</p><p>技術顧問の田中さんが言っていた。「変わった人だが、コードを見せればわかる」と。</p><p>10年間、evalの中身を手作業で書き換え続けてきた。先月の本番停止の始末書を書いたとき、さすがに限界だと思った。問題はわかっている。わかっていて、直す余裕がなかった。いや、直し方がわからなかったのかもしれない。</p><p>会議室のドアが開いた。</p><p>入ってきたのは、手にペンとノートだけを持った男だった。タブレットもノートPCも持っていない。部屋に入るなり、ホワイトボードを一瞥して立ち止まる。</p><p>「この部屋の最後の会議は3日前だね。マーカーのインクの乾き具合でわかる」</p><p>……ああ、この人か。田中さんの言った「変わった人」というのは、こういうことか。</p><p>「ロック。コードの探偵だ。で、君が10年間守り続けてきた呪文を見せてくれたまえ——ワトソン君」</p><p>「……好きに呼んでください。それより、呪文って何のことですか」</p><p>「evalの中身だよ」</p><p>ロックさんはペンを弄びながら、私の向かいに座った。</p><p>「evalを使うシステムの運用者は、呪文の暗唱者だ。意味を理解して唱えているのか、音だけ真似ているのか。さて、君はどちらかね」</p><p>私は黙ってノートPCの画面を向けた。DBから取得したルール文字列の一覧が映っている。</p><h2 id=事件現場evalの中身>事件現場——evalの中身</h2><p>画面に映っていたのは、こんなコードだ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>CampaignEngine</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>rules</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=o>[]</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>load_rules</span> <span class=p>($self, $rows) {</span>
+</span></span><span class=line><span class=cl>    <span class=nb>push</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>rules</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>,</span> <span class=nv>$rows</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*;</span>
+</span></span><span class=line><span class=cl><span class=err>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nv>sub</span> <span class=n>evaluate</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$ctx</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>@matched</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=k>my</span> <span class=nv>$rule</span> <span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>rules</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$result</span> <span class=o>=</span> <span class=nb>eval</span> <span class=nv>$rule</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>condition_expr</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=vg>$@</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nb>warn</span> <span class=s>&#34;Rule &#39;$rule-&gt;{name}&#39; failed: $@&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>            <span class=k>next</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=nb>push</span> <span class=nv>@matched</span><span class=p>,</span> <span class=nv>$rule</span> <span class=k>if</span> <span class=nv>$result</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=o>\</span><span class=nv>@matched</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>DBに格納されたルール文字列の例:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>name: gold_large_order
+</span></span><span class=line><span class=cl>condition_expr: $ctx-&gt;{total_amount} &gt;= 10000 &amp;&amp; $ctx-&gt;{member_level} eq &#34;gold&#34;
+</span></span><span class=line><span class=cl>discount_pct: 15
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>name: bulk_or_premium
+</span></span><span class=line><span class=cl>condition_expr: $ctx-&gt;{item_count} &gt; 3 || $ctx-&gt;{total_amount} &gt;= 20000
+</span></span><span class=line><span class=cl>discount_pct: 10
+</span></span></code></pre></td></tr></table></div></div><p>キャンペーンのルールが200本以上。すべてが文字列としてDBに保存され、<code>eval</code> で実行されている。マーケティング部門から毎週新しいルールの追加依頼が来る。そのたびに誰かが文字列を手で書いて、DBにINSERTする。</p><p>「先月、括弧の閉じ忘れで3時間の本番停止を出しました。始末書も書きました」</p><p>ロックさんは画面を覗き込んだまま黙っている。ルール文字列を3つ、4つと目で追っている。長い沈黙だった。</p><h2 id=容疑者の浮上文法なき言語>容疑者の浮上——文法なき言語</h2><p>「……ワトソン君、これは<strong>言語</strong>だ」</p><p>「言語？ ただの条件式ですよ」</p><p>「いいや。<code>$ctx->{total_amount} >= 10000 && $ctx->{member_level} eq "gold"</code> は条件式に見えるが、200本集まればそれは言語だ。<strong>文法のない言語</strong>。そしてevalは、文法チェックなしにその言語を実行する偽りの翻訳者だ」</p><p>偽りの翻訳者。妙な言い方だと思った。しかし、的を射ている。</p><p>「翻訳者は原文の正しさに責任を持たない。括弧が足りなくても、スペルミスがあっても、渡された通りに実行する。先月の3時間の停止は、翻訳者の忠実さがもたらした裏切りだ」</p><p>ロックさんはペンをノートに走らせながら続けた。</p><p>「犯人はevalではない。文法を定義せずに言語を運用してきた、<strong>設計の不在</strong>そのものだ」</p><p>10年動いてきたシステムだ。evalが悪いのか、と言い切るのは抵抗がある。</p><p>「10年動いてきたんですよ。evalが悪いとは言い切れないのでは」</p><p>「<strong>動いている</strong> と <strong>理解できている</strong> は別の言葉だよ、ワトソン君。この呪文が10年間正しく唱えられてきたのは、君という祈祷師がいたからだ。——君がいなくなったら？」</p><p>返す言葉がなかった。実際、私が異動したら誰がこのルールを書けるのか。引き継ぎ書に「eval文字列の書き方」を残す未来を想像して、背筋が冷えた。</p><h2 id=推理披露interpreter-パターン>推理披露——Interpreter パターン</h2><p>ロックさんはノートに木のような図を描き始めた。</p><p>「言語が存在するなら、文法を与えればいい。<strong>Interpreterパターン</strong>——文法規則をオブジェクトの木として表現し、再帰的に評価する」</p><pre class=mermaid>
+	classDiagram
+    class Expression {
+        &lt;&lt;Role&gt;&gt;
+        +interpret(ctx) bool
+    }
+
+    class Expr_GreaterThan {
+        +field: Str
+        +threshold: Num
+        +interpret(ctx) bool
+    }
+
+    class Expr_GreaterThanOrEqual {
+        +field: Str
+        +threshold: Num
+        +interpret(ctx) bool
+    }
+
+    class Expr_Equals {
+        +field: Str
+        +value: Str
+        +interpret(ctx) bool
+    }
+
+    class Expr_And {
+        +left: Expression
+        +right: Expression
+        +interpret(ctx) bool
+    }
+
+    class Expr_Or {
+        +left: Expression
+        +right: Expression
+        +interpret(ctx) bool
+    }
+
+    class Expr_Not {
+        +expr: Expression
+        +interpret(ctx) bool
+    }
+
+    Expression &lt;|.. Expr_GreaterThan
+    Expression &lt;|.. Expr_GreaterThanOrEqual
+    Expression &lt;|.. Expr_Equals
+    Expression &lt;|.. Expr_And
+    Expression &lt;|.. Expr_Or
+    Expression &lt;|.. Expr_Not
+
+    Expr_And --&gt; Expression : left
+    Expr_And --&gt; Expression : right
+    Expr_Or --&gt; Expression : left
+    Expr_Or --&gt; Expression : right
+    Expr_Not --&gt; Expression : expr
+</pre><h3 id=expression-ロール文法の契約>Expression ロール——文法の契約</h3><p>「すべての式は、一つの質問に答えられなければならない。『このコンテキストで、お前は真か偽か？』」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Expression</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo::Role</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>requires</span> <span class=s>&#39;interpret&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「Specificationパターンと何が違うんですか？ 条件をオブジェクトにするなら、同じことでは」</p><p>先日、社内勉強会でSpecificationパターンの記事を読んだばかりだった。条件をオブジェクトにするという点では似ている。</p><p>「Specificationは問いに名前を付ける。Interpreterは問い自体の文法を定義する。法廷で言えば、Specificationは証言者、Interpreterは訴訟手続法だ。evalは手続きなき裁判——つまりリンチだよ」</p><p>法廷の比喩は大袈裟だと思ったが、構造上の違いは理解できた。Specificationは「この条件を満たすか」を聞く。Interpreterは「条件の書き方そのものをルール化する」。レイヤーが一段深い。</p><h3 id=terminalexpression終端式>TerminalExpression——終端式</h3><p>「文法の最小単位。これ以上分解できない原子的な判定だ」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Expr::GreaterThan</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>with</span> <span class=s>&#39;Expression&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>field</span>     <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>threshold</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>interpret</span> <span class=p>($self, $ctx) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>(</span><span class=nv>$ctx</span><span class=o>-&gt;</span><span class=p>{</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>field</span><span class=p>}</span> <span class=sr>//</span> <span class=mi>0</span><span class=p>)</span> <span class=o>&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>threshold</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Expr::GreaterThanOrEqual</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>with</span> <span class=s>&#39;Expression&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>field</span>     <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>threshold</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>interpret</span> <span class=p>($self, $ctx) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>(</span><span class=nv>$ctx</span><span class=o>-&gt;</span><span class=p>{</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>field</span><span class=p>}</span> <span class=sr>//</span> <span class=mi>0</span><span class=p>)</span> <span class=o>&gt;=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>threshold</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Expr::Equals</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>with</span> <span class=s>&#39;Expression&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>field</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>value</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>interpret</span> <span class=p>($self, $ctx) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>(</span><span class=nv>$ctx</span><span class=o>-&gt;</span><span class=p>{</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>field</span><span class=p>}</span> <span class=sr>//</span> <span class=s>&#39;&#39;</span><span class=p>)</span> <span class=ow>eq</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>value</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<code>$ctx->{total_amount} > 5000</code> の代わりに <code>Expr::GreaterThan->new(...)</code> ですか。……長いですね」</p><p>正直な感想だった。文字列なら1行で書ける条件が、オブジェクトの生成で3行になる。</p><p>「呪文を一行で書くか、文法書を一冊用意するか。文法書があれば、新しい呪文は<strong>書く前に正しさを検証できる</strong>」</p><h3 id=nonterminalexpression非終端式>NonterminalExpression——非終端式</h3><p>「終端式を木として組み合わせる糊だ」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Expr::And</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>with</span> <span class=s>&#39;Expression&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>left</span>  <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>right</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>interpret</span> <span class=p>($self, $ctx) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>left</span><span class=o>-&gt;</span><span class=n>interpret</span><span class=p>(</span><span class=nv>$ctx</span><span class=p>)</span> <span class=o>&amp;&amp;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>right</span><span class=o>-&gt;</span><span class=n>interpret</span><span class=p>(</span><span class=nv>$ctx</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Expr::Or</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>with</span> <span class=s>&#39;Expression&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>left</span>  <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>right</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>interpret</span> <span class=p>($self, $ctx) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>left</span><span class=o>-&gt;</span><span class=n>interpret</span><span class=p>(</span><span class=nv>$ctx</span><span class=p>)</span> <span class=o>||</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>right</span><span class=o>-&gt;</span><span class=n>interpret</span><span class=p>(</span><span class=nv>$ctx</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Expr::Not</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>with</span> <span class=s>&#39;Expression&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>expr</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>interpret</span> <span class=p>($self, $ctx) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=o>!</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>expr</span><span class=o>-&gt;</span><span class=n>interpret</span><span class=p>(</span><span class=nv>$ctx</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「木……構文木ですか。コンパイラの教科書で昔見た記憶があります」</p><p>「evalが文字列を直接実行するのは、翻訳なしで外国語の発音だけを真似るようなものだ。構文木は構造化された理解だ。木の各ノードは、自分の責任範囲だけを評価する」</p><h3 id=構文木の構築翻訳は構造に宿る>構文木の構築——翻訳は構造に宿る</h3><p>ロックさんはノートにBefore → Afterの対応を書き起こした。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># Before: eval &#39;$ctx-&gt;{total_amount} &gt;= 10000 &amp;&amp; $ctx-&gt;{member_level} eq &#34;gold&#34;&#39;</span>
+</span></span><span class=line><span class=cl><span class=c1># After:</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$gold_large_order</span> <span class=o>=</span> <span class=nn>Expr::And</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>left</span>  <span class=o>=&gt;</span> <span class=nn>Expr::GreaterThanOrEqual</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>field</span>     <span class=o>=&gt;</span> <span class=s>&#39;total_amount&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>threshold</span> <span class=o>=&gt;</span> <span class=mi>10000</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>),</span>
+</span></span><span class=line><span class=cl>    <span class=n>right</span> <span class=o>=&gt;</span> <span class=nn>Expr::Equals</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>field</span> <span class=o>=&gt;</span> <span class=s>&#39;member_level&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>value</span> <span class=o>=&gt;</span> <span class=s>&#39;gold&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>),</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># Before: eval &#39;$ctx-&gt;{item_count} &gt; 3 || $ctx-&gt;{total_amount} &gt;= 20000&#39;</span>
+</span></span><span class=line><span class=cl><span class=c1># After:</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$bulk_or_premium</span> <span class=o>=</span> <span class=nn>Expr::Or</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>left</span>  <span class=o>=&gt;</span> <span class=nn>Expr::GreaterThan</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>field</span>     <span class=o>=&gt;</span> <span class=s>&#39;item_count&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>threshold</span> <span class=o>=&gt;</span> <span class=mi>3</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>),</span>
+</span></span><span class=line><span class=cl>    <span class=n>right</span> <span class=o>=&gt;</span> <span class=nn>Expr::GreaterThanOrEqual</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>field</span>     <span class=o>=&gt;</span> <span class=s>&#39;total_amount&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>threshold</span> <span class=o>=&gt;</span> <span class=mi>20000</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>),</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span></code></pre></td></tr></table></div></div><p>文字列が、木になった。目で追える。枝の先に何があるか、たどれる。</p><p>「……待ってください」</p><p>私は画面から顔を上げた。10年の運用で染みついた勘が、何かを捉えていた。</p><p>「このオブジェクトツリーなら、<code>interpret</code> を呼ぶ前に木の構造を検査できる。括弧の閉じ忘れとか、存在しないフィールドの参照とか——<strong>デプロイ前に検出できる</strong>」</p><p>「気づいたかね、ワトソン君」</p><p>ロックさんが初めて笑った。不敵な笑みではなく、職人が同業者の発見を認めるような、控えめな表情だった。</p><p>「文法があれば、正しさは実行前に保証できる。それがevalとの決定的な差だ」</p><p>先月の3時間。括弧の閉じ忘れ。あれは文字列の中に閉じ込められていたから、デプロイして実行するまで誰も気づけなかった。構文木なら、組み立ての時点で型が合わなければエラーになる。</p><h2 id=事件の終わりリファクタリング後の-campaignengine>事件の終わり——リファクタリング後の CampaignEngine</h2><p>ロックさんの指示に従って、CampaignEngine を書き換えた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>CampaignEngine</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(ArrayRef HashRef)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>rules</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>ArrayRef</span><span class=p>[</span><span class=n>HashRef</span><span class=p>],</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=o>[]</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>add_rule</span> <span class=p>($self, %args) {</span>
+</span></span><span class=line><span class=cl>    <span class=nb>push</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>rules</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>,</span> <span class=o>\</span><span class=nv>%args</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>evaluate</span> <span class=p>($self, $ctx) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>@matched</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=k>my</span> <span class=nv>$rule</span> <span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>rules</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=nb>push</span> <span class=nv>@matched</span><span class=p>,</span> <span class=nv>$rule</span> <span class=k>if</span> <span class=nv>$rule</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>condition</span><span class=p>}</span><span class=o>-&gt;</span><span class=n>interpret</span><span class=p>(</span><span class=nv>$ctx</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=o>\</span><span class=nv>@matched</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>eval</code> が消えた。<code>condition_expr</code> というキーも、文字列も。代わりに <code>condition</code> キーに <code>Expression</code> ロールを消費するオブジェクトが入る。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>use</span> <span class=nn>Expr::And</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Expr::Or</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Expr::GreaterThan</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Expr::GreaterThanOrEqual</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Expr::Equals</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$engine</span> <span class=o>=</span> <span class=nn>CampaignEngine</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nv>$engine</span><span class=o>-&gt;</span><span class=n>add_rule</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>name</span>      <span class=o>=&gt;</span> <span class=s>&#39;gold_large_order&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>condition</span> <span class=o>=&gt;</span> <span class=nn>Expr::And</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>left</span>  <span class=o>=&gt;</span> <span class=nn>Expr::GreaterThanOrEqual</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=n>field</span>     <span class=o>=&gt;</span> <span class=s>&#39;total_amount&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>threshold</span> <span class=o>=&gt;</span> <span class=mi>10000</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>),</span>
+</span></span><span class=line><span class=cl>        <span class=n>right</span> <span class=o>=&gt;</span> <span class=nn>Expr::Equals</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=n>field</span> <span class=o>=&gt;</span> <span class=s>&#39;member_level&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>value</span> <span class=o>=&gt;</span> <span class=s>&#39;gold&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>),</span>
+</span></span><span class=line><span class=cl>    <span class=p>),</span>
+</span></span><span class=line><span class=cl>    <span class=n>discount_pct</span> <span class=o>=&gt;</span> <span class=mi>15</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nv>$engine</span><span class=o>-&gt;</span><span class=n>add_rule</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>name</span>      <span class=o>=&gt;</span> <span class=s>&#39;bulk_or_premium&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>condition</span> <span class=o>=&gt;</span> <span class=nn>Expr::Or</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>left</span>  <span class=o>=&gt;</span> <span class=nn>Expr::GreaterThan</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=n>field</span>     <span class=o>=&gt;</span> <span class=s>&#39;item_count&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>threshold</span> <span class=o>=&gt;</span> <span class=mi>3</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>),</span>
+</span></span><span class=line><span class=cl>        <span class=n>right</span> <span class=o>=&gt;</span> <span class=nn>Expr::GreaterThanOrEqual</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=n>field</span>     <span class=o>=&gt;</span> <span class=s>&#39;total_amount&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>threshold</span> <span class=o>=&gt;</span> <span class=mi>20000</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>),</span>
+</span></span><span class=line><span class=cl>    <span class=p>),</span>
+</span></span><span class=line><span class=cl>    <span class=n>discount_pct</span> <span class=o>=&gt;</span> <span class=mi>10</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span></code></pre></td></tr></table></div></div><p>テストを書いた。TerminalExpression の単体テスト、NonterminalExpression の合成テスト、CampaignEngine の統合テスト。存在しないフィールドへのデフォルト挙動も確認した。</p><p>全テスト通過。</p><p>「テストが書ける。evalの文字列にはテストが書けなかった。10年間、祈りながらデプロイしていた」</p><p>ロックさんはペンをノートに挟み、立ち上がった。</p><p>「祈祷から工学へ。それがパターンの力だ」</p><p>「DBの200本のルール文字列はどうすればいいですか。全部書き直すんですか」</p><p>「パーサーを書きたまえ。文字列を読み取って構文木を生成する、<strong>正しい翻訳者</strong>だ。だが今日の仕事は文法の定義だ。翻訳者は、文法の上に立つ」</p><p>200本の移行は、一日の仕事ではない。しかし、文法が定義された今なら、パーサーを書くことは工学の問題であって呪文の問題ではない。</p><h2 id=エピローグ>エピローグ</h2><p>ロックさんが会議室のドアに手をかけた。</p><p>「ワトソン君、最後に一つ」</p><p>「なんですか」</p><p>「この文法に名前をつけておきたまえ。名前のない言語は、また呪文に戻る」</p><p>ドアが閉まった。空調のうなりだけが戻ってくる。</p><p>私は画面を見つめた。<code>Expression</code> ロール。<code>Expr::And</code>。<code>Expr::GreaterThanOrEqual</code>。10年間、文字列の中に閉じ込めていたものが、名前を持ったクラスとして並んでいる。</p><p>「……DiscountDSL、か」</p><p>10年越しの命名にしては、悪くない。</p><hr><h2 id=探偵の調査報告書>探偵の調査報告書</h2><div class=table-wrapper><table><thead><tr><th style=text-align:left>容疑（アンチパターン）</th><th style=text-align:left>真実（パターン）</th><th style=text-align:left>証拠（効果）</th></tr></thead><tbody><tr><td style=text-align:left>eval地獄（文字列ベースのルール実行）</td><td style=text-align:left>Interpreter Pattern（文法のオブジェクトツリー化）</td><td style=text-align:left>構文エラーをデプロイ前に検出可能</td></tr><tr><td style=text-align:left>文法なき言語（正規表現・文字列の乱用）</td><td style=text-align:left>抽象構文木（AST）による構造化</td><td style=text-align:left>各ノードが責任範囲だけを評価し、テスト可能に</td></tr><tr><td style=text-align:left>設計の不在（暗黙の文法を人手で維持）</td><td style=text-align:left>Expression Role + Terminal/Nonterminal分離</td><td style=text-align:left>新ルール追加時にクラス追加のみ。既存コード変更不要</td></tr></tbody></table></div><h3 id=推理のステップ>推理のステップ</h3><ol><li><strong>Expression ロール定義</strong>: <code>Moo::Role</code> で <code>requires 'interpret'</code> を宣言し、すべての式が従う契約を定める</li><li><strong>TerminalExpression 実装</strong>: <code>Expr::GreaterThan</code>, <code>Expr::GreaterThanOrEqual</code>, <code>Expr::Equals</code> など、分解不能な原子的判定をクラス化</li><li><strong>NonterminalExpression 実装</strong>: <code>Expr::And</code>, <code>Expr::Or</code>, <code>Expr::Not</code> で終端式を木構造として合成</li><li><strong>構文木構築</strong>: eval文字列をオブジェクトツリーに変換し、Before/After の対応を確認</li><li><strong>CampaignEngine 統合</strong>: <code>condition_expr</code>（文字列）を <code>condition</code>（Expression オブジェクト）に置き換え、<code>eval</code> を除去</li><li><strong>テスト検証</strong>: 終端式・非終端式の単体テスト、複合構文木のネストテスト、統合テスト、エッジケースをすべて通過</li></ol><h3 id=ロックより>ロックより</h3><blockquote><p>10年間の祈祷を責めるつもりはない。システムが動き続けたのは、君の技量があったからだ。
+だが、技量に依存するシステムは、技量とともに失われる。文法をオブジェクトとして定義することは、君の知識をコードに翻訳する行為だ。
+翻訳が終われば、君がいなくても文法は残る。——それが工学というものだよ、ワトソン君。</p></blockquote></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/perl/>Perl</a>
+<a href=/tags/moo/>Moo</a>
+<a href=/tags/interpreter/>Interpreter</a>
+<a href=/tags/eval-hell/>Eval-Hell</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-detective/>Code-Detective</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/05/15/070705/><div class=article-image><img src=/public_images/2026/code-detective-bff/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-bff/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Backends for Frontends】最後の依頼〜一つの答えが全員を不満にする夜〜</h2></div></a></article><article class=has-image><a href=/2026/05/14/070705/><div class=article-image><img src=/public_images/2026/code-detective-api-gateway/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-api-gateway/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【API Gateway】窓口のない捜査本部〜マイクロサービスに個別に会いに行く悲劇〜</h2></div></a></article><article class=has-image><a href=/2026/05/13/070705/><div class=article-image><img src=/public_images/2026/code-detective-strangler-fig/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-strangler-fig/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Strangler Fig】外壁に伸びる蔓〜全面更改が新旧を窒息させる夜〜</h2></div></a></article><article class=has-image><a href=/2026/05/12/070705/><div class=article-image><img src=/public_images/2026/code-detective-anti-corruption-layer/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-anti-corruption-layer/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Anti-Corruption Layer】越境伝票の怪〜外様の略語が捜査本部を汚す夜〜</h2></div></a></article><article class=has-image><a href=/2026/05/11/070705/><div class=article-image><img src=/public_images/2026/code-detective-competing-consumers/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-competing-consumers/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Competing Consumers】重なる受領印〜増員だけでは消えない二重処理〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

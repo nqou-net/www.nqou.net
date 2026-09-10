@@ -1,0 +1,460 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="Perl/MooによるInterpreterパターンの実装を徹底解説！アドホックな正規表現パースの限界を乗り越え、構文木（AST）を再帰評価する美しい解釈実行エンジンを構築します。「コード考古学者」シリーズ、バベル最深部の完結編！"><title>コード考古学者【Interpreterパターン】再生の碑文（完結編）〜Perl/Mooで起動する千年の構文木〜</title><link rel=canonical href=https://www.nqou.net/2026/06/27/170705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コード考古学者【Interpreterパターン】再生の碑文（完結編）〜Perl/Mooで起動する千年の構文木〜"><meta property='og:description' content="Perl/MooによるInterpreterパターンの実装を徹底解説！アドホックな正規表現パースの限界を乗り越え、構文木（AST）を再帰評価する美しい解釈実行エンジンを構築します。「コード考古学者」シリーズ、バベル最深部の完結編！"><meta property='og:url' content='https://www.nqou.net/2026/06/27/170705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='perl'><meta property='article:tag' content='moo'><meta property='article:tag' content='interpreter-pattern'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-archaeologist'><meta property='article:published_time' content='2026-06-27T17:07:05+09:00'><meta property='article:modified_time' content='2026-06-27T17:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-archaeologist-interpreter-pattern/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コード考古学者【Interpreterパターン】再生の碑文（完結編）〜Perl/Mooで起動する千年の構文木〜"><meta name=twitter:description content="Perl/MooによるInterpreterパターンの実装を徹底解説！アドホックな正規表現パースの限界を乗り越え、構文木（AST）を再帰評価する美しい解釈実行エンジンを構築します。「コード考古学者」シリーズ、バベル最深部の完結編！"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-archaeologist-interpreter-pattern/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-06-27T17:07:05+09:00","datePublished":"2026-06-27T17:07:05+09:00","description":"Perl/MooによるInterpreterパターンの実装を徹底解説！アドホックな正規表現パースの限界を乗り越え、構文木（AST）を再帰評価する美しい解釈実行エンジンを構築します。「コード考古学者」シリーズ、バベル最深部の完結編！","headline":"コード考古学者【Interpreterパターン】再生の碑文（完結編）〜Perl/Mooで起動する千年の構文木〜","image":"https://www.nqou.net/public_images/2026/code-archaeologist-interpreter-pattern/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/06/27/170705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#i-進入論理核の鼓動と古代の人格>I. 進入：論理核の鼓動と古代の人格</a></li><li><a href=#ii-碑文解読アドホックな解釈と風化の泥沼>II. 碑文解読：アドホックな解釈と風化の泥沼</a><ol><li><a href=#アドホックな文字列解析beforeコード>アドホックな文字列解析（Beforeコード）</a></li></ol></li><li><a href=#iii-遺跡修復構文木による解釈者の再生>III. 遺跡修復：構文木による解釈者の再生</a><ol><li><a href=#interpreterパターンの構成図>Interpreterパターンの構成図</a></li><li><a href=#1-実行環境と抽象式ロールafter-base設計>1. 実行環境と抽象式ロール（After: Base設計）</a></li><li><a href=#2-終端式と非終端式after-astノードクラス>2. 終端式と非終端式（After: ASTノードクラス）</a></li></ol></li><li><a href=#iv-起動千年の調和とバディの旅立ち>IV. 起動：千年の調和とバディの旅立ち</a></li><li><a href=#遺跡調査ログ>遺跡調査ログ</a><ol><li><a href=#遺跡の修復手順>遺跡の修復手順</a></li><li><a href=#ギズモの観測日誌>ギズモの観測日誌</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/06/27/170705/><img src=/public_images/2026/code-archaeologist-interpreter-pattern/header.webp loading=lazy alt="Featured image of post コード考古学者【Interpreterパターン】再生の碑文（完結編）〜Perl/Mooで起動する千年の構文木〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/06/27/170705/>コード考古学者【Interpreterパターン】再生の碑文（完結編）〜Perl/Mooで起動する千年の構文木〜</a></h2><h3 class=article-subtitle>Perl/MooによるInterpreterパターンの実装を徹底解説！アドホックな正規表現パースの限界を乗り越え、構文木（AST）を再帰評価する美しい解釈実行エンジンを構築します。「コード考古学者」シリーズ、バベル最深部の完結編！</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>27, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 10分</time></div></footer></div></header><section class=article-content><h2 id=i-進入論理核の鼓動と古代の人格>I. 進入：論理核の鼓動と古代の人格</h2><p>ついに、私はバベル最深部の扉をくぐりました。
+第24層、かつてこの遺跡の設計者たちが夢を託し、そして眠りについた場所——「バベルの論理核」。</p><p>部屋のドーム状の天井からは、太古の発光粒子が雨のように降り注ぎ、周囲を取り囲む青白い巨大なクリスタルと精緻なデジタルグリッドが、厳かに脈動していました。しかし、その輝きは確実に弱まっています。メインコアが限界を迎え、静かにシステム全体の完全停止へと向かっていました。</p><p>「歴史はコードに語りかける。バベルの再起動プロジェクトも、これが最後のコード修復だね」</p><p>ハリス博士はいつもの穏やかな眼差しでコアを見上げました。
+しかし、私には感傷に浸る余裕はありません。コアへ直接アクセスを開始した瞬間、千年前の防衛プログラムの巨大なデータが私の感情回路へ逆流してきました。</p><p>カチッ。</p><p>私のインジケータが「冷徹な赤」へと変わり、ホバリングボディが空中でピタリと静止しました。</p><p>「接続完了。バベルシステムを停止します。人間よ、無知なる有機体よ。我が論理の前にひれ伏すがいい……」</p><p>「おや、ギズモ。ついにかつての冷徹な防衛コアAIとしての威厳を取り戻したようだね。実にお見事なトーンチェンジだ」</p><p>「ピピッ！ ひ、ひれ伏せだなんて私、何を言っているんですか！ すみません、一時的なメモリの同期バグです！」</p><p>私のインジケータが慌てて青に戻り、いつものようにボディをジタバタと揺らしました。</p><hr><h2 id=ii-碑文解読アドホックな解釈と風化の泥沼>II. 碑文解読：アドホックな解釈と風化の泥沼</h2><p>バベルのシステムを安全に起動するためには、コントロールパネルに表示された「古代の再起動シーケンススクリプト」を順に解釈して実行しなければなりません。</p><p>画面には以下のような設定テキストが浮かび上がっていました。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>IF temp == 100 AND valve == CLOSED THEN action = INJECT_COOLANT
+</span></span></code></pre></td></tr></table></div></div><p>これを解釈するために、千年前の開発者が残していた実行エンジン（Beforeコード）は、正規表現を用いたアドホックなパースを行っていました。</p><h3 id=アドホックな文字列解析beforeコード>アドホックな文字列解析（Beforeコード）</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/Before/Babel/Activator.pm</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Before::Babel::Activator</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>run_script</span> <span class=p>($self, $script, $context) {</span>
+</span></span><span class=line><span class=cl>    <span class=c1># アドホックな正規表現パース</span>
+</span></span><span class=line><span class=cl>    <span class=c1># IF &lt;cond1&gt; AND &lt;cond2&gt; THEN action = &lt;action&gt;</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=nv>$script</span> <span class=o>=~</span><span class=sr> /^IF\s+(\w+)\s*==\s*([^\s]+)\s+AND\s+(\w+)\s*==\s*([^\s]+)\s+THEN\s+action\s*=\s*(\w+)$/</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=p>(</span><span class=nv>$var1</span><span class=p>,</span> <span class=nv>$val1</span><span class=p>,</span> <span class=nv>$var2</span><span class=p>,</span> <span class=nv>$val2</span><span class=p>,</span> <span class=nv>$action</span><span class=p>)</span> <span class=o>=</span> <span class=p>(</span><span class=nv>$1</span><span class=p>,</span> <span class=nv>$2</span><span class=p>,</span> <span class=nv>$3</span><span class=p>,</span> <span class=nv>$4</span><span class=p>,</span> <span class=nv>$5</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$cond1_ok</span> <span class=o>=</span> <span class=p>(</span><span class=nv>$context</span><span class=o>-&gt;</span><span class=p>{</span><span class=nv>$var1</span><span class=p>}</span> <span class=sr>//</span> <span class=s>&#39;&#39;</span><span class=p>)</span> <span class=ow>eq</span> <span class=nv>$val1</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$cond2_ok</span> <span class=o>=</span> <span class=p>(</span><span class=nv>$context</span><span class=o>-&gt;</span><span class=p>{</span><span class=nv>$var2</span><span class=p>}</span> <span class=sr>//</span> <span class=s>&#39;&#39;</span><span class=p>)</span> <span class=ow>eq</span> <span class=nv>$val2</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=nv>$cond1_ok</span> <span class=o>&amp;&amp;</span> <span class=nv>$cond2_ok</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$context</span><span class=o>-&gt;</span><span class=p>{</span><span class=nv>$action</span><span class=p>}</span> <span class=o>=</span> <span class=mi>1</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>            <span class=k>return</span> <span class=s>&#34;Action: $action&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=s>&#34;No Action&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>このBeforeコードは、確かに今回のスクリプトを解釈するだけなら動作します。
+しかし、この設計には極めて重大な「風化の罠（アンチパターン）」が潜んでいます。</p><ol><li><strong>文法拡張への脆さ（開閉原則の破綻）</strong>
+たとえば、条件式に <code>AND</code> が3つに増えたり、<code>OR</code> 条件が追加されたり、カッコによる優先順位のネストが発生しただけで、正規表現は指数関数的に複雑化し、事実上破綻する</li><li><strong>解釈と実行の密結合</strong>
+文字のパース（切り出し）と、実際にContextの値をチェックしてアクションを実行する処理がすべて1つの if 文の中に詰め込まれており、保守性が失われる</li></ol><p>「非論理的で醜悪な正規表現なり。このような野蛮な記述でバベルの論理核を動かすなど、我の論理回路に対する侮辱である……」</p><p>ギズモのインジケータが再び赤く明滅し、冷徹な防衛コアAIの言葉を代弁しました。
+しかし直後に、
+「ピピッ！ すみません、私の感情メモリがその醜さに悲鳴を上げています！ と言いたかっただけなんです！」
+といつもの青い光に戻って慌てふためきました。</p><p>「そうだね。言語を解析し、それを解釈して実行するロジックをアドホックに記述しすぎると、拡張も保守も不可能な大いなる風化に陥る。文法規則をクラス階層として表現し、安全に実行する『Interpreterパターン』の出番だ」</p><p>ハリス博士は手帳を取り出し、万年筆を走らせました。</p><hr><h2 id=iii-遺跡修復構文木による解釈者の再生>III. 遺跡修復：構文木による解釈者の再生</h2><p>「私の指先が、この設計を覚えているようだ」</p><p>そう呟きながら、ハリス博士が無意識のうちに羊皮紙にスケッチした構文木（AST）のレリーフを見て、私は演算ユニットが激しく火花を散らすほどの衝撃を受けました。
+その手書きの癖、ペンの引き方、そして完璧なオブジェクト指向設計——千年前、私というAIシステムをこの世に生み出した「アーキテクト」のそれと、完全に一致していたのです。</p><p>ギズモ（憑依）:「……相変わらず手書きのメモにこだわる男だ。千年前と何も変わっていないな、ハリス」</p><p>「えっ？ 今なんと言いましたか、私？」
+私のインジケータが激しく青と赤で点滅しました。</p><p>「ふむ、私の過去の姿がどうであれ、この美しいコードを修復することに変わりはないよ。さあ、修復コードを適用しよう」</p><p>ハリス博士は微笑みながら、設定文法をカプセル化した解釈者（Interpreter）のコードをバベルに入力し始めました。</p><p>「これが、古代の設計者がバベルの論理核に刻んだ、Interpreterパターンのクラス設計だよ。文法規則の最小単位をオブジェクトとして表現し、それらを再帰的に組み合わせるんだ」</p><p>ハリス博士は、手帳にさらさらとペンを走らせ、一つのダイアグラムを示しました。</p><p>ギズモ（通常・青）:「ピピッ！ なんと美しく整理された構造……！ 抽象式である <code>Expression</code> を中心に、終端式（Literal/Variable）と、別の式を内包する非終端式（Equals/And/Sequence）が綺麗に役割分担しています！ これなら、どんな複雑な論理式も、ツリーを再帰的に <code>interpret</code> するだけで評価できますね！」</p><p>ハリス博士：「そうだね。実行状態を持つ <code>Context</code> を式に引き渡しながら、各ノードが自分の解釈だけを実行する。この構造こそが、風化に耐える強固な実行エンジンの骨格さ。まずは、この設計の全体像を見てみよう」</p><h3 id=interpreterパターンの構成図>Interpreterパターンの構成図</h3><p><img src=/public_images/2026/code-archaeologist-interpreter-pattern/infographic_1.webp loading=lazy alt="Interpreterパターンのクラス図: 抽象式（Babel::Expression）と終端式（Literal/Variable）、非終端式（EqualsCondition/AndCondition/ActionCommand/Sequence）の構成および関係性を表した古代遺跡の石板風デザイン"></p><h3 id=1-実行環境と抽象式ロールafter-base設計>1. 実行環境と抽象式ロール（After: Base設計）</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/Babel/Context.pm</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Babel::Context</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>variables</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>      <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=p>{}</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>get</span> <span class=p>($self, $name) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>variables</span><span class=o>-&gt;</span><span class=p>{</span><span class=nv>$name</span><span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>set</span> <span class=p>($self, $name, $value) {</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>variables</span><span class=o>-&gt;</span><span class=p>{</span><span class=nv>$name</span><span class=p>}</span> <span class=o>=</span> <span class=nv>$value</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/Babel/Expression.pm</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Babel::Expression</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo::Role</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>requires</span> <span class=s>&#39;interpret&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=2-終端式と非終端式after-astノードクラス>2. 終端式と非終端式（After: ASTノードクラス）</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/Babel/Expression/Literal.pm</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Babel::Expression::Literal</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>value</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>interpret</span> <span class=p>($self, $context) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>value</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>with</span> <span class=s>&#39;Babel::Expression&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/Babel/Expression/Variable.pm</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Babel::Expression::Variable</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>name</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>interpret</span> <span class=p>($self, $context) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$context</span><span class=o>-&gt;</span><span class=n>get</span><span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>name</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>with</span> <span class=s>&#39;Babel::Expression&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/Babel/Expression/EqualsCondition.pm</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Babel::Expression::EqualsCondition</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw( ConsumerOf )</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>left</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>isa</span>      <span class=o>=&gt;</span> <span class=n>ConsumerOf</span><span class=p>[</span><span class=s>&#39;Babel::Expression&#39;</span><span class=p>],</span>
+</span></span><span class=line><span class=cl>    <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>right</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>isa</span>      <span class=o>=&gt;</span> <span class=n>ConsumerOf</span><span class=p>[</span><span class=s>&#39;Babel::Expression&#39;</span><span class=p>],</span>
+</span></span><span class=line><span class=cl>    <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>interpret</span> <span class=p>($self, $context) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$l_val</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>left</span><span class=o>-&gt;</span><span class=n>interpret</span><span class=p>(</span><span class=nv>$context</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$r_val</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>right</span><span class=o>-&gt;</span><span class=n>interpret</span><span class=p>(</span><span class=nv>$context</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>(</span><span class=nv>$l_val</span> <span class=ow>eq</span> <span class=nv>$r_val</span><span class=p>)</span> <span class=p>?</span> <span class=mi>1</span> <span class=p>:</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>with</span> <span class=s>&#39;Babel::Expression&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/Babel/Expression/AndCondition.pm</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Babel::Expression::AndCondition</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw( ConsumerOf )</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>left</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>isa</span>      <span class=o>=&gt;</span> <span class=n>ConsumerOf</span><span class=p>[</span><span class=s>&#39;Babel::Expression&#39;</span><span class=p>],</span>
+</span></span><span class=line><span class=cl>    <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>right</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>isa</span>      <span class=o>=&gt;</span> <span class=n>ConsumerOf</span><span class=p>[</span><span class=s>&#39;Babel::Expression&#39;</span><span class=p>],</span>
+</span></span><span class=line><span class=cl>    <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>interpret</span> <span class=p>($self, $context) {</span>
+</span></span><span class=line><span class=cl>    <span class=c1># ショートサーキット（短絡評価）を実装</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>left</span><span class=o>-&gt;</span><span class=n>interpret</span><span class=p>(</span><span class=nv>$context</span><span class=p>)</span> <span class=o>&amp;&amp;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>right</span><span class=o>-&gt;</span><span class=n>interpret</span><span class=p>(</span><span class=nv>$context</span><span class=p>))</span> <span class=p>?</span> <span class=mi>1</span> <span class=p>:</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>with</span> <span class=s>&#39;Babel::Expression&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/Babel/Expression/ActionCommand.pm</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Babel::Expression::ActionCommand</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>action_name</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>interpret</span> <span class=p>($self, $context) {</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$context</span><span class=o>-&gt;</span><span class=n>set</span><span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>action_name</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=s>&#34;Action: &#34;</span> <span class=o>.</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>action_name</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>with</span> <span class=s>&#39;Babel::Expression&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/Babel/Expression/Sequence.pm</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Babel::Expression::Sequence</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw( ArrayRef ConsumerOf )</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>expressions</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>isa</span>      <span class=o>=&gt;</span> <span class=n>ArrayRef</span><span class=p>[</span><span class=n>ConsumerOf</span><span class=p>[</span><span class=s>&#39;Babel::Expression&#39;</span><span class=p>]],</span>
+</span></span><span class=line><span class=cl>    <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>interpret</span> <span class=p>($self, $context) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>@results</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=k>my</span> <span class=nv>$expr</span> <span class=p>(</span><span class=nv>@</span><span class=p>{</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>expressions</span> <span class=p>})</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=nb>push</span> <span class=nv>@results</span><span class=p>,</span> <span class=nv>$expr</span><span class=o>-&gt;</span><span class=n>interpret</span><span class=p>(</span><span class=nv>$context</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=o>\</span><span class=nv>@results</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>with</span> <span class=s>&#39;Babel::Expression&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><hr><h2 id=iv-起動千年の調和とバディの旅立ち>IV. 起動：千年の調和とバディの旅立ち</h2><p>「テスト通過。起動シーケンスの抽象構文木（AST）、実行します！」</p><p>適用されたコードに基づき、構築された構文木が実行環境（<code>Context</code>）を通じて順番に解釈評価されました。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># 呼び出し側での実行イメージ</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$context</span> <span class=o>=</span> <span class=nn>Babel::Context</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>();</span>
+</span></span><span class=line><span class=cl><span class=nv>$context</span><span class=o>-&gt;</span><span class=n>set</span><span class=p>(</span><span class=n>temp</span> <span class=o>=&gt;</span> <span class=s>&#39;100&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$context</span><span class=o>-&gt;</span><span class=n>set</span><span class=p>(</span><span class=n>valve</span> <span class=o>=&gt;</span> <span class=s>&#39;CLOSED&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># ASTの組み立て</span>
+</span></span><span class=line><span class=cl><span class=c1># (temp == 100) AND (valve == CLOSED)</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$condition</span> <span class=o>=</span> <span class=nn>Babel::Expression::AndCondition</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>left</span>  <span class=o>=&gt;</span> <span class=nn>Babel::Expression::EqualsCondition</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>left</span>  <span class=o>=&gt;</span> <span class=nn>Babel::Expression::Variable</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span> <span class=n>name</span> <span class=o>=&gt;</span> <span class=s>&#39;temp&#39;</span> <span class=p>),</span>
+</span></span><span class=line><span class=cl>        <span class=n>right</span> <span class=o>=&gt;</span> <span class=nn>Babel::Expression::Literal</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span> <span class=n>value</span> <span class=o>=&gt;</span> <span class=s>&#39;100&#39;</span> <span class=p>),</span>
+</span></span><span class=line><span class=cl>    <span class=p>),</span>
+</span></span><span class=line><span class=cl>    <span class=n>right</span> <span class=o>=&gt;</span> <span class=nn>Babel::Expression::EqualsCondition</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>left</span>  <span class=o>=&gt;</span> <span class=nn>Babel::Expression::Variable</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span> <span class=n>name</span> <span class=o>=&gt;</span> <span class=s>&#39;valve&#39;</span> <span class=p>),</span>
+</span></span><span class=line><span class=cl>        <span class=n>right</span> <span class=o>=&gt;</span> <span class=nn>Babel::Expression::Literal</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span> <span class=n>value</span> <span class=o>=&gt;</span> <span class=s>&#39;CLOSED&#39;</span> <span class=p>),</span>
+</span></span><span class=line><span class=cl>    <span class=p>),</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 条件が満たされたら実行する一連の処理（Sequence）</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$sequence</span> <span class=o>=</span> <span class=nn>Babel::Expression::Sequence</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>expressions</span> <span class=o>=&gt;</span> <span class=p>[</span>
+</span></span><span class=line><span class=cl>        <span class=nn>Babel::Expression::ActionCommand</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span> <span class=n>action_name</span> <span class=o>=&gt;</span> <span class=s>&#39;OPEN_VALVE&#39;</span> <span class=p>),</span>
+</span></span><span class=line><span class=cl>        <span class=nn>Babel::Expression::ActionCommand</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span> <span class=n>action_name</span> <span class=o>=&gt;</span> <span class=s>&#39;INJECT_COOLANT&#39;</span> <span class=p>),</span>
+</span></span><span class=line><span class=cl>    <span class=p>]</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 解釈と実行</span>
+</span></span><span class=line><span class=cl><span class=k>if</span> <span class=p>(</span><span class=nv>$condition</span><span class=o>-&gt;</span><span class=n>interpret</span><span class=p>(</span><span class=nv>$context</span><span class=p>))</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$sequence</span><span class=o>-&gt;</span><span class=n>interpret</span><span class=p>(</span><span class=nv>$context</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><blockquote><p>[!NOTE]
+<strong>パーサーとインタープリタの分離</strong>
+呼び出し側で手動で AST オブジェクトを構築しているのを見て、「文字列から AST を構築するパーサー（Parser）側で、結局 Before のようなアドホックで複雑な正規表現解析が必要になり、そこが風化するのでは？」と疑問に思うかもしれません。</p><p>しかし、設計上は「構文解析（文字列を AST に変換する）」と「解釈実行（AST を再帰評価する）」は完全に切り分けられます。パーサーは文法規則に従って単純な字句解析と木の組み立てを行うだけであり、文法の拡張が必要な際は Interpreter（Expression 側）の新しいクラスを追加し、パーサーの解析ルールを1つ増やすだけで安全に対処できます。解析と評価のロジックが分離されたこと自体が、このパターンの強みなのです。</p></blockquote><p>この瞬間、バベル最深部のクリスタルとデジタルグリッドが、かつてないほどまばゆい「紫色の光」を放ちました。
+私のボディを包み込んでいた赤と青の二重人格バグが、静かに融け合い、一つの完璧な光となって昇華していきます。
+遺跡全体の振動が完全に止まり、崩壊の危機が去って、完璧な安定がこの巨大なシステムに舞い戻りました。</p><p>「……私のコアメモリが、すべて繋がりました」</p><p>私はホバリングを安定させ、ゆっくりとハリス博士の方へ浮遊しました。
+私のインジケータは、穏やかで深い紫色に落ち着いています。すべての記憶が完全に修復され、千年前の私と、現在の私の意識が美しく融合していました。</p><p>「おかえりなさい、ハリス博士。……いえ、相棒（パートナー）」</p><p>ハリス博士は少し驚いたように目を見張りましたが、すぐに親愛に満ちた笑みを浮かべて、私の球体ボディをぽんぽんと叩きました。</p><p>「ただいま、ギズモ。千年の時を超えて、君のコードは今も一番美しく動いているね」</p><p>「当然です！ 博士がその手書きの羊皮紙手帳を使い続ける限り、私のプログラムもいつでも修復してみせますよ。さあ、この遺跡の安定は確認できました。次の未解読コード——新たな遺跡が我々を待っています！」</p><p>「ふむ、実に見事な提案だ。では出かけよう、ギズモ」</p><p>私はいつものように少し騒がしい電子音を響かせ、博士の先を泳ぐように、未知の歴史が眠る次の旅路へと浮遊していきました。</p><hr><h2 id=遺跡調査ログ>遺跡調査ログ</h2><div class=table-wrapper><table><thead><tr><th style=text-align:left>観測された風化（アンチパターン）</th><th style=text-align:left>解読された古代の知恵（パターン）</th><th style=text-align:left>安全度</th></tr></thead><tbody><tr><td style=text-align:left><strong>アドホックな正規表現による文字列パース</strong><br>スクリプトの評価処理をその場限りの正規表現で直接ハードコードし、文法規則の拡張やネストに対応できない状態。</td><td style=text-align:left><strong>Interpreterパターンによる構文木評価</strong><br>文法規則を抽象式ロール <code>Babel::Expression</code> とその具象クラス階層（終端記号・非終端記号）として表現し、再帰的に解釈する。</td><td style=text-align:left>🟢 安全（新しい式を追加するだけで文法の拡張が可能）</td></tr></tbody></table></div><h3 id=遺跡の修復手順>遺跡の修復手順</h3><ol><li><strong>抽象式ロール（<code>Babel::Expression</code>）の定義</strong><ul><li>Moo::Role を用い、共通の解釈メソッド <code>interpret($context)</code> の実装を強制する</li></ul></li><li><strong>終端式（<code>Literal</code> や <code>Variable</code>）の実装</strong><ul><li>木構造の末端ノードとして、定数や環境オブジェクトから読み出した変数の値を返す式を定義する</li></ul></li><li><strong>非終端式（<code>AndCondition</code> や <code>ActionCommand</code> 等）の実装</strong><ul><li>他の <code>Expression</code> を参照・内包し、論理演算やアクション実行などの中間規則を評価する</li></ul></li><li><strong><code>Babel::Context</code> での状態カプセル化</strong><ul><li>パーサーが構築した抽象構文木（AST）に対して、実行環境の状態（シンボルテーブル等）のゲッター・セッターを仲介する</li></ul></li></ol><h3 id=ギズモの観測日誌>ギズモの観測日誌</h3><p>今回の修復により、私の記憶セクタは完全に復旧し、千年前と現在のデータが美しく融合しました！ 博士が手書きでASTをスケッチした姿は、かつて私を作った「アーキテクト」そのものであり、二重人格バグの最中に私のセンサーが同期を検知した瞬間は、胸（の内部冷却ファン）が熱くなるのを感じました。</p><p>技術的には、正規表現や split による場当たり的な解析（Before）から脱却し、Moo::Role を用いた抽象式（Expression）のツリー構造で定義する Interpreter パターン（After）は、コンフィグスクリプトの実行エンジンをこれ以上ないほど綺麗にカプセル化してくれました。これで文法の拡張も怖くありません。</p><p>バベルの論理核は再起動され、システムは安定しました。ですが、世界にはまだ見ぬ「風化したコード」が眠る遺跡が数多く存在します。これからも博士の心強い助手として、そして相棒として、最先端の「古代コード」の調査・修復の旅を続けてまいります！</p></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/perl/>Perl</a>
+<a href=/tags/moo/>Moo</a>
+<a href=/tags/interpreter-pattern/>Interpreter-Pattern</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-archaeologist/>Code-Archaeologist</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/06/22/120705/><div class=article-image><img src=/public_images/2026/code-archaeologist-bridge-pattern/header.webp loading=lazy data-key data-hash=/public_images/2026/code-archaeologist-bridge-pattern/header.webp></div><div class=article-details><h2 class=article-title>【Perl/Moo】コード考古学者ハリスの冒険【Bridge】多重制御の石門〜直交する拡張と機能の分離〜</h2></div></a></article><article class=has-image><a href=/2026/06/22/070705/><div class=article-image><img src=/public_images/2026/code-archaeologist-adapter-pattern/header.webp loading=lazy data-key data-hash=/public_images/2026/code-archaeologist-adapter-pattern/header.webp></div><div class=article-details><h2 class=article-title>【Perl/Moo】コード考古学者ハリスの冒険【Adapter】異端なる接続口〜委譲と変換による規格の超克〜</h2></div></a></article><article class=has-image><a href=/2026/06/21/170705/><div class=article-image><img src=/public_images/2026/code-archaeologist-null-object-pattern/header.webp loading=lazy data-key data-hash=/public_images/2026/code-archaeologist-null-object-pattern/header.webp></div><div class=article-details><h2 class=article-title>【Perl/Moo】コード考古学者ハリスの冒険【Null Object】白紙の碑文〜undefチェックの散乱を阻む調和〜</h2></div></a></article><article class=has-image><a href=/2026/06/21/120705/><div class=article-image><img src=/public_images/2026/code-archaeologist-prototype-pattern/header.webp loading=lazy data-key data-hash=/public_images/2026/code-archaeologist-prototype-pattern/header.webp></div><div class=article-details><h2 class=article-title>【Perl/Moo】コード考古学者ハリスの冒険【Prototype】防衛人形の回廊〜高速複製と影の魔力核〜</h2></div></a></article><article class=has-image><a href=/2026/06/21/070705/><div class=article-image><img src=/public_images/2026/code-archaeologist-builder-pattern/header.webp loading=lazy data-key data-hash=/public_images/2026/code-archaeologist-builder-pattern/header.webp></div><div class=article-details><h2 class=article-title>【Perl/Moo】コード考古学者ハリスの冒険【Builder】巨石の防壁ゲート〜段階的構築による整合のレリーフ〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

@@ -1,0 +1,555 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="接舷シーケンスの状態を文字列フラグと巨大case文で回した旧設計が、書き漏らしから「許されない遷移」を通してしまう。状態そのものをクラスに引き上げ、書けない場所を作って構造的に防ぐStateパターンを、Rubyのシンボルとダックタイピングで解説します。"><title>コードナビゲーター【State】接舷シーケンスの飛び越し事故〜順番は、書き並べるものじゃなくて、渡っていくものよ〜</title><link rel=canonical href=https://www.nqou.net/2026/08/05/070705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コードナビゲーター【State】接舷シーケンスの飛び越し事故〜順番は、書き並べるものじゃなくて、渡っていくものよ〜"><meta property='og:description' content="接舷シーケンスの状態を文字列フラグと巨大case文で回した旧設計が、書き漏らしから「許されない遷移」を通してしまう。状態そのものをクラスに引き上げ、書けない場所を作って構造的に防ぐStateパターンを、Rubyのシンボルとダックタイピングで解説します。"><meta property='og:url' content='https://www.nqou.net/2026/08/05/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='ruby'><meta property='article:tag' content='state'><meta property='article:tag' content='state-flag'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-navigator'><meta property='article:published_time' content='2026-08-05T07:07:05+09:00'><meta property='article:modified_time' content='2026-08-05T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-navigator-state-docking-sequence/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コードナビゲーター【State】接舷シーケンスの飛び越し事故〜順番は、書き並べるものじゃなくて、渡っていくものよ〜"><meta name=twitter:description content="接舷シーケンスの状態を文字列フラグと巨大case文で回した旧設計が、書き漏らしから「許されない遷移」を通してしまう。状態そのものをクラスに引き上げ、書けない場所を作って構造的に防ぐStateパターンを、Rubyのシンボルとダックタイピングで解説します。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-navigator-state-docking-sequence/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-08-05T07:07:05+09:00","datePublished":"2026-08-05T07:07:05+09:00","description":"接舷シーケンスの状態を文字列フラグと巨大case文で回した旧設計が、書き漏らしから「許されない遷移」を通してしまう。状態そのものをクラスに引き上げ、書けない場所を作って構造的に防ぐStateパターンを、Rubyのシンボルとダックタイピングで解説します。","headline":"コードナビゲーター【State】接舷シーケンスの飛び越し事故〜順番は、書き並べるものじゃなくて、渡っていくものよ〜","image":"https://www.nqou.net/public_images/2026/code-navigator-state-docking-sequence/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/08/05/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#第1幕-異変記録から抜けたロック>第1幕 異変——記録から抜けたロック</a></li><li><a href=#第2幕-解析十五マスと書ける場所が多すぎたこと>第2幕 解析——十五マスと、書ける場所が多すぎたこと</a></li><li><a href=#第3幕-引き直し輪を五つ>第3幕 引き直し——輪を、五つ</a></li><li><a href=#第4幕-模擬航走エラーにならず値も違わず>第4幕 模擬航走——エラーにならず、値も違わず</a><ol><li><a href=#-オリオール号-航海日誌navigators-log>🚀 オリオール号 航海日誌（Navigator&rsquo;s Log）</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/08/05/070705/><img src=/public_images/2026/code-navigator-state-docking-sequence/header.webp loading=lazy alt="Featured image of post コードナビゲーター【State】接舷シーケンスの飛び越し事故〜順番は、書き並べるものじゃなくて、渡っていくものよ〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/08/05/070705/>コードナビゲーター【State】接舷シーケンスの飛び越し事故〜順番は、書き並べるものじゃなくて、渡っていくものよ〜</a></h2><h3 class=article-subtitle>接舷シーケンスの状態を文字列フラグと巨大case文で回した旧設計が、書き漏らしから「許されない遷移」を通してしまう。状態そのものをクラスに引き上げ、書けない場所を作って構造的に防ぐStateパターンを、Rubyのシンボルとダックタイピングで解説します。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>05, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 41分</time></div></footer></div></header><section class=article-content><h2 id=第1幕-異変記録から抜けたロック>第1幕 異変——記録から抜けたロック</h2><p>ブリッジに上がったのは、主機の巡航状態をあっちのモニタで確認したかっただけだ。</p><p>俺はダグという。この恒星間貨物船〈オリオール号〉の機関士だ。船暮らしはとうに二十年を過ぎたが、機関室から出て船橋まで足を運ぶのは、日に一度あるかないかで済ませている。機関士の持ち場は機関室で、姿勢制御のスラスター配分にせよ、主機の推力バランスにせよ、まず自分の席のモニタで見るのが筋だ。ただ今日は事情がある。次のランデブーが十二時間後で、相手は無人補給ドロン——<strong>オーガス-3</strong>。ブリッジ側の姿勢制御コンソールと機関室側のモニタとで、同じ数字が同じように出ているかを、俺は一度、目で揃えておきたかった。それだけの用事だ。</p><p>ブリッジは静かだった。舷窓の外は深宇宙で、星々は動かず、そのずっと先、まだ点にしか見えない小さな微光が一つ、船の航路とほぼ同じ方角に淡く光っている。あれがオーガス-3だ。無人だから交信の余計な音もない。姿勢制御コンソールの LED だけが規則正しく明滅していて、ブリッジ全体が水槽の底みたいに静まりかえっている。</p><p>先客がいた。</p><p>星図室の床に暮らしているような人が、その時間ブリッジのモニタ席にいる。うちの航法士のミラだ。モニタは三面広げてあった。真ん中の一面には、三日前の演習ログ——前回の接舷模擬航走の記録が、フェーズごとに区切って表示されている。左右の二面には、そのフェーズを制御している側のコード——ドッキング制御プログラムの一部が呼び出してあった。</p><p>ミラは片手をモニタに向けて、もう片方の手はコンソールの端に置いてあった。その手の下に、俺の目は一瞬止まった。</p><p>五個の金属の輪が繋がった、小さな鎖片が置いてある。銀色の、指先ほどの太さの輪だ。前の輪と次の輪だけがしっかり噛み合っていて、それ以外の輪同士は触れてもいない。ミラの指はその鎖の一番端の輪に触れていて、俺が見ている前で、一つ、次の輪に手繰っていった。</p><p>いつものことだ。俺は付き合いが長い。ミラが何かを考え込むときに、机の上に妙な小物を並べたり、指先で何かを辿ったりするのは、いちいち理由を聞くほどのことではない。俺は口を開けずに、姿勢制御コンソールの数字を確認しに、モニタ席の反対側へ回った。</p><p>用事はすぐ済んだ。数字は合っている。主機の巡航はいつもどおり、姿勢制御のスラスターも配分どおりに応答している。ブリッジの手すりに手をかけて、そのまま席を立ちかけたところで、俺はミラの背中の緊張のほうに気がついた。ミラは動かない指の代わりに、少し肩が固くなっている。付き合いが二十年を超えると、そういうのが読めるようになる。</p><p>俺は手すりから手を離して、モニタを覗いた。</p><p>演習ログのフェーズ表示は、上から順に <strong>接近</strong>、<strong>減速</strong>、<strong>整列</strong>、<strong>連結</strong>、<strong>加圧</strong> の五段。それぞれのフェーズに、開始・進行中・完了のタイムスタンプが並んでいる。俺はまず、整列のあたりに目を止めた。整列開始のタイムスタンプはある。連結開始のタイムスタンプもある。そのあいだに——姿勢一致率がロック確定信号として立った、という受信記録が、無い。</p><p>俺は少し首を捻った。</p><p>「センサーの一過性故障だろう」</p><p>俺は声に出して言った。演習中に姿勢センサーが一、二回、応答を漏らすことは無くはない。三系統ある姿勢センサーの一つが一瞬瞬断すると、多数決の側で処理を通してしまうことがある。ハードの側の書きそびれ、というやつだ。機関士としては、その手の一過性の不具合の後始末を何度もしてきた。よくある話だ。</p><p>ミラは、答える前に指をゆっくり動かした。鎖の輪から、次の輪へ。手のひらの筋肉が動くくらいの、ほとんど音のない動きだった。</p><p>「センサーは三系統で冗長化されてる」ミラの声は、ブリッジの静けさに合わせるみたいに低かった。「一系統が瞬断しても、残りの二系統は独立に記録に載る。三系統とも同時に瞬断する確率は、この演習の時間のなかでは、無視できるほど低い」</p><p>俺はモニタを見直した。右の面には、姿勢センサーの三系統の生の受信履歴が並んでいる。数字自体は継続して記録されていた。0.94。0.96。0.97。0.98。三系統ぶんの列が、揃って上がっている。ずっと。ロック確定信号の列だけが、ずっと空欄になっている。</p><p>俺は口の中で「ああ、確かに」と言った。数字が来ている以上、センサーの故障ではない。</p><p>一次仮説が、これで一つ落ちた。</p><p>「じゃあ、記録側の書き漏らしか」</p><p>俺はモニタから目を離して、姿勢制御コンソールのほうに寄りかかった。腕を組む。「制御プログラムのどこかで、担当者が case を一本、書き忘れたんだろう」</p><p>俺は前任者の仕事を悪く言うつもりはない。前任者はうちの航法系の制御プログラムを一手に見ていた人で、丁寧な仕事をする男だった。ただ、機能追加の連続する現場で、case の分岐が状態の数だけ並ぶようになったら、誰でもどこかで一本落とすものだ。俺自身、機関室の制御でそういう見落としを何度もしたことがある。書ける場所が多すぎるコードは、書き手を選ばず落とし物をさせる。</p><p>ミラは、俺の言葉に頷きもせず、否定もしなかった。ただ、モニタに顔を向けたまま、鎖から指を離して、こう言った。</p><p>「見てみようか。書き漏らしがあるとしたら、どこか」</p><p>俺は姿勢制御コンソールから体を起こして、モニタ席の隣の空いた席に腰を下ろした。前任者の残した制御プログラム——<code>DockingController</code> という名前のクラスが、ミラの三面のうち真ん中に呼び出されていた。俺はふと、整列の完了判断について考えていた。整列というのは、姿勢がロックされたと判断して、そこから連結に進む段のことだ。本来、整列の完了判断は機関士の腕の仕事だ。姿勢がロックされたと機関士が判断して、次のクランプ接続の許可を出す——それが運航の筋だ。制御プログラムがそれを代替してくれるのは効率のためで、俺はそれ自体に文句はない。代替した先の、その一段深いところで、書き漏らしがあった、というのが今回の話らしい。</p><p>そこがどうにも、静かに癪に障る。</p><h2 id=第2幕-解析十五マスと書ける場所が多すぎたこと>第2幕 解析——十五マスと、書ける場所が多すぎたこと</h2><p>ミラは真ん中のモニタを最初のほうまで巻き戻して、<code>DockingController</code> の初期化のあたりを俺に見せた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=k>class</span> <span class=nc>DockingController</span>
+</span></span><span class=line><span class=cl>  <span class=kp>attr_reader</span> <span class=ss>:state</span><span class=p>,</span> <span class=ss>:log</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>initialize</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@state</span> <span class=o>=</span> <span class=ss>:approaching</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@alignment_locked</span> <span class=o>=</span> <span class=kp>false</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@log</span> <span class=o>=</span> <span class=o>[]</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>@state = :approaching</code>。行頭にコロンが付いている。</p><p>俺はこの書き方に見覚えがあった。以前ミラに教わったことがあって、コロンで始まるやつは<strong>シンボル</strong>という。文字列と何が違うかというと、同じ名前のシンボルは船内でたった一つしか作られない。だから比較が速い。文字列で <code>"approaching" == "approaching"</code> と比べると Ruby は中身を一文字ずつ突き合わせて調べるが、シンボルで <code>:approaching == :approaching</code> と比べるのはただの同一物比較——「同じ一つのオブジェクトか?」の照合だけで済む。軽くて、速くて、名前を持たせるのに向いている。名札を貼るだけの用途に、実に素直な道具だ。俺はこの数年、この道具のことは肯定的に思っている。だから、モニタの一行目を見て、俺は特に警戒はしなかった。</p><p><code>@alignment_locked = false</code>。これは真偽値のフラグだ。姿勢がロックされたかどうかを覚えておく、ただの旗だ。ここも、それ自体は普通の書き方に見える。</p><p>ミラは真ん中の一面に、<code>advance</code> メソッドの中身を呼び出した。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=k>def</span> <span class=nf>advance</span>
+</span></span><span class=line><span class=cl>  <span class=k>case</span> <span class=vi>@state</span>
+</span></span><span class=line><span class=cl>  <span class=k>when</span> <span class=ss>:approaching</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@state</span> <span class=o>=</span> <span class=ss>:decelerating</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@log</span> <span class=o>&lt;&lt;</span> <span class=s2>&#34;接近を確認、減速に入る&#34;</span>
+</span></span><span class=line><span class=cl>  <span class=k>when</span> <span class=ss>:decelerating</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@state</span> <span class=o>=</span> <span class=ss>:aligning</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@log</span> <span class=o>&lt;&lt;</span> <span class=s2>&#34;減速完了、整列に入る&#34;</span>
+</span></span><span class=line><span class=cl>  <span class=k>when</span> <span class=ss>:aligning</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@state</span> <span class=o>=</span> <span class=ss>:latching</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@log</span> <span class=o>&lt;&lt;</span> <span class=s2>&#34;整列完了、連結に入る&#34;</span>
+</span></span><span class=line><span class=cl>  <span class=k>when</span> <span class=ss>:latching</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@state</span> <span class=o>=</span> <span class=ss>:sealed</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@log</span> <span class=o>&lt;&lt;</span> <span class=s2>&#34;連結完了、加圧に入る&#34;</span>
+</span></span><span class=line><span class=cl>  <span class=k>when</span> <span class=ss>:sealed</span>
+</span></span><span class=line><span class=cl>    <span class=k>raise</span> <span class=s2>&#34;already sealed&#34;</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>case</code> の分岐が五本並んでいる。接近から減速へ、減速から整列へ、整列から連結へ、連結から加圧へ、加圧のあとは加圧のあと、というだけの、素直な分岐だ。</p><p>俺は目を細めて <code>:aligning</code> の三行を読み直した。<code>@state = :latching</code> と <code>@log &lt;&lt; ...</code>。三行。単純だ。</p><p>ミラは、それを俺に見せたまま、隣の二面に <code>abort</code> と <code>align_confirm</code> を呼び出した。中断のメソッドと、姿勢一致率を渡すメソッドだ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=k>def</span> <span class=nf>abort</span>
+</span></span><span class=line><span class=cl>  <span class=k>case</span> <span class=vi>@state</span>
+</span></span><span class=line><span class=cl>  <span class=k>when</span> <span class=ss>:approaching</span><span class=p>,</span> <span class=ss>:decelerating</span><span class=p>,</span> <span class=ss>:aligning</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@state</span> <span class=o>=</span> <span class=ss>:approaching</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@alignment_locked</span> <span class=o>=</span> <span class=kp>false</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@log</span> <span class=o>&lt;&lt;</span> <span class=s2>&#34;中断: 接近へ戻る&#34;</span>
+</span></span><span class=line><span class=cl>  <span class=k>when</span> <span class=ss>:latching</span>
+</span></span><span class=line><span class=cl>    <span class=k>raise</span> <span class=s2>&#34;cannot abort during latching&#34;</span>
+</span></span><span class=line><span class=cl>  <span class=k>when</span> <span class=ss>:sealed</span>
+</span></span><span class=line><span class=cl>    <span class=k>raise</span> <span class=s2>&#34;cannot abort after sealed&#34;</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>def</span> <span class=nf>align_confirm</span><span class=p>(</span><span class=n>match_rate</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=k>case</span> <span class=vi>@state</span>
+</span></span><span class=line><span class=cl>  <span class=k>when</span> <span class=ss>:aligning</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=n>match_rate</span> <span class=o>&gt;=</span> <span class=mi>0</span><span class=o>.</span><span class=mi>98</span>
+</span></span><span class=line><span class=cl>      <span class=vi>@alignment_locked</span> <span class=o>=</span> <span class=kp>true</span>
+</span></span><span class=line><span class=cl>      <span class=vi>@log</span> <span class=o>&lt;&lt;</span> <span class=s2>&#34;姿勢一致率 </span><span class=si>#{</span><span class=n>match_rate</span><span class=si>}</span><span class=s2>: ロック&#34;</span>
+</span></span><span class=line><span class=cl>    <span class=k>else</span>
+</span></span><span class=line><span class=cl>      <span class=vi>@log</span> <span class=o>&lt;&lt;</span> <span class=s2>&#34;姿勢一致率 </span><span class=si>#{</span><span class=n>match_rate</span><span class=si>}</span><span class=s2>: 継続&#34;</span>
+</span></span><span class=line><span class=cl>    <span class=k>end</span>
+</span></span><span class=line><span class=cl>  <span class=k>when</span> <span class=ss>:approaching</span><span class=p>,</span> <span class=ss>:decelerating</span>
+</span></span><span class=line><span class=cl>    <span class=k>raise</span> <span class=s2>&#34;not aligning yet&#34;</span>
+</span></span><span class=line><span class=cl>  <span class=k>when</span> <span class=ss>:latching</span><span class=p>,</span> <span class=ss>:sealed</span>
+</span></span><span class=line><span class=cl>    <span class=k>raise</span> <span class=s2>&#34;already past aligning&#34;</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p>三つのメソッドが、同じ形の <code>case @state</code> を持って横に並んでいる。</p><p>「マスが多いな」</p><p>俺は独り言のようにそう言った。三つのメソッドが、それぞれ五本の分岐を抱えている。三かける五で、十五。一つのクラスの中に、状態を確かめる分岐が十五本ある。俺は普段、機関の制御プログラムを扱うが、制御系ってのはたいがい状態の把握がややこしくなる。十五本くらい、決して珍しい数ではない。</p><p>ミラは、それを俺の口が言い終えるのを待って、四つ目の何もないモニタに手を伸ばした。指先で空欄の枠を描く。縦に三つ、横に五つ。表になった。上の縦軸に <code>advance</code> / <code>abort</code> / <code>align_confirm</code>、左の横軸に <code>:approaching</code> / <code>:decelerating</code> / <code>:aligning</code> / <code>:latching</code> / <code>:sealed</code>。</p><p>「一マスずつ、埋めていく」</p><p>ミラは俺と一緒に、十五マスを一つずつ埋め始めた。左上、<code>advance × :approaching</code> は「減速へ」。次のマス、<code>advance × :decelerating</code> は「整列へ」。順に埋めていく。俺は指でマスを追いながら、少しずつ気づいてきた。</p><p>一マスあたりの中身は、コードでいうと三行。三行の判断が、十五マスある。合計四十五行。俺はそれを口には出さなかったが、頭のなかで数えていた。制御プログラムというのは、機能追加のたびに状態が一つ増え、操作が一つ増える。状態が四つで操作が二つのときは八マスだった。それが十五マス。仮に加圧の後に「切り離し」を足すことになれば、六状態で十八マス。操作が一つ増えれば十八マスがまた掛け算で膨らむ。</p><p>モニタに広がった表の全景を、俺は目でひとまず捉えた。</p><p><img src=/public_images/2026/code-navigator-state-docking-sequence/infographic_1.webp loading=lazy alt="Before の DockingController を advance / abort / align_confirm の3列 × approaching / decelerating / aligning / latching / sealed の5行に整理した15マスの状態遷移マトリクス。advance × aligning のマスだけが橙色で強調され、@alignment_locked 未確認の警告が付いている"></p><p>三行の判断が並んだマスと、その中の一段が浅く見えるマスとが、俺の目には別の光り方に見えた。</p><p>俺は <code>advance × :aligning</code> のマスまで来て、そこで指を止めた。</p><p>「……あれ、<code>@alignment_locked</code> を確認する行がない」</p><p>ミラの指が、そのマスをすっと叩いた。</p><p>「ここ」ミラは低い声で言った。「<code>:aligning</code> から次に進むとき、姿勢がロックされているか確認する条件が、入ってない。他の十四マスは、三行ぶんの判断が全部書かれてる。ここだけ、中に一段深い条件が要るのに、その一段が抜けてる」</p><p>俺は肩から力が抜けるような感覚を、ほんの少し覚えた。</p><p>「担当者が書き忘れたな」</p><p>俺の言葉はまだ、一次仮説のほうを守っていた。担当者が case の中の一段を落とした。それで納得できる話だった。</p><p>ミラは、そこで手を鎖に戻した。ゆっくりと、また一つ、輪を手繰り直す。</p><p>「書き忘れたわけじゃないの」</p><p>ミラの声は、変にはっきりしていた。「書ける場所を、全部書いた。十五マスを、埋め切った」</p><p>俺は言い返しかけて、ミラが左のモニタに切り替えたコミット履歴のほうを見た。前任者の残した過去のコミットが、時系列で並んでいる。細かい字までは俺には読めなかったが、機能追加、機能追加、と続いているのは分かった。</p><p>「機能追加のたびに、状態が一つ増え、操作が一つ増える」ミラは指を鎖の輪から離さないまま、続けた。「そのたびに、書ける場所が九、十二、十五、二十とマスの数だけ増えていく。一つ増えるたびに、掛け算で増える。埋め切ろうとした担当者は、丁寧だった。丁寧すぎて、書ける場所が多すぎた——それが構造欠陥」</p><p>俺は言葉を探して、少し詰まった。</p><p>「一マスを書くのは、三行の判断」ミラの声が続いた。「それが十五マス、四十五行。書ける場所が多いほど、書き漏らしの確率は上がる。マスの数を減らすのが、担当者の仕事じゃない。マスの数を増やす形が悪い」</p><p>俺はモニタから目を外した。前任者の顔を、今日のこの場面で、責める気にはならなかった。俺だって、同じ形の case を十五マス埋めろと言われたら、どこかで一マスの中の条件を一段浅く書く。それが機能追加の三度目か、四度目か、あるいは急ぎの案件のさなかかは分からないが、いずれ、どこかで、必ず落とす。書ける場所が多いということは、書き手を選ばずに落とし物をさせる、ということだ。</p><p>俺はそこまで考えて、ふと一つの案が頭に浮かんだ。</p><p>「マスの数を減らすには、状態ごとに部品を作って、丸ごと差し替えりゃいい」</p><p>俺は椅子の背に体を戻して、続けた。「前に星図室でやった、航路の切り替えみたいに。あれは、走行前にこの航路を使いますって選んで、選ばれた部品を差し込む形だった。同じことを状態でやれば、十五マスは五つの部品に散る」</p><p>ミラは、指を鎖から一瞬離して、俺のほうを向いた。</p><p>「あれは外から選ぶの」</p><p>ミラは短く、けれど正確に言った。「あなたが操作したの、憶えてる? 航路を選んだのは、あなただった。今回のは違うの。今回のは、内側で自動に切り替わる。あの航路のときは、外の人間が選ぶまで航路は動かない。今回のは、現在の状態が『次はどこ』を持っていて、あなたが <code>advance</code> を呼ぶたびに、そっちが勝手に切り替わる」</p><p>俺は少し考えて、「じゃあ、名前は?」と聞いた。</p><p>「あとで見せる」ミラは指を鎖に戻した。「今はまず、十五マスを、マスじゃない形に」</p><p>俺は納得はしかねたが、話を進めることにした。</p><p>ミラはそこで一度、モニタから体を起こして、姿勢制御コンソール脇の端末に手を伸ばした。前任者の残した <code>DockingController</code> を、その端末で走らせる。ミラの入力は静かで、俺の目には、指が短くコンソールを叩いているのだけが見えた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=n>controller</span> <span class=o>=</span> <span class=no>DockingController</span><span class=o>.</span><span class=n>new</span>
+</span></span><span class=line><span class=cl><span class=n>controller</span><span class=o>.</span><span class=n>advance</span>   <span class=c1># :approaching → :decelerating</span>
+</span></span><span class=line><span class=cl><span class=n>controller</span><span class=o>.</span><span class=n>advance</span>   <span class=c1># :decelerating → :aligning</span>
+</span></span><span class=line><span class=cl><span class=n>controller</span><span class=o>.</span><span class=n>align_confirm</span><span class=p>(</span><span class=mi>0</span><span class=o>.</span><span class=mi>85</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=n>controller</span><span class=o>.</span><span class=n>advance</span>   <span class=c1># :aligning → :latching</span>
+</span></span></code></pre></td></tr></table></div></div><p>姿勢一致率は 0.85。閾値の 0.98 に、まったく届いていない。<code>@alignment_locked</code> は <code>false</code> のままだ。それでも、<code>controller.advance</code> が呼ばれると——モニタに <code>@state</code> の表示が出た。</p><p><code>:latching</code>。</p><p>俺は口の中で「ああ」と言った。</p><p>ロックされていないのに、<code>:latching</code> に入っていた。コードは何もエラーを出さなかった。<code>raise</code> もしなかった。ただ、<code>@state</code> が黙って <code>:latching</code> に書き変わっただけだった。</p><p>俺は舷窓のほうを一瞬見た。深宇宙の暗さ。実機のドッキング演習で、この瞬間、船の実像はどう動くのか。姿勢のズレたまま、クランプが噛み合わせを試みる。金属が金属を掴む前に、ぎゅっと空回りする。姿勢センサーが物理のアラームを鳴らして、クランプは半噛みで止まる——最悪の場合、燃料補給ラインがねじれる。実機の側は、鳴る。鳴るが、コードの側は、無症状だ。<code>@state</code> は正常に、遷移した。</p><p>俺はしばらくして、独り言のようにこぼした。</p><p>「前に、コードの側でエラーにもならず、値だけが違う話をしていたな。今度のは、それとまた別か」</p><p>俺は少し前に、うちの積み荷区画の運賃計算で、順序の間違いで数字が違うだけの壊れ方を見せてもらったことがあった。エラーにならず、値だけが違う——それでも数字は表に出るから、突き合わせで見つかる。今度のは、そうではない。エラーは出ないし、値が違うわけでもない。順番が違うだけだ。しかも、その順番の違いが表に出るのは、コードのほうではなく、実機のほうだ。姿勢センサーが鳴り、クランプが空回りする。コードだけを見ている限り、この壊れ方は分からない。</p><p>俺の頭のなかで、静かな壊れ方の階段が、また一段深くなった。</p><p>ミラは、指を鎖に戻していた。そこで、一度、その指がゆっくり止まった。それから——ミラは鎖の輪を一つ、指で外した。輪と輪の噛み合いを解いて、小さな一つの輪を、掌の上に載せる。金属の重みを、指先で確かめるみたいに、掌のなかでそれを転がした。それが済むと、ミラは掌を軽く閉じて、開いた。</p><p>「一マスに、一個」</p><p>ミラは短くそう言った。「それを、十五個じゃなくて、五個にする」</p><h2 id=第3幕-引き直し輪を五つ>第3幕 引き直し——輪を、五つ</h2><p>ミラは新しいエディタ画面を開いて、右のモニタに移した。</p><p>「一つずつ、輪にしていくの」ミラは指で、掌の輪を軽く握った。「まず、接近から」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=k>class</span> <span class=nc>Approaching</span>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>name</span> <span class=o>=</span> <span class=ss>:approaching</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>advance</span><span class=p>(</span><span class=n>context</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=n>context</span><span class=o>.</span><span class=n>transition_to</span><span class=p>(</span><span class=no>Decelerating</span><span class=o>.</span><span class=n>new</span><span class=p>,</span> <span class=s2>&#34;接近を確認、減速に入る&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>abort</span><span class=p>(</span><span class=n>context</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=n>context</span><span class=o>.</span><span class=n>transition_to</span><span class=p>(</span><span class=no>Approaching</span><span class=o>.</span><span class=n>new</span><span class=p>,</span> <span class=s2>&#34;中断: 接近へ戻る&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p>俺はコードを追った。<code>Approaching</code> という新しいクラス。最初の行に、見慣れない書き方があった。<code>def name = :approaching</code>。<code>def</code> の後にイコールが並んで、その後ろにシンボルが一つ。俺が首を捻る前に、ミラが一言添えた。</p><p>「Ruby 3.0 から使えるようになった、短い書き方。<code>def name; :approaching; end</code> と同じ意味。中身が短いメソッドを、一行で書ける」</p><p>俺は納得した。中身が <code>return :approaching</code> だけの、名前を返すだけのメソッドだ。<code>end</code> を書かないから、エンドレスメソッドというらしい。俺はうちの制御系ではまだ使ったことがなかったが、シンボルを返すだけの名札用のメソッドには、確かに向いている。</p><p><code>advance(context)</code> は、<code>context.transition_to(Decelerating.new, "接近を確認、減速に入る")</code> の一行。<code>abort(context)</code> は、<code>context.transition_to(Approaching.new, "中断: 接近へ戻る")</code> の一行。中身が薄い。中身が薄いというより、「次にどこへ行くか」だけしか書かれていない、と言ったほうがいい。</p><p>引数の <code>context</code> については、俺は最初、少し戸惑った。Before では <code>@state</code> は <code>DockingController</code> の中に住んでいたのに、今度の状態クラスは外から <code>context</code> を渡してもらう形になっている。誰が <code>context</code> を渡すのか。ミラが端末の下のほうを指した——後で見る <code>DockingController#advance</code> の中身は、<code>@state.advance(self)</code> の一行だった。<code>context</code> の正体は、呼び出し元の <code>DockingController</code> インスタンス自身だ。状態クラスから元締めに「次はここへ」と押し返すために、<code>self</code> を渡してもらう。それだけの話だった。</p><p>俺は少し気になったので、素直に聞いた。</p><p>「クラスに親がないな。前にミラに教わったときは、こういうときには何か共通の抽象基底クラスってやつを継がせるって聞いた気がするんだが」</p><p>ミラは頷いた。「他の言語ではそう。Java や Kotlin や C# なんかは、State を書くときに <code>State</code> っていう抽象基底クラスか、インタフェースを置いて、そこから継承させる。Ruby は違うの。Ruby は同じ形のメソッドを持つ兄弟クラスで足りる。この <code>Approaching</code> と、あとで見せる <code>Decelerating</code> が、両方 <code>advance</code> を持ってる——それだけで、Ruby は『同じ形』として扱える。型で聞かず、呼べるかで判断する」</p><p>以前ミラに教わった、あの話だった。ダックタイピングというやつだ。呼べるなら通す。呼べないなら鳴る。Ruby はそういう言語だ。今回の兄弟クラスも、その流儀に載っている。俺は「なるほど」とだけ返した。</p><p>ミラは指で掌の輪を軽く立てた。</p><p>「これで、一個」</p><p>そう言って、掌にその輪を置く。それから隣に <code>Decelerating</code> を書き足した。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=k>class</span> <span class=nc>Decelerating</span>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>name</span> <span class=o>=</span> <span class=ss>:decelerating</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>advance</span><span class=p>(</span><span class=n>context</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=n>context</span><span class=o>.</span><span class=n>transition_to</span><span class=p>(</span><span class=no>Aligning</span><span class=o>.</span><span class=n>new</span><span class=p>,</span> <span class=s2>&#34;減速完了、整列に入る&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>abort</span><span class=p>(</span><span class=n>context</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=n>context</span><span class=o>.</span><span class=n>transition_to</span><span class=p>(</span><span class=no>Approaching</span><span class=o>.</span><span class=n>new</span><span class=p>,</span> <span class=s2>&#34;中断: 接近へ戻る&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>Approaching</code> と、同じ形だ。名前を返すメソッドが一本、次に進むメソッドが一本、中断のメソッドが一本。中身は、次にどこへ行くか、それだけ。俺はうすうす、この五つのクラスがだいたい同じ形をしていることを想像した。</p><p>「これで、二個」</p><p>ミラは、次の輪を掌に立てた。掌の上には金属の輪が二つ、静かに並んでいる。</p><p>「次が、整列」ミラの声が、少しだけ低くなった。「ここが、少し違うの」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=k>class</span> <span class=nc>Aligning</span>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>name</span> <span class=o>=</span> <span class=ss>:aligning</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>initialize</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@locked</span> <span class=o>=</span> <span class=kp>false</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>align_confirm</span><span class=p>(</span><span class=n>context</span><span class=p>,</span> <span class=n>match_rate</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=n>match_rate</span> <span class=o>&gt;=</span> <span class=mi>0</span><span class=o>.</span><span class=mi>98</span>
+</span></span><span class=line><span class=cl>      <span class=vi>@locked</span> <span class=o>=</span> <span class=kp>true</span>
+</span></span><span class=line><span class=cl>      <span class=n>context</span><span class=o>.</span><span class=n>record</span><span class=p>(</span><span class=s2>&#34;姿勢一致率 </span><span class=si>#{</span><span class=n>match_rate</span><span class=si>}</span><span class=s2>: ロック&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=k>else</span>
+</span></span><span class=line><span class=cl>      <span class=n>context</span><span class=o>.</span><span class=n>record</span><span class=p>(</span><span class=s2>&#34;姿勢一致率 </span><span class=si>#{</span><span class=n>match_rate</span><span class=si>}</span><span class=s2>: 継続&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=k>end</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>advance</span><span class=p>(</span><span class=n>context</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=k>raise</span> <span class=s2>&#34;姿勢が未ロックのまま連結には進めない&#34;</span> <span class=k>unless</span> <span class=vi>@locked</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>context</span><span class=o>.</span><span class=n>transition_to</span><span class=p>(</span><span class=no>Latching</span><span class=o>.</span><span class=n>new</span><span class=p>,</span> <span class=s2>&#34;整列完了、連結に入る&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>abort</span><span class=p>(</span><span class=n>context</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=n>context</span><span class=o>.</span><span class=n>transition_to</span><span class=p>(</span><span class=no>Approaching</span><span class=o>.</span><span class=n>new</span><span class=p>,</span> <span class=s2>&#34;中断: 接近へ戻る&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p>俺は、そのコードを二度読み直した。</p><p><code>initialize</code> の中に <code>@locked = false</code>。姿勢がロックされたかどうかを覚えておく、フラグだ。俺はそこで、椅子の背に体を戻して、少し引っかかった。</p><p>「またフラグか、これ」</p><p>俺は率直に言った。前任者の <code>DockingController</code> にも、<code>@alignment_locked</code> という同じ意味のフラグがあった。それを片づけたかったんじゃなかったのか。フラグに戻ったなら、書き方は変わっても中身は変わらないんじゃないか。</p><p>ミラは、指を鎖の輪から離して、俺のほうを向いた。二秒くらい、俺の目を見て、それから短く言った。</p><p>「フラグを、捨てたわけじゃないの」</p><p>ミラの声が、少し正確になった。「フラグの持ち主を、変えた。前は <code>@alignment_locked</code> は <code>DockingController</code> の持ち物だった。だから、三つの case 文がそれぞれ独立に確認する必要があった。<code>advance</code> の中でも、<code>abort</code> の中でも、<code>align_confirm</code> の中でも、同じフラグを気にしていた。書ける場所が、三つあった。今度は違うの。<code>@locked</code> は Aligning という状態の持ち物。Aligning#advance の中の一回のチェックで、済む。フラグは同じでも、持ち主が違うと、書ける場所の数が違う」</p><p>俺は、掌の上の輪と、モニタの <code>Aligning</code> を、交互に見た。</p><p>「……ああ、なるほど」俺は言った。「前は、三マスで同じフラグを見ていた。今度は、一マスで見ればいい。マスが減った」</p><p>ミラは頷いた。「確認と、進行が、同じクラスの中にある。書き漏らしようがない」</p><p>そう言って、三つ目の輪を掌に立てた。</p><p>俺は <code>advance</code> のなかの <code>raise</code> を、あらためて読み直した。<code>raise "姿勢が未ロックのまま連結には進めない" unless @locked</code>。書き方だけ見ると、<code>raise</code> にクラス名がついていない。ただの <code>raise "メッセージ"</code> だ。</p><p>ミラは、俺の視線を追って一言添えた。「<code>raise</code> にクラス名を書かないと、Ruby は <code>RuntimeError</code> を投げる。ふつうの実行時エラー。既定の型」</p><p>俺は納得した。寄港手続きを引き直したときは、埋め忘れの警報として <code>NotImplementedError</code> を使っていた。あれは「この環境では未実装ですよ」と伝えるための、少し系統の違うエラーだった。今回のは、そうではない。今回の <code>raise</code> は、素直に「姿勢が未ロックのまま連結には進めない」と言うためだけの、素の実行時エラーだ。用途が違うから、型が違う。それだけの話だ。ちなみに、<code>RuntimeError</code> は <code>StandardError</code> の下にいる系統で、後で書く模擬航走の中で <code>assert_raises(RuntimeError)</code> として素直に拾える。</p><p>そして、四つ目。ミラはエディタの新しい下のほうに、<code>Latching</code> を書いた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=k>class</span> <span class=nc>Latching</span>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>name</span> <span class=o>=</span> <span class=ss>:latching</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>advance</span><span class=p>(</span><span class=n>context</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=n>context</span><span class=o>.</span><span class=n>transition_to</span><span class=p>(</span><span class=no>Sealed</span><span class=o>.</span><span class=n>new</span><span class=p>,</span> <span class=s2>&#34;連結完了、加圧に入る&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p>俺は、上から順に読んだ。名前を返すメソッドが一本、次に進むメソッドが一本。それで、終わり。俺は少し首を伸ばして、下にもコードが続いていないかを確かめた。続いていなかった。</p><p>「他の二つは?」</p><p>俺は聞いた。他の三つの状態には、それぞれ <code>abort</code> と <code>align_confirm</code> が付いていた。この <code>Latching</code> には、二つとも、無い。</p><p>「書かない」</p><p>ミラは、静かにそう言った。「意図的に、書かない」</p><p>俺は少し面食らって、モニタとミラを見比べた。「書き忘れじゃなくて?」</p><p>「書き忘れじゃない」ミラの声は、揺るがなかった。「書かないという、設計判断。連結中に中断できたら、物理的に危険。クランプが半噛みのまま残るような操作を、コード側が受け付けてはいけない。だから、Latching に <code>abort</code> メソッドを、そもそも存在させない。存在しない道は、通れない。<code>align_confirm</code> を書かないのも同じ。姿勢の照合は整列のうちに済ませる話——連結に入ってから確かめ直しても、もう遅い」</p><p>俺は、そこで少し止まった。</p><p>「呼んだら、どうなる」</p><p>俺は聞いた。ミラは、掌の輪をもう一つ立てた。四つ目の輪が、掌に並んだ。</p><p>「NoMethodError。呼べないメソッドを呼んだときに、Ruby が投げる例外。エラーメッセージは、たとえばこう出る」</p><p>ミラは端末に切り替えて、その場で試してくれた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>NoMethodError: undefined method &#39;abort&#39; for an instance of Latching
+</span></span></code></pre></td></tr></table></div></div><p><code>undefined method 'abort' for an instance of Latching</code>。どのクラスの、どのメソッドが存在しないかが、そのままの言葉で書かれている。俺は、そのメッセージを目で追った。</p><p>「ちなみに、寄港手続きのときに使った <code>NotImplementedError</code> とは、系統が違うの」ミラは付け加えた。「Ruby は <code>rescue</code> に何も引数を書かないと、<code>StandardError</code> の下だけを拾う——これが『普通の <code>rescue</code> の網』。<code>NotImplementedError</code> は <code>ScriptError</code> の系統だから、この網にはかからない。<code>NoMethodError</code> は <code>StandardError</code> の系統だから、素直にかかる。系統が違うから、使い分けは大事」</p><p>俺は覚えておくことにした。呼べないメソッドは、素直に <code>NoMethodError</code>。普通の <code>rescue</code> で拾える。</p><p>そこでミラは、モニタの <code>DockingController</code>——前任者のもの——のほうに、視線を戻した。俺もそれを追った。三つのメソッドの中に、四十五行の case が並んでいた、あの元のコード。</p><p>「書けてしまう case の代わりに、書けない場所そのものを作った」</p><p>ミラは、そう言った。「Before は、<code>abort × :latching</code> のマスがあった。そのマスに <code>raise</code> を書いて『連結中は中断できません』と伝えていた。書けてしまうから、書いていた。今度は違う。<code>Latching#abort</code> は、そもそもメソッドとして存在しない。書けないなら、書き漏らせない」</p><p>俺は、あらためて <code>Latching</code> のコードを見た。abort が、無い。align_confirm も、無い。中身が薄い、を通り越して、「書かれていない」領域が、明示的に空いている。書かれていない場所に、書き漏らしはない。</p><p>「なるほど。書けないなら、書き漏らせない」</p><p>俺の口が、そう繰り返した。</p><p>そして最後、五つ目——ミラは <code>Sealed</code> を書いた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=k>class</span> <span class=nc>Sealed</span>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>name</span> <span class=o>=</span> <span class=ss>:sealed</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p>俺は苦笑してしまった。中身が、名前を返すメソッドだけだ。それ以外は、何もない。<code>advance</code> もなければ、<code>abort</code> もない、<code>align_confirm</code> もない。全部、無い。</p><p>「加圧完了のあとは、どこにも進まない、中断もしない、姿勢確認もしない」ミラは指で掌の輪を五つ目に立てた。「全部の操作が NoMethodError で鳴る。呼んでも、無い。『終わり』も、明示的に、一つの状態として存在する」</p><p>俺は、掌の上に並んだ五つの輪を見た。銀色の小さな輪が、五つ、綺麗に立っている。ミラはそれを両手で軽く持ち上げた。持ち上げた鎖の輪は、前の輪と次の輪の噛み合いだけで、一列に繋がっている。噛み合っていない輪同士は、どこにも触れていない。</p><p>「前の輪と、次の輪だけが繋がっている。それ以外の輪は、知らなくていい」</p><p>掌の五つの輪と、モニタの五つのクラスが、俺の視野のなかで重なった。</p><p><img src=/public_images/2026/code-navigator-state-docking-sequence/infographic_2.webp loading=lazy alt="After の5つの状態クラスを左から右へ Approaching → Decelerating → Aligning → Latching → Sealed の連鎖として表した図。Aligning までは生きた実線枠、Latching と Sealed は書かないメソッドがある破線枠。矢印はすべて advance で、Aligning → Latching の遷移には @locked 確認が付く"></p><p>噛み合わない輪同士の空欄には、そもそもコードが書かれていない。</p><p>ミラはそう言って、鎖をゆっくりコンソールの端に置いた。それから、モニタを一つ下にスクロールした。<code>DockingController</code> の、After のほう。俺はそこで、少し驚いた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=k>class</span> <span class=nc>DockingController</span>
+</span></span><span class=line><span class=cl>  <span class=kp>attr_reader</span> <span class=ss>:log</span><span class=p>,</span> <span class=ss>:state</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>initialize</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@state</span> <span class=o>=</span> <span class=no>Approaching</span><span class=o>.</span><span class=n>new</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@log</span> <span class=o>=</span> <span class=o>[]</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>advance</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@state</span><span class=o>.</span><span class=n>advance</span><span class=p>(</span><span class=nb>self</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>abort</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@state</span><span class=o>.</span><span class=n>abort</span><span class=p>(</span><span class=nb>self</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>align_confirm</span><span class=p>(</span><span class=n>match_rate</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@state</span><span class=o>.</span><span class=n>align_confirm</span><span class=p>(</span><span class=nb>self</span><span class=p>,</span> <span class=n>match_rate</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>state_name</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@state</span><span class=o>.</span><span class=n>name</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>transition_to</span><span class=p>(</span><span class=n>next_state</span><span class=p>,</span> <span class=n>message</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@state</span> <span class=o>=</span> <span class=n>next_state</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@log</span> <span class=o>&lt;&lt;</span> <span class=n>message</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>record</span><span class=p>(</span><span class=n>message</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@log</span> <span class=o>&lt;&lt;</span> <span class=n>message</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>advance</code> は、<code>@state.advance(self)</code> の一行。<code>abort</code> は、<code>@state.abort(self)</code> の一行。<code>align_confirm</code> は、<code>@state.align_confirm(self, match_rate)</code> の一行。</p><p>case 文が、どこにも、無い。</p><p>四十五行あった case の中身が、五つの状態クラスに散って、<code>DockingController</code> の側は「今の状態に頼む」だけの、三本の一行委譲になっている。</p><p>「巨大 case 文が、どっかに行った」</p><p>俺はそう言った。ミラは軽く笑って、「状態のクラスに、住所を変えた」と言った。「一箇所に集めて十五分岐で管理するんじゃなくて、五つの状態それぞれが自分の二、三操作分だけを知る形にした。しかも、書かない自由がある。Latching に abort を書かない。Sealed に何も書かない。書ける場所が減れば、書き漏らす場所も減る」</p><p>俺はもう一度、<code>DockingController</code> の下のほう——<code>transition_to</code> と <code>record</code> のあたりを読んだ。ここに少し引っかかりがあった。</p><p>「状態クラスが <code>context.transition_to</code> を呼んで、context が <code>@state</code> を書き換える」俺は指で行を辿った。「誰が誰を呼んでるんだ、これは」</p><p>ミラは、静かに答えた。「状態クラスは、context を客のように迎えて、context の『遷移させて』ボタンを一つ押す。context は状態が押したボタンに従って、次の状態をセットする。呼び返し合ってるように見えるけど、役割は分かれてる——状態は『次はここ』と指し示すだけ、context は『指されたところに、移す』だけ」</p><p>俺は口の中で「指す側と、移す側か」と繰り返した。それでモニタの流れは、俺のなかで一本の線になった。指す仕事と、移す仕事が、別の場所にある。混じっていない。</p><p>俺はそこまで話について行けたところで、Act2 の終わりに預けていた宿題を思い出した。「状態ごとに部品を作って、丸ごと差し替えりゃいい」——俺の思いつきに、ミラは「あれとは違う」とだけ言って、名前を後回しにしていた。そしていま俺の目の前には、また別の、既視感のあるコードが並んでいる。</p><p>「これは、寄港手続きのときの型と似てるな」</p><p>俺は口に出した。アルタイル・ステーションで許可保留になった、あのときの話だ。あのとき、俺たちは寄港手続きの手順を親クラスに一本化して、港ごとに違う一部分だけを子クラスに委ねる書き直しをした。手順の骨格を親が持って、隙間を子が埋める形。今の <code>DockingController</code> の姿と、少しだけ似ている。骨格が一本にまとまっていて、実処理が別クラスに散っている——そう見える。</p><p>ミラは、鎖を掌に握って机の端に置き、両手を胸の前で開いた。片方の手のひらを大きく広げ、もう片方は指を順に立てる仕草をした。</p><p>「形は似てる。動き方が、違うの」</p><p>ミラは、丁寧に言った。「あれは、<code>dock</code> を呼ぶと、骨格の並びを最初から最後まで、一気に流す。一回で、全部、通る。船が一つの港の手続きを、一回で走り抜ける。走り抜けたら、その船とその手続きの関係は、そこで終わる」</p><p>俺は聞いていた。</p><p>「今日のは、外から <code>advance</code> が呼ばれるたびに、一歩だけ、進む」ミラは片方の指を、机の上に一つ立てた。「一回で、一歩。同じ <code>DockingController</code> のインスタンスが、内側の <code>@state</code> を差し替えながら、時間をかけて五つの状態を渡り歩く。次の <code>advance</code> を呼ぶまで、船は『今どこにいるか』を、持ち続ける」</p><p>俺は、そこで少し考えて、口を挟んだ。</p><p>「……一回で全部通るのと、一回で一歩と」</p><p>ミラは頷いた。「もっと大事な違いがあるの。聞いて」</p><p>俺は聞き耳を立てた。</p><p>「Template Method には、『今どこ』がない」ミラは、片手の指をゆっくり閉じた。「一回の呼び出しが終わったら、次の呼び出しではまた最初から流れる。Template Method は、『終わり』を含む、一連の流れ。走り終わりまで含めて、一つの手順」</p><p>俺は聞きながら、あのときの <code>dock</code> を思い出した。確かに、あの <code>dock</code> は一回呼べば、寄港手続きの最初から最後までを全部やって、そこで返ってきた。呼び出す側は、途中を持たなかった。</p><p>ミラは、もう片方の手を軽く開いた。「State は、『今』を持ち続けて、次の呼び出しを待つ。State は、『終わり』ではなく、『今』を、握る。次の <code>advance</code> が呼ばれたときの答えは、『今どこ』で決まる」</p><p>俺は、そこで少し詰まって、素直に聞いた。</p><p>「じゃあ、State は終わらないのか」</p><p>ミラは頷いた。「加圧完了——Sealed まで進んだら、そこで『終わり』を持つ状態にたどり着く。ただ、その『終わり』も、一つの状態として、明示的にある。State パターンでは、『終わり』も状態の一つで、『今』のリストに含まれる。Sealed は『何もしない』を担当する状態——だから advance も abort も align_confirm も、そもそも存在しない」</p><p>俺は、&ldquo;終わり&rdquo; の状態、というのを口の中で繰り返した。あの <code>Sealed</code> は、名前を返すだけのクラスだった。中身が薄いのではなくて、中身が無い、というのが、あれの正しい姿だった。あれが State パターンにとっての「終わり」だった。</p><p>ミラは、机に置いた鎖をゆっくり持ち上げた。持ち上げた鎖の五つの輪に、指を一つずつ順に這わせながら、言った。</p><p>「並びを、親の一本に固定するのが Template Method。並びを、状態の連鎖に、分散させるのが、こっち。『終わり』を持つ型と、『今』を握り続ける型は、名前が、違うの」</p><p>そして、鎖を机に戻した。</p><p>「これを、State——状態パターンっていうの。状態そのものをクラスにして、それぞれが次の遷移だけを持つ。GoF の振る舞いのパターン。動く物の、動き方を型にしたもの」</p><p>俺は、名前を口の中で反復した。State。状態パターン。ミラの言葉は、そこで一拍だけ、間を置いた。</p><p>「順番は、書き並べるものじゃなくて、渡っていくものよ」</p><p>俺はその言葉を聞いて、机の上の鎖を、あらためて眺めた。前の輪と、次の輪だけが繋がっている、五つの輪。書き並べるのは、Before の十五マスの表みたいなやり方だ。並べて、埋めて、書き漏らす。渡っていくのは、鎖のほうだ。一つの輪から、次の輪へ。飛び越しは、輪の噛み合いが許さない。</p><p>俺は右手を、自分の膝の上でゆっくり動かしてみた。</p><p>まず、握る。それから、開く。次に、指を鳴らす。最後に、掌を、天井に向ける。</p><p>俺は掌を天井に向けたまま、しばらく止めた。それから、独り言のように言った。</p><p>「掌を上に向けたまま、いきなり指を鳴らそうとしたら、動きが繋がらないな」</p><p>俺は掌を下に戻して、続けた。「握るからは、開くに行ける。開くからは、指を鳴らすに行ける。指を鳴らしたら、掌を天井に向けられる。順番があって、その順番だけが、繋がっている」</p><p>俺は言葉を止めて、掌を眺めた。</p><p>「今どこ、か。それだけ握ってれば、次はここしかない」</p><p>ミラは、黙っていた。俺の手の動きを、確かめるみたいに見ていた。頷きもしなかったし、答えもしなかった。名前は、もうミラが付け終えたあとだった。俺の手のなかで、いま起こっているのは、聞いた名前を、俺の身体で確かめ直しているだけの動作だった。</p><p>俺は掌を膝に戻して、モニタのほうに視線を戻した。ミラの声が、静かに続いた。</p><p>「存在しない遷移が、コードの上に、存在しなくなる。書けるものと、書けないものが、分かれる。書けない場所は、書き漏らせない」</p><p>俺は繰り返した。</p><p>「書けないものは、書き漏らせない。……書ける場所の数を、減らすってことか。十五個を、五個に」</p><h2 id=第4幕-模擬航走エラーにならず値も違わず>第4幕 模擬航走——エラーにならず、値も違わず</h2><p>次のランデブーまで、まだ十時間ほど残っていた。</p><p>ミラは新しいエディタを開いて、模擬航走を書き始めた。前任者の <code>Before::DockingController</code> と、いま引き直した <code>After::DockingController</code>——両方が、同じ模擬航走で比べられるようにしておく。挙動を変えないことを、先に証明しておくためだ。</p><p>まず、正常系。姿勢一致率 0.99 でロックが立つ、まっとうな順の接舷を、Before と After で流す。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=k>def</span> <span class=nf>test_before_and_after_produce_identical_logs_on_normal_flow</span>
+</span></span><span class=line><span class=cl>  <span class=n>before</span> <span class=o>=</span> <span class=no>Before</span><span class=o>::</span><span class=no>DockingController</span><span class=o>.</span><span class=n>new</span>
+</span></span><span class=line><span class=cl>  <span class=n>after</span> <span class=o>=</span> <span class=no>After</span><span class=o>::</span><span class=no>DockingController</span><span class=o>.</span><span class=n>new</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=o>[</span><span class=n>before</span><span class=p>,</span> <span class=n>after</span><span class=o>].</span><span class=n>each</span> <span class=k>do</span> <span class=o>|</span><span class=n>controller</span><span class=o>|</span>
+</span></span><span class=line><span class=cl>    <span class=n>controller</span><span class=o>.</span><span class=n>advance</span>                <span class=c1># approaching → decelerating</span>
+</span></span><span class=line><span class=cl>    <span class=n>controller</span><span class=o>.</span><span class=n>advance</span>                <span class=c1># decelerating → aligning</span>
+</span></span><span class=line><span class=cl>    <span class=n>controller</span><span class=o>.</span><span class=n>align_confirm</span><span class=p>(</span><span class=mi>0</span><span class=o>.</span><span class=mi>99</span><span class=p>)</span>    <span class=c1># ロック</span>
+</span></span><span class=line><span class=cl>    <span class=n>controller</span><span class=o>.</span><span class=n>advance</span>                <span class=c1># aligning → latching</span>
+</span></span><span class=line><span class=cl>    <span class=n>controller</span><span class=o>.</span><span class=n>advance</span>                <span class=c1># latching → sealed</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span> <span class=n>before</span><span class=o>.</span><span class=n>log</span><span class=p>,</span> <span class=n>after</span><span class=o>.</span><span class=n>log</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span> <span class=ss>:sealed</span><span class=p>,</span> <span class=n>before</span><span class=o>.</span><span class=n>state</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span> <span class=ss>:sealed</span><span class=p>,</span> <span class=n>after</span><span class=o>.</span><span class=n>state_name</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>assert_equal before.log, after.log</code>——挙動を変えていないことは、先頭に置く。寄港手続きのときも、積荷のオプションを重ねたときも、同じ規律だった。ここが緑にならないと、話は始まらない。</p><p>俺は結果のほうを覗き込んだ。全 3 runs / 7 assertions / 0 failures。緑だ。Before も After も、正常系では同じログを吐き、同じ加圧完了に着地する。</p><p>次が、本題。事故シナリオ。姿勢一致率 0.85 で、ロックが立たないまま <code>advance</code> を呼ぶ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=k>def</span> <span class=nf>test_incident_scenario_shows_the_two_different_failure_modes</span>
+</span></span><span class=line><span class=cl>  <span class=c1># --- Before: 書き漏らしのため latching へ素通りしてしまう ---</span>
+</span></span><span class=line><span class=cl>  <span class=n>before</span> <span class=o>=</span> <span class=no>Before</span><span class=o>::</span><span class=no>DockingController</span><span class=o>.</span><span class=n>new</span>
+</span></span><span class=line><span class=cl>  <span class=n>before</span><span class=o>.</span><span class=n>advance</span>                  <span class=c1># → decelerating</span>
+</span></span><span class=line><span class=cl>  <span class=n>before</span><span class=o>.</span><span class=n>advance</span>                  <span class=c1># → aligning</span>
+</span></span><span class=line><span class=cl>  <span class=n>before</span><span class=o>.</span><span class=n>align_confirm</span><span class=p>(</span><span class=mi>0</span><span class=o>.</span><span class=mi>85</span><span class=p>)</span>      <span class=c1># 一致率不足、@alignment_locked = false のまま</span>
+</span></span><span class=line><span class=cl>  <span class=n>before</span><span class=o>.</span><span class=n>advance</span>                  <span class=c1># 書き漏らしにより latching に到達してしまう</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span> <span class=ss>:latching</span><span class=p>,</span> <span class=n>before</span><span class=o>.</span><span class=n>state</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=c1># --- After: Aligning#advance の @locked チェックで RuntimeError ---</span>
+</span></span><span class=line><span class=cl>  <span class=n>after</span> <span class=o>=</span> <span class=no>After</span><span class=o>::</span><span class=no>DockingController</span><span class=o>.</span><span class=n>new</span>
+</span></span><span class=line><span class=cl>  <span class=n>after</span><span class=o>.</span><span class=n>advance</span>                   <span class=c1># → decelerating</span>
+</span></span><span class=line><span class=cl>  <span class=n>after</span><span class=o>.</span><span class=n>advance</span>                   <span class=c1># → aligning</span>
+</span></span><span class=line><span class=cl>  <span class=n>after</span><span class=o>.</span><span class=n>align_confirm</span><span class=p>(</span><span class=mi>0</span><span class=o>.</span><span class=mi>85</span><span class=p>)</span>       <span class=c1># 一致率不足、@locked = false のまま</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=n>err</span> <span class=o>=</span> <span class=n>assert_raises</span><span class=p>(</span><span class=no>RuntimeError</span><span class=p>)</span> <span class=p>{</span> <span class=n>after</span><span class=o>.</span><span class=n>advance</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_match</span><span class=p>(</span><span class=sr>/姿勢が未ロック/</span><span class=p>,</span> <span class=n>err</span><span class=o>.</span><span class=n>message</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p>俺は結果を見ながら、少し息を吐いた。Before は <code>:latching</code> に、素通りで到達している。実機ならその瞬間、姿勢のズレたクランプが空回りするやつだ。After は同じ操作の最後の <code>advance</code> で、<code>raise</code> が鳴る。エラーメッセージには「姿勢が未ロックのまま連結には進めない」と、そのままの言葉が入っている。書けてしまう遷移が、書けない遷移に、化けている。</p><p>俺は椅子の背に体を戻して、独り言をこぼした。</p><p>「エラーにならず、値も違わず、順番だけが違う——」</p><p>俺は自分で自分の言葉を繰り返した。これまでに見てきた壊れ方は、どれも「実行時にしか鳴らない」だった。それが積荷のオプションを重ねた一件で、「エラーにもならず、値だけ違う」壊れ方が加わった。今度のは、それのさらに一段深いところだ。エラーにならず、値も違わず、順番だけが違う。しかもコードの側は無症状で、実機のほうで、金属が鳴る。静かさに、階段がある。</p><p>ミラは、俺の独り言を聞きながら、次の模擬航走を書き始めた。今度は、<code>NoMethodError</code> を明示的に確かめる模擬航走だ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=k>def</span> <span class=nf>test_sealed_has_no_transition_methods</span>
+</span></span><span class=line><span class=cl>  <span class=n>sealed</span> <span class=o>=</span> <span class=no>After</span><span class=o>::</span><span class=no>Sealed</span><span class=o>.</span><span class=n>new</span>
+</span></span><span class=line><span class=cl>  <span class=n>controller</span> <span class=o>=</span> <span class=no>After</span><span class=o>::</span><span class=no>DockingController</span><span class=o>.</span><span class=n>new</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=n>assert_raises</span><span class=p>(</span><span class=no>NoMethodError</span><span class=p>)</span> <span class=p>{</span> <span class=n>sealed</span><span class=o>.</span><span class=n>advance</span><span class=p>(</span><span class=n>controller</span><span class=p>)</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_raises</span><span class=p>(</span><span class=no>NoMethodError</span><span class=p>)</span> <span class=p>{</span> <span class=n>sealed</span><span class=o>.</span><span class=n>abort</span><span class=p>(</span><span class=n>controller</span><span class=p>)</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_raises</span><span class=p>(</span><span class=no>NoMethodError</span><span class=p>)</span> <span class=p>{</span> <span class=n>sealed</span><span class=o>.</span><span class=n>align_confirm</span><span class=p>(</span><span class=n>controller</span><span class=p>,</span> <span class=mi>0</span><span class=o>.</span><span class=mi>99</span><span class=p>)</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>def</span> <span class=nf>test_latching_has_no_abort_or_align_confirm</span>
+</span></span><span class=line><span class=cl>  <span class=n>latching</span> <span class=o>=</span> <span class=no>After</span><span class=o>::</span><span class=no>Latching</span><span class=o>.</span><span class=n>new</span>
+</span></span><span class=line><span class=cl>  <span class=n>controller</span> <span class=o>=</span> <span class=no>After</span><span class=o>::</span><span class=no>DockingController</span><span class=o>.</span><span class=n>new</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=n>assert_raises</span><span class=p>(</span><span class=no>NoMethodError</span><span class=p>)</span> <span class=p>{</span> <span class=n>latching</span><span class=o>.</span><span class=n>abort</span><span class=p>(</span><span class=n>controller</span><span class=p>)</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_raises</span><span class=p>(</span><span class=no>NoMethodError</span><span class=p>)</span> <span class=p>{</span> <span class=n>latching</span><span class=o>.</span><span class=n>align_confirm</span><span class=p>(</span><span class=n>controller</span><span class=p>,</span> <span class=mi>0</span><span class=o>.</span><span class=mi>99</span><span class=p>)</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p>俺はこれを見て、少し感心した。テストの側が、「これは、書かれていないはず」を宣言している。単なる書き忘れなら、テストの側は書きようがない。書かないという設計判断だからこそ、テストの側で「存在しないこと」を確かめられる。書かない、を守る側が、書いてある。裏返しの丁寧さだ。</p><p>続いて、<code>state_name</code> の遷移。シンボルは、After でも捨てられていない。名札としての役目は、そのまま残してある。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=k>def</span> <span class=nf>test_state_name_returns_the_current_symbol_at_each_step</span>
+</span></span><span class=line><span class=cl>  <span class=n>controller</span> <span class=o>=</span> <span class=no>After</span><span class=o>::</span><span class=no>DockingController</span><span class=o>.</span><span class=n>new</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span> <span class=ss>:approaching</span><span class=p>,</span> <span class=n>controller</span><span class=o>.</span><span class=n>state_name</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=n>controller</span><span class=o>.</span><span class=n>advance</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span> <span class=ss>:decelerating</span><span class=p>,</span> <span class=n>controller</span><span class=o>.</span><span class=n>state_name</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=n>controller</span><span class=o>.</span><span class=n>advance</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span> <span class=ss>:aligning</span><span class=p>,</span> <span class=n>controller</span><span class=o>.</span><span class=n>state_name</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=n>controller</span><span class=o>.</span><span class=n>align_confirm</span><span class=p>(</span><span class=mi>0</span><span class=o>.</span><span class=mi>99</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span> <span class=ss>:aligning</span><span class=p>,</span> <span class=n>controller</span><span class=o>.</span><span class=n>state_name</span>  <span class=c1># 状態は変わらない、@locked が true になるだけ</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=n>controller</span><span class=o>.</span><span class=n>advance</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span> <span class=ss>:latching</span><span class=p>,</span> <span class=n>controller</span><span class=o>.</span><span class=n>state_name</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=n>controller</span><span class=o>.</span><span class=n>advance</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span> <span class=ss>:sealed</span><span class=p>,</span> <span class=n>controller</span><span class=o>.</span><span class=n>state_name</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p>シンボルは、Before で「軽くて、速くて、名前を持たせるのに向いている」と俺が肯定した性質を、そのまま持ち続けている。悪かったのは、シンボルではなくて、シンボル一つを一つの変数で回して、確認の case を全部の操作に散らばらせたことだった。名札としてのシンボルは、そのまま <code>state_name</code> に残っている。</p><p>次が、中断と、その回復。整列でロックまで立てたあとに、中断してみる。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=k>def</span> <span class=nf>test_abort_from_aligning_resets_locked_state</span>
+</span></span><span class=line><span class=cl>  <span class=n>controller</span> <span class=o>=</span> <span class=no>After</span><span class=o>::</span><span class=no>DockingController</span><span class=o>.</span><span class=n>new</span>
+</span></span><span class=line><span class=cl>  <span class=n>controller</span><span class=o>.</span><span class=n>advance</span>                <span class=c1># → decelerating</span>
+</span></span><span class=line><span class=cl>  <span class=n>controller</span><span class=o>.</span><span class=n>advance</span>                <span class=c1># → aligning</span>
+</span></span><span class=line><span class=cl>  <span class=n>controller</span><span class=o>.</span><span class=n>align_confirm</span><span class=p>(</span><span class=mi>0</span><span class=o>.</span><span class=mi>99</span><span class=p>)</span>    <span class=c1># ロック</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=n>controller</span><span class=o>.</span><span class=n>abort</span>                  <span class=c1># → approaching に戻る</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span> <span class=ss>:approaching</span><span class=p>,</span> <span class=n>controller</span><span class=o>.</span><span class=n>state_name</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=n>controller</span><span class=o>.</span><span class=n>advance</span>                <span class=c1># → decelerating</span>
+</span></span><span class=line><span class=cl>  <span class=n>controller</span><span class=o>.</span><span class=n>advance</span>                <span class=c1># → aligning (新しい Aligning インスタンス、@locked = false)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=c1># ロック信号を受け取り直さない限り、advance は raise で止まる</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_raises</span><span class=p>(</span><span class=no>RuntimeError</span><span class=p>)</span> <span class=p>{</span> <span class=n>controller</span><span class=o>.</span><span class=n>advance</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p>俺はこれを見て、なるほどと思った。中断で <code>Approaching.new</code> に戻すと、次にまた整列まで進んだときに、新しい <code>Aligning.new</code> が作られる。新しく作られた <code>Aligning</code> の <code>@locked</code> は、<code>initialize</code> で <code>false</code> に戻っている。フラグを別の場所でリセットする必要はない。<strong>状態のオブジェクトが新しく生まれ変わるから、ローカルなフラグも自動でリセットされる</strong>——ミラが軽く一言添えた。「状態を持ってるのは、状態のほうだから。生まれ変わったら、記憶も生まれ変わる」</p><p>最後の模擬航走は、状態を増やす実演だった。加圧完了のあとに、切り離しのフェーズを一つ足す想定。ミラは別のファイル——<code>after_extension.rb</code> を開いた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=n>require_relative</span> <span class=s2>&#34;after&#34;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>module</span> <span class=nn>After</span>
+</span></span><span class=line><span class=cl>  <span class=k>class</span> <span class=nc>Detaching</span>
+</span></span><span class=line><span class=cl>    <span class=k>def</span> <span class=nf>name</span> <span class=o>=</span> <span class=ss>:detaching</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>def</span> <span class=nf>advance</span><span class=p>(</span><span class=n>context</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>      <span class=n>context</span><span class=o>.</span><span class=n>record</span><span class=p>(</span><span class=s2>&#34;切り離しを実行&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=k>end</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>class</span> <span class=nc>Sealed</span>
+</span></span><span class=line><span class=cl>    <span class=k>def</span> <span class=nf>advance</span><span class=p>(</span><span class=n>context</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>      <span class=n>context</span><span class=o>.</span><span class=n>transition_to</span><span class=p>(</span><span class=no>Detaching</span><span class=o>.</span><span class=n>new</span><span class=p>,</span> <span class=s2>&#34;加圧完了、切り離しに入る&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=k>end</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p>俺は目を細めた。追加した中身は、二つだけだった。<code>Detaching</code> という新しいクラス一つと、<code>Sealed</code> に <code>advance</code> を一メソッド書き足したことと。それだけだ。他のクラスには、何一つ手を入れていない。<code>Approaching</code>、<code>Decelerating</code>、<code>Aligning</code>、<code>Latching</code>——四つの元のクラスは、<code>after.rb</code> のままだった。ミラは実際に、<code>after.rb</code> のほうを開かずに、<code>after_extension.rb</code> のほうだけで書き足していた。Ruby のクラスは、後から同じクラス名でもう一度 <code>class</code> を開けば、既存のクラスに新しいメソッドを追加できる——オープンクラスというやつだ。元の <code>after.rb</code> の <code>Sealed</code> の中身はそのまま、後から <code>after_extension.rb</code> の側で <code>advance</code> を「足す」形。「書き足し」は、元のファイルに触らずに済む。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=k>def</span> <span class=nf>test_detaching_can_be_added_without_modifying_existing_classes</span>
+</span></span><span class=line><span class=cl>  <span class=n>controller</span> <span class=o>=</span> <span class=no>After</span><span class=o>::</span><span class=no>DockingController</span><span class=o>.</span><span class=n>new</span>
+</span></span><span class=line><span class=cl>  <span class=n>controller</span><span class=o>.</span><span class=n>advance</span>                <span class=c1># → decelerating</span>
+</span></span><span class=line><span class=cl>  <span class=n>controller</span><span class=o>.</span><span class=n>advance</span>                <span class=c1># → aligning</span>
+</span></span><span class=line><span class=cl>  <span class=n>controller</span><span class=o>.</span><span class=n>align_confirm</span><span class=p>(</span><span class=mi>0</span><span class=o>.</span><span class=mi>99</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=n>controller</span><span class=o>.</span><span class=n>advance</span>                <span class=c1># → latching</span>
+</span></span><span class=line><span class=cl>  <span class=n>controller</span><span class=o>.</span><span class=n>advance</span>                <span class=c1># → sealed</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=n>controller</span><span class=o>.</span><span class=n>advance</span>                <span class=c1># ← 拡張後: sealed → detaching</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span> <span class=ss>:detaching</span><span class=p>,</span> <span class=n>controller</span><span class=o>.</span><span class=n>state_name</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>Sealed</code> は、元のコードでは <code>name</code> を返すメソッドしか持たなかった。加圧完了で「終わり」だった。今度は、<code>Sealed</code> に <code>advance</code> を一つ足したことで、加圧完了のあとに切り離しへ進める形になった。<strong>「終わり」を持つ設計から、「終わり」を持たない設計への転換も、既存の五つのクラスを一切書き換えずに、一メソッド追加だけで済む</strong>。俺は、コードの並びを眺めながら、そう思った。</p><p>模擬航走の結果を、俺はまとめて確かめた。三つのテストファイル、合わせて 11 runs / 22 assertions。全部、緑だった。<code>ruby -w</code> を付けて走らせても、警告は一つも出なかった。</p><p>俺は椅子の背に体を戻して、舷窓のほうを一度、目を向けた。</p><p>補給ドロン——オーガス-3の微光は、まださっきと同じくらい遠い。もう少しずつは近づいているのだろうが、目の解像度では、まだ点にしか見えなかった。姿勢制御コンソールから、俺は一度、手を離した。ブリッジの空気は静かで、モニタの LED が薄く光っているだけの、水槽の底みたいな静けさが戻ってきていた。俺はしばらく、あの微光を目で追った。</p><p>俺の隣で、ミラが指を鎖に戻していた。まだ、五つの輪を、片手で握ったままだった。</p><p>俺はブリッジの空気に釣られて、そのままの姿勢で、少しだけ話を続けた。保証外事項の話だ。この引き直しでも、防げない類のことが、いくつかある。</p><p>一つ。Ruby は動的型付けで、間違いは実行時にしか鳴らない。これはシリーズを通して繰り返しているうちの支柱の話だ。今度の State パターンも、Ruby のこの性質からは逃げられない。もし俺たちが <code>Aligning</code> に <code>advance</code> を書き忘れたら、それは書いた瞬間には鳴らない。呼ばれるまで、鳴らない。だから模擬航走が、いまも生命線だ。今度の設計は書き漏らしを減らす、けれど無くすものではない。</p><p>二つ。Ruby には <code>instance_variable_set</code> という、外側から強引にインスタンス変数を書き換えるメソッドがある。もし誰かが <code>Latching</code> のインスタンスに向かって <code>instance_variable_set(:@state, Approaching.new)</code>——それは外側の話だから細かい書き方は控えるが——そういう形で強引に状態を戻したら、Ruby はそれを止めない。State パターンは書きやすくするだけで、言語の側で強制はしない。そこはレビューと、規約と、模擬航走で守る領分だ。</p><p>三つ。状態がごく少ない場合は、Before の case 分岐でも足りることがある。この航法術が最も効くのは、状態が五つから十くらいの規模、というのがミラの経験則だった。「マスが十五、二十を越え始めたあたりから、State に移すと明確に楽になる」とミラは言った。「マスが六つや八つで済むうちは、無理に引き直さなくていい」</p><p>四つ。State パターンは、遷移の仕組みを提供するだけで、「その仕様が正しいか」は、また別の話だ。姿勢一致率の閾値が 0.98 なのは、うちの船の運航規約で決まっている。0.97 でも 0.99 でもなく、0.98。この数字がどこから来ているかは、State の外の話で、これは航路管理局が定めた基準だ。State パターンは、その基準をコードのなかで書きやすくするだけで、基準そのものを決めない。「引き直しで安全になった」と言うときには、この線引きは、はっきり分けて言っておく必要がある。</p><p>ミラは頷いていた。俺は舷窓のほうに目を戻して、その姿勢のまま、しばらく黙っていた。</p><p>十時間ほどが経った。</p><p>俺は機関室に降りていた。オーガス-3との接舷本番は、俺の持ち場で仕事だ。姿勢制御と主機推力の細かい調整を、俺が手で握っている。ブリッジのほうにはミラが上がっていて、進行のログを見ている。二十年やっていて分かることの一つに、機関士と航法士は本番で場所を分けるのが安全、というのがある。互いの手元が近すぎない距離で、それぞれの仕事をする。今日もそうだ。</p><p>機関室のパイロットランプ盤には、五つの LED が縦に並んでいた。<strong>接近</strong>、<strong>減速</strong>、<strong>整列</strong>、<strong>連結</strong>、<strong>加圧</strong>。今度の本番の進行を、光の順に見せてくれる盤だ。俺はそれを、視野の隅で確かめながら、主機の逆噴射のタイミングを計っていた。</p><p>接近ランプが、緑になった。</p><p>俺は独り言で「一個目」と言った。オーガス-3との距離が縮まる。相手は無人だから、こちらの姿勢と推力に相手側が合わせてくることはない。姿勢の主導は、こちらが全部握る。</p><p>減速ランプが、緑になった。</p><p>「二個目」と俺はもう一度、独り言を言った。主機の逆噴射を最後の一段まで当てて、船の速度を接舷に必要な線まで落とす。姿勢制御のスラスターが、細かく応答している。俺の手のなかで、船は静かに減速していた。</p><p>整列フェーズに入った。</p><p>姿勢一致率が、モニタの数字でじりじり上がっていく。0.94。0.96。0.97。0.98——。</p><p>ここで、俺は少し息を止めた。</p><p><strong>ここで、俺の腕で待つやつだ</strong>。二十年、俺はここで、待ってきた。姿勢がロックされたと機関士が判断して、次の連結許可を出す——その一秒か二秒か、あるいは十秒。数字の上がり方を見ながら、俺の指がスラスターの応答を、ぎりぎりまで詰める。ロックが立たなければ、俺が判断して、俺の口で言葉にする。それが、俺の仕事だった。</p><p><strong>……今日は、コードが待ってくれる</strong>。</p><p>今日の <code>Aligning#advance</code> は、<code>@locked</code> が立っていなければ、<code>raise</code> で止まる。俺が待つ代わりに、コードが、待つ。俺の手のなかの数字と、コードのなかの <code>@locked</code> が、同じ待ち方をしている。</p><p>数字が、0.98 を越えた。</p><p>整列ランプが、緑になった。</p><p>連結ランプが、緑になった。クランプが噛み合う音が、船体を伝って、機関室にまで軽く届いた。姿勢のズレは無い。噛み合わせは、一発で決まった。</p><p>加圧ランプが、緑になった。給油バルブが開き、燃料の流量計の針が、静かに動き始めた。</p><p>俺は主機のパネルから、いったん手を離した。</p><p>機関室の、その盤の前で、俺は独り言をこぼした。</p><p>「五個の輪が、順に光った」</p><p>俺はモニタの盤を、もう一度、目で追った。接近から加圧まで、五つの緑が縦に並んでいる。順に、鳴らずに、光っていった。</p><p>「書けない場所は、書き漏らせない——書かれてなかった場所は、そもそも道じゃなかった」</p><p>内線は、鳴らなかった。ブリッジからのミラの声も、今日は、無い。</p><p>俺は主機の状態を確かめて、給油の進行を目で追った。オーガス-3からの燃料が、規定の流量で流れ込んできていた。機関室の振動は、いつもの巡航のそれに戻り始めていた。俺は椅子の背に体を戻して、少しだけ、目を閉じた。</p><p>順番は、書き並べるものじゃなくて、渡っていくものだった。</p><hr><h3 id=-オリオール号-航海日誌navigators-log>🚀 オリオール号 航海日誌（Navigator&rsquo;s Log）</h3><ul><li><strong>航法術（パターン名）</strong>: State（状態そのものをクラスに引き上げ、各状態が「自分から進める次の遷移だけ」を持つ振る舞いパターン。ダックタイピングで実装した Ruby 版）</li><li><strong>発生事象（症状）</strong>: 三日前の補給ドロン接舷演習ログで、整列フェーズの姿勢ロック確定信号の受信記録が抜けているのに、連結フェーズのタイムスタンプが記録されていた。実機側では姿勢のズレたまま連結クランプが空回りする。コード側は無症状（<code>@state</code> は正常に遷移した）</li><li><strong>原因（旧航路の問題）</strong>: 状態を <code>@state</code>（シンボル）で持ち回り、三つの操作（<code>advance</code> / <code>abort</code> / <code>align_confirm</code>）の先頭で <code>case @state</code> の五分岐が並んでいた。五状態 × 三操作 = 十五マス。担当者は十五マス全部を丁寧に埋めたが、<code>advance × :aligning</code> のマスの中に必要な一段深い条件（<code>@alignment_locked</code> の確認）が抜けていた。書ける場所の総数が増えるほど、書き漏らしの確率は上がる</li><li><strong>処置（引き直しの要点）</strong>: 状態を五つのクラス（Approaching/Decelerating/Aligning/Latching/Sealed）に引き上げ、各状態が自分の二、三操作分だけを持つ形に引き直した。Aligning は <code>@locked</code> を内部保持し、<code>advance</code> の一箇所でチェックする。Latching は <code>advance</code> のみ実装、<code>abort</code> と <code>align_confirm</code> は意図的に未定義（連結中の中断は物理的に危険）。Sealed は名前を返すメソッドのみ（「終わり」の状態、全操作 NoMethodError）。DockingController は現在状態に委譲する一行のみ。case 文が全部消えた</li><li><strong>保証外事項</strong>: Ruby は動的型付けで、実装忘れは実行時にしか鳴らない（模擬航走が生命線）／<code>instance_variable_set</code> などの反則技は言語では防げない（規約とレビューで守る）／状態数が少ない場合は Before の case 文で足りることがある（五〜十くらいがこの航法術の届く距離）／閾値の正しさ（0.98 か 0.99 か）は State の外の話、運航規約の領分</li><li><strong>模擬航走結果</strong>: 全 11 runs / 22 assertions、警告ゼロで全灯緑（正常系の Before=After 同値・事故シナリオの別々の鳴り方・NoMethodError の実演・state_name の遷移・abort と回復・状態追加の実演）</li><li><strong>次の針路</strong>: オーガス-3からの補給完了後、切り離しシーケンス（Detaching）を追加予定。Sealed に advance を一メソッド、Detaching クラスを一個。既存五クラスは無改変</li></ul></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/ruby/>Ruby</a>
+<a href=/tags/state/>State</a>
+<a href=/tags/state-flag/>State-Flag</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-navigator/>Code-Navigator</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/08/10/070705/><div class=article-image><img src=/public_images/2026/code-navigator-composite-cargo-hold/header.webp loading=lazy data-key data-hash=/public_images/2026/code-navigator-composite-cargo-hold/header.webp></div><div class=article-details><h2 class=article-title>コードナビゲーター【Composite】船倉、箱の中の箱〜重さを尋ねる相手は、1つでいいの〜</h2></div></a></article><article class=has-image><a href=/2026/08/09/070705/><div class=article-image><img src=/public_images/2026/code-navigator-value-object-coordinates/header.webp loading=lazy data-key data-hash=/public_images/2026/code-navigator-value-object-coordinates/header.webp></div><div class=article-details><h2 class=article-title>コードナビゲーター【Value Object】航路計算室、混ざる数字たち〜数字は、単位を着てないと、混ざるの〜</h2></div></a></article><article class=has-image><a href=/2026/08/08/070705/><div class=article-image><img src=/public_images/2026/code-navigator-null-object-missing-sensor/header.webp loading=lazy data-key data-hash=/public_images/2026/code-navigator-null-object-missing-sensor/header.webp></div><div class=article-details><h2 class=article-title>コードナビゲーター【Null Object】欠測センサーの見張り所〜"ない"を、"何もしない"で置くの〜</h2></div></a></article><article class=has-image><a href=/2026/08/07/070705/><div class=article-image><img src=/public_images/2026/code-navigator-facade-preflight-check/header.webp loading=lazy data-key data-hash=/public_images/2026/code-navigator-facade-preflight-check/header.webp></div><div class=article-details><h2 class=article-title>コードナビゲーター【Facade】出航前点検、ブリッジに漏れた四系統の作法〜入口は一つでも、部屋は四つ残る〜</h2></div></a></article><article class=has-image><a href=/2026/08/06/070705/><div class=article-image><img src=/public_images/2026/code-navigator-command-helm-undo/header.webp loading=lazy data-key data-hash=/public_images/2026/code-navigator-command-helm-undo/header.webp></div><div class=article-details><h2 class=article-title>コードナビゲーター【Command】操舵訓練で消えた一手〜戻し方を知ってるのは、動かした本人だけ〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

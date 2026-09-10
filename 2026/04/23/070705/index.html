@@ -1,0 +1,424 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="同じ住所がeqでfalse、同じIDなのに属性更新でfalse——2つの比較バグの正体はEntityとValue Objectの混同だった。Perl/Mooでoverloadによる等価性・同一性の正しい実装法を解説する。"><title>コード探偵ロックの事件簿【Entity vs Value Object】二重人格の住所録〜同一性と等価性が交差する日〜</title><link rel=canonical href=https://www.nqou.net/2026/04/23/070705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コード探偵ロックの事件簿【Entity vs Value Object】二重人格の住所録〜同一性と等価性が交差する日〜"><meta property='og:description' content="同じ住所がeqでfalse、同じIDなのに属性更新でfalse——2つの比較バグの正体はEntityとValue Objectの混同だった。Perl/Mooでoverloadによる等価性・同一性の正しい実装法を解説する。"><meta property='og:url' content='https://www.nqou.net/2026/04/23/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='perl'><meta property='article:tag' content='moo'><meta property='article:tag' content='entity'><meta property='article:tag' content='value-object'><meta property='article:tag' content='identity-confusion'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-detective'><meta property='article:tag' content='ddd'><meta property='article:tag' content='identity'><meta property='article:tag' content='equality'><meta property='article:published_time' content='2026-04-23T07:07:05+09:00'><meta property='article:modified_time' content='2026-04-23T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-detective-entity-value-object/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コード探偵ロックの事件簿【Entity vs Value Object】二重人格の住所録〜同一性と等価性が交差する日〜"><meta name=twitter:description content="同じ住所がeqでfalse、同じIDなのに属性更新でfalse——2つの比較バグの正体はEntityとValue Objectの混同だった。Perl/Mooでoverloadによる等価性・同一性の正しい実装法を解説する。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-detective-entity-value-object/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-04-23T07:07:05+09:00","datePublished":"2026-04-23T07:07:05+09:00","description":"同じ住所がeqでfalse、同じIDなのに属性更新でfalse——2つの比較バグの正体はEntityとValue Objectの混同だった。Perl/Mooでoverloadによる等価性・同一性の正しい実装法を解説する。","headline":"コード探偵ロックの事件簿【Entity vs Value Object】二重人格の住所録〜同一性と等価性が交差する日〜","image":"https://www.nqou.net/public_images/2026/code-detective-entity-value-object/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/04/23/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#二重人格の住所録>二重人格の住所録</a></li><li><a href=#現場検証idを持つ者と持たざる者>現場検証——IDを持つ者と持たざる者</a></li><li><a href=#推理披露制服と名札>推理披露——制服と名札</a></li><li><a href=#事件の終わりテストが語る真実>事件の終わり——テストが語る真実</a></li><li><a href=#探偵の調査報告書>探偵の調査報告書</a><ol><li><a href=#推理のステップ>推理のステップ</a></li><li><a href=#ロックより>ロックより</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/04/23/070705/><img src=/public_images/2026/code-detective-entity-value-object/header.webp loading=lazy alt="Featured image of post コード探偵ロックの事件簿【Entity vs Value Object】二重人格の住所録〜同一性と等価性が交差する日〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/04/23/070705/>コード探偵ロックの事件簿【Entity vs Value Object】二重人格の住所録〜同一性と等価性が交差する日〜</a></h2><h3 class=article-subtitle>同じ住所がeqでfalse、同じIDなのに属性更新でfalse——2つの比較バグの正体はEntityとValue Objectの混同だった。Perl/Mooでoverloadによる等価性・同一性の正しい実装法を解説する。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>23, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 14分</time></div></footer></div></header><section class=article-content><h2 id=二重人格の住所録>二重人格の住所録</h2><p>Qiitaの記事を見つけたのは、先週の金曜日の深夜だった。</p><p>PerlでDDDを実装するという変わったテーマの記事。内容よりも、コメント欄の一行が目に留まった。「LCI、変な人だが技術は本物。検索すれば出てくる」。投稿者はそれ以上何も書いていなかった。</p><p>検索した。「レガシー・コード・インベスティゲーション」。雑居ビルの住所と、素っ気ない一文だけのウェブサイトが引っかかった。予約フォームはない。電話番号もない。メールアドレスすら見つからない。</p><p>——アポも取れないサービスって、それ自体がバグじゃないですか。</p><p>とはいえ、物件管理システムの比較処理が壊れていることへの苛立ちは、もう2週間分溜まっている。日曜日に休日出勤してデバッグしても原因がわからなかった。月曜日にチームリーダーに相談したら「Perl特有の問題じゃない？」と首をかしげられた。特有の問題なら、Perl特有の解決策があるはずだ。その解決策を知っている人間が、このビルの三階にいるらしい。</p><p>階段を上がる。三階。ドアの前に小さなプレートがある。「LCI — レガシー・コード・インベスティゲーション」。ノックする。応答がない。もう一度、少し強めに。応答がない。</p><p>ドアが2センチほど開いていることに気づいた。</p><p>恐る恐る押し開ける。デスクトップPCの排熱で妙に暖かい室内。飲みかけのエナジードリンクの缶が机の端に3本並んでいる。だが、私の目を引いたのは壁にかかったコルクボードだった。クラス図のようなものの切り抜きが何枚もピンで留められている。赤い糸で結ばれているものもある。ドラマの捜査本部みたいだ。</p><p>コルクボードの前に、一人の男が立っていた。私に背を向けたまま、新しい切り抜きをピンで留めている最中だ。</p><p>「アポなしの来客は、症状が急性だと相場が決まっている」</p><p>振り向かずに言った。声は落ち着いている。</p><p>「あの……Qiitaのコメント欄で見かけて——」</p><p>男がようやく振り向いた。視線が私のノートPCに一瞬だけ止まり、それから顔に移った。</p><p>「ロック。コードの探偵だ。——なるほど。不動産系か。オブジェクトの顔写真が2枚あるね——片方はIDが貼り付いている。もう片方はIDがない。見せたまえ、ワトソン君」</p><p>——ワトソン君？</p><p>私は一瞬眉を寄せた。訂正しかけたが、ロックさんはもうデスクに向かって手を差し出していて、会話が先に進んでしまっている。</p><p>名前より問題を解決してほしい。私はノートPCを渡した。</p><p>「2つ問題があるんです」</p><p>画面を開いて説明する。</p><p>「1つ目。同じ住所——東京都港区六本木1-1-1——を持つ2つの物件があります。でも住所オブジェクト同士を <code>eq</code> で比較すると <code>false</code> になるんです」</p><p>「2つ目。物件の名前を更新した後、更新前後の物件オブジェクトを <code>eq</code> で比較しても <code>false</code> です。同じ <code>property_id</code> なのに」</p><p>ロックさんはコードを読み進めている。私は付け加えた。</p><p>「つまり、比較が壊れてるんです。全部」</p><p>ロックさんは画面から目を上げた。静かに首を振った。</p><p>「壊れてはいない。<strong>何も宣言していないだけだ</strong>」</p><h2 id=現場検証idを持つ者と持たざる者>現場検証——IDを持つ者と持たざる者</h2><p>ロックさんが画面をスクロールし、問題のコードを表示した。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Address</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(Int Str)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>address_id</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Int</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>prefecture</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>city</span>       <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>street</span>     <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Property</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(Str InstanceOf)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>property_id</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>name</span>        <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>owner</span>       <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>address</span>     <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>InstanceOf</span><span class=p>[</span><span class=s>&#39;Address&#39;</span><span class=p>],</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>コードを2周読んだ後、ロックさんは椅子から立ち上がってコルクボードの前に移動した。空いているスペースに指で2つの領域を区切る。</p><p>「ワトソン君。君は<strong>2つの事件</strong>を1つだと思っている」</p><p>「2つ？ 比較が壊れてるっていう1つの問題では？」</p><p>「いいや。犯行動機がまったく違う」</p><p>ロックさんはコルクボードの左側を指さした。</p><p>「左側。住所。同じ文字列なのに等しくならない。これは<strong>身元を証明する手段がない</strong>事件だ。Perlはオブジェクト同士を <code>eq</code> で比較すると参照——メモリアドレスを比較する。同じ住所を2回 <code>new</code> すれば、中身は同じでも別の参照になる。住所は自分が何者かを語る言葉を持っていない」</p><p>右側を指さす。</p><p>「右側。物件。属性を変えたらIDが同じでも等しくならない。これは<strong>顔が変わったら別人と見なされる</strong>事件だ。IDという不変の身元があるのに、それを使っていない」</p><p>2つの事件。動機が逆。私は画面に映ったコードを見つめ直した。片方は「身元がない」。もう一方は「身元を使っていない」。</p><p>「つまり……Address と Property では、比較のやり方自体が違うべきだ、ということですか？」</p><p>「そこまでは近い。だが<strong>やり方が違う</strong>のではなく、<strong>存在の性質が違う</strong>のだ」</p><p>ロックさんはコルクボードの左側に太いマーカーで「Value Object」と書いた。右側に「Entity」。</p><p>「Value Object。属性がすべて。同じ属性なら同じ存在。交換可能。IDは不要」</p><p>「Entity。IDがすべて。属性が変わっても同じ存在。交換不可能。時間の中で追跡される」</p><p>「……住所は Value Object で、物件は Entity」</p><p>「そうだ。だが前任者は、両方にIDを振った。住所に偽のアイデンティティを与えてしまった」</p><p>私は Address クラスの <code>address_id</code> を見つめた。</p><p>「前任者がDBの都合でIDを振ったんだと思います。検索に便利だし」</p><p>「DBの都合でIDを振ること自体は罪ではない。だが、ドメインモデルにそのIDを持ち込むと、住所が<strong>自分のライフサイクルを持ち始める</strong>。親である物件を削除しても、住所レコードが孤児として残る。IDがあるということは『この行は唯一無二で、時間を超えて追跡される』という宣言だ」</p><p>一拍おいて、ロックさんは言った。</p><p>「——東京都港区六本木1-1-1は、追跡すべき唯一無二の存在かね？」</p><p>「……いいえ。住所は住所です。どの六本木1-1-1でも同じ六本木1-1-1です」</p><p>「その通り。交換可能だ。ならばIDは要らない」</p><h2 id=推理披露制服と名札>推理披露——制服と名札</h2><p>ロックさんがデスクに戻り、HHKBに手を置いた。</p><p>「まず Value Object から片付ける。住所に<strong>構造等価性</strong>を与える」</p><p>画面にコードが組み上がっていく。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Address</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(Str)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>overload</span>
+</span></span><span class=line><span class=cl>    <span class=s>&#39;eq&#39;</span>     <span class=o>=&gt;</span> <span class=o>\&amp;</span><span class=n>_eq</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=s>&#39;==&#39;</span>     <span class=o>=&gt;</span> <span class=o>\&amp;</span><span class=n>_eq</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=s>&#39;&#34;&#34;&#39;</span>     <span class=o>=&gt;</span> <span class=o>\&amp;</span><span class=n>_stringify</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>fallback</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>prefecture</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>city</span>       <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>street</span>     <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>_eq</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$other</span><span class=p>,</span> <span class=nv>$swap</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=mi>0</span> <span class=k>unless</span> <span class=nb>defined</span> <span class=nv>$other</span> <span class=o>&amp;&amp;</span> <span class=nb>ref</span> <span class=nv>$other</span> <span class=ow>eq</span> <span class=nb>ref</span> <span class=nv>$self</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>prefecture</span> <span class=ow>eq</span> <span class=nv>$other</span><span class=o>-&gt;</span><span class=n>prefecture</span>
+</span></span><span class=line><span class=cl>        <span class=o>&amp;&amp;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>city</span>       <span class=ow>eq</span> <span class=nv>$other</span><span class=o>-&gt;</span><span class=n>city</span>
+</span></span><span class=line><span class=cl>        <span class=o>&amp;&amp;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>street</span>     <span class=ow>eq</span> <span class=nv>$other</span><span class=o>-&gt;</span><span class=n>street</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>_stringify</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nb>join</span><span class=p>(</span><span class=s>&#39;&#39;</span><span class=p>,</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>prefecture</span><span class=p>,</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>city</span><span class=p>,</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>street</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>with_street</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$new_street</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nn>Address</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>prefecture</span> <span class=o>=&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>prefecture</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>city</span>       <span class=o>=&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>city</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>street</span>     <span class=o>=&gt;</span> <span class=nv>$new_street</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>私は変化に気づいた。</p><p>「<code>address_id</code> が消えてる。それと、<code>is => 'rw'</code> が全部 <code>'ro'</code> になってます」</p><p>「2つの手術をした。1つ目、偽の身元証明——IDを除去した。2つ目、属性を不変にした」</p><p>「不変にする理由は？」</p><p>「Value Object は属性そのものが身元だ。属性を変えたら別人になる。別人にしたいなら、新しいインスタンスを作れ」</p><p>ロックさんはコルクボードを一瞥した。</p><p>「5円玉の刻印を削って10円に見せかけることはできないだろう？ 10円が欲しければ10円玉を手に入れるんだ。<code>with_street</code> メソッドがそれだ。元のインスタンスは変えずに、新しい住所を作る」</p><p>「<code>overload</code> は……」</p><p>「<code>eq</code> と <code>==</code> を上書きしている。Perlのデフォルトでは、オブジェクト同士の <code>eq</code> は参照——メモリアドレスを比較する。これでは中身が同じでも <code>false</code> になる。Value Object では<strong>全属性で比較する</strong>のが正しい。<code>_eq</code> メソッドが、都道府県・市区町村・番地のすべてを照合している」</p><p>なるほど。でも、もっと根本的な疑問がある。</p><p>「Entity と Value Object を見分ける基準って、もっとはっきりしたものはないんですか？」</p><p>「簡単なテストがある。<strong>そのオブジェクトを、同じ属性の別インスタンスと交換できるか？</strong>」</p><p>ロックさんは指を立てた。</p><p>「東京都港区六本木1-1-1の住所を、同じ文字列の別オブジェクトに差し替えて問題があるか？」</p><p>「……ないです」</p><p>「ならば Value Object だ。では、<code>property_id</code> が P-001 の物件を、同じ名前・同じ住所の別オブジェクトに差し替えたら？」</p><p>「契約履歴が消えます。修繕記録も」</p><p>「それが Entity だ。<strong>交換不可能なら Entity、交換可能なら Value Object</strong>」</p><p>私はノートの端にメモを走らせた。交換テスト。これなら迷わない。</p><hr><p>ロックさんが新しいファイルを開いた。</p><p>「次は物件だ。Entity には<strong>識別子による同一性</strong>を与える」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Property</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(Str InstanceOf)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>overload</span>
+</span></span><span class=line><span class=cl>    <span class=s>&#39;eq&#39;</span>     <span class=o>=&gt;</span> <span class=o>\&amp;</span><span class=n>_eq</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=s>&#39;==&#39;</span>     <span class=o>=&gt;</span> <span class=o>\&amp;</span><span class=n>_eq</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=s>&#39;&#34;&#34;&#39;</span>     <span class=o>=&gt;</span> <span class=o>\&amp;</span><span class=n>_stringify</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>fallback</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>property_id</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>  <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>name</span>        <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rwp&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>owner</span>       <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rwp&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>address</span>     <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rwp&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>InstanceOf</span><span class=p>[</span><span class=s>&#39;Address&#39;</span><span class=p>],</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>_eq</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$other</span><span class=p>,</span> <span class=nv>$swap</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=mi>0</span> <span class=k>unless</span> <span class=nb>defined</span> <span class=nv>$other</span> <span class=o>&amp;&amp;</span> <span class=nb>ref</span> <span class=nv>$other</span> <span class=ow>eq</span> <span class=nb>ref</span> <span class=nv>$self</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>property_id</span> <span class=ow>eq</span> <span class=nv>$other</span><span class=o>-&gt;</span><span class=n>property_id</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>_stringify</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nb>sprintf</span><span class=p>(</span><span class=s>&#39;Property(%s)&#39;</span><span class=p>,</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>property_id</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>update_name</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$new_name</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_set_name</span><span class=p>(</span><span class=nv>$new_name</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>update_owner</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$new_owner</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_set_owner</span><span class=p>(</span><span class=nv>$new_owner</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>relocate</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$new_address</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_set_address</span><span class=p>(</span><span class=nv>$new_address</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「これで、名前を更新しても <code>eq</code> は <code>true</code> になるんですか？」</p><p>「<code>_eq</code> は <code>property_id</code> だけを比較している。名前が変わろうが、オーナーが変わろうが、住所が移ろうが、IDが同じなら同じ物件だ」</p><p>「なるほど……じゃあ Value Object の方は逆に、全属性が同じなら <code>true</code> になる」</p><p>「そうだ。<strong>Entity は名札で本人確認をする。Value Object は顔で本人確認をする</strong>。名札が同じなら、整形しても同一人物だ。顔が同じなら、名前が違っても同一人物だ」</p><p>整理好きの血が騒ぐ。分類の軸が見えてきた。</p><p>「<code>is => 'rwp'</code> って……」</p><p>「外部からは読み取り専用だが、クラス内部の <code>_set_name</code> メソッドでは書き換えられる。Entity は属性が変わる。だが変更を<strong>誰にでも許すわけではない</strong>。メソッドを通じて、ビジネスルールの範囲内でだけ変更を認める」</p><p>「Value Object は全部 <code>'ro'</code> だから、誰が触っても変わらない」</p><p>「硬貨の刻印は誰にも変えられない。だが不動産登記は所有者が変わる。それが両者の性質の違いだ」</p><p>私はコルクボードの「Value Object」と「Entity」の文字を見比べた。左側は属性で身元を証明する世界。右側はIDで身元を証明する世界。前任者のコードは、この2つの世界を区別していなかった。</p><h2 id=事件の終わりテストが語る真実>事件の終わり——テストが語る真実</h2><p>「論より証拠だ。テストを走らせよう」</p><p>ロックさんがターミナルにコマンドを打ち込んだ。私は画面を覗き込む。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span><span class=lnt>51
+</span><span class=lnt>52
+</span><span class=lnt>53
+</span><span class=lnt>54
+</span><span class=lnt>55
+</span><span class=lnt>56
+</span><span class=lnt>57
+</span><span class=lnt>58
+</span><span class=lnt>59
+</span><span class=lnt>60
+</span><span class=lnt>61
+</span><span class=lnt>62
+</span><span class=lnt>63
+</span><span class=lnt>64
+</span><span class=lnt>65
+</span><span class=lnt>66
+</span><span class=lnt>67
+</span><span class=lnt>68
+</span><span class=lnt>69
+</span><span class=lnt>70
+</span><span class=lnt>71
+</span><span class=lnt>72
+</span><span class=lnt>73
+</span><span class=lnt>74
+</span><span class=lnt>75
+</span><span class=lnt>76
+</span><span class=lnt>77
+</span><span class=lnt>78
+</span><span class=lnt>79
+</span><span class=lnt>80
+</span><span class=lnt>81
+</span><span class=lnt>82
+</span><span class=lnt>83
+</span><span class=lnt>84
+</span><span class=lnt>85
+</span><span class=lnt>86
+</span><span class=lnt>87
+</span><span class=lnt>88
+</span><span class=lnt>89
+</span><span class=lnt>90
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Test::More</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># --- Address (Value Object) のテスト ---</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;Address: structural equality&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$addr1</span> <span class=o>=</span> <span class=nn>Address</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>prefecture</span> <span class=o>=&gt;</span> <span class=s>&#39;東京都&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>city</span>       <span class=o>=&gt;</span> <span class=s>&#39;港区&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>street</span>     <span class=o>=&gt;</span> <span class=s>&#39;六本木1-1-1&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$addr2</span> <span class=o>=</span> <span class=nn>Address</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>prefecture</span> <span class=o>=&gt;</span> <span class=s>&#39;東京都&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>city</span>       <span class=o>=&gt;</span> <span class=s>&#39;港区&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>street</span>     <span class=o>=&gt;</span> <span class=s>&#39;六本木1-1-1&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>ok</span><span class=p>(</span><span class=nv>$addr1</span> <span class=ow>eq</span> <span class=nv>$addr2</span><span class=p>,</span> <span class=s>&#39;same attributes → eq is true&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;Address: immutability&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$addr</span> <span class=o>=</span> <span class=nn>Address</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>prefecture</span> <span class=o>=&gt;</span> <span class=s>&#39;東京都&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>city</span>       <span class=o>=&gt;</span> <span class=s>&#39;港区&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>street</span>     <span class=o>=&gt;</span> <span class=s>&#39;六本木1-1-1&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nb>eval</span> <span class=p>{</span> <span class=nv>$addr</span><span class=o>-&gt;</span><span class=n>street</span><span class=p>(</span><span class=s>&#39;六本木2-2-2&#39;</span><span class=p>)</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=n>like</span><span class=p>(</span><span class=vg>$@</span><span class=p>,</span> <span class=sx>qr/read-only/</span><span class=p>,</span> <span class=s>&#39;cannot mutate ro attribute&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;Address: with_street creates new instance&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$addr1</span> <span class=o>=</span> <span class=nn>Address</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>prefecture</span> <span class=o>=&gt;</span> <span class=s>&#39;東京都&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>city</span>       <span class=o>=&gt;</span> <span class=s>&#39;港区&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>street</span>     <span class=o>=&gt;</span> <span class=s>&#39;六本木1-1-1&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$addr2</span> <span class=o>=</span> <span class=nv>$addr1</span><span class=o>-&gt;</span><span class=n>with_street</span><span class=p>(</span><span class=s>&#39;六本木2-2-2&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>is</span><span class=p>(</span><span class=nv>$addr1</span><span class=o>-&gt;</span><span class=n>street</span><span class=p>,</span> <span class=s>&#39;六本木1-1-1&#39;</span><span class=p>,</span> <span class=s>&#39;original unchanged&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span><span class=p>(</span><span class=nv>$addr2</span><span class=o>-&gt;</span><span class=n>street</span><span class=p>,</span> <span class=s>&#39;六本木2-2-2&#39;</span><span class=p>,</span> <span class=s>&#39;new instance has new street&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>ok</span><span class=p>(</span><span class=o>!</span><span class=p>(</span><span class=nv>$addr1</span> <span class=ow>eq</span> <span class=nv>$addr2</span><span class=p>),</span> <span class=s>&#39;original and new are not equal&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># --- Property (Entity) のテスト ---</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;Property: identity equality by ID&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$addr</span> <span class=o>=</span> <span class=nn>Address</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>prefecture</span> <span class=o>=&gt;</span> <span class=s>&#39;東京都&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>city</span>       <span class=o>=&gt;</span> <span class=s>&#39;港区&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>street</span>     <span class=o>=&gt;</span> <span class=s>&#39;六本木1-1-1&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$prop1</span> <span class=o>=</span> <span class=nn>Property</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>property_id</span> <span class=o>=&gt;</span> <span class=s>&#39;P-001&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>name</span>        <span class=o>=&gt;</span> <span class=s>&#39;ロック六本木ビル&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>owner</span>       <span class=o>=&gt;</span> <span class=s>&#39;田中太郎&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>address</span>     <span class=o>=&gt;</span> <span class=nv>$addr</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$prop2</span> <span class=o>=</span> <span class=nn>Property</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>property_id</span> <span class=o>=&gt;</span> <span class=s>&#39;P-001&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>name</span>        <span class=o>=&gt;</span> <span class=s>&#39;ロック六本木タワー&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>owner</span>       <span class=o>=&gt;</span> <span class=s>&#39;鈴木花子&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>address</span>     <span class=o>=&gt;</span> <span class=nv>$addr</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>ok</span><span class=p>(</span><span class=nv>$prop1</span> <span class=ow>eq</span> <span class=nv>$prop2</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>       <span class=s>&#39;same property_id → eq is true despite different attributes&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;Property: identity preserved after update&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$addr</span> <span class=o>=</span> <span class=nn>Address</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>prefecture</span> <span class=o>=&gt;</span> <span class=s>&#39;東京都&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>city</span>       <span class=o>=&gt;</span> <span class=s>&#39;港区&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>street</span>     <span class=o>=&gt;</span> <span class=s>&#39;六本木1-1-1&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$prop</span> <span class=o>=</span> <span class=nn>Property</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>property_id</span> <span class=o>=&gt;</span> <span class=s>&#39;P-001&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>name</span>        <span class=o>=&gt;</span> <span class=s>&#39;ロック六本木ビル&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>owner</span>       <span class=o>=&gt;</span> <span class=s>&#39;田中太郎&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>address</span>     <span class=o>=&gt;</span> <span class=nv>$addr</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$prop</span><span class=o>-&gt;</span><span class=n>update_name</span><span class=p>(</span><span class=s>&#39;ロック六本木タワー&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$same_id</span> <span class=o>=</span> <span class=nn>Property</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>property_id</span> <span class=o>=&gt;</span> <span class=s>&#39;P-001&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>name</span>        <span class=o>=&gt;</span> <span class=s>&#39;全く別の名前&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>owner</span>       <span class=o>=&gt;</span> <span class=s>&#39;全く別のオーナー&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>address</span>     <span class=o>=&gt;</span> <span class=nv>$addr</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>ok</span><span class=p>(</span><span class=nv>$prop</span> <span class=ow>eq</span> <span class=nv>$same_id</span><span class=p>,</span> <span class=s>&#39;still equal by ID after attribute changes&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>done_testing</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>テスト結果が流れていく。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>ok 1 - Address: structural equality
+</span></span><span class=line><span class=cl>ok 2 - Address: immutability
+</span></span><span class=line><span class=cl>ok 3 - Address: with_street creates new instance
+</span></span><span class=line><span class=cl>ok 4 - Property: identity equality by ID
+</span></span><span class=line><span class=cl>ok 5 - Property: identity preserved after update
+</span></span><span class=line><span class=cl>1..5
+</span></span></code></pre></td></tr></table></div></div><p>「全部通ってる……」</p><p>思わず声が出た。2週間悩んだ2つのバグが、どちらも正しい結果を返している。</p><p>「当然だ。<strong>住所は顔で判定し、物件は名札で判定する</strong>。それぞれに正しい判定方法を与えれば、矛盾は消える」</p><p>つまり、壊れていたのは比較処理ではなく、<strong>分類の仕方</strong>だった。比較の前に、そもそも「何をもって同じとみなすか」を決めなければいけなかった。</p><p>「もう1つ聞いていいですか。既存の Address テーブルの <code>address_id</code> はどうすれば？ DBから消すんですか？」</p><p>「DBテーブルにサロゲートキーを持つこと自体は技術上の必要性だ。問題は、そのIDを<strong>ドメインモデルの属性として露出させるか</strong>だ」</p><p>ロックさんはコルクボードの Address の切り抜きを指さした。</p><p>「Address の Perl クラスからは <code>address_id</code> を消す。テーブルには残してもいい。ORM層でマッピングすればいい。——ドメインモデルは『この住所に固有のアイデンティティがある』と嘘をつく義務はない」</p><p>なるほど。DBとドメインモデルは別のレイヤーだ。テーブルにIDがあるからといって、クラスにIDが必要とは限らない。前任者はDBのスキーマをそのままクラスに写し取っていた。それが混乱の元だった。</p><hr><h2 id=探偵の調査報告書>探偵の調査報告書</h2><div class=table-wrapper><table><thead><tr><th style=text-align:left>容疑（アンチパターン）</th><th style=text-align:left>真実（パターン）</th><th style=text-align:left>証拠（効果）</th></tr></thead><tbody><tr><td style=text-align:left>Value Object にIDを振る</td><td style=text-align:left>Value Object は属性で等価性を判定する。IDは不要</td><td style=text-align:left>同じ住所が <code>eq</code> で <code>true</code> になる。孤児データが発生しない</td></tr><tr><td style=text-align:left>Entity を属性で比較する</td><td style=text-align:left>Entity はIDで同一性を判定する</td><td style=text-align:left>属性更新後も <code>eq</code> が <code>true</code>。ライフサイクルを正しく追跡できる</td></tr><tr><td style=text-align:left>Value Object を可変にする</td><td style=text-align:left>Value Object は不変（<code>is => 'ro'</code>）。変更は新インスタンスを生成</td><td style=text-align:left>予期しない副作用（Aliasing Bug）が起きない</td></tr><tr><td style=text-align:left>Entity の属性を外部から直接変更する</td><td style=text-align:left>Entity は <code>rwp</code> + メソッド経由で変更を制御する</td><td style=text-align:left>ビジネスルールの範囲内でのみ属性が変化する</td></tr></tbody></table></div><h3 id=推理のステップ>推理のステップ</h3><ol><li>ドメインの概念を「<strong>同じ属性の別インスタンスと交換できるか？</strong>」で分類する</li><li><strong>Value Object</strong>（交換可能）: IDを削除。全属性を <code>is => 'ro'</code>。<code>overload</code> で全属性を比較する <code>_eq</code> を実装。変更は <code>with_*</code> メソッドで新しいインスタンスを返す</li><li><strong>Entity</strong>（交換不可能）: IDを <code>is => 'ro'</code>、他属性を <code>is => 'rwp'</code>。<code>overload</code> でIDのみを比較する <code>_eq</code> を実装。変更は <code>update_*</code> / <code>_set_*</code> メソッドで行う</li><li>DBのサロゲートキーとドメインモデルのIDを混同しない。テーブルのIDはORM層で吸収する</li></ol><h3 id=ロックより>ロックより</h3><p>帰り支度を始めると、ロックさんが棚から本を一冊取り出した。</p><p>「報酬だが——ISBNが同じ本を2冊持ってきたまえ。1冊は書架用、もう1冊は机上用」</p><p>「……それ、同じ本を2冊買えってことですよね」</p><p>「いやむしろ、ISBNが違うのに中身が同じ本を探してきたまえ。それが見つかったら、君はEntityとValue Objectの違いを完全に理解したことになる」</p><p>一瞬考えた。ISBNが同じなら、カバーが違っても刷りが違っても同じ本。つまり Entity だ。中身が同じなら、ISBNが違っても同じ内容。つまり Value Object だ。</p><p>「……わかりました。探してみます」</p><p>ロックさんは無言で微笑んで、コルクボードに向き直った。</p><p>事務所を出て、古い階段を降りる。外に出ると、曇り空が少しだけ明るくなっていた。</p><p>スマホを取り出して、Address クラスのソースコードを開いた。<code>address_id</code> のフィールドが目に入る。</p><p>この子にはIDは要らなかったんだ。住所は住所であって、追跡すべき誰かではない。</p><p>同じ問題だと思っていた。でも、2つの事件だった。片方は身元をどう証明するかの問題で、もう片方は身元をどう守るかの問題だった。「同じ」の意味が、Value Object と Entity では真逆だった。</p><p>振り返って、ビルの外壁に小さく掲げられたLCIの看板を見上げた。</p><p>——次来るときは、アポを取ろう。予約フォーム、ないけど。</p></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/perl/>Perl</a>
+<a href=/tags/moo/>Moo</a>
+<a href=/tags/entity/>Entity</a>
+<a href=/tags/value-object/>Value-Object</a>
+<a href=/tags/identity-confusion/>Identity-Confusion</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-detective/>Code-Detective</a>
+<a href=/tags/ddd/>Ddd</a>
+<a href=/tags/identity/>Identity</a>
+<a href=/tags/equality/>Equality</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/04/25/070705/><div class=article-image><img src=/public_images/2026/code-detective-money-pattern/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-money-pattern/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Money Pattern】消えた1円の行方〜浮動小数点が生んだ幽霊通貨〜</h2></div></a></article><article class=has-image><a href=/2026/04/22/070705/><div class=article-image><img src=/public_images/2026/code-detective-bounded-context/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-bounded-context/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Bounded Context】管轄争いの怪〜一つの名前に三つの真実〜</h2></div></a></article><article class=has-image><a href=/2026/03/10/070705/><div class=article-image><img src=/public_images/2026/code-detective-value-object-primitive-obsession/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-value-object-primitive-obsession/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Value Object】偽造された身分証〜変数が型を失う日〜</h2></div></a></article><article class=has-image><a href=/2026/05/15/070705/><div class=article-image><img src=/public_images/2026/code-detective-bff/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-bff/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Backends for Frontends】最後の依頼〜一つの答えが全員を不満にする夜〜</h2></div></a></article><article class=has-image><a href=/2026/05/14/070705/><div class=article-image><img src=/public_images/2026/code-detective-api-gateway/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-api-gateway/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【API Gateway】窓口のない捜査本部〜マイクロサービスに個別に会いに行く悲劇〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

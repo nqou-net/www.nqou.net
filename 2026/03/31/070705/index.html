@@ -1,0 +1,597 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="LMSに新コンテンツ種別を追加したら、4つの操作関数のうち1箇所で追加漏れ。未受講者200名に偽の修了証が発行される事故に。散在する型チェックをVisitorパターンのダブルディスパッチで呼び出し側から排除し、追加漏れを構造的に防ぐ。"><title>コード探偵ロックの事件簿【Visitor】偽りの修了証〜四箇所に潜む型チェックの亡霊〜</title><link rel=canonical href=https://www.nqou.net/2026/03/31/070705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コード探偵ロックの事件簿【Visitor】偽りの修了証〜四箇所に潜む型チェックの亡霊〜"><meta property='og:description' content="LMSに新コンテンツ種別を追加したら、4つの操作関数のうち1箇所で追加漏れ。未受講者200名に偽の修了証が発行される事故に。散在する型チェックをVisitorパターンのダブルディスパッチで呼び出し側から排除し、追加漏れを構造的に防ぐ。"><meta property='og:url' content='https://www.nqou.net/2026/03/31/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='perl'><meta property='article:tag' content='moo'><meta property='article:tag' content='visitor'><meta property='article:tag' content='scattered-type-checking'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-detective'><meta property='article:published_time' content='2026-03-31T07:07:05+09:00'><meta property='article:modified_time' content='2026-03-31T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-detective-visitor/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コード探偵ロックの事件簿【Visitor】偽りの修了証〜四箇所に潜む型チェックの亡霊〜"><meta name=twitter:description content="LMSに新コンテンツ種別を追加したら、4つの操作関数のうち1箇所で追加漏れ。未受講者200名に偽の修了証が発行される事故に。散在する型チェックをVisitorパターンのダブルディスパッチで呼び出し側から排除し、追加漏れを構造的に防ぐ。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-detective-visitor/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-03-31T07:07:05+09:00","datePublished":"2026-03-31T07:07:05+09:00","description":"LMSに新コンテンツ種別を追加したら、4つの操作関数のうち1箇所で追加漏れ。未受講者200名に偽の修了証が発行される事故に。散在する型チェックをVisitorパターンのダブルディスパッチで呼び出し側から排除し、追加漏れを構造的に防ぐ。","headline":"コード探偵ロックの事件簿【Visitor】偽りの修了証〜四箇所に潜む型チェックの亡霊〜","image":"https://www.nqou.net/public_images/2026/code-detective-visitor/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/03/31/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#現場検証四人の門番と偽の名簿>現場検証：四人の門番と偽の名簿</a></li><li><a href=#推理披露訪問者の資格visitor>推理披露：訪問者の資格（Visitor）</a></li><li><a href=#解決正しき資格の証明>解決：正しき資格の証明</a></li><li><a href=#探偵の調査報告書>探偵の調査報告書</a><ol><li><a href=#推理のステップ>推理のステップ</a></li><li><a href=#ロックより>ロックより</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/03/31/070705/><img src=/public_images/2026/code-detective-visitor/header.webp loading=lazy alt="Featured image of post コード探偵ロックの事件簿【Visitor】偽りの修了証〜四箇所に潜む型チェックの亡霊〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/03/31/070705/>コード探偵ロックの事件簿【Visitor】偽りの修了証〜四箇所に潜む型チェックの亡霊〜</a></h2><h3 class=article-subtitle>LMSに新コンテンツ種別を追加したら、4つの操作関数のうち1箇所で追加漏れ。未受講者200名に偽の修了証が発行される事故に。散在する型チェックをVisitorパターンのダブルディスパッチで呼び出し側から排除し、追加漏れを構造的に防ぐ。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>31, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 15分</time></div></footer></div></header><section class=article-content><p>電話が鳴ったのは、金曜の夕方だった。</p><p>「柴田さん。ライブセッションに出席していない社員に修了証が出ています。200名です」</p><p>メディカ製薬の研修管理者、中村さんの声は静かだった。怒鳴られたほうがまだよかった。静かな声のほうが、事の重大さが伝わる。</p><p>私は柴田。EdTechスタートアップ「LearnFlow」のバックエンドエンジニア、経験3年、27歳。LearnFlowは企業向けの研修LMS（学習管理システム）を提供していて、私はコンテンツ管理のバックエンドを担当している。</p><p>メディカ製薬は薬機法に基づくコンプライアンス研修をLearnFlowで運用していた。動画視聴、確認テスト、感想レポート、グループ討議——4種類のコンテンツをすべて修了した社員にだけ、修了証が自動発行される仕組みだ。先月、「ライブセッション」を追加したいという要望があり、私が実装を担当した。コンテンツクラスを1つ追加し、進捗計算、採点、レポート生成のコードに新しい分岐を書き足した。テストも通った。</p><p>1箇所だけ、書き忘れていた。</p><p>修了判定の関数。そこだけ、<code>LiveSessionContent</code> の分岐を追加していなかった。未知の型が来ると <code>else</code> 節でデフォルト修了扱いになるコードだった。製薬企業のコンプライアンス研修で偽の修了証——監査上の重大リスクだ。中村さんは契約解除をちらつかせている。</p><p>週末を挟んで、月曜の朝。社内のSlackで「バグの原因を特定してくれる変な探偵がいる」という噂を目にしたのは先週のことだ。普段なら相手にしないが、コード品質を見直したいという動機はあった。</p><p>検索で見つけたレガシー・コード・インベスティゲーション（LCI）の部屋では、複数のモニターにPDFが映し出されていた。よく見ると——修了証だ。異なるフォーマットの修了証が並んでいる。研修名、日付、受講者名、発行機関。レイアウトの違いを比較しているように見えた。</p><p>「修了証の研究ですか？」</p><p>モニターの前に座っていた男が、ゆっくりとこちらを向いた。</p><p>「フォーマットの研究だよ。どの発行機関の修了証も、構成要素は同じだ——受講者、研修、日付、判定。だが表現形式は全部違う。興味深いね。で、君の修了証は何人に出た？」</p><p>200名、と答えた。男は眉を上げた。</p><p>「200か。それで、何箇所の分岐がある？」</p><p>質問の意図が分からなかった。「分岐って、何の……」</p><p>「型チェックの分岐だよ。<code>ref()</code> を何箇所で使っている？」</p><p>話が早い。この男——モニターのベゼルに「Locke」のステッカーが貼ってある——は、修了証のバグの構造を見る前から、原因の形を知っているかのような口ぶりだった。</p><p>「コードを見せてもらえるかな、ワトソン君」</p><p>「柴田です」</p><p>「ワトソン君。コードを見せたまえ」</p><p>訂正は無駄だと分かった。200名の修了証のほうが、名前よりずっと重い。私はノートPCを開いた。</p><h2 id=現場検証四人の門番と偽の名簿>現場検証：四人の門番と偽の名簿</h2><p>ロックは私のPCを引き寄せ、コードをスクロールし始めた。</p><p>しばらく沈黙が続いた。画面を追う目の動きだけが、この男が何かを読み取っていることを示していた。</p><p>「コンテンツのクラス定義を見ているんだね。5つか」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>VideoContent</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>id</span>           <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>title</span>        <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>duration_min</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>watched_min</span>  <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>default</span>  <span class=o>=&gt;</span> <span class=mi>0</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>QuizContent</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>id</span>              <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>title</span>           <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>total_questions</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>correct_answers</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>default</span>  <span class=o>=&gt;</span> <span class=mi>0</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>ReportContent</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>id</span>         <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>title</span>      <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>submitted</span>  <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>default</span>  <span class=o>=&gt;</span> <span class=mi>0</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>word_count</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>default</span>  <span class=o>=&gt;</span> <span class=mi>0</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>DiscussionContent</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>id</span>             <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>title</span>          <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>post_count</span>     <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>default</span>  <span class=o>=&gt;</span> <span class=mi>0</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>required_posts</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>default</span>  <span class=o>=&gt;</span> <span class=mi>3</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>LiveSessionContent</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>id</span>           <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>title</span>        <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>attended</span>     <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>default</span>  <span class=o>=&gt;</span> <span class=mi>0</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>duration_min</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「5つのクラスに問題はない。問題は操作のほうだ」</p><p>ロックは手を止めず、操作関数のコードまでスクロールした。そして人差し指でモニターを軽く叩き始めた。何かを数えている。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>sub</span> <span class=nf>calc_progress</span> <span class=p>($content) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=nb>ref</span><span class=p>(</span><span class=nv>$content</span><span class=p>)</span> <span class=ow>eq</span> <span class=s>&#39;VideoContent&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nb>int</span><span class=p>(</span><span class=nv>$content</span><span class=o>-&gt;</span><span class=n>watched_min</span> <span class=o>/</span> <span class=nv>$content</span><span class=o>-&gt;</span><span class=n>duration_min</span> <span class=o>*</span> <span class=mi>100</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>elsif</span> <span class=p>(</span><span class=nb>ref</span><span class=p>(</span><span class=nv>$content</span><span class=p>)</span> <span class=ow>eq</span> <span class=s>&#39;QuizContent&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nb>int</span><span class=p>(</span><span class=nv>$content</span><span class=o>-&gt;</span><span class=n>correct_answers</span> <span class=o>/</span> <span class=nv>$content</span><span class=o>-&gt;</span><span class=n>total_questions</span> <span class=o>*</span> <span class=mi>100</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>elsif</span> <span class=p>(</span><span class=nb>ref</span><span class=p>(</span><span class=nv>$content</span><span class=p>)</span> <span class=ow>eq</span> <span class=s>&#39;ReportContent&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$content</span><span class=o>-&gt;</span><span class=n>submitted</span> <span class=p>?</span> <span class=mi>100</span> <span class=p>:</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>elsif</span> <span class=p>(</span><span class=nb>ref</span><span class=p>(</span><span class=nv>$content</span><span class=p>)</span> <span class=ow>eq</span> <span class=s>&#39;DiscussionContent&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$ratio</span> <span class=o>=</span> <span class=nv>$content</span><span class=o>-&gt;</span><span class=n>post_count</span> <span class=o>/</span> <span class=nv>$content</span><span class=o>-&gt;</span><span class=n>required_posts</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nb>int</span><span class=p>((</span><span class=nv>$ratio</span> <span class=o>&gt;</span> <span class=mi>1</span> <span class=p>?</span> <span class=mi>1</span> <span class=p>:</span> <span class=nv>$ratio</span><span class=p>)</span> <span class=o>*</span> <span class=mi>100</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>elsif</span> <span class=p>(</span><span class=nb>ref</span><span class=p>(</span><span class=nv>$content</span><span class=p>)</span> <span class=ow>eq</span> <span class=s>&#39;LiveSessionContent&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$content</span><span class=o>-&gt;</span><span class=n>attended</span> <span class=p>?</span> <span class=mi>100</span> <span class=p>:</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>else</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=nb>die</span> <span class=s>&#34;Unknown content type: &#34;</span> <span class=o>.</span> <span class=nb>ref</span><span class=p>(</span><span class=nv>$content</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<code>calc_progress</code> に5つ。<code>calc_grade</code> にも5つ。<code>generate_report_line</code> にも5つ。<code>check_completion</code> に——」</p><p>ロックが画面を止めた。</p><p>「——4つ」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># ★ BUG: LiveSessionContent の分岐が漏れている！</span>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>check_completion</span> <span class=p>($content) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=nb>ref</span><span class=p>(</span><span class=nv>$content</span><span class=p>)</span> <span class=ow>eq</span> <span class=s>&#39;VideoContent&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=n>calc_progress</span><span class=p>(</span><span class=nv>$content</span><span class=p>)</span> <span class=o>&gt;=</span> <span class=mi>80</span> <span class=p>?</span> <span class=mi>1</span> <span class=p>:</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>elsif</span> <span class=p>(</span><span class=nb>ref</span><span class=p>(</span><span class=nv>$content</span><span class=p>)</span> <span class=ow>eq</span> <span class=s>&#39;QuizContent&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=n>calc_grade</span><span class=p>(</span><span class=nv>$content</span><span class=p>)</span> <span class=ow>eq</span> <span class=s>&#39;pass&#39;</span> <span class=p>?</span> <span class=mi>1</span> <span class=p>:</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>elsif</span> <span class=p>(</span><span class=nb>ref</span><span class=p>(</span><span class=nv>$content</span><span class=p>)</span> <span class=ow>eq</span> <span class=s>&#39;ReportContent&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$content</span><span class=o>-&gt;</span><span class=n>submitted</span> <span class=p>?</span> <span class=mi>1</span> <span class=p>:</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>elsif</span> <span class=p>(</span><span class=nb>ref</span><span class=p>(</span><span class=nv>$content</span><span class=p>)</span> <span class=ow>eq</span> <span class=s>&#39;DiscussionContent&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$content</span><span class=o>-&gt;</span><span class=n>post_count</span> <span class=o>&gt;=</span> <span class=nv>$content</span><span class=o>-&gt;</span><span class=n>required_posts</span> <span class=p>?</span> <span class=mi>1</span> <span class=p>:</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=c1># LiveSessionContent の分岐がない！</span>
+</span></span><span class=line><span class=cl>    <span class=k>else</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=mi>1</span><span class=p>;</span>  <span class=c1># ★ デフォルトで修了扱い</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<code>else</code> で <code>return 1</code>。未知の型が来たら、無条件に修了扱いだ」</p><p>分かっている。と言いたかったが、声にならなかった。<code>die</code> にしておけば気づけたのに、<code>else</code> でデフォルト値を返してしまった。ほかの3つの操作には正しく追加したのに、1つだけ漏れた。そのためテストをすり抜けた。</p><p>ロックは椅子を少し引いて、モニターに映っていた修了証のPDFを指した。</p><p>「修了証には発行条件がある。すべてのコンテンツを修了していること。だが <code>check_completion</code> だけが <code>LiveSessionContent</code> を知らなかった。4人の門番が同じ来訪者リストを持っているのに、1人だけリストの更新を忘れている」</p><pre class=mermaid>
+	graph TD
+    subgraph &#34;4つの操作関数&#34;
+        F1[&#34;calc_progress&lt;br/&gt;ref() × 5種&#34;]
+        F2[&#34;calc_grade&lt;br/&gt;ref() × 5種&#34;]
+        F3[&#34;check_completion&lt;br/&gt;ref() × 4種 ★漏れ&#34;]
+        F4[&#34;generate_report_line&lt;br/&gt;ref() × 5種&#34;]
+    end
+
+    LS[&#34;LiveSessionContent&lt;br/&gt;（新規追加）&#34;]
+
+    LS --&gt;|&#34;追加済み ✓&#34;| F1
+    LS --&gt;|&#34;追加済み ✓&#34;| F2
+    LS -.-&gt;|&#34;追加漏れ ✗&#34;| F3
+    LS --&gt;|&#34;追加済み ✓&#34;| F4
+
+    style F3 fill:#f99,stroke:#333
+    style LS fill:#ff9,stroke:#333
+</pre><p>「散在する型チェック——Scattered Type Checking。4つの関数に <code>ref()</code> による型分岐が散らばっていて、分岐条件は合計19個ある。新しいコンテンツ種別を追加するたびに、4つの操作関数すべてを漏れなく更新しなければならない。これが今回の事件の構造だ」</p><p>「構造は分かります。でも、<code>ref()</code> で分岐する以外に方法がありますか？ Perlにはインターフェースの型チェックがないですし」</p><p>ロックはモニターの修了証PDFを閉じた。その下に、コードエディタの画面が現れた。</p><p>「尋問をやめればいい」</p><h2 id=推理披露訪問者の資格visitor>推理披露：訪問者の資格（Visitor）</h2><p>「<code>ref()</code> は尋問だ。呼び出し側が相手に『お前は何者だ』と問い詰めている。逆にすればいい。相手に自分が何者かを名乗らせる」</p><p>ロックはエディタにコードを打ち始めた。</p><p>「解決策は3つの仕組みで構成される」</p><ul><li><strong>Visitor ロール</strong>: すべてのコンテンツ種別に対する <code>visit_*</code> メソッドを <code>requires</code> で強制する</li><li><strong>accept メソッド</strong>: 各コンテンツクラスが「自分は何者か」を Visitor に名乗る</li><li><strong>具象 Visitor</strong>: 操作ごとに1クラス。全コンテンツ種別への対応が保証される</li></ul><p>【After】Visitor ロール（ContentVisitor）</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span><span class=lnt>9
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>ContentVisitor</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo::Role</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>requires</span> <span class=s>&#39;visit_video&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>requires</span> <span class=s>&#39;visit_quiz&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>requires</span> <span class=s>&#39;visit_report&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>requires</span> <span class=s>&#39;visit_discussion&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>requires</span> <span class=s>&#39;visit_live_session&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<code>ContentVisitor</code> ロールは5つの <code>requires</code> を持つ。このロールを <code>with</code> したクラスが、1つでも <code>visit_*</code> を実装し忘れたらエラーになる。<code>requires</code> は Moo::Role の契約だ」</p><p>「契約——つまり、<code>check_completion</code> に分岐を書き忘れたような事故を防ぐ？」</p><p>「防ぐも何も、クラスのロード時にPerlが止まる。コードが動く前にだ」</p><p>【After】各コンテンツクラスに accept メソッドを追加</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>VideoContent</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>id</span>           <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>title</span>        <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>duration_min</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>watched_min</span>  <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>default</span>  <span class=o>=&gt;</span> <span class=mi>0</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>accept</span> <span class=p>($self, $visitor) {</span> <span class=nv>$visitor</span><span class=o>-&gt;</span><span class=n>visit_video</span><span class=p>(</span><span class=nv>$self</span><span class=p>)</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>QuizContent</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>id</span>              <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>title</span>           <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>total_questions</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>correct_answers</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>default</span>  <span class=o>=&gt;</span> <span class=mi>0</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>accept</span> <span class=p>($self, $visitor) {</span> <span class=nv>$visitor</span><span class=o>-&gt;</span><span class=n>visit_quiz</span><span class=p>(</span><span class=nv>$self</span><span class=p>)</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>ReportContent</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>id</span>         <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>title</span>      <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>submitted</span>  <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>default</span>  <span class=o>=&gt;</span> <span class=mi>0</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>word_count</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>default</span>  <span class=o>=&gt;</span> <span class=mi>0</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>accept</span> <span class=p>($self, $visitor) {</span> <span class=nv>$visitor</span><span class=o>-&gt;</span><span class=n>visit_report</span><span class=p>(</span><span class=nv>$self</span><span class=p>)</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>DiscussionContent</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>id</span>             <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>title</span>          <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>post_count</span>     <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>default</span>  <span class=o>=&gt;</span> <span class=mi>0</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>required_posts</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>default</span>  <span class=o>=&gt;</span> <span class=mi>3</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>accept</span> <span class=p>($self, $visitor) {</span> <span class=nv>$visitor</span><span class=o>-&gt;</span><span class=n>visit_discussion</span><span class=p>(</span><span class=nv>$self</span><span class=p>)</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>LiveSessionContent</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>id</span>           <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>title</span>        <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>attended</span>     <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>default</span>  <span class=o>=&gt;</span> <span class=mi>0</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>duration_min</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>accept</span> <span class=p>($self, $visitor) {</span> <span class=nv>$visitor</span><span class=o>-&gt;</span><span class=n>visit_live_session</span><span class=p>(</span><span class=nv>$self</span><span class=p>)</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<code>accept</code> メソッドは1行だけ。<code>VideoContent</code> なら <code>$visitor->visit_video($self)</code> を呼ぶ。各クラスが自分の型を Visitor に通知している」</p><p>「待ってください」私は口を挟んだ。「結局、型で分岐していませんか？ <code>accept</code> の中で <code>visit_video</code> を呼ぶか <code>visit_quiz</code> を呼ぶかは、クラスごとに決まっている。<code>ref()</code> でやっていたことと何が違うんですか？」</p><p>ロックは手を止めて、こちらを見た。</p><p>「いい疑問だ。違いはここにある——<code>ref()</code> の分岐は<strong>呼び出し側</strong>が型を判定する。操作関数の中に &ldquo;お前は Video か？ Quiz か？&rdquo; という尋問が埋まっている。一方、<code>accept</code> は<strong>オブジェクト自身</strong>が型に応じた入口を選ぶ。呼び出し側は <code>$content->accept($visitor)</code> と書くだけで、どの <code>visit_*</code> が呼ばれるかを知らない」</p><p>「つまり……」</p><p>私は自分の事故を思い出しながら整理した。Before では <code>check_completion</code> の中に <code>ref()</code> の分岐を全種別分書く必要があった。4種類書いて、5種類目を忘れた。After では——</p><p>「After では、<code>check_completion</code> 相当の処理に <code>ref()</code> がない。代わりに各コンテンツが <code>accept</code> で適切な <code>visit_*</code> に処理を渡す。呼び出し側には型判定の分岐がない」</p><p>「それがダブルディスパッチだ。<code>$content->accept($visitor)</code> と呼ぶと、まず <code>$content</code> の型で <code>accept</code> が選ばれ、次に <code>accept</code> 内部で <code>$visitor</code> の型に応じた <code>visit_*</code> が呼ばれる。2段階の振り分けだ」</p><p>正直、一度聞いただけでは腑に落ちなかった。だが一つだけ確かなことがあった——操作関数の中から <code>ref()</code> が消えている。</p><p>【After】具象 Visitor（修了判定チェッカー）</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>CompletionChecker</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>with</span> <span class=s>&#39;ContentVisitor&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>visit_video</span> <span class=p>($self, $v) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$progress</span> <span class=o>=</span> <span class=nn>ProgressCalculator</span><span class=o>-&gt;</span><span class=k>new</span><span class=o>-&gt;</span><span class=n>visit_video</span><span class=p>(</span><span class=nv>$v</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$progress</span> <span class=o>&gt;=</span> <span class=mi>80</span> <span class=p>?</span> <span class=mi>1</span> <span class=p>:</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>visit_quiz</span> <span class=p>($self, $q) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nn>GradeCalculator</span><span class=o>-&gt;</span><span class=k>new</span><span class=o>-&gt;</span><span class=n>visit_quiz</span><span class=p>(</span><span class=nv>$q</span><span class=p>)</span> <span class=ow>eq</span> <span class=s>&#39;pass&#39;</span> <span class=p>?</span> <span class=mi>1</span> <span class=p>:</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>visit_report</span> <span class=p>($self, $r) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$r</span><span class=o>-&gt;</span><span class=n>submitted</span> <span class=p>?</span> <span class=mi>1</span> <span class=p>:</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>visit_discussion</span> <span class=p>($self, $d) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$d</span><span class=o>-&gt;</span><span class=n>post_count</span> <span class=o>&gt;=</span> <span class=nv>$d</span><span class=o>-&gt;</span><span class=n>required_posts</span> <span class=p>?</span> <span class=mi>1</span> <span class=p>:</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>visit_live_session</span> <span class=p>($self, $ls) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$ls</span><span class=o>-&gt;</span><span class=n>attended</span> <span class=p>?</span> <span class=mi>1</span> <span class=p>:</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<code>CompletionChecker</code> は <code>with 'ContentVisitor'</code> を宣言している。もし <code>visit_live_session</code> を書き忘れたら——」</p><p>「Moo::Role の <code>requires</code> でエラーになる」</p><p>「それで200人の事故は防げるんですか？」</p><p>核心を聞いた。ロックの顔から芝居がかった表情が消えた。</p><p>「沈黙するバグと叫ぶエラー、どちらが200人を守れる？ Before の <code>else { return 1 }</code> は沈黙した。出席していない社員を黙って通した。After の <code>requires</code> は叫ぶ。<code>visit_live_session</code> を書き忘れたら、コードが動く前にPerlが止まる。200人に修了証が届く前に」</p><p>残りの Visitor クラスも見せてもらった。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span><span class=lnt>51
+</span><span class=lnt>52
+</span><span class=lnt>53
+</span><span class=lnt>54
+</span><span class=lnt>55
+</span><span class=lnt>56
+</span><span class=lnt>57
+</span><span class=lnt>58
+</span><span class=lnt>59
+</span><span class=lnt>60
+</span><span class=lnt>61
+</span><span class=lnt>62
+</span><span class=lnt>63
+</span><span class=lnt>64
+</span><span class=lnt>65
+</span><span class=lnt>66
+</span><span class=lnt>67
+</span><span class=lnt>68
+</span><span class=lnt>69
+</span><span class=lnt>70
+</span><span class=lnt>71
+</span><span class=lnt>72
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>ProgressCalculator</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>with</span> <span class=s>&#39;ContentVisitor&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>visit_video</span> <span class=p>($self, $v) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$v</span><span class=o>-&gt;</span><span class=n>duration_min</span> <span class=o>&gt;</span> <span class=mi>0</span>
+</span></span><span class=line><span class=cl>            <span class=p>?</span> <span class=nb>int</span><span class=p>(</span><span class=nv>$v</span><span class=o>-&gt;</span><span class=n>watched_min</span> <span class=o>/</span> <span class=nv>$v</span><span class=o>-&gt;</span><span class=n>duration_min</span> <span class=o>*</span> <span class=mi>100</span><span class=p>)</span> <span class=p>:</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>visit_quiz</span> <span class=p>($self, $q) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$q</span><span class=o>-&gt;</span><span class=n>total_questions</span> <span class=o>&gt;</span> <span class=mi>0</span>
+</span></span><span class=line><span class=cl>            <span class=p>?</span> <span class=nb>int</span><span class=p>(</span><span class=nv>$q</span><span class=o>-&gt;</span><span class=n>correct_answers</span> <span class=o>/</span> <span class=nv>$q</span><span class=o>-&gt;</span><span class=n>total_questions</span> <span class=o>*</span> <span class=mi>100</span><span class=p>)</span> <span class=p>:</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>visit_report</span> <span class=p>($self, $r)     {</span> <span class=nv>$r</span><span class=o>-&gt;</span><span class=n>submitted</span> <span class=p>?</span> <span class=mi>100</span> <span class=p>:</span> <span class=mi>0</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>visit_discussion</span> <span class=p>($self, $d) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$ratio</span> <span class=o>=</span> <span class=nv>$d</span><span class=o>-&gt;</span><span class=n>required_posts</span> <span class=o>&gt;</span> <span class=mi>0</span>
+</span></span><span class=line><span class=cl>            <span class=p>?</span> <span class=nv>$d</span><span class=o>-&gt;</span><span class=n>post_count</span> <span class=o>/</span> <span class=nv>$d</span><span class=o>-&gt;</span><span class=n>required_posts</span> <span class=p>:</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nb>int</span><span class=p>((</span><span class=nv>$ratio</span> <span class=o>&gt;</span> <span class=mi>1</span> <span class=p>?</span> <span class=mi>1</span> <span class=p>:</span> <span class=nv>$ratio</span><span class=p>)</span> <span class=o>*</span> <span class=mi>100</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>visit_live_session</span> <span class=p>($self, $ls) {</span> <span class=nv>$ls</span><span class=o>-&gt;</span><span class=n>attended</span> <span class=p>?</span> <span class=mi>100</span> <span class=p>:</span> <span class=mi>0</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>GradeCalculator</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>with</span> <span class=s>&#39;ContentVisitor&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>visit_video</span> <span class=p>($self, $v) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nn>ProgressCalculator</span><span class=o>-&gt;</span><span class=k>new</span><span class=o>-&gt;</span><span class=n>visit_video</span><span class=p>(</span><span class=nv>$v</span><span class=p>)</span> <span class=o>&gt;=</span> <span class=mi>80</span>
+</span></span><span class=line><span class=cl>            <span class=p>?</span> <span class=s>&#39;pass&#39;</span> <span class=p>:</span> <span class=s>&#39;fail&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>visit_quiz</span> <span class=p>($self, $q) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$q</span><span class=o>-&gt;</span><span class=n>total_questions</span> <span class=o>&gt;</span> <span class=mi>0</span>
+</span></span><span class=line><span class=cl>            <span class=o>&amp;&amp;</span> <span class=p>(</span><span class=nv>$q</span><span class=o>-&gt;</span><span class=n>correct_answers</span> <span class=o>/</span> <span class=nv>$q</span><span class=o>-&gt;</span><span class=n>total_questions</span><span class=p>)</span> <span class=o>&gt;=</span> <span class=mf>0.7</span>
+</span></span><span class=line><span class=cl>            <span class=p>?</span> <span class=s>&#39;pass&#39;</span> <span class=p>:</span> <span class=s>&#39;fail&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>visit_report</span> <span class=p>($self, $r) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$r</span><span class=o>-&gt;</span><span class=n>submitted</span> <span class=o>&amp;&amp;</span> <span class=nv>$r</span><span class=o>-&gt;</span><span class=n>word_count</span> <span class=o>&gt;=</span> <span class=mi>200</span>
+</span></span><span class=line><span class=cl>            <span class=p>?</span> <span class=s>&#39;pass&#39;</span> <span class=p>:</span> <span class=s>&#39;fail&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>visit_discussion</span> <span class=p>($self, $d) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$d</span><span class=o>-&gt;</span><span class=n>post_count</span> <span class=o>&gt;=</span> <span class=nv>$d</span><span class=o>-&gt;</span><span class=n>required_posts</span>
+</span></span><span class=line><span class=cl>            <span class=p>?</span> <span class=s>&#39;pass&#39;</span> <span class=p>:</span> <span class=s>&#39;fail&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>visit_live_session</span> <span class=p>($self, $ls) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$ls</span><span class=o>-&gt;</span><span class=n>attended</span> <span class=p>?</span> <span class=s>&#39;pass&#39;</span> <span class=p>:</span> <span class=s>&#39;fail&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>ReportGenerator</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>with</span> <span class=s>&#39;ContentVisitor&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>visit_video</span> <span class=p>($self, $v) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$p</span> <span class=o>=</span> <span class=nn>ProgressCalculator</span><span class=o>-&gt;</span><span class=k>new</span><span class=o>-&gt;</span><span class=n>visit_video</span><span class=p>(</span><span class=nv>$v</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nb>sprintf</span><span class=p>(</span><span class=s>&#34;[Video] %s: %d%% watched&#34;</span><span class=p>,</span> <span class=nv>$v</span><span class=o>-&gt;</span><span class=n>title</span><span class=p>,</span> <span class=nv>$p</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>visit_quiz</span> <span class=p>($self, $q) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nb>sprintf</span><span class=p>(</span><span class=s>&#34;[Quiz] %s: %d/%d correct&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$q</span><span class=o>-&gt;</span><span class=n>title</span><span class=p>,</span> <span class=nv>$q</span><span class=o>-&gt;</span><span class=n>correct_answers</span><span class=p>,</span> <span class=nv>$q</span><span class=o>-&gt;</span><span class=n>total_questions</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>visit_report</span> <span class=p>($self, $r) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nb>sprintf</span><span class=p>(</span><span class=s>&#34;[Report] %s: %s (%d words)&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$r</span><span class=o>-&gt;</span><span class=n>title</span><span class=p>,</span> <span class=p>(</span><span class=nv>$r</span><span class=o>-&gt;</span><span class=n>submitted</span> <span class=p>?</span> <span class=s>&#39;submitted&#39;</span> <span class=p>:</span> <span class=s>&#39;pending&#39;</span><span class=p>),</span> <span class=nv>$r</span><span class=o>-&gt;</span><span class=n>word_count</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>visit_discussion</span> <span class=p>($self, $d) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nb>sprintf</span><span class=p>(</span><span class=s>&#34;[Discussion] %s: %d/%d posts&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$d</span><span class=o>-&gt;</span><span class=n>title</span><span class=p>,</span> <span class=nv>$d</span><span class=o>-&gt;</span><span class=n>post_count</span><span class=p>,</span> <span class=nv>$d</span><span class=o>-&gt;</span><span class=n>required_posts</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>visit_live_session</span> <span class=p>($self, $ls) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nb>sprintf</span><span class=p>(</span><span class=s>&#34;[Live] %s: %s&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$ls</span><span class=o>-&gt;</span><span class=n>title</span><span class=p>,</span> <span class=p>(</span><span class=nv>$ls</span><span class=o>-&gt;</span><span class=n>attended</span> <span class=p>?</span> <span class=s>&#39;attended&#39;</span> <span class=p>:</span> <span class=s>&#39;absent&#39;</span><span class=p>));</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「4つの操作が、4つの Visitor クラスに整理された。Before では4つの関数にそれぞれ <code>ref()</code> 分岐が散在していた——」</p><pre class=mermaid>
+	graph LR
+    subgraph &#34;ContentVisitor ロール&#34;
+        R[&#34;requires visit_video&lt;br/&gt;requires visit_quiz&lt;br/&gt;requires visit_report&lt;br/&gt;requires visit_discussion&lt;br/&gt;requires visit_live_session&#34;]
+    end
+
+    subgraph &#34;具象 Visitor&#34;
+        PC[&#34;ProgressCalculator&#34;]
+        GC[&#34;GradeCalculator&#34;]
+        CC[&#34;CompletionChecker&#34;]
+        RG[&#34;ReportGenerator&#34;]
+    end
+
+    subgraph &#34;コンテンツ（accept）&#34;
+        V[&#34;VideoContent&#34;]
+        Q[&#34;QuizContent&#34;]
+        RP[&#34;ReportContent&#34;]
+        D[&#34;DiscussionContent&#34;]
+        LS[&#34;LiveSessionContent&#34;]
+    end
+
+    PC --&gt;|&#34;with&#34;| R
+    GC --&gt;|&#34;with&#34;| R
+    CC --&gt;|&#34;with&#34;| R
+    RG --&gt;|&#34;with&#34;| R
+
+    V --&gt;|&#34;accept&#34;| PC
+    Q --&gt;|&#34;accept&#34;| PC
+    LS --&gt;|&#34;accept&#34;| CC
+
+    style R fill:#9f9,stroke:#333
+    style CC fill:#9f9,stroke:#333
+    style LS fill:#9f9,stroke:#333
+</pre><p>「呼び出し側の <code>ref()</code> はどこにもない。対応漏れを検知する契約は <code>ContentVisitor</code> ロールに集まり、型ごとの振り分けは <code>accept</code> と <code>visit_*</code> に整理された」</p><p>「新しい操作を追加するときは？」</p><p>「Visitor クラスを1つ作るだけだ。コンテンツクラスには触れない」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># 新しい操作の追加例</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>@contents</span> <span class=o>=</span> <span class=p>(</span><span class=nv>$video</span><span class=p>,</span> <span class=nv>$quiz</span><span class=p>,</span> <span class=nv>$report</span><span class=p>,</span> <span class=nv>$discussion</span><span class=p>,</span> <span class=nv>$live</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$completion</span> <span class=o>=</span> <span class=nn>CompletionChecker</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>@completed</span> <span class=o>=</span> <span class=nb>grep</span> <span class=p>{</span> <span class=nv>$_</span><span class=o>-&gt;</span><span class=nb>accept</span><span class=p>(</span><span class=nv>$completion</span><span class=p>)</span> <span class=p>}</span> <span class=nv>@contents</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=c1># → 4件（ライブセッション未参加は正しく除外）</span>
+</span></span></code></pre></td></tr></table></div></div><p>Before では <code>grep { check_completion($_) } @contents</code> で5件が返っていた——ライブセッション未参加なのに。After では正しく4件。</p><h2 id=解決正しき資格の証明>解決：正しき資格の証明</h2><p>ロックがテストを実行した。</p><p>「Before 側は現状再現だ。壊れた挙動を固定して、何が起きていたかを先に白日の下にさらす」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl>$ prove -v t/visitor.t
+</span></span><span class=line><span class=cl><span class=c1># Subtest: Before: Scattered Type Checking</span>
+</span></span><span class=line><span class=cl>    ok <span class=m>1</span> - Video progress: 91%
+</span></span><span class=line><span class=cl>    ok <span class=m>2</span> - Live session progress: 0% <span class=o>(</span>not attended<span class=o>)</span>
+</span></span><span class=line><span class=cl>    ok <span class=m>3</span> - Live session grade: fail
+</span></span><span class=line><span class=cl>    ok <span class=m>4</span> - BUG: Unattended live session marked as COMPLETED
+</span></span><span class=line><span class=cl>    ok <span class=m>5</span> - Report correctly shows absent
+</span></span><span class=line><span class=cl>    ok <span class=m>6</span> - BUG: All <span class=m>5</span> marked <span class=nb>complete</span> <span class=o>(</span>live should be incomplete<span class=o>)</span>
+</span></span><span class=line><span class=cl>ok <span class=m>1</span> - Before: Scattered Type Checking
+</span></span><span class=line><span class=cl><span class=c1># Subtest: After: Visitor Pattern</span>
+</span></span><span class=line><span class=cl>    ok <span class=m>1</span> - Video progress via Visitor: 91%
+</span></span><span class=line><span class=cl>    ok <span class=m>2</span> - Live session progress via Visitor: 0%
+</span></span><span class=line><span class=cl>    ok <span class=m>3</span> - Quiz grade via Visitor: pass
+</span></span><span class=line><span class=cl>    ok <span class=m>4</span> - Live session grade via Visitor: fail
+</span></span><span class=line><span class=cl>    ok <span class=m>5</span> - FIX: Unattended live session correctly marked INCOMPLETE
+</span></span><span class=line><span class=cl>    ok <span class=m>6</span> - Video completion: <span class=nb>complete</span> <span class=o>(</span>91% &gt;<span class=o>=</span> 80%<span class=o>)</span>
+</span></span><span class=line><span class=cl>    ok <span class=m>7</span> - Report via Visitor shows absent
+</span></span><span class=line><span class=cl>    ok <span class=m>8</span> - FIX: Only <span class=m>4</span> completed <span class=o>(</span>live correctly excluded<span class=o>)</span>
+</span></span><span class=line><span class=cl>    ok <span class=m>9</span> - Double dispatch: video calls visit_video
+</span></span><span class=line><span class=cl>    ok <span class=m>10</span> - Double dispatch: quiz calls visit_quiz
+</span></span><span class=line><span class=cl>    ok <span class=m>11</span> - New Visitor <span class=o>(</span>DurationSummary<span class=o>)</span> works without modifying content classes
+</span></span><span class=line><span class=cl>ok <span class=m>2</span> - After: Visitor Pattern
+</span></span><span class=line><span class=cl>All tests successful.
+</span></span></code></pre></td></tr></table></div></div><p><code>All tests successful.</code> の文字を見て、初めて息をついた。</p><p>Before のテスト4——未参加のライブセッションが修了扱いになっている。テスト6——5件全部が修了。これが200名の偽修了証の正体だ。After のテスト5——未参加は未修了。テスト8——修了は4件。テスト11——新しい Visitor を追加しても、コンテンツクラスは変更不要。</p><p>ただ、テストが通ったことと、200人の修了証を取り消す仕事は別だ。構造改善はこれからの事故を防ぐ。過去の事故は私が始末をつけなければならない。</p><p>ロックが口を開いた。</p><p>「一つ、警告がある」</p><p>「Visitor パターンはコンテンツの種類が安定しているときに力を発揮する。新しい操作を追加するのは簡単だ——Visitor クラスを1つ作るだけだから。だが新しいコンテンツ種別を追加したらどうなる？」</p><p>「<code>ContentVisitor</code> ロールに <code>requires</code> を追加して、全 Visitor に新しい <code>visit_*</code> メソッドを……全部直すことになりますね。4つの Visitor すべてに」</p><p>「そう。今回はコンテンツ種別が5つで安定しているから Visitor が有効だ。だが種別が頻繁に増えるなら、各コンテンツに操作メソッドを持たせる Strategy 的な構成のほうが適切な場合もある。どちらの軸が変化しやすいか。操作が増えやすいか、構造が増えやすいか。その見極めが、Visitor を使うか使わないかの分水嶺だよ、ワトソン君」</p><p>私はLCIを出た。帰りの電車で、メディカ製薬への報告書の下書きを書き始めた。</p><p>「原因：修了判定関数における新規コンテンツ種別の型分岐追加漏れ。対策：Visitor パターンによる構造改善を実施。呼び出し側の型判定を排除し、<code>requires</code> による契約で実装漏れをクラスロード時に検出する仕組みを導入」</p><p>書いていて、手が止まった。技術的な対策は書ける。だが本質的な原因は「同じ更新を4つの操作関数に配っていた構造を放置していたこと」だ。<code>die</code> にしなかったことでも、テストが不足していたことでもない。同じ知識を複数箇所に散在させた時点で、漏れは時間の問題だった。</p><p>私は報告書の最後に、実装修正とは別の項目を追記した。新しいコンテンツ種別を追加するときは、操作の追加点を人間が数えるのではなく、構造側で不足を検知して止められる設計にすること。200名の修了証は取り消せる。次に同じ電話を受けないための書き換えは、ここからだ。</p><hr><h2 id=探偵の調査報告書>探偵の調査報告書</h2><div class=table-wrapper><table><thead><tr><th style=text-align:left>容疑（アンチパターン）</th><th style=text-align:left>真実（パターン）</th><th style=text-align:left>証拠（効果）</th></tr></thead><tbody><tr><td style=text-align:left>Scattered Type Checking（散在する型チェック）。4つの操作関数に <code>ref()</code> による型分岐が散在し、分岐条件は合計19個。新コンテンツ種別「LiveSessionContent」の追加時に修了判定の1箇所で分岐追加が漏れ、未受講者200名に偽の修了証が発行された。</td><td style=text-align:left>Visitor パターン。操作ごとに Visitor クラスを作成し、各コンテンツクラスの <code>accept</code> メソッドによるダブルディスパッチで呼び出し側の型判定を解消する。<code>ContentVisitor</code> ロールの <code>requires</code> が全コンテンツ種別への対応を強制し、追加漏れを構造的に防止。</td><td style=text-align:left>呼び出し側の <code>ref()</code> 分岐が消滅。新しい操作の追加は Visitor クラス1つの作成のみ。コンテンツクラスの変更は <code>accept</code> メソッド1行の追加のみ。<code>requires</code> により visit メソッドの実装漏れはクラスロード時にエラーとして検出。</td></tr></tbody></table></div><h3 id=推理のステップ>推理のステップ</h3><ol><li>散在する型チェックを特定する: <code>ref()</code> や <code>blessed()</code> による型分岐が複数の関数に繰り返し現れている箇所を洗い出す。4つの操作関数に分岐がまたがり、条件は合計19個に膨らんでいた。</li><li>Visitor ロールを定義する: すべてのコンテンツ種別に対応する <code>visit_*</code> メソッドを <code>requires</code> で宣言する。これにより、実装漏れがロード時にエラーとして検出される。</li><li>各コンテンツクラスに accept を追加する: <code>accept($visitor)</code> メソッドを1行だけ追加し、自分の型に対応する <code>visit_*</code> を呼び出す。これがダブルディスパッチの起点となる。</li><li>操作ごとに具象 Visitor を実装する: <code>ProgressCalculator</code>、<code>GradeCalculator</code>、<code>CompletionChecker</code>、<code>ReportGenerator</code> の4クラスを作成。各クラスは <code>with 'ContentVisitor'</code> により全 <code>visit_*</code> の実装を強制される。</li></ol><h3 id=ロックより>ロックより</h3><p>ワトソン君。<code>ref()</code> による型チェックは尋問だ。呼び出し側が「お前は誰だ」と問い詰める。尋問者が知らない顔が来たら——見逃す。それが200人の偽修了証だ。</p><p>Visitor は逆のアプローチを取る。オブジェクト自身に適切な入口を選ばせ、訪問者側には全種別への応答を契約として課す。名乗り方か応答のどちらかが欠けていれば、そこで止まる。止まるからこそ、気づける。</p><p>Visitor パターンの本質は「操作と構造の分離」だ。コンテンツという構造は変えず、操作だけを外から差し込む。新しい操作が必要になったら、新しい訪問者を招けばいい。構造に手を触れる必要はない。ただし——構造自体が変わるとき、新しい部屋が増えたときは、すべての訪問者にその部屋の訪問方法を教え直す必要がある。どちらの軸が変化しやすいか。その見極めが分水嶺だ。</p></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/perl/>Perl</a>
+<a href=/tags/moo/>Moo</a>
+<a href=/tags/visitor/>Visitor</a>
+<a href=/tags/scattered-type-checking/>Scattered-Type-Checking</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-detective/>Code-Detective</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/05/15/070705/><div class=article-image><img src=/public_images/2026/code-detective-bff/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-bff/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Backends for Frontends】最後の依頼〜一つの答えが全員を不満にする夜〜</h2></div></a></article><article class=has-image><a href=/2026/05/14/070705/><div class=article-image><img src=/public_images/2026/code-detective-api-gateway/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-api-gateway/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【API Gateway】窓口のない捜査本部〜マイクロサービスに個別に会いに行く悲劇〜</h2></div></a></article><article class=has-image><a href=/2026/05/13/070705/><div class=article-image><img src=/public_images/2026/code-detective-strangler-fig/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-strangler-fig/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Strangler Fig】外壁に伸びる蔓〜全面更改が新旧を窒息させる夜〜</h2></div></a></article><article class=has-image><a href=/2026/05/12/070705/><div class=article-image><img src=/public_images/2026/code-detective-anti-corruption-layer/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-anti-corruption-layer/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Anti-Corruption Layer】越境伝票の怪〜外様の略語が捜査本部を汚す夜〜</h2></div></a></article><article class=has-image><a href=/2026/05/11/070705/><div class=article-image><img src=/public_images/2026/code-detective-competing-consumers/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-competing-consumers/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Competing Consumers】重なる受領印〜増員だけでは消えない二重処理〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

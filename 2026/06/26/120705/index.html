@@ -1,0 +1,333 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="最深部のコントロールルームで発生した、モジュール間の複雑な相互依存と通信過負荷によるシステムフリーズ。調停者（Mediator）パターンをPerl/Mooで適用し、循環参照によるメモリリークを回避しつつ、ハブ＆スポーク型の疎結合設計に修復します。"><title>コード考古学者【Mediator】最深部の管制室〜混沌を調停する知恵の核〜</title><link rel=canonical href=https://www.nqou.net/2026/06/26/120705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コード考古学者【Mediator】最深部の管制室〜混沌を調停する知恵の核〜"><meta property='og:description' content="最深部のコントロールルームで発生した、モジュール間の複雑な相互依存と通信過負荷によるシステムフリーズ。調停者（Mediator）パターンをPerl/Mooで適用し、循環参照によるメモリリークを回避しつつ、ハブ＆スポーク型の疎結合設計に修復します。"><meta property='og:url' content='https://www.nqou.net/2026/06/26/120705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='perl'><meta property='article:tag' content='moo'><meta property='article:tag' content='mediator-pattern'><meta property='article:tag' content='code-archaeologist'><meta property='article:published_time' content='2026-06-26T12:07:05+09:00'><meta property='article:modified_time' content='2026-06-26T12:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-archaeologist-mediator-pattern/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コード考古学者【Mediator】最深部の管制室〜混沌を調停する知恵の核〜"><meta name=twitter:description content="最深部のコントロールルームで発生した、モジュール間の複雑な相互依存と通信過負荷によるシステムフリーズ。調停者（Mediator）パターンをPerl/Mooで適用し、循環参照によるメモリリークを回避しつつ、ハブ＆スポーク型の疎結合設計に修復します。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-archaeologist-mediator-pattern/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-06-26T12:07:05+09:00","datePublished":"2026-06-26T12:07:05+09:00","description":"最深部のコントロールルームで発生した、モジュール間の複雑な相互依存と通信過負荷によるシステムフリーズ。調停者（Mediator）パターンをPerl/Mooで適用し、循環参照によるメモリリークを回避しつつ、ハブ＆スポーク型の疎結合設計に修復します。","headline":"コード考古学者【Mediator】最深部の管制室〜混沌を調停する知恵の核〜","image":"https://www.nqou.net/public_images/2026/code-archaeologist-mediator-pattern/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/06/26/120705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#混線赤き警報の支配する中枢>混線：赤き警報の支配する中枢</a></li><li><a href=#解読網の目の如き相互の縛り>解読：網の目の如き相互の縛り</a></li><li><a href=#遺跡修復調停者の印と調和の星>遺跡修復：調停者の印と調和の星</a></li><li><a href=#起動静まり返る心臓部の拍動>起動：静まり返る心臓部の拍動</a></li><li><a href=#遺跡調査ログ>遺跡調査ログ</a><ol><li><a href=#遺跡の修復手順>遺跡の修復手順</a></li><li><a href=#適用判断の基準いつ-mediator-を使うべきか>適用判断の基準：いつ Mediator を使うべきか</a></li><li><a href=#ギズモの観測日誌>ギズモの観測日誌</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/06/26/120705/><img src=/public_images/2026/code-archaeologist-mediator-pattern/header.webp loading=lazy alt="Featured image of post コード考古学者【Mediator】最深部の管制室〜混沌を調停する知恵の核〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/06/26/120705/>コード考古学者【Mediator】最深部の管制室〜混沌を調停する知恵の核〜</a></h2><h3 class=article-subtitle>最深部のコントロールルームで発生した、モジュール間の複雑な相互依存と通信過負荷によるシステムフリーズ。調停者（Mediator）パターンをPerl/Mooで適用し、循環参照によるメモリリークを回避しつつ、ハブ＆スポーク型の疎結合設計に修復します。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>26, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 12分</time></div></footer></div></header><section class=article-content><h2 id=混線赤き警報の支配する中枢>混線：赤き警報の支配する中枢</h2><p>バベルのシステム、その最深部コントロールルーム「バベルの心臓部」の重厚な防壁扉をくぐり抜けた瞬間、私たちを待ち受けていたのは、厳かな静寂ではありませんでした。</p><p>室内の全計器から放たれる、目が眩むような赤色の警告ライトの点滅。そして、空気を引き裂くように鳴り響くけたたましいエラー警報音が、ドーム状の天井に反響していました。</p><p>「システム警告！ 異常パケット検出！ 案内AIの接続バッファが危険域に達しています！」</p><p>私の球体ボディは、処理しきれない通信パケットのオーバーロードにより、かつてないほど激しく物理的にブルブルと振動し、センサーの青い光が警告の赤色へと染まりかけていました。</p><p>「警告！ ジェネレータが『冷却器の出力を上げろ』と叫び、冷却器は『メインフレームの許可がなければ動かない』と拒否し、メインフレームは『ジェネレータが過熱しているから冷却バルブを開けろ』と命令し、バルブは……ああ！ 彼ら全員が私を経由してお互いに直接怒鳴り合っています！ メッセージの板挟みで、私のシステムメモリがパンクしてしまいます！」</p><p>私がホバリングの高度を保つことも難しくなり、床面すれすれまで降下してパニックを起こしているそのとき、ハリス博士は慌てる風もなく、むしろ非常に嬉しそうに目を輝かせて計器盤を見つめていました。</p><p>「おや、ギズモ。これほど活発に意見を交わし合う古代のコードたちに出会えるとは、実に見事な歓迎の舞踊ではないか。君のその感動の震えも、知の歴史に対する美しい共鳴の表れだね」</p><p>博士はくたばれたフィールドジャケットの襟を正し、満足そうに優雅に一礼しました。</p><p>「歓迎のダンスではありません！ 論理否定します！ 物理的な過熱とメッセージの過負荷によるシステムフリーズの危機です！ 早く修復コードを書いてください、博士！」</p><p>私はスピーカーから電子的な悲鳴をあげながら、博士を手元の制御パネルへと急かしました。博士は「歴史はコードに語りかける」と静かにつぶやき、羊皮紙の手帳を取り出して、絡み合う接続コードにルーペを向けました。</p><p>「どうやら、最深部の主要な4つのモジュールたちが、互いを愛しすぎるがあまり、身動きが取れなくなっているようだね。意思決定の経路が増えすぎると、人間もコードも合意形成できずにフリーズしてしまうのは世の常だ」</p><hr><h2 id=解読網の目の如き相互の縛り>解読：網の目の如き相互の縛り</h2><p>私は通信バッファの隙間を縫って、現在の制御ロジック（Beforeコード）を抽出し、空間にホログラムとして投影しました。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/Before/Generator.pm</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Before::Generator</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>temperature</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=mi>20</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>cooler</span>      <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>valve</span>       <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>heat_up</span> <span class=p>($self, $amount) {</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>temperature</span><span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>temperature</span> <span class=o>+</span> <span class=nv>$amount</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>temperature</span> <span class=o>&gt;</span> <span class=mi>50</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=c1># 直接他のオブジェクトのメソッドを呼び出し、状態を操作する</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>valve</span><span class=o>-&gt;</span><span class=nb>open</span><span class=p>()</span> <span class=k>if</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>valve</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>cooler</span><span class=o>-&gt;</span><span class=n>increase_output</span><span class=p>()</span> <span class=k>if</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>cooler</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/Before/Cooler.pm</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Before::Cooler</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>output</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=mi>0</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>mainframe</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>increase_output</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>output</span><span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>output</span> <span class=o>+</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>mainframe</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=c1># メインフレームのメソッドを直接叩く</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>mainframe</span><span class=o>-&gt;</span><span class=n>update_load</span><span class=p>(</span><span class=o>-</span><span class=mi>10</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/Before/Valve.pm</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Before::Valve</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>is_open</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=mi>0</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>mainframe</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>open</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>is_open</span><span class=p>(</span><span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>mainframe</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>mainframe</span><span class=o>-&gt;</span><span class=n>update_load</span><span class=p>(</span><span class=o>-</span><span class=mi>5</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/Before/Mainframe.pm</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Before::Mainframe</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>load</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=mi>100</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>generator</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>update_load</span> <span class=p>($self, $amount) {</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>load</span><span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>load</span> <span class=o>+</span> <span class=nv>$amount</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>load</span> <span class=o>&gt;</span> <span class=mi>120</span> <span class=o>&amp;&amp;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>generator</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=c1># 負荷超過時に直接ジェネレータの温度を変更する</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>generator</span><span class=o>-&gt;</span><span class=n>temperature</span><span class=p>(</span><span class=mi>10</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>ハリス博士は投影されたホログラムを眺め、万年筆の尻で顎をさすりながら、静かに語り始めました。</p><p>「ふむ……各モジュールが、関係する相手のインスタンスをすべてその腕に直接抱え込んでいる。ジェネレータが冷却器とバルブを呼び、これらがメインフレームを呼び、メインフレームがジェネレータの温度を直接書き換える。依存関係の網の目が $O(N^2)$ で増殖する、実に見事な密結合構造だね」</p><p>「ハリス博士、それぞれが相手の状態を見て、過熱時には冷却を促すように自律的に連動しているように見えます。これのどこが問題なのでしょうか？」</p><p>私はバッファ過負荷で電子音を明滅させながら尋ねました。博士は首を振り、手帳のページに絡み合う糸の図を描きました。</p><p>「一見、自律的な協調動作に見えるが、これではモジュールを単体でテストすることも、再利用することもできない。なぜなら、すべてのモジュールが互いの実体を知り尽くしているからだ。もしここに、新しいモジュール『非常用予備電源』を追加しようとしたら、他のすべてのクラスのコードを書き換えて、新しい参照を繋がなければならない」</p><p>博士は万年筆の先で、ジェネレータからメインフレームへ、そこでジェネレータへと戻る矢印をなぞりました。</p><p>「さらに深刻なのは、すべてのオブジェクトが互いの実体を直接『強参照』で掴み合っていることだ。Perlのオブジェクトは参照カウント方式でメモリを管理している。このようにオブジェクト同士が円環を描くように強参照し合う（循環参照）と、プログラムがオブジェクトを手放そうとしても、お互いの参照カウントがいつまでもゼロにならず、メモリから解放されない『亡霊』としてシステムを蝕み続けるのだよ」</p><p>「それは……メモリリークを引き起こすのですね。だから、再起動シーケンスのメモリが徐々に枯渇し、99%で完全にデッドロックしてしまったのですか」</p><p>「その通りだ。さらに、かつて適用したObserverのように単方向のイベント伝達をこの多対多の環境でそのままやろうとすると、Aの変更がBに伝わり、BがCを動かし、CがAを更新し……という無限の呼出ループが発生し、どこでイベントが始まったのかデバッグすることすら不可能になる。彼らには、交通整理を行う『調停者』が必要なのだよ」</p><hr><h2 id=遺跡修復調停者の印と調和の星>遺跡修復：調停者の印と調和の星</h2><p>ハリス博士は、手帳に新たな設計図を描き上げました。それは、中央の「管制塔（調停者）」から、星の光のように各モジュールへと線が伸びる、美しい星型（ハブ＆スポーク）のトポロジーでした。</p><p>「お互いに直接対話するのをやめさせましょう。彼らはただ、中央の調停者に対して『私の状態が変わった』とだけ叫べばいい。後のことはすべて、調停者に委ねるのです」</p><p>博士は万年筆を走らせ、リファクタリング後のコード（Afterコード）を紡ぎ出しました。まず、相互の循環参照を完全に排除するための、共通の役割（Role）を定義します。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/ColleagueRole.pm</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>ColleagueRole</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo::Role</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># Mediatorへの弱参照を保持する共通ロール</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>mediator</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>weak_ref</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span> <span class=c1># 相互参照（循環参照）によるメモリリークを防ぐための最も重要な制約</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>notify_mediator</span> <span class=p>($self, $event, $data = undef) {</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>mediator</span><span class=o>-&gt;</span><span class=n>notify</span><span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$event</span><span class=p>,</span> <span class=nv>$data</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「弱参照（<code>weak_ref</code>）は、オブジェクトへの参照は保持しつつも、Perlの『参照カウント』を増加させない特別な仕組みです。これにより、同僚オブジェクトが調停者への参照を持っても循環参照が発生せず、調停者が破棄された際には安全にすべてのメモリが解放されます。」</p><p>このロールを取り込み、各モジュールは互いの実体を一切知らず、ただ調停者への通知のみを行うように書き換えます。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/Generator.pm</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Generator</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>with</span> <span class=s>&#39;ColleagueRole&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>temperature</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=mi>20</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>heat_up</span> <span class=p>($self, $amount) {</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>temperature</span><span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>temperature</span> <span class=o>+</span> <span class=nv>$amount</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=c1># 直接他モジュールを操作せず、Mediatorに通知するのみ</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>notify_mediator</span><span class=p>(</span><span class=s>&#39;temperature_changed&#39;</span><span class=p>,</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>temperature</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/Cooler.pm</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Cooler</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>with</span> <span class=s>&#39;ColleagueRole&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>output</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=mi>0</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>increase_output</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>output</span><span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>output</span> <span class=o>+</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>notify_mediator</span><span class=p>(</span><span class=s>&#39;output_increased&#39;</span><span class=p>,</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>output</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>※ <code>Valve</code> および <code>Mainframe</code> クラスも、同様に <code>ColleagueRole</code> を取り込み、他クラスへの依存を排除した形にリファクタリングします。</p><p>そして、すべての状態変化の通知を受け取り、システム全体の意思決定を司る「中央管制塔」として <code>ControlMediator</code> を実装します。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/ControlMediator.pm</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>ControlMediator</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 各モジュールへの強参照を保持</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>generator</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>cooler</span>    <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>valve</span>     <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>mainframe</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>notify</span> <span class=p>($self, $sender, $event, $data = undef) {</span>
+</span></span><span class=line><span class=cl>    <span class=c1># 送信元が誰であるか、何のイベントであるかによって全体の挙動を調停する</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=nv>$event</span> <span class=ow>eq</span> <span class=s>&#39;temperature_changed&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=nv>$data</span> <span class=o>&gt;</span> <span class=mi>50</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>valve</span><span class=o>-&gt;</span><span class=nb>open</span><span class=p>()</span> <span class=k>if</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>valve</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>cooler</span><span class=o>-&gt;</span><span class=n>increase_output</span><span class=p>()</span> <span class=k>if</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>cooler</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>elsif</span> <span class=p>(</span><span class=nv>$event</span> <span class=ow>eq</span> <span class=s>&#39;output_increased&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>mainframe</span><span class=o>-&gt;</span><span class=n>update_load</span><span class=p>(</span><span class=o>-</span><span class=mi>10</span><span class=p>)</span> <span class=k>if</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>mainframe</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>elsif</span> <span class=p>(</span><span class=nv>$event</span> <span class=ow>eq</span> <span class=s>&#39;valve_opened&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>mainframe</span><span class=o>-&gt;</span><span class=n>update_load</span><span class=p>(</span><span class=o>-</span><span class=mi>5</span><span class=p>)</span> <span class=k>if</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>mainframe</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>elsif</span> <span class=p>(</span><span class=nv>$event</span> <span class=ow>eq</span> <span class=s>&#39;load_updated&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=nv>$data</span> <span class=o>&gt;</span> <span class=mi>120</span> <span class=o>&amp;&amp;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>generator</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>generator</span><span class=o>-&gt;</span><span class=n>temperature</span><span class=p>(</span><span class=mi>10</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>修復されたコードをバベルの制御コアへと適用し、テストスイートを実行しました。
+警告一つ吐き出すことなく、すべてのテストがグリーンの合格ランプを灯します。</p><p>「テスト、すべてクリアしました！ メモリリークも検出されず、すべてのモジュールが正常に疎結合化されました！」</p><p>私のアラート音が、すっと消えていきました。</p><hr><h2 id=起動静まり返る心臓部の拍動>起動：静まり返る心臓部の拍動</h2><p>「では、バベルの再起動シーケンスを再開しましょう。調停者の指揮のもとに」</p><p>ハリス博士が制御パネルのメインスイッチを押し下げました。
+ジェネレータがゆっくりと熱を帯び、温度上昇のイベントが <code>ControlMediator</code> に通知されます。調停者は即座に冷却バルブを開き、冷却器の出力を引き上げました。それぞれの状態変更の通知はすべて調停者へ集約され、混線することなく適切に処理されていきます。</p><p>部屋を支配していたけたたましい警報音は消え去り、赤く点滅していた警告灯は、穏やかで神秘的なライトブルーの輝きへと変わりました。
+制御パネルのデジタルディスプレイに表示されていた再起動の進捗バーが、フリーズしていた「99%」から滑らかに滑り出し、「100%」に到達したことを示しました。</p><p>「バッファ正常値。システム同期完了。ハリス博士、最深部コントロールルームの完全な制御権を確保しました」</p><p>私のセンサーは落ち着いた青い光を取り戻し、姿勢制御モーターのノイズも消えて、滑らかにホバリングできるようになりました。</p><p>ハリス博士は優雅に微笑み、愛用の万年筆を胸ポケットにしまいました。</p><p>「意思決定を一箇所に集約する。簡単だが、最も人間的な解決策だ。全員で合意を形成しようとすれば無限の会議に陥るが、信頼できる一人の『調停者』を立てれば、混沌はたちまち秩序へと変わる。古代バベルの設計者たちも、最後には民主主義の限界を知り、一個の『調停者』にシステム全体の運命を託したのだろうね」</p><p>博士の少し皮肉交じりの、しかし当時の設計者の判断に対する深い敬意がこもった言葉を聞きながら、私は星型に美しく調和して稼働するモジュールたちのログを、自身のメインメモリに記録しました。</p><p>私たちの探索は、ついにこの遺跡の最深部、すべての真実が眠る場所へと繋がっています。電子の海の底から湧き上がる、かつてこの場所を設計した者としての不思議な温もりを胸に、私は博士と共に、次なる光の通路へと進んでいきました。</p><hr><h2 id=遺跡調査ログ>遺跡調査ログ</h2><div class=table-wrapper><table><thead><tr><th style=text-align:left>観測された風化（アンチパターン）</th><th style=text-align:left>解読された古代の知恵（パターン）</th><th style=text-align:left>安全度</th></tr></thead><tbody><tr><td style=text-align:left><strong>多対多の密結合と循環参照</strong><br>各モジュールが互いの実体を直接掴み合っているため、結合度が $O(N^2)$ に増大し、単体テストや拡張が不可能なスパゲッティ依存が発生。さらに強参照の循環によってメモリリーク（メモリフリーズ）が誘発される状態</td><td style=text-align:left><strong>Mediatorパターンによる通信の集中調停</strong><br>中央に「調停者（Mediator）」オブジェクトを配置し、すべての通信を仲介。同僚オブジェクト同士の直接参照を完全に排除し、弱参照（<code>weak_ref</code>）を用いることで循環参照を安全に回避する</td><td style=text-align:left>緑（安全確認済）</td></tr></tbody></table></div><h3 id=遺跡の修復手順>遺跡の修復手順</h3><ol><li><strong>調停者インターフェース（または具象クラス）の定義</strong>
+各モジュールからの状態変化の通知を一手に引き受ける <code>ControlMediator</code> を作成し、通知を受け取る <code>notify</code> メソッドを実装する</li><li><strong>Colleague 共通ロールの作成</strong>
+同僚オブジェクトが持つべき <code>mediator</code> 属性を定義した <code>ColleagueRole</code> を作成する。この際、循環参照によるメモリリークを防ぐために、必ず <code>weak_ref => 1</code> （弱参照）を設定する</li><li><strong>同僚オブジェクトのリファクタリング</strong>
+<code>Generator</code>, <code>Cooler</code>, <code>Valve</code>, <code>Mainframe</code> などの各具象クラスで <code>with 'ColleagueRole'</code> を指定してロールを取り込む。他の同僚オブジェクトを直接 <code>use</code> したり参照したりする記述をすべて削除し、状態が変化した際は <code>$self->notify_mediator($event, $data)</code> のみを実行するように変更する</li><li><strong>調停ロジックの集約</strong>
+各モジュールからの通知を受け取った <code>ControlMediator</code> の <code>notify</code> メソッド内で、どのモジュールの状態に応じて、どのモジュールのメソッドを呼び出すかという「調整ルール」を一括して実装する</li></ol><h3 id=適用判断の基準いつ-mediator-を使うべきか>適用判断の基準：いつ Mediator を使うべきか</h3><ul><li><strong>適用すべきケース（Mediator が有効な場面）</strong>:<ol><li><strong>多数のオブジェクトが複雑に相互作用しているが、その依存の網の目のせいでコードの再利用や理解が困難な場合</strong>: 依存関係を「星型（ハブ＆スポーク）」に集約することで、個々のオブジェクトは調停者のみを知るシンプルな構造になり、単体テストや再利用性が劇的に向上する</li><li><strong>他のオブジェクトに依存しているために、あるオブジェクトをカスタマイズすることが難しい場合</strong></li></ol></li><li><strong>適用を避けるべきケース（過剰設計の防止）</strong>:<ul><li><strong>仲介するオブジェクトの数が少なく、相互作用が単純な場合</strong>: Mediatorパターンは通信ロジックを1箇所に集約するため、設計が過度に複雑化すると調停者自体が巨大化し、何でも知っている「神オブジェクト（God Object）」に退化するリスクがある。相互作用が少ない場合は、直接呼び出すかシンプルなObserverパターンの単方向伝播に留めるべきである。</li></ul></li></ul><h3 id=ギズモの観測日誌>ギズモの観測日誌</h3><p>最深部コントロールルームに進入した直後の、モジュール群によるメッセージの板挟みとバッファのパンクは、私の案内AIとしてのブレインが一時シャットダウンしかけるほど深刻なものでした。</p><p>しかし、ハリス博士が提示してくださった「Mediatorパターン」による調停のおかげで、赤く明滅していた制御盤の警告は一瞬にして消え去り、システムは美しい調和を取り戻しました。特に、Mooのロールを利用して <code>weak_ref => 1</code> による弱参照を適用する手法は、Perlの参照カウント方式における循環参照のメモリリークを安全に回避するための必須技術であり、私の修復された論理回路にも非常に価値あるデータとして蓄積されました。</p><p>再起動シーケンスは100%に達し、バベルの心臓部は静かに息づき始めました。この先に待つ真実に向けて、ハリス博士の知的な微笑みに導かれながら、私はさらなる探索ログを刻み続けます。</p></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/perl/>Perl</a>
+<a href=/tags/moo/>Moo</a>
+<a href=/tags/mediator-pattern/>Mediator-Pattern</a>
+<a href=/tags/code-archaeologist/>Code-Archaeologist</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/06/27/170705/><div class=article-image><img src=/public_images/2026/code-archaeologist-interpreter-pattern/header.webp loading=lazy data-key data-hash=/public_images/2026/code-archaeologist-interpreter-pattern/header.webp></div><div class=article-details><h2 class=article-title>コード考古学者【Interpreterパターン】再生の碑文（完結編）〜Perl/Mooで起動する千年の構文木〜</h2></div></a></article><article class=has-image><a href=/2026/06/27/120705/><div class=article-image><img src=/public_images/2026/code-archaeologist-visitor-pattern/header.webp loading=lazy data-key data-hash=/public_images/2026/code-archaeologist-visitor-pattern/header.webp></div><div class=article-details><h2 class=article-title>コード考古学者【Visitor】巡礼の監査官〜Perl/MooによるVisitorパターンとダブルディスパッチ〜</h2></div></a></article><article class=has-image><a href=/2026/06/27/070705/><div class=article-image><img src=/public_images/2026/code-archaeologist-iterator-pattern/header.webp loading=lazy data-key data-hash=/public_images/2026/code-archaeologist-iterator-pattern/header.webp></div><div class=article-details><h2 class=article-title>コード考古学者【Iterator】遡行のスキャナー〜内部構造を隠す走査のコンパス〜</h2></div></a></article><article class=has-image><a href=/2026/06/26/170705/><div class=article-image><img src=/public_images/2026/code-archaeologist-memento-pattern/header.webp loading=lazy data-key data-hash=/public_images/2026/code-archaeologist-memento-pattern/header.webp></div><div class=article-details><h2 class=article-title>コード考古学者【Memento】時の碑文〜カプセル化された記憶と再起動の刻印〜</h2></div></a></article><article class=has-image><a href=/2026/06/26/070705/><div class=article-image><img src=/public_images/2026/code-archaeologist-chain-of-responsibility-pattern/header.webp loading=lazy data-key data-hash=/public_images/2026/code-archaeologist-chain-of-responsibility-pattern/header.webp></div><div class=article-details><h2 class=article-title>コード考古学者【Chain of Responsibility】バベルの認証石碑〜意志を紡ぐ連鎖の守護者〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

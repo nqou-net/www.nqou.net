@@ -1,0 +1,337 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="港ごとに通信規格が違う管制システムへの対応で、交信コード本体がcase分岐で方言を吸収し港が増えるたび本体を開ける旧設計を、Adapterパターンで港ごとの通訳に隔離。Rubyの委譲とダックタイピングの協調を解説します。"><title>コードナビゲーター【Adapter】相手は変えられない〜港ごとの方言に通訳を立てる〜</title><link rel=canonical href=https://www.nqou.net/2026/08/03/070705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コードナビゲーター【Adapter】相手は変えられない〜港ごとの方言に通訳を立てる〜"><meta property='og:description' content="港ごとに通信規格が違う管制システムへの対応で、交信コード本体がcase分岐で方言を吸収し港が増えるたび本体を開ける旧設計を、Adapterパターンで港ごとの通訳に隔離。Rubyの委譲とダックタイピングの協調を解説します。"><meta property='og:url' content='https://www.nqou.net/2026/08/03/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='ruby'><meta property='article:tag' content='adapter'><meta property='article:tag' content='protocol-leakage'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-navigator'><meta property='article:published_time' content='2026-08-03T07:07:05+09:00'><meta property='article:modified_time' content='2026-08-03T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-navigator-adapter-port-protocol/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コードナビゲーター【Adapter】相手は変えられない〜港ごとの方言に通訳を立てる〜"><meta name=twitter:description content="港ごとに通信規格が違う管制システムへの対応で、交信コード本体がcase分岐で方言を吸収し港が増えるたび本体を開ける旧設計を、Adapterパターンで港ごとの通訳に隔離。Rubyの委譲とダックタイピングの協調を解説します。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-navigator-adapter-port-protocol/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-08-03T07:07:05+09:00","datePublished":"2026-08-03T07:07:05+09:00","description":"港ごとに通信規格が違う管制システムへの対応で、交信コード本体がcase分岐で方言を吸収し港が増えるたび本体を開ける旧設計を、Adapterパターンで港ごとの通訳に隔離。Rubyの委譲とダックタイピングの協調を解説します。","headline":"コードナビゲーター【Adapter】相手は変えられない〜港ごとの方言に通訳を立てる〜","image":"https://www.nqou.net/public_images/2026/code-navigator-adapter-port-protocol/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/08/03/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#第1幕-異変三港目のまた同じ作業>第1幕 異変——三港目の、また同じ作業</a></li><li><a href=#第2幕-解析変えられないものから逆に読む>第2幕 解析——変えられないものから、逆に読む</a></li><li><a href=#第3幕-引き直し通訳を境界に立てる>第3幕 引き直し——通訳を、境界に立てる</a></li><li><a href=#第4幕-模擬航走三港の網と先に届く声>第4幕 模擬航走——三港の網と、先に届く声</a><ol><li><a href=#-オリオール号-航海日誌navigators-log>🚀 オリオール号 航海日誌（Navigator&rsquo;s Log）</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/08/03/070705/><img src=/public_images/2026/code-navigator-adapter-port-protocol/header.webp loading=lazy alt="Featured image of post コードナビゲーター【Adapter】相手は変えられない〜港ごとの方言に通訳を立てる〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/08/03/070705/>コードナビゲーター【Adapter】相手は変えられない〜港ごとの方言に通訳を立てる〜</a></h2><h3 class=article-subtitle>港ごとに通信規格が違う管制システムへの対応で、交信コード本体がcase分岐で方言を吸収し港が増えるたび本体を開ける旧設計を、Adapterパターンで港ごとの通訳に隔離。Rubyの委譲とダックタイピングの協調を解説します。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>03, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 26分</time></div></footer></div></header><section class=article-content><h2 id=第1幕-異変三港目のまた同じ作業>第1幕 異変——三港目の、また同じ作業</h2><p>いい話から書いておく。〈オリオール号〉に、新しい寄港先が増えた。</p><p>アルビレオ・ステーション。新規契約の港で、初入港は三日後に迫っている。恒星間の貨物船にとって、寄れる港が増えるというのは荷主が増えるということだ。航海のたびに空荷の区画を眺めて唸る側からすれば、文句なしの朗報である。機関は快調そのもので、循環器の低い唸りも、主機の振動が床板を伝ってくる周期も、二十年聞き慣れた平常のそれだ。今回は、何も壊れていない。</p><p>壊れていないのに、俺の気が重いのはなぜか。話は交信卓から始まる。</p><p>寄港の数日前になると、船は港の管制へ入港要求を送る。事前ハンドシェイク試験——初めての相手と本番前に交信規格の疎通を確かめる、握手の儀式だ。応答が返れば、許可か保留か、許可なら泊地は何番か、が分かる。この交信を支える送受信機とアンテナ、それに交信卓のハード——そこから先が俺の受け持ちになる。出力調整は済ませた。アンテナの指向も合わせた。卓のハードは万全である。</p><p>問題は、卓の中身のほうだった。航法士側の作業予定表に、こう載っている。——アルビレオ対応: 交信コード本体の改修。</p><p>本体の改修。その一行を読んだ瞬間、過去二回の記憶が背中に乗ってきた。</p><p>一度目はデネブ港との契約のとき。二度目はヴェガ港が交信規格を改定したとき。どちらも交信コードの本体に手が入って、そのあとが長かった。ハンドシェイク試験は、新しい港の分だけでは済まなかったのだ。本体を開けた以上、触っていないはずの港の分まで疑うのが筋になる。ヴェガの応答は前と同じに読めているか。デネブの泊地番号は正しく拾えているか。全港ぶんの試し直しで、交信卓とアンテナ座の間を何往復したか、数える気にもならない。</p><p>配管なら分かる話なのだ。径の合わない配管が来たら、継手を挟む。本管を切る奴はいない。なんでコードのほうは、港がひとつ増えるたびに本管を切る話になるんだ——と、これは機関室のぼやきである。ぼやいたところで、卓の中身は航法士の領分だ。</p><p>星図室に上がると、うちの航法士は床にノートを広げていた。</p><p>ミラ。腕は船団一、行動は船団外。今日床に広がっているのは、この人が見習いの頃から付けているという手書きのノートだ。俺たちは勝手に「港の方言帳」と呼んでいる。寄港した港ごとに、交信規格の癖が採集してある。ヴェガのページには実際の応答文字列が切手みたいに切り貼りしてあって、余白に注記が入る。いわく——セミコロンで区切る。丁寧だが早口。デネブのページには——項目名で話す。几帳面。規格書の写しなら通信室にもあるが、こういう書き方はしない。この人は港の規格を、言葉のある相手として読む。港には港の方言がある、というのがミラの持論だ。</p><p>いまは膝の上にアルビレオの管制仕様書を広げて、方言帳に新しいページを起こしているところだった。</p><p>俺は作業予定表を掲げて、単刀直入にいった。</p><p>「三港目だぞ。港と話すたびに、船の頭を開けるのか?」</p><p>ミラの手が止まる。俺は続けた。ヴェガのとき、デネブのとき、本体を開けたあとの全港試し直しで誰が卓とアンテナ座を往復したか。それから、もうひとつ引っかかっていたことも言った。</p><p>「着艦の手順なら、前に引き直しただろう。手順の骨格を親に置いて、港ごとの差分だけ子に書くやつだ。今度のは、あれとは違うのか」</p><p>「違うの」とミラは顔も上げずに答えた。「あれは手順の話。うちの船の中の、降りる段取りをどう組むかの話だった。今度のは、言葉の話。相手の返事の形が港ごとに違って、うちの船はまだアルビレオの言葉を知らない」</p><p>そして顔を上げた。</p><p>「うん。だから今回は、開けないやり方にする」</p><p>「開けずに済むなら、二回目のときに言ってくれ」</p><p>「二回目のときはまだ、三回目が来るって確信がなかったの」と、ミラは方言帳を閉じもせずに言った。どう開けずに済ませるのかは、言わなかった。この人が仕組みの説明を後回しにするときは、先に見せたいものがあるときだ。</p><h2 id=第2幕-解析変えられないものから逆に読む>第2幕 解析——変えられないものから、逆に読む</h2><p>星図室の投影に、交信コードの本体が上がった。いま実機で動いている、現行版だ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=c1># 交信卓の入港要求。港ごとの応答形式の違いを、本体の case が吸収している。</span>
+</span></span><span class=line><span class=cl><span class=k>class</span> <span class=nc>DockingConsole</span>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>hail</span><span class=p>(</span><span class=n>port_id</span><span class=p>,</span> <span class=n>ship_id</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=k>case</span> <span class=n>port_id</span>
+</span></span><span class=line><span class=cl>    <span class=k>when</span> <span class=ss>:vega</span>
+</span></span><span class=line><span class=cl>      <span class=n>reply</span> <span class=o>=</span> <span class=no>VegaControl</span><span class=o>.</span><span class=n>new</span><span class=o>.</span><span class=n>transmit_query</span><span class=p>(</span><span class=n>ship_id</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>      <span class=n>status</span><span class=p>,</span> <span class=n>detail</span> <span class=o>=</span> <span class=n>reply</span><span class=o>.</span><span class=n>split</span><span class=p>(</span><span class=s2>&#34;;&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>      <span class=k>if</span> <span class=n>status</span> <span class=o>==</span> <span class=s2>&#34;GO&#34;</span>
+</span></span><span class=line><span class=cl>        <span class=n>log_grant</span><span class=p>(</span><span class=n>ship_id</span><span class=p>,</span> <span class=n>detail</span><span class=o>.</span><span class=n>sub</span><span class=p>(</span><span class=s2>&#34;BAY-&#34;</span><span class=p>,</span> <span class=s2>&#34;&#34;</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>      <span class=k>else</span>
+</span></span><span class=line><span class=cl>        <span class=n>log_hold</span><span class=p>(</span><span class=n>ship_id</span><span class=p>,</span> <span class=n>detail</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>      <span class=k>end</span>
+</span></span><span class=line><span class=cl>    <span class=k>when</span> <span class=ss>:deneb</span>
+</span></span><span class=line><span class=cl>      <span class=n>reply</span> <span class=o>=</span> <span class=no>DenebControl</span><span class=o>.</span><span class=n>new</span><span class=o>.</span><span class=n>negotiate</span><span class=p>(</span><span class=n>ship_id</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>      <span class=k>if</span> <span class=n>reply</span><span class=o>[</span><span class=s2>&#34;clearance&#34;</span><span class=o>]</span> <span class=o>==</span> <span class=s2>&#34;granted&#34;</span>
+</span></span><span class=line><span class=cl>        <span class=n>log_grant</span><span class=p>(</span><span class=n>ship_id</span><span class=p>,</span> <span class=n>reply</span><span class=o>[</span><span class=s2>&#34;bay&#34;</span><span class=o>]</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>      <span class=k>else</span>
+</span></span><span class=line><span class=cl>        <span class=n>log_hold</span><span class=p>(</span><span class=n>ship_id</span><span class=p>,</span> <span class=n>reply</span><span class=o>[</span><span class=s2>&#34;reason&#34;</span><span class=o>]</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>      <span class=k>end</span>
+</span></span><span class=line><span class=cl>    <span class=k>else</span>
+</span></span><span class=line><span class=cl>      <span class=k>raise</span> <span class=no>ArgumentError</span><span class=p>,</span> <span class=s2>&#34;未対応の港: </span><span class=si>#{</span><span class=n>port_id</span><span class=si>}</span><span class=s2>&#34;</span>
+</span></span><span class=line><span class=cl>    <span class=k>end</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=c1># log_grant / log_hold は記帳（航海記録の文字列生成）。港と無関係の共通処理。</span>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>log_grant</span><span class=p>(</span><span class=n>ship_id</span><span class=p>,</span> <span class=n>berth</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=s2>&#34;入港要求: </span><span class=si>#{</span><span class=n>ship_id</span><span class=si>}</span><span class=s2> → 接近許可（泊地</span><span class=si>#{</span><span class=n>berth</span><span class=si>}</span><span class=s2>）&#34;</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>log_hold</span><span class=p>(</span><span class=n>ship_id</span><span class=p>,</span> <span class=n>reason</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=s2>&#34;入港要求: </span><span class=si>#{</span><span class=n>ship_id</span><span class=si>}</span><span class=s2> → 接近保留（</span><span class=si>#{</span><span class=n>reason</span><span class=si>}</span><span class=s2>）&#34;</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p>骨格は読める。<code>hail</code> は呼びかけ、の意で、港の識別子と船体符号を受け取って入港要求を送り、応答を航海記録の一行にして返すメソッドだ。<code>case port_id</code> は港の識別子で枝分かれする分岐で、<code>:vega</code> の頭のコロンはシンボル——名前そのものを軽い値として使う書き方。どちらもプローブの一件で見たばかりの型である。分岐のどれにも入らなければ、<code>else</code> の門番が「未対応の港」と警報を上げる。</p><p>初見の書き方も混ざっていたので、そこはミラに止めてもらいながら読んだ。</p><p>ヴェガの枝の <code>reply.split(";")</code> は、文字列を区切り文字で切り分けて配列にするメソッドだ。ヴェガの管制はセミコロン区切りの文字列で応答してくる。許可なら <code>"GO;BAY-07"</code>、保留なら <code>"HOLD;CONGESTION"</code>。これを <code>split(";")</code> に通すと <code>["GO", "BAY-07"]</code> という二枚に分かれる。左辺の <code>status, detail = </code>は多重代入といって、配列の中身を先頭から順に、並べた変数へ割り当てる書き方だ。一枚目が <code>status</code> に、二枚目が <code>detail</code> に入る。その次の行の <code>detail.sub("BAY-", "")</code> は、文字列の最初の一致箇所を置き換えるメソッドで、<code>"BAY-07"</code> から <code>"BAY-"</code> を剥がして <code>"07"</code> だけ取り出している。泊地番号の抽出だ。</p><p>デネブの枝は様子が違う。デネブの管制は Hash——名前と値の対応表——で応答してくる。許可なら <code>{ "clearance" => "granted", "bay" => "12" }</code>、保留なら <code>{ "clearance" => "denied", "reason" => "magnetic-storm" }</code>。だから枝の中身も <code>reply["clearance"]</code> と項目名で聞きにいく形になる。</p><p>同じ「入港要求への応答」なのに、ヴェガはセミコロンの文字列で話し、デネブは項目名の表で話す。方言帳の注記そのままだ。</p><p>「で、これを書いた人の話をしておくね」</p><p>ミラは投影の脇に、古い改修記録を二枚並べた。左は、この船がまだヴェガとしか取引していなかった頃の交信コード。case すらない。ヴェガの応答を <code>split</code> して読む処理が、本体にそのまま素直に書いてある。右は、デネブ契約のときの改修差分。case が生まれて、デネブの枝が一本増えている。</p><p>「一港目のこれは、いちばん読みやすい書き方なの。相手がヴェガしかいないなら、ヴェガの言葉で直に書くのが最短で、誰が読んでも迷わない。二港目のこの差分も、正しい。港が二つになった日に、分岐をひとつ足す。橋を一本まるごと架け直すより、ずっと安い。どっちの時点でも、これ以上うまいやり方は、たぶんなかった」</p><p>じゃあ何が悪かったんだ、と訊きかけて、やめた。ミラが先に言った。</p><p>「悪かった人は、いないの。三港目が来る未来だけが、当時は見えてなかった。それだけ」</p><p>それから、ミラは俺のほうへ向き直った。ここからが本題、という顔だった。</p><p>「ダグ、今日はいつもと逆から読むね。先に、動かせないものを置く」</p><p>ミラは指を三本立てて、一本ずつ折っていった。</p><p>一つ。港の管制モジュールは、各港の当局が配布してくる外部の部品だ。ヴェガの <code>VegaControl</code> も、デネブの <code>DenebControl</code> も、届いたアルビレオの <code>AlbireoControl</code> も、中身はよその組織のものであって、うちの船では書き換えられない。「ヴェガに『セミコロンやめて項目名で話して』って頼む航路は、ないの」。</p><p>二つ。港は増え続ける。新規契約は商売の生命線で、止める理由がない。つまり「今回だけ我慢して開ける」は成立しない。四港目も五港目も来る。</p><p>三つ。船内の各システム——航海計画も、入港に合わせて主機を温める機関側の暖機予約も——が交信結果から読みたいものは、突き詰めれば三つしかない。許可か否か。許可なら泊地はどこか。駄目なら理由は何か。それだけだ。セミコロンも項目名も、船の中の誰も欲しがっていない。</p><p>「動かせない壁を先に引くとね、残ってる自由は、実はひとつしかないの。港ごとの言葉の違いを、どこで吸収するか。いまは本体の case の中——船の頭の中で吸収してる。それを、動かせる」</p><p>ミラは現行コードの中の何箇所かを、投影のマーカーで光らせた。<code>"GO"</code>。<code>"BAY-"</code>。<code>"granted"</code>。<code>"reason"</code>。</p><p>「これ、全部よその港の言葉なの。船の頭の中に、他所の方言が住んでる。ヴェガが規格を変えた日のこと、覚えてるでしょ。あの日うちが開けたのは、うちの船の本体だった。相手の都合で、自分の頭を開ける関係になってるの」</p><p>覚えている。あの改修も、そのあとの全港試し直しも。相手の都合で自分の頭を開ける、という言い方は、あの徒労の据わりの悪さを言い当てていた。</p><p>「で、アルビレオの言葉を、いまの本体にそのまま聞かせるとどうなるか。見せておくね」</p><p>模擬航走の出番だ。実船をアルビレオに近づける前に、シミュレータ上でコードだけを試験航行させる——うちの星図室では何をやるにもこれが先に来る。ミラはまず、現行の本体に <code>:albireo</code> を渡す試験を書いて流した。結果は分かりきっている。<code>else</code> の門番が鳴って、「未対応の港: albireo」。本体は、教わっていない港とは話せない。ここまでは健全な赤だ。</p><p>「もっと怖いほうも見せておく。改修を急いだ誰かが、デネブの枝を写してアルビレオの枝を作ったとするね。アルビレオの応答は配列——順番に並んだ二枚——で返ってくるんだけど、写した枝はデネブのつもりだから、項目名で聞きにいく」</p><p>配列に向かって、Hash の流儀で項目名を聞く。流すと、結果盤に見慣れない警報が上がった。</p><p>NoMethodError。そのメソッドを持たない相手に呼びかけたときの、Ruby の実行時エラーだ。</p><p>「Ruby の間違いは、航行中にしか鳴らない。それは前からずっと言ってる通り。この NoMethodError もそうで、書いた時点では何も鳴らないの。コードの上では、配列に項目名で聞く行は、書けてしまう。鳴るのは、アルビレオと実際に交信した瞬間」</p><p>「形の合わない継手と同じだ」と俺は言った。「締めたときには漏れない。水を流した瞬間に漏れる」</p><p>「そう。だから網は、港ごとの模擬交信で張る。……それは After でも変わらないから、あとでちゃんと言うね」</p><p>ミラは床の方言帳を閉じた。そして閉じた表紙の上に、手のひらを置いた。開いて調べながら話すのをやめた、ということだ。ここから先は、暗記でしゃべる範囲——つまり、この人の頭の中ではもう引き終わっている範囲、ということでもある。</p><p>「ダグ。相手は変えられない。だったら、船が期待する受け答えを、船が先に決めるの」</p><h2 id=第3幕-引き直し通訳を境界に立てる>第3幕 引き直し——通訳を、境界に立てる</h2><p>引き直しの最初の一手は、コードではなかった。</p><p>ミラは投影を白紙に切り替えて、三行だけ書いた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>request_docking(ship_id)
+</span></span><span class=line><span class=cl>  → 許可: { granted: true,  berth: &#34;泊地番号&#34; }
+</span></span><span class=line><span class=cl>  → 保留: { granted: false, reason: &#34;理由&#34; }
+</span></span></code></pre></td></tr></table></div></div><p>「これが、船の言葉。今日からうちの交信卓は、この形しか聞かない」</p><p><code>request_docking</code>——入港を頼む、という船側の動詞。船体符号を渡すと、シンボルをキーにした Hash がひとつ返る。書き方もひとつ新顔で、<code>granted: true</code> はデネブの応答で見た <code>"clearance" => "granted"</code> と同じ Hash の対を、<code>:granted => true</code> と書く代わりに省略した記法だ。キーがシンボルのときだけ、こう縮められる。<code>granted</code> が真なら泊地番号 <code>berth</code> が付く。偽なら理由 <code>reason</code> が付く。この対もセットで規格のうちだ、とミラは念を押した。真のときに理由はなく、偽のときに泊地はない。読む側が迷わないように、返りの形まで決めておく。</p><p>順序が逆なのだ、と気づくのに少しかかった。いままでうちの船は、港の言葉を覚えにいっていた。ヴェガが来ればヴェガの言葉を本体に書き、デネブが来ればデネブの言葉を書き足した。相手に合わせて、こちらの頭が形を変えてきた。いま目の前で起きたのはその逆で、まだ誰とも話していないうちに、うちの船の聞きたい形が先に決まった。これからは港の言葉のほうが、この形に訳されて船に入ってくる。</p><p>「で、訳すのは誰だ」</p><p>「港ごとに、一人ずつ立てるの」</p><p>ミラは投影に、新しいクラスを上げた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=c1># ヴェガ港の通訳。ヴェガの方言を、船の共通規格に訳すことだけが仕事。</span>
+</span></span><span class=line><span class=cl><span class=k>class</span> <span class=nc>VegaAdapter</span>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>initialize</span><span class=p>(</span><span class=n>control</span> <span class=o>=</span> <span class=no>VegaControl</span><span class=o>.</span><span class=n>new</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@control</span> <span class=o>=</span> <span class=n>control</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>request_docking</span><span class=p>(</span><span class=n>ship_id</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=n>status</span><span class=p>,</span> <span class=n>detail</span> <span class=o>=</span> <span class=vi>@control</span><span class=o>.</span><span class=n>transmit_query</span><span class=p>(</span><span class=n>ship_id</span><span class=p>)</span><span class=o>.</span><span class=n>split</span><span class=p>(</span><span class=s2>&#34;;&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=n>status</span> <span class=o>==</span> <span class=s2>&#34;GO&#34;</span>
+</span></span><span class=line><span class=cl>      <span class=p>{</span> <span class=ss>granted</span><span class=p>:</span> <span class=kp>true</span><span class=p>,</span> <span class=ss>berth</span><span class=p>:</span> <span class=n>detail</span><span class=o>.</span><span class=n>sub</span><span class=p>(</span><span class=s2>&#34;BAY-&#34;</span><span class=p>,</span> <span class=s2>&#34;&#34;</span><span class=p>)</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>else</span>
+</span></span><span class=line><span class=cl>      <span class=p>{</span> <span class=ss>granted</span><span class=p>:</span> <span class=kp>false</span><span class=p>,</span> <span class=ss>reason</span><span class=p>:</span> <span class=n>detail</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>end</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p>「既にあるものの受け答えの形を、使う側が期待する形に変換する部品を挟む。この航法術を Adapter っていうの。変換アダプタの、あのアダプタ」</p><p>そして、こっちを見て付け足した。</p><p>「相手は変えられない。変えられるのは、受け取り方だけ」</p><p>コードを読む。<code>VegaAdapter</code> は <code>initialize</code>——インスタンスを作るときに走る支度のメソッド——で、ヴェガの管制モジュールを <code>@control</code> に抱え込む。頭の <code>@</code> はインスタンス変数、つまりそのオブジェクトが自分の持ち物として抱え続ける変数の印だ。そして <code>request_docking</code> と呼ばれたら、抱えている相手に <code>transmit_query</code> と、ヴェガの言葉で頼む。返ってきたセミコロン区切りを <code>split</code> して、<code>"GO"</code> かどうかを見て、さっき決めた船の言葉——<code>granted</code> と <code>berth</code>、あるいは <code>granted</code> と <code>reason</code> の Hash——に組み直して返す。</p><p>この「相手を抱えて、仕事をそちらに頼み、結果を整えて返す」形を、委譲と呼ぶのだそうだ。寄港手続きの一件で使った継承——親の性質を受け継いで子になる、いわば「である」の関係——とは別物で、委譲は相手を持ち物として抱える「を持つ」の関係になる。通訳はヴェガ管制の子孫ではない。ヴェガ管制を鞄に入れて連れて歩く、別の一人だ。俺の言葉に直すなら、継手は配管の子孫じゃない。配管と配管の、間の部品だ。</p><p>見どころは、と言われて画面に顔を寄せた。<code>"GO"</code> も、<code>"BAY-"</code> も、セミコロンも——ヴェガの方言のすべてが、この一枚の中に閉じ込められている。この部品の外には、もう一文字も漏れていない。</p><p><code>initialize(control = VegaControl.new)</code> の <code>= VegaControl.new</code> は引数の既定値というやつで、引数を省略して <code>VegaAdapter.new</code> と作れば本物のヴェガ管制を抱え、試験のときだけ別の相手を渡して差し替えられる。実運用では素で使い、模擬航走では取り回す、両にらみの書き方だ。</p><p>デネブの通訳は、テンポよく進んだ。型は一枚目で見たとおりで、方言だけが違う。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=c1># デネブ港の通訳。</span>
+</span></span><span class=line><span class=cl><span class=k>class</span> <span class=nc>DenebAdapter</span>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>initialize</span><span class=p>(</span><span class=n>control</span> <span class=o>=</span> <span class=no>DenebControl</span><span class=o>.</span><span class=n>new</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@control</span> <span class=o>=</span> <span class=n>control</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>request_docking</span><span class=p>(</span><span class=n>ship_id</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=n>reply</span> <span class=o>=</span> <span class=vi>@control</span><span class=o>.</span><span class=n>negotiate</span><span class=p>(</span><span class=n>ship_id</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=n>reply</span><span class=o>[</span><span class=s2>&#34;clearance&#34;</span><span class=o>]</span> <span class=o>==</span> <span class=s2>&#34;granted&#34;</span>
+</span></span><span class=line><span class=cl>      <span class=p>{</span> <span class=ss>granted</span><span class=p>:</span> <span class=kp>true</span><span class=p>,</span> <span class=ss>berth</span><span class=p>:</span> <span class=n>reply</span><span class=o>[</span><span class=s2>&#34;bay&#34;</span><span class=o>]</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>else</span>
+</span></span><span class=line><span class=cl>      <span class=p>{</span> <span class=ss>granted</span><span class=p>:</span> <span class=kp>false</span><span class=p>,</span> <span class=ss>reason</span><span class=p>:</span> <span class=n>reply</span><span class=o>[</span><span class=s2>&#34;reason&#34;</span><span class=o>]</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>end</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p>項目名で話すデネブの流儀は、この一枚の中だけの事情になった。判定の形——「合言葉が一致すれば許可、それ以外は何が来ても保留側に倒す」——は、元の本体の枝とわざと同じに組んである、とミラは言った。引き直しは挙動を変えない。想定外の応答が保留側に落ちる癖まで含めて、倒れ方ごと引き継ぐ。</p><p>そして、本体だ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=c1># 交信卓の本体。港の名前も方言も、もう知らない。</span>
+</span></span><span class=line><span class=cl><span class=k>class</span> <span class=nc>DockingConsole</span>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>initialize</span><span class=p>(</span><span class=n>adapter</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@adapter</span> <span class=o>=</span> <span class=n>adapter</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>hail</span><span class=p>(</span><span class=n>ship_id</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=n>reply</span> <span class=o>=</span> <span class=vi>@adapter</span><span class=o>.</span><span class=n>request_docking</span><span class=p>(</span><span class=n>ship_id</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=n>reply</span><span class=o>[</span><span class=ss>:granted</span><span class=o>]</span>
+</span></span><span class=line><span class=cl>      <span class=n>log_grant</span><span class=p>(</span><span class=n>ship_id</span><span class=p>,</span> <span class=n>reply</span><span class=o>[</span><span class=ss>:berth</span><span class=o>]</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=k>else</span>
+</span></span><span class=line><span class=cl>      <span class=n>log_hold</span><span class=p>(</span><span class=n>ship_id</span><span class=p>,</span> <span class=n>reply</span><span class=o>[</span><span class=ss>:reason</span><span class=o>]</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=k>end</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=c1># log_grant / log_hold は記帳（航海記録の文字列生成）。Before と完全一致。</span>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>log_grant</span><span class=p>(</span><span class=n>ship_id</span><span class=p>,</span> <span class=n>berth</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=s2>&#34;入港要求: </span><span class=si>#{</span><span class=n>ship_id</span><span class=si>}</span><span class=s2> → 接近許可（泊地</span><span class=si>#{</span><span class=n>berth</span><span class=si>}</span><span class=s2>）&#34;</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>log_hold</span><span class=p>(</span><span class=n>ship_id</span><span class=p>,</span> <span class=n>reason</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=s2>&#34;入港要求: </span><span class=si>#{</span><span class=n>ship_id</span><span class=si>}</span><span class=s2> → 接近保留（</span><span class=si>#{</span><span class=n>reason</span><span class=si>}</span><span class=s2>）&#34;</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p>case が、丸ごと消えている。</p><p>本体は通訳を一人受け取って抱え、<code>hail</code> と言われたら通訳に <code>request_docking</code> と頼み、返ってきた船の言葉の <code>granted</code> を見て記帳するだけ。引き方にも注目してほしい。港の応答は文字列キーだから <code>reply["clearance"]</code> と引いたが、船の言葉はシンボルキーだから <code>reply[:granted]</code> と引く——キーに使った値の種類と、取り出すときの書き方は、対で決まる。元のコードと並べて目で確かめたが、<code>:vega</code> も <code>:deneb</code> も、<code>"GO"</code> も <code>"granted"</code> も、港の名前と方言はどこにも残っていない。記帳の二つのメソッドは、一文字も動いていない。</p><p>頭の中で、配管図を引き直すみたいに前後を並べてみた。方言がどこに住んでいるか——それだけ追えば、今日の引き直しの正体は一枚で見える。</p><p><img src=/public_images/2026/code-navigator-adapter-port-protocol/infographic_1.webp loading=lazy alt=BeforeとAfterの構造対比図。Beforeは交信卓本体DockingConsoleのcaseがヴェガのセミコロン区切り文字列とデネブの文字列キーHashという港ごとの方言を直接解読し、それぞれの港の言葉で交信している。Afterは本体が船の共通規格request_dockingにだけ話しかけ、VegaAdapter・DenebAdapterという港ごとの通訳が委譲で各港の管制モジュールに頼み、方言は各通訳の中だけに閉じ込められることを示す></p><p>ひとつ、呼び方が変わっていることには気づいた。前は <code>hail(:vega, ship_id)</code> と、どの港かを毎回引数で渡していた。いまは <code>hail(ship_id)</code> だけだ。港はどこで決まるのか。</p><p>「作るとき。<code>DockingConsole.new(VegaAdapter.new)</code> って、通訳を渡して組み立てるの。港を選ぶ瞬間が、交信のたびから、寄港計画の一度きりに動いたの」</p><p>寄港計画がヴェガ行きなら、ヴェガの通訳を持たせた卓を組む。それだけらしい。どの通訳をどう選んで渡すかの仕掛けの話は、「選び方は今日の話じゃないの」と一言で流された。今日の主役は、選ぶことではなく訳すことだ、と。</p><p>その言い方が、逆に引っかかった。</p><p>「待て。発進管のときと同じ話じゃないのか。窓口を一つ作って、そこに寄せるんだろう」</p><p>プローブの一件が頭にあった。あのときも「増えるたびに本体を開ける」のをやめるために、組み立てを専用の窓口に出した。今日のこれと、何が違う。</p><p>「寄せる場所を作る、っていう手つきは似てる。でもあっちは、生まれの話なの。どの機体を作るかは、うちの船の中で決めていいことだった。決めていいことを、決める場所ごと一箇所に集めた」</p><p>「……作るものは、こっちの都合で決められたな。確かに」</p><p>「こっちは、国境の話。港の言葉は港が決める。うちでは決められない。決められることを窓口に集めるのがあっちで、決められないものを境界で受け止めるのが、今日のこれ」</p><p>決められることを集める。決められないものを受け止める。手つきが似ていても、向いている方角が逆だ。</p><p>もうひとつ、似た絵を知っていた。</p><p>「なら、部品を港の数だけ並べるんだろう。航路の計画ごとに方針の部品を差し替えた、あれとは何が違う。あれも部品を取っ替え引っ替えする話だったぞ」</p><p>「見分け方はひとつだけ。部品を別のに差し替えたら、意味が変わる?」</p><p>ミラは方言帳の表紙に手を置いたまま続けた。運航方針の部品は、燃料優先に差し替えても最短時間に差し替えても、どれも正しい。どれを選ぶかが仕事の部品——選ぶ部品だ。今日の通訳はどうか。ヴェガの卓にデネブの通訳を差したら、それはただの誤訳だ。港ごとに、正しい訳はひとつしかない。選択の余地があるのではなく、対応が決まっている——訳す部品。</p><p>「選ぶ部品と、訳す部品。形が同じでも、仕事が違うの」</p><p>形とは委譲のことだ。抱えて、頼んで、返す。その骨格だけ見れば同じでも、選ぶために並ぶのか、訳すために立つのかで、別の航法術になる。棚の形が同じでも載っているものが違えば別物だ、と言われたプローブの一件と、勘定の仕方は同じだった。</p><p>得心しかけたところで、実務の側から確かめておくべきことが残っていた。</p><p>「交信卓は、渡された相手が本物の通訳かどうか、どうやって確かめるんだ。ヴェガの通訳です、って名札でも見るのか」</p><p>「確かめない。<code>request_docking</code> に応えてくれるなら、誰でもいい」</p><p>ダックタイピング——同じ名前の呼びかけに応えられれば、型は問わない。Ruby の流儀として、航路計算機の一件で最初に教わった考え方だ。今日の通訳たちは、共通の親も、共通の何かの宣言も持っていない。ただ全員が <code>request_docking</code> に応える、それだけで揃っている。他の言語なら interface という書類——「この受け答えができます」という宣言文——を書いて判子をつく場面だが、Ruby に書類はない。船の共通規格は、書類ではなく約束としてだけ存在する。</p><p>「代償も言っておくね。約束が書類にならないってことは、約束破りを事前に見つける仕組みも、ないの。通訳を噛ませ忘れて、生の港モジュールを直接卓に渡しても、組んだ時点では何も鳴らない。鳴るのは交信の瞬間、さっき見た NoMethodError。——だから、約束が書類にならない言語では、模擬航走が書類の代わりなの」</p><p>もうひとつ、これは俺の性分で聞いた。気の利く奴が通訳に入ると、ろくなことにならない。</p><p>「通訳が気を利かせて、駄目な応答を握り潰したらどうなる。保留を三回まで隠して再送する、みたいな親切をやり始めたら」</p><p>「通訳が交渉を始めたら、外交事故」</p><p>即答だった。通訳の仕事は訳すことだけ。保留は保留のまま、理由ごと訳して通す。再送するか、待つか、別の港に回るか——判断は本体と、その先の航海計画の仕事だ。再試行も、応答のもっともらしさの審査も、記帳も、通訳には持たせない。持たせていいのは、訳の正しさだけ。</p><p>「訳が薄いほど、通訳は信用できるの」</p><p>そこで話が一段落して、星図室が静かになった。ミラはヘッドセットを首に掛けたまま、床に戻した方言帳へアルビレオの続きを書き足しはじめる。仕様書と見比べて、応答の形式を新しいページに写している。俺は卓の裏の配線を留め直しながら、その静かな作業を横目で見ていた。書き終わる頃には、この港の癖もあの帳面の住人になるんだろう。</p><p>手が空いたところで、俺は一度機関室に降りた。戻ったとき、手には工具箱から抜いてきた物がひとつ。異径継手。径の違う配管同士をつなぐ、何の変哲もない変換部品だ。それを交信卓の上に、ことりと置いた。</p><p>「つまり、これだろ。径の違う配管が来るたびに本管を切って溶接し直すのは、馬鹿のやることだ。間にこれを一個噛ませとけば、次に径が変わっても、換えるのはこれだけで済む」</p><p>ミラは何も言わなかった。ただ、書きかけのアルビレオのページの隅に、いま卓に載っている継手の絵を、ちいさく描き足した。</p><h2 id=第4幕-模擬航走三港の網と先に届く声>第4幕 模擬航走——三港の網と、先に届く声</h2><p>模擬航走の本番は、約束の確認から始まった。</p><p>引き直しは挙動を変えない——その証明が先頭に来る。ヴェガとデネブ、許可と保留、計四通りの交信を、現行の case 版と通訳を立てた版の両方に流し、記帳が一字残らず一致することを照合する。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=k>def</span> <span class=nf>test_vega_grant_identical</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@before_console</span><span class=o>.</span><span class=n>hail</span><span class=p>(</span><span class=ss>:vega</span><span class=p>,</span> <span class=s2>&#34;SHIP-001&#34;</span><span class=p>),</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@after_vega_console</span><span class=o>.</span><span class=n>hail</span><span class=p>(</span><span class=s2>&#34;SHIP-001&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>def</span> <span class=nf>test_vega_hold_identical</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@before_console</span><span class=o>.</span><span class=n>hail</span><span class=p>(</span><span class=ss>:vega</span><span class=p>,</span> <span class=no>HOLD_SHIP_ID</span><span class=p>),</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@after_vega_console</span><span class=o>.</span><span class=n>hail</span><span class=p>(</span><span class=no>HOLD_SHIP_ID</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>@before_console</code> たちは、試験の支度の場所で組んである。case 版はそのまま、通訳版は <code>After::DockingConsole.new(After::VegaAdapter.new)</code> と、通訳を渡して組む——さっきの「港を選ぶ瞬間は組み立てのとき」が、試験の形にそのまま出ている。頭の <code>Before::</code> と <code>After::</code> は、同名クラスの二つの版が試験の中でぶつからないように分けてある住所書きで、これもいつもの段取りだ。なお、港の配布モジュールには試験用の取り決めがあって、決まった符号（<code>HOLD_SHIP_ID</code>）で呼ぶと保留、それ以外の符号には決まった内容の許可を返してくる。応答が毎回同じだから、記帳の照合が成り立つわけだ。保留側の記帳まで含めて、四通り、全部一致。緑。</p><p>次が、今日の主役の網だ。通訳の単体照合——港ごとの方言が、船の言葉に正しく訳されているかを、通訳一人ずつに確かめる。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=k>def</span> <span class=nf>test_vega_adapter_translates_grant</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=p>{</span> <span class=ss>granted</span><span class=p>:</span> <span class=kp>true</span><span class=p>,</span> <span class=ss>berth</span><span class=p>:</span> <span class=s2>&#34;07&#34;</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=no>After</span><span class=o>::</span><span class=no>VegaAdapter</span><span class=o>.</span><span class=n>new</span><span class=o>.</span><span class=n>request_docking</span><span class=p>(</span><span class=s2>&#34;SHIP-001&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>def</span> <span class=nf>test_deneb_adapter_translates_hold</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=p>{</span> <span class=ss>granted</span><span class=p>:</span> <span class=kp>false</span><span class=p>,</span> <span class=ss>reason</span><span class=p>:</span> <span class=s2>&#34;magnetic-storm&#34;</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=no>After</span><span class=o>::</span><span class=no>DenebAdapter</span><span class=o>.</span><span class=n>new</span><span class=o>.</span><span class=n>request_docking</span><span class=p>(</span><span class=no>HOLD_SHIP_ID</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p>「誤訳はね、ここでしか捕まらないの」とミラは言った。通訳を立てる設計は、訳の正しさを構造では守ってくれない。<code>"GO"</code> を見るべきところで <code>"OK"</code> を見る通訳は、書けてしまうし、組めてしまう。捕まえるのは、港ごとのこの照合だけだ。「通訳を立てた船は、通訳の試験を港の数だけ持つ。それが飼い賃」。</p><p>三本目は、ちょっとした余興に見えて、そうではない。試験の中でだけ使う、最小の偽通訳だ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=k>class</span> <span class=nc>StubAdapter</span>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>request_docking</span><span class=p>(</span><span class=n>_ship_id</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=p>{</span> <span class=ss>granted</span><span class=p>:</span> <span class=kp>true</span><span class=p>,</span> <span class=ss>berth</span><span class=p>:</span> <span class=s2>&#34;99&#34;</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>def</span> <span class=nf>test_console_accepts_any_object_that_responds_to_request_docking</span>
+</span></span><span class=line><span class=cl>  <span class=n>console</span> <span class=o>=</span> <span class=no>After</span><span class=o>::</span><span class=no>DockingConsole</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=no>StubAdapter</span><span class=o>.</span><span class=n>new</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=s2>&#34;入港要求: SHIP-999 → 接近許可（泊地99）&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>console</span><span class=o>.</span><span class=n>hail</span><span class=p>(</span><span class=s2>&#34;SHIP-999&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>StubAdapter</code> はどの港のモジュールも抱えていない。ただ <code>request_docking</code> と呼ばれたら決まった返事をする、それだけの人形だ。それでも卓は、何の文句もなく記帳まで走り切る。渡された相手が誰かを、本体は本当に見ていない——約束に応えるなら誰でもいい、の実演である。引数名の頭の <code>_</code> は「受け取るが使わない」ことを示す Ruby の書き癖だ。</p><p>四本目は、約束破りの記録。通訳を噛ませ忘れて、届いたばかりの生のアルビレオ管制を卓に直結する。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=k>def</span> <span class=nf>test_console_raises_no_method_error_when_given_raw_control</span>
+</span></span><span class=line><span class=cl>  <span class=n>console</span> <span class=o>=</span> <span class=no>After</span><span class=o>::</span><span class=no>DockingConsole</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=no>AlbireoControl</span><span class=o>.</span><span class=n>new</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_raises</span><span class=p>(</span><span class=no>NoMethodError</span><span class=p>)</span> <span class=p>{</span> <span class=n>console</span><span class=o>.</span><span class=n>hail</span><span class=p>(</span><span class=s2>&#34;SHIP-003&#34;</span><span class=p>)</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>AlbireoControl</code> は <code>handshake</code> には応えるが、<code>request_docking</code> という呼びかけは知らない。卓が頼んだ瞬間、NoMethodError。<code>assert_raises</code> は「この警報が鳴るはず」という照合だ。後ろの波括弧はブロック——その場では実行せず、相手に渡して実行してもらう処理の塊——で、<code>assert_raises</code> はこのブロックを走らせて、その最中に指定の警報が鳴ることを確かめる。鳴れば、この試験は緑になる。壊れ方を、直すためではなく、忘れないために試験簿に綴じておく——うちの模擬航走の流儀だ。組んだ時点では鳴らず、交信の瞬間に鳴る、という性質ごと記録されている。</p><p>そして、仕上げ。アルビレオ対応、本番である。</p><p>ミラが書いたのは、新しいファイル一枚だった。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=c1># アルビレオ港（新港）の通訳。配列の応答を船の言葉に訳す、それだけの部品。</span>
+</span></span><span class=line><span class=cl><span class=k>class</span> <span class=nc>AlbireoAdapter</span>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>initialize</span><span class=p>(</span><span class=n>control</span> <span class=o>=</span> <span class=no>AlbireoControl</span><span class=o>.</span><span class=n>new</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@control</span> <span class=o>=</span> <span class=n>control</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>request_docking</span><span class=p>(</span><span class=n>ship_id</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=n>status</span><span class=p>,</span> <span class=n>detail</span> <span class=o>=</span> <span class=vi>@control</span><span class=o>.</span><span class=n>handshake</span><span class=p>(</span><span class=n>ship_id</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=n>status</span> <span class=o>==</span> <span class=s2>&#34;cleared&#34;</span>
+</span></span><span class=line><span class=cl>      <span class=p>{</span> <span class=ss>granted</span><span class=p>:</span> <span class=kp>true</span><span class=p>,</span> <span class=ss>berth</span><span class=p>:</span> <span class=n>detail</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>else</span>
+</span></span><span class=line><span class=cl>      <span class=p>{</span> <span class=ss>granted</span><span class=p>:</span> <span class=kp>false</span><span class=p>,</span> <span class=ss>reason</span><span class=p>:</span> <span class=n>detail</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>end</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p>アルビレオの管制は順番で話す。応答は二要素の配列で、許可なら <code>["cleared", "03"]</code>、保留なら <code>["standby", "traffic"]</code>。一枚目が判定、二枚目が中身。だから通訳は <code>handshake</code> の返りを多重代入で受けて、船の言葉に組み直す。方言帳の新しいページに書いてあった癖——順番で話す。せっかち——が、そのまま十数行になった格好だ。</p><p>これを模擬航走に掛ける。アルビレオの通訳を渡した卓で、許可——通る。保留——通る。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=k>def</span> <span class=nf>test_new_port_grant_log</span>
+</span></span><span class=line><span class=cl>  <span class=n>console</span> <span class=o>=</span> <span class=no>After</span><span class=o>::</span><span class=no>DockingConsole</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=no>After</span><span class=o>::</span><span class=no>AlbireoAdapter</span><span class=o>.</span><span class=n>new</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=s2>&#34;入港要求: SHIP-004 → 接近許可（泊地03）&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>console</span><span class=o>.</span><span class=n>hail</span><span class=p>(</span><span class=s2>&#34;SHIP-004&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p>ここで、朝からの勘定を締めておく。アルビレオ対応で書いたのは、通訳一枚。開いたファイルも、通訳一枚。交信卓の本体は、開いてすらいない。試験の構成そのものがその証明になっていて、この試験が読み込んでいる卓のソースは、ヴェガとデネブの検分に使ったものと同一のファイルだ。そして本体を触っていないから、ヴェガとデネブの試験は当然そのまま緑——触っていない港を疑う理由が、構造ごと消えている。</p><p>今日書き足したものと、指一本触れていないものを、勘定書きの形にしておく。アルビレオの声が船に届くまでの道筋は、こうだ。</p><p><img src=/public_images/2026/code-navigator-adapter-port-protocol/infographic_2.webp loading=lazy alt=新港追加時の変更範囲の図。新港アルビレオの外部管制モジュールの配列応答を、新しく書く通訳AlbireoAdapter一枚が船の共通規格に訳して渡し、交信卓本体DockingConsoleは一行も触らず記帳の接近許可（泊地03）まで流れる。既存のVegaAdapter・DenebAdapterには触らないことを点線で示す></p><p>前の二回、俺が卓とアンテナ座を何往復もした理由は、本体を開けたからだった。今回は、開けていない。だから、往復がない。徒労の正体は作業量じゃなくて、影響の読めなさのほうだったんだと、なくなってみて分かる。</p><p>検分は全部で十九本、赤はゼロ。ミラは結果盤を端から確かめてから、言った。</p><p>「効能の言い方、正確にしておくね。港を足しても本体を開けない、は結果の半分。もう半分はね——相手の都合が、船の中に入ってこなくなったの。ヴェガが明日規格を変えても、開くのはヴェガの通訳一枚。デネブにもアルビレオにも、本体にも、指一本届かない。影響の半径が、部品一枚ぶんに縮んだの。壊れなくなった、じゃないのよ。壊れる場所が、境界より内側に入れなくなったの」</p><p>守ってくれないものも、いつも通り確かめた。ミラは三つ挙げた。</p><p>一つ。港の規格変更そのものは、防げない。ヴェガが方言を変えれば、ヴェガの通訳は直す。この設計が約束するのは「直す場所が一枚に決まっている」ことまでで、「直さなくていい」ではない。</p><p>二つ。訳の正しさは、構造が守らない。さっき言った通り、誤訳を捕まえるのは港ごとの模擬交信だけだ。港が増えるたび、通訳の試験も増やす。網の手入れをやめた船から、誤訳は入ってくる。</p><p>三つ。港がひとつしかない船には、過剰だ。一港目のあの素直な直書きは、あれはあれで一番読みやすい形だった。通訳を雇う勘定が合うのは、言葉の違う相手が増え続けると決まった船だけ。うちは、そうなった。だから引いた。</p><p>数日後——アルビレオまで残り三日の航行中に、本番のハンドシェイクが組まれた。</p><p>実機の交信卓は、もう通訳版に載せ替えてある。俺は送信出力の計器の前、ミラは卓の端末の前。船体符号を載せた入港要求が、三日先の港へ飛んでいく。応答待ちの数秒、交信卓のスピーカーがかすかに砂の音を立てる。</p><p>音が、言葉になった。</p><p>「オリオール号、応答受理。泊地03を予約した。三日後に会おう」</p><p>一度で、通った。初めて聞くアルビレオ管制の声は、思ったより若かった。卓の記帳には、接近許可（泊地03）の一行。本体のコードは、今日まで一度も開けていない。</p><p>ミラは方言帳のアルビレオのページを、書き上がった切手と注記ごと、ぱたんと閉じた。</p><p>「いい声。この港の方言、好きよ」</p><p>俺は卓の上に置きっぱなしだった異径継手を工具箱に戻しながら、妙な気分を味わっていた。船はまだ着いていないのに、言葉のほうが先に通じている。三日後に初めて会う港と、うちの船はもう握手を済ませた。四港目の契約が来ても、次に俺がやることは決まっている。方言帳のページが一枚増えて、通訳が一人増える。卓の中身の心配は、もうしなくていい。</p><hr><h3 id=-オリオール号-航海日誌navigators-log>🚀 オリオール号 航海日誌（Navigator&rsquo;s Log）</h3><ul><li><strong>航法術（パターン名）</strong>: Adapter（既存のオブジェクトの受け答えの形を、利用側が期待する形に変換する部品を挟む構造パターン。今回は委譲——相手を抱えて頼み、結果を整えて返す形——で実装）</li><li><strong>発生事象（症状）</strong>: 新規契約港アルビレオへの初寄港を前に、交信コード本体の改修が三たび作業予定に載った。港ごとの応答規格の違いを本体の case が吸収しており、港が増えるたび本体を開け、触っていない港まで含めた全港ぶんの試し直しが発生していた</li><li><strong>原因（旧航路の問題）</strong>: 外部インターフェース差異の本体への漏出。書き換えられない相手（各港当局の配布モジュール）の方言が本体の分岐にむき出しで並び、相手の都合（規格変更・港の追加）がそのまま船内の改修になる。方言の取り違えは書いた時点では鳴らず、交信の瞬間の NoMethodError としてしか現れない</li><li><strong>処置（引き直しの要点）</strong>: 船側が期待する共通規格（<code>request_docking</code> → granted / berth / reason）を先に定め、港ごとに方言をこの形へ訳す通訳（Adapter）を委譲で実装。本体から港の名前と方言が消え、港の追加は通訳一枚の追加で完結。ダックタイピングにより本体は「約束に応える相手なら誰でも」受け入れ、相手の都合の影響半径が通訳一枚に局所化された</li><li><strong>保証外事項</strong>: 港の規格変更そのものは防げない（直す場所が一枚に決まるだけ）／訳の正しさは構造が守らない（港ごとの模擬交信が唯一の網。港が増えれば通訳の試験も増やす）／通訳に翻訳以外の仕事（再送・審査・記帳）を持たせない規律は人が守る／相手がひとつで増えない船には過剰（直書きが読みやすい場面もある）</li><li><strong>模擬航走結果</strong>: 全19テスト・20アサーション、全灯緑（2港×許可保留の Before=After 記帳一致・3港の通訳単体翻訳照合・偽通訳によるダックタイピングの実演・通訳なし直結の NoMethodError 記録・新港の本体無改変追加）</li><li><strong>次の針路</strong>: 三日後、アルビレオ入港。方言帳には新しいページが増え、交信卓の中身は、もう増えない</li></ul></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/ruby/>Ruby</a>
+<a href=/tags/adapter/>Adapter</a>
+<a href=/tags/protocol-leakage/>Protocol-Leakage</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-navigator/>Code-Navigator</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/08/10/070705/><div class=article-image><img src=/public_images/2026/code-navigator-composite-cargo-hold/header.webp loading=lazy data-key data-hash=/public_images/2026/code-navigator-composite-cargo-hold/header.webp></div><div class=article-details><h2 class=article-title>コードナビゲーター【Composite】船倉、箱の中の箱〜重さを尋ねる相手は、1つでいいの〜</h2></div></a></article><article class=has-image><a href=/2026/08/09/070705/><div class=article-image><img src=/public_images/2026/code-navigator-value-object-coordinates/header.webp loading=lazy data-key data-hash=/public_images/2026/code-navigator-value-object-coordinates/header.webp></div><div class=article-details><h2 class=article-title>コードナビゲーター【Value Object】航路計算室、混ざる数字たち〜数字は、単位を着てないと、混ざるの〜</h2></div></a></article><article class=has-image><a href=/2026/08/08/070705/><div class=article-image><img src=/public_images/2026/code-navigator-null-object-missing-sensor/header.webp loading=lazy data-key data-hash=/public_images/2026/code-navigator-null-object-missing-sensor/header.webp></div><div class=article-details><h2 class=article-title>コードナビゲーター【Null Object】欠測センサーの見張り所〜"ない"を、"何もしない"で置くの〜</h2></div></a></article><article class=has-image><a href=/2026/08/07/070705/><div class=article-image><img src=/public_images/2026/code-navigator-facade-preflight-check/header.webp loading=lazy data-key data-hash=/public_images/2026/code-navigator-facade-preflight-check/header.webp></div><div class=article-details><h2 class=article-title>コードナビゲーター【Facade】出航前点検、ブリッジに漏れた四系統の作法〜入口は一つでも、部屋は四つ残る〜</h2></div></a></article><article class=has-image><a href=/2026/08/06/070705/><div class=article-image><img src=/public_images/2026/code-navigator-command-helm-undo/header.webp loading=lazy data-key data-hash=/public_images/2026/code-navigator-command-helm-undo/header.webp></div><div class=article-details><h2 class=article-title>コードナビゲーター【Command】操舵訓練で消えた一手〜戻し方を知ってるのは、動かした本人だけ〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

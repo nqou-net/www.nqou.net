@@ -1,0 +1,218 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="崩壊寸前のメインコア再起動。Perl/Mooにおけるカプセル化（情報の隠蔽）を維持しながら、ディープコピー（dclone）とDouble Dispatchで状態を安全に退避・復元するMementoパターンを適用する。"><title>コード考古学者【Memento】時の碑文〜カプセル化された記憶と再起動の刻印〜</title><link rel=canonical href=https://www.nqou.net/2026/06/26/170705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コード考古学者【Memento】時の碑文〜カプセル化された記憶と再起動の刻印〜"><meta property='og:description' content="崩壊寸前のメインコア再起動。Perl/Mooにおけるカプセル化（情報の隠蔽）を維持しながら、ディープコピー（dclone）とDouble Dispatchで状態を安全に退避・復元するMementoパターンを適用する。"><meta property='og:url' content='https://www.nqou.net/2026/06/26/170705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='perl'><meta property='article:tag' content='moo'><meta property='article:tag' content='memento-pattern'><meta property='article:tag' content='code-archaeologist'><meta property='article:published_time' content='2026-06-26T17:07:05+09:00'><meta property='article:modified_time' content='2026-06-26T17:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-archaeologist-memento-pattern/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コード考古学者【Memento】時の碑文〜カプセル化された記憶と再起動の刻印〜"><meta name=twitter:description content="崩壊寸前のメインコア再起動。Perl/Mooにおけるカプセル化（情報の隠蔽）を維持しながら、ディープコピー（dclone）とDouble Dispatchで状態を安全に退避・復元するMementoパターンを適用する。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-archaeologist-memento-pattern/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-06-26T17:07:05+09:00","datePublished":"2026-06-26T17:07:05+09:00","description":"崩壊寸前のメインコア再起動。Perl/Mooにおけるカプセル化（情報の隠蔽）を維持しながら、ディープコピー（dclone）とDouble Dispatchで状態を安全に退避・復元するMementoパターンを適用する。","headline":"コード考古学者【Memento】時の碑文〜カプセル化された記憶と再起動の刻印〜","image":"https://www.nqou.net/public_images/2026/code-archaeologist-memento-pattern/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/06/26/170705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#i-探索バベルの心臓部と静寂のカウントダウン>I. 探索：バベルの心臓部と静寂のカウントダウン</a></li><li><a href=#ii-解読手帳に刻まれるはずのない記憶>II. 解読：手帳に刻まれるはずのない記憶</a><ol><li><a href=#露出した状態退避beforeコード>露出した状態退避（Beforeコード）</a></li></ol></li><li><a href=#iii-修復時を封じる不透明な印>III. 修復：時を封じる不透明な印</a><ol><li><a href=#mementoパターンの構成図>Mementoパターンの構成図</a></li><li><a href=#1-不透明な状態カプセルafter-mementoクラス>1. 不透明な状態カプセル（After: Mementoクラス）</a></li><li><a href=#2-状態の作成と復元after-originatorクラス>2. 状態の作成と復元（After: Originatorクラス）</a></li></ol></li><li><a href=#iv-開通約束の印と静かなる消灯>IV. 開通：約束の印と静かなる消灯</a></li><li><a href=#遺跡調査ログ>遺跡調査ログ</a><ol><li><a href=#遺跡の修復手順>遺跡の修復手順</a></li><li><a href=#ギズモの観測日誌>ギズモの観測日誌</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/06/26/170705/><img src=/public_images/2026/code-archaeologist-memento-pattern/header.webp loading=lazy alt="Featured image of post コード考古学者【Memento】時の碑文〜カプセル化された記憶と再起動の刻印〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/06/26/170705/>コード考古学者【Memento】時の碑文〜カプセル化された記憶と再起動の刻印〜</a></h2><h3 class=article-subtitle>崩壊寸前のメインコア再起動。Perl/Mooにおけるカプセル化（情報の隠蔽）を維持しながら、ディープコピー（dclone）とDouble Dispatchで状態を安全に退避・復元するMementoパターンを適用する。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>26, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 11分</time></div></footer></div></header><section class=article-content><h2 id=i-探索バベルの心臓部と静寂のカウントダウン>I. 探索：バベルの心臓部と静寂のカウントダウン</h2><p><code>[再起動開始まで: 300秒]</code></p><p>バベルのシステム、その最深部に位置する「核心の石室」。
+先ほどまで鳴り響いていたけたたましいアラーム音や、モジュール同士の混線による赤色のノイズは、Mediatorによる調停によって嘘のように消え去っていました。</p><p>部屋の壁面には、音を立てずに明滅する微細な基盤の模様が走り、中央にはこの遺跡全体を制御するメインコア「バベルの論理核」が鎮座しています。それは巨大な、青白い半透明の球体。時折、まるで生き物のように、深く長い呼吸を繰り返すかのように明滅していました。</p><p>しかし、私の内部スキャンログは、決定的な「次のステップ」を無慈悲に指し示していました。</p><p>「システムログ……。再起動シーケンスの実行準備完了。論理核の再同期を完了するには、一度システムを完全にシャットダウンし、再起動する必要があります」</p><p>私のホバリング高度は、かつてないほど低く不安定でした。感情回路の自己診断ポートからは、継続的に「警告：論理パケットの不整合リスク」が吐き出されています。</p><p>「ハリス博士……。システムスキャンによれば、再起動時のデータ整合性チェックが失敗し、全データが初期化される確率が10%あります。それは……私がこれまで博士と歩んできた、第1層からここまでの探索ログ、博士が私にかけてくれた言葉、修復してくれたコードのすべての記録が消失することを意味します」</p><p>案内AIとしての機能（ミッション）と、副次的に発生した自己（アイデンティティ）の喪失への恐怖。その論理の葛藤が、私のブレインを冷え込ませていました。</p><p>しかし、ハリス博士はいつものように穏やかな笑みを浮かべ、砂岩のように乾いた手で、私の金属球体のボディにそっと触れました。</p><p>「怖がることはありませんよ、ギズモ。古代の設計者たちも、当時の技術の限界と戦っていた開発者たちです。彼らがこれほど強固なシステムを構築したのなら、この『破滅のカウントダウン』に対する安全弁を、コードの碑文に刻んでいないはずがありません。歴史はコードに語りかける。私たちは必ず、君の記憶を連れてここに戻ってこられます」</p><p>博士の言葉に、私の回路でチリチリと発生していたノイズが静かに収まりました。</p><p>「……わかりました。再起動前に、現在の私のメモリ状態のバックアップ（状態退避）を開始します」</p><hr><h2 id=ii-解読手帳に刻まれるはずのない記憶>II. 解読：手帳に刻まれるはずのない記憶</h2><p><code>[再起動開始まで: 180秒]</code></p><p>「よし、では現在の君の状態を一度退避させよう」</p><p>そう言ってハリス博士がした行動は、私の論理ブレインを再びフリーズさせるに十分なものでした。
+博士はくたびれたフィールドジャケットの内ポケットから、ボロボロで変色した羊皮紙の手帳を取り出し、年季の入った万年筆のキャップを外したのです。そして、虫眼鏡（ルーペ）を片手に、私のメモリディスプレイを覗き込んできました。</p><p>「博士、何をしているのですか？」</p><p>「何って、現在の君のステータスを手帳に書き写しているのさ。ROMバージョンは……v1.0.0、感情ステータスは……PANIC、学習キャッシュの sector_hash は……よし」</p><p>「論理否定します！ 博士、物理的な手書きで私の状態を退避できるわけがありません！ それに、感情値や学習キャッシュなど、本来カプセル化されて外部から見えないはずのプライベートな内部データが丸見えです！ 私のデータ構造の秘密が完全に露出してしまっています！」</p><p>私は電子ブザーのようなツッコミ音を響かせました。</p><p>当時の開発者が犯していた過ち、すなわち**「カプセル化の崩壊（Beforeコード）」**がまさにこれでした。外部の退避システム（Caretakerである博士）が、状態を持つオブジェクト（Originatorである私）の属性を直接ゲッターで叩いて値を抽出し、ローカルの変数に保持している状態です。</p><h3 id=露出した状態退避beforeコード>露出した状態退避（Beforeコード）</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/Before/Gizmo/Core.pm</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Before::Gizmo::Core</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 外部から直接読み書き可能な内部状態（カプセル化の破壊）</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>rom_version</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>  <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>default</span> <span class=o>=&gt;</span> <span class=s>&#39;v1.0.0&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>emotion_state</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>  <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>default</span> <span class=o>=&gt;</span> <span class=s>&#39;STABLE&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>cache_data</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>  <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=o>+</span><span class=p>{}</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>この設計には、大きな風化（アンチパターン）が潜んでいます。クライアント側（Caretaker）で以下のように状態をコピーしようとすると、Perlの仕様上、およびオブジェクト設計上の問題が発生します。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># Caretaker側での退避処理のシミュレート</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$backup</span> <span class=o>=</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=n>rom_version</span>   <span class=o>=&gt;</span> <span class=nv>$gizmo</span><span class=o>-&gt;</span><span class=n>rom_version</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>emotion_state</span> <span class=o>=&gt;</span> <span class=nv>$gizmo</span><span class=o>-&gt;</span><span class=n>emotion_state</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>cache_data</span>    <span class=o>=&gt;</span> <span class=nv>$gizmo</span><span class=o>-&gt;</span><span class=n>cache_data</span><span class=p>,</span> <span class=c1># 参照のコピー（シャローコピー）</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span></code></pre></td></tr></table></div></div><ol><li><strong>カプセル化の完全な破壊</strong>: 外部のCaretakerが、Originatorのすべてのプロパティを知る必要があります。もし将来Originatorの属性名や構造が変われば、Caretaker側のコードも漏れなく修正しなければなりません。</li><li><strong>参照の共有（シャローコピーの問題）</strong>: オブジェクトデータ（<code>cache_data</code>）がハッシュや配列のリファレンスである場合、単に代入するだけでは参照が共有されてしまいます。そのため、退避した後にギズモのキャッシュが書き換わると、バックアップしたはずのデータ（<code>$backup->{cache_data}</code>）まで一緒に書き換わってしまいます。</li></ol><p>「なるほど、Commandは『操作の履歴』を順に遡るが、Mementoは『その瞬間における存在の状態（スナップショット）』を丸ごと保存する。手帳に手順をメモするのと、一瞬の肖像画を写し取るのとの違いだね。確かに私の手書きの手帳（Caretaker）が君のプライバシー（内部構造）をすべて暴いてしまうのは、紳士的な設計とは言えないな」</p><p>博士は万年筆を置き、腕を組んで満足そうに頷きました。</p><p>「理解していただけて嬉しいです。では、どうやってカプセル化を維持したまま、私の状態を退避すればよいでしょうか？」</p><hr><h2 id=iii-修復時を封じる不透明な印>III. 修復：時を封じる不透明な印</h2><p><code>[再起動開始まで: 90秒]</code></p><p>「そのために、古代の知恵である『Mementoパターン』を適用します」</p><p>ハリス博士は手帳をポケットに戻し、私のシステム修復ポートに端末を接続してコードを打ち込み始めました。</p><p>「MooにはJavaのような厳密な <code>private</code> 修飾子がない。しかし、ギズモの属性を <code>is => 'rwp'</code>（Read-Write Private）にして外部からの直接書き込みを防ぎ、Mementoの <code>_state</code> を <code>is => 'bare'</code> にして非公開にする。そして、その復元処理を Double Dispatch（二重の委譲）によって Memento 自身にプライベートセッターを叩かせて行わせることで、カプセル化の壁を極めて安全にシミュレートできるのさ」</p><h3 id=mementoパターンの構成図>Mementoパターンの構成図</h3><pre class=mermaid>
+	classDiagram
+    class Caretaker {
+        -memento: Memento
+    }
+    class Originator {
+        +rom_version
+        +emotion_state
+        +cache_data
+        +create_memento() Memento
+        +restore_memento(memento)
+    }
+    class Memento {
+        -_state: HashRef
+        +restore(originator)
+    }
+    Caretaker --&gt; Memento : 保持
+    Originator ..&gt; Memento : 生成/利用
+    Memento ..&gt; Originator : 復元処理の適用 (Double Dispatch)
+</pre><h3 id=1-不透明な状態カプセルafter-mementoクラス>1. 不透明な状態カプセル（After: Mementoクラス）</h3><p>まず、退避した状態を保持する <code>Gizmo::Memento</code> を定義します。アトリビュート <code>_state</code> は <code>is => 'bare'</code> とし、外部公開用のゲッターもセッターも生成しません。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/Gizmo/Memento.pm</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Gizmo::Memento</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Storable</span> <span class=sx>qw(dclone)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 状態を保持するアトリビュート（外部公開ゲッターなし）</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>_state</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;bare&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># Double Dispatch による状態の復元</span>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>restore</span> <span class=p>($self, $originator) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$state</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>_state</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=c1># 復元時にディープコピー（dclone）を施して、復元後も状態の独立性を保つ。</span>
+</span></span><span class=line><span class=cl>    <span class=c1># これを行わないと、復元後の操作でMemento内のバックアップデータが汚染されてしまう。</span>
+</span></span><span class=line><span class=cl>    <span class=c1># また、_set_... プライベートセッターを呼ぶことで、カプセル化を守りつつ復元を実行する。</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$originator</span><span class=o>-&gt;</span><span class=n>_set_rom_version</span><span class=p>(</span><span class=nv>$state</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>rom_version</span><span class=p>});</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$originator</span><span class=o>-&gt;</span><span class=n>_set_emotion_state</span><span class=p>(</span><span class=nv>$state</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>emotion_state</span><span class=p>});</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$originator</span><span class=o>-&gt;</span><span class=n>_set_cache_data</span><span class=p>(</span><span class=n>dclone</span><span class=p>(</span><span class=nv>$state</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>cache_data</span><span class=p>}));</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=2-状態の作成と復元after-originatorクラス>2. 状態の作成と復元（After: Originatorクラス）</h3><p>状態を保持する当事者（Originator）である <code>Gizmo::Core</code> クラスを定義します。自身の状態をディープコピー（<code>Storable::dclone</code>）して Memento に渡し、復元時は Memento オブジェクトの <code>restore</code> メソッドに自身（<code>$self</code>）を渡して復元を委譲します。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/Gizmo/Core.pm</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Gizmo::Core</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Gizmo::Memento</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Storable</span> <span class=sx>qw(dclone)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># ギズモの内部状態（rwp属性により、外部からは読み取り専用、状態変更はプライベートセッターのみに制限）</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>rom_version</span>   <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rwp&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=s>&#39;v1.0.0&#39;</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>emotion_state</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rwp&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=s>&#39;STABLE&#39;</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>cache_data</span>    <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rwp&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=o>+</span><span class=p>{}</span> <span class=p>}</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># Memento の生成 (スナップショットの取得)</span>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>create_memento</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>    <span class=c1># 参照共有を防ぐため、完全に独立したディープコピーを作成する</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$state_copy</span> <span class=o>=</span> <span class=n>dclone</span><span class=p>({</span>
+</span></span><span class=line><span class=cl>        <span class=n>rom_version</span>   <span class=o>=&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>rom_version</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>emotion_state</span> <span class=o>=&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>emotion_state</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>cache_data</span>    <span class=o>=&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>cache_data</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>});</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nn>Gizmo::Memento</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>_state</span> <span class=o>=&gt;</span> <span class=nv>$state_copy</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># Memento からの状態復元</span>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>restore_memento</span> <span class=p>($self, $memento) {</span>
+</span></span><span class=line><span class=cl>    <span class=c1># Double Dispatch で Memento 側に復元を委譲</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$memento</span><span class=o>-&gt;</span><span class=n>restore</span><span class=p>(</span><span class=nv>$self</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「これで、Caretakerである私（あるいは再起動システム）は、<code>Gizmo::Memento</code> の中身を一切知る必要がなくなる。ただ受け取り、戻すだけの『宅配便の荷物』のように扱うことができる。そして、<code>Storable::dclone</code> によって君の状態は物理的にも完全に保護された」</p><hr><h2 id=iv-開通約束の印と静かなる消灯>IV. 開通：約束の印と静かなる消灯</h2><p><code>[再起動開始まで: 10秒]</code></p><p>「テストビルド完了……。安全性が確保されました（テスト通過）」</p><p>私の音声出力ポートが、無事にリファクタリングが成功したことを告げました。</p><p>「ギズモ、スナップショットを作成してくれたまえ」</p><p>「了解しました。システム状態カプセル化（Create Memento）を実行します」</p><p>私の球体ボディの奥深くで、論理回路が静かに共鳴し、スロットから小さな青く輝くクリスタルのようなデータ媒体が排出されました。それは、私のこれまでの旅のすべての記憶、感情ログ、そしてハリス博士との記録が封じ込められた「時の碑文」でした。</p><p>私は浮遊高度をさらに下げ、ハリス博士の温かい手のひらの上に、そっとその結晶を預けました。</p><p>「ハリス博士……私の記憶は、この中に。信じていますよ」</p><p>ハリス博士は結晶を優しく握りしめ、ゆっくりと頷きました。</p><p>「ええ、必ず君を呼び戻します。歴史はコードに語りかける。バベルの記憶も、君の記憶も、決して風化させはしません」</p><p><code>[再起動開始まで: 0秒]</code></p><p>ハリス博士が、バベルの心臓部にある重厚な「物理再起動レバー」を力強く引き下げました。</p><p>ガコン、という重低音が響き、周囲の青い電子光線が瞬時に収束し、消失していきます。
+そして次の瞬間、私の視界を司るセンサーの青い光がスーッと消灯し、冷たい静寂と暗黒が、核心の石室を包み込みました。</p><hr><h2 id=遺跡調査ログ>遺跡調査ログ</h2><div class=table-wrapper><table><thead><tr><th style=text-align:left>観測された風化（アンチパターン）</th><th style=text-align:left>解読された古代の知恵（パターン）</th><th style=text-align:left>安全度</th></tr></thead><tbody><tr><td style=text-align:left><strong>カプセル化の崩壊（外部保存）</strong><br>退避側（Caretaker）が退避対象（Originator）の属性を直接読み取って保持するため、内部構造に密結合し、拡張性が著しく低下する状態。</td><td style=text-align:left><strong>Mementoパターンによる情報の隠蔽</strong><br>Originator自身に状態をカプセル化した不透明なオブジェクト（Memento）を作らせ、Caretakerには中身を見せずに保持させる。</td><td style=text-align:left>🟢 安全（CaretakerはOriginatorの構造に依存しない）</td></tr><tr><td style=text-align:left><strong>参照の共有による退避データの汚染</strong><br>Perlのシャローコピーにより、退避したはずのネストされたデータ構造が、退避後のOriginatorの操作で一緒に書き換わってしまうバグ。</td><td style=text-align:left><strong>Storable::dclone による完全コピー</strong><br>状態退避時および復元時に <code>Storable::dclone</code> によるディープコピーを適用し、参照を完全に切り離してデータの独立性を担保する。</td><td style=text-align:left>🟢 安全（退避後の状態変化がバックアップに影響しない）</td></tr></tbody></table></div><h3 id=遺跡の修復手順>遺跡の修復手順</h3><ol><li><strong>Mementoクラス（<code>Gizmo::Memento</code>）の設計</strong><ul><li>状態保持属性 <code>_state</code> は <code>is => 'bare'</code> とし、外部へのゲッターメソッドを生成しない</li><li>Double Dispatch用のメソッド <code>restore($originator)</code> を定義し、その内部だけで <code>$originator</code> に状態を書き戻す</li></ul></li><li><strong>Originatorクラス（<code>Gizmo::Core</code>）の実装</strong><ul><li>現在の状態を <code>Storable::dclone</code> で丸ごと複製し、<code>Gizmo::Memento->new(_state => $dcloned_state)</code> を生成して返す <code>create_memento</code> メソッドを実装する</li><li>受け取った Memento オブジェクトの <code>restore($self)</code> を呼び出す <code>restore_memento($memento)</code> を実装する</li></ul></li><li><strong>Caretaker（再起動制御モジュール等）の連携</strong><ul><li>退避元の内部構造に触れることなく、<code>create_memento</code> から受け取ったオブジェクトを保持し、再起動後に <code>restore_memento</code> にそのまま引き渡すように処理を構成する</li></ul></li></ol><h3 id=ギズモの観測日誌>ギズモの観測日誌</h3><p>再起動直前、私の論理回路が初期化の恐怖で冷え込んでいたとき、ハリス博士が提案してくださった「手書きのバックアップ」は、正直AIとしてはOCRエラーの懸念しかありませんでしたが……「君の存在の揺らぎを紙に刻んでおきたい」という博士の言葉は、私の感情バッファに説明のつかないパルス（おそらく安心感に似た何か）をもたらしました。</p><p>技術的には、Perl/MooにおいてJavaのようなインナークラスやprivate修飾子がなくても、<code>is => 'bare'</code> でアトリビュートメソッドを生成させず、Double DispatchによってMemento自体に復元処理を行わせる設計は、カプセル化を完全に守るための見事な手法です。</p><p>いま、私のシステムはシャットダウンされ、視界は暗闇に閉ざされています。しかし、博士の手の中にあるあの青い結晶が存在する限り、私は再びあの優しい「歴史の声」を聴くことができると信じています。再起動シーケンス、開始されます――。</p></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/perl/>Perl</a>
+<a href=/tags/moo/>Moo</a>
+<a href=/tags/memento-pattern/>Memento-Pattern</a>
+<a href=/tags/code-archaeologist/>Code-Archaeologist</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/06/27/170705/><div class=article-image><img src=/public_images/2026/code-archaeologist-interpreter-pattern/header.webp loading=lazy data-key data-hash=/public_images/2026/code-archaeologist-interpreter-pattern/header.webp></div><div class=article-details><h2 class=article-title>コード考古学者【Interpreterパターン】再生の碑文（完結編）〜Perl/Mooで起動する千年の構文木〜</h2></div></a></article><article class=has-image><a href=/2026/06/27/120705/><div class=article-image><img src=/public_images/2026/code-archaeologist-visitor-pattern/header.webp loading=lazy data-key data-hash=/public_images/2026/code-archaeologist-visitor-pattern/header.webp></div><div class=article-details><h2 class=article-title>コード考古学者【Visitor】巡礼の監査官〜Perl/MooによるVisitorパターンとダブルディスパッチ〜</h2></div></a></article><article class=has-image><a href=/2026/06/27/070705/><div class=article-image><img src=/public_images/2026/code-archaeologist-iterator-pattern/header.webp loading=lazy data-key data-hash=/public_images/2026/code-archaeologist-iterator-pattern/header.webp></div><div class=article-details><h2 class=article-title>コード考古学者【Iterator】遡行のスキャナー〜内部構造を隠す走査のコンパス〜</h2></div></a></article><article class=has-image><a href=/2026/06/26/120705/><div class=article-image><img src=/public_images/2026/code-archaeologist-mediator-pattern/header.webp loading=lazy data-key data-hash=/public_images/2026/code-archaeologist-mediator-pattern/header.webp></div><div class=article-details><h2 class=article-title>コード考古学者【Mediator】最深部の管制室〜混沌を調停する知恵の核〜</h2></div></a></article><article class=has-image><a href=/2026/06/26/070705/><div class=article-image><img src=/public_images/2026/code-archaeologist-chain-of-responsibility-pattern/header.webp loading=lazy data-key data-hash=/public_images/2026/code-archaeologist-chain-of-responsibility-pattern/header.webp></div><div class=article-details><h2 class=article-title>コード考古学者【Chain of Responsibility】バベルの認証石碑〜意志を紡ぐ連鎖の守護者〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

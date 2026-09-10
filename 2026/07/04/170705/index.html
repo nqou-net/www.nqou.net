@@ -1,0 +1,307 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="ギルドの中継係は、速さを誇りにしてきた。主が落ちた瞬間、迷宮の全階層の討伐状況板へ叫びを飛ばし、寸分の狂いもなく揃える。だが全階層の即時の復唱を強いるほど、こだまは反響を増幅し、魔力回線を灼いて自ら黙る。灼けた隙に叫びを取りこぼした階層は、討伐済の主を未討伐のまま掲げ続け、永久に追いつけない。叫び（push）は速いが取りこぼす。では巡回（poll）だけにすれば、今度は自分が仕留めた報せすら次の巡回まで自分の板に出ない（read-your-writes の崩れ）。速さを捨てず、即時の強制だけを捨てる。叫びは残し、取りこぼしの保険に定期巡回を足し、二本の報せを版で冪等に束ねる。ズレを禁じるのではなく、ズレに刻限を与える。取りこぼしを次の巡回で必ず拾い、古い叫びの後着では倒した主を蘇らせない結果整合性を、決定的な模擬戦で確かめる TypeScript の契約の物語。"><title>コードテイマー【Eventual Consistency】取りこぼした叫びのあと、その階層だけが古いまま黙り込む〜叫びと巡回の二本を版で束ね、遅れても必ず追いつかせる〜</title><link rel=canonical href=https://www.nqou.net/2026/07/04/170705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コードテイマー【Eventual Consistency】取りこぼした叫びのあと、その階層だけが古いまま黙り込む〜叫びと巡回の二本を版で束ね、遅れても必ず追いつかせる〜"><meta property='og:description' content="ギルドの中継係は、速さを誇りにしてきた。主が落ちた瞬間、迷宮の全階層の討伐状況板へ叫びを飛ばし、寸分の狂いもなく揃える。だが全階層の即時の復唱を強いるほど、こだまは反響を増幅し、魔力回線を灼いて自ら黙る。灼けた隙に叫びを取りこぼした階層は、討伐済の主を未討伐のまま掲げ続け、永久に追いつけない。叫び（push）は速いが取りこぼす。では巡回（poll）だけにすれば、今度は自分が仕留めた報せすら次の巡回まで自分の板に出ない（read-your-writes の崩れ）。速さを捨てず、即時の強制だけを捨てる。叫びは残し、取りこぼしの保険に定期巡回を足し、二本の報せを版で冪等に束ねる。ズレを禁じるのではなく、ズレに刻限を与える。取りこぼしを次の巡回で必ず拾い、古い叫びの後着では倒した主を蘇らせない結果整合性を、決定的な模擬戦で確かめる TypeScript の契約の物語。"><meta property='og:url' content='https://www.nqou.net/2026/07/04/170705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='typescript'><meta property='article:tag' content='eventual-consistency'><meta property='article:tag' content='polling'><meta property='article:tag' content='event-driven'><meta property='article:tag' content='read-your-writes'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-tamer'><meta property='article:published_time' content='2026-07-04T17:07:05+09:00'><meta property='article:modified_time' content='2026-07-04T17:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-tamer-eventual-consistency/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コードテイマー【Eventual Consistency】取りこぼした叫びのあと、その階層だけが古いまま黙り込む〜叫びと巡回の二本を版で束ね、遅れても必ず追いつかせる〜"><meta name=twitter:description content="ギルドの中継係は、速さを誇りにしてきた。主が落ちた瞬間、迷宮の全階層の討伐状況板へ叫びを飛ばし、寸分の狂いもなく揃える。だが全階層の即時の復唱を強いるほど、こだまは反響を増幅し、魔力回線を灼いて自ら黙る。灼けた隙に叫びを取りこぼした階層は、討伐済の主を未討伐のまま掲げ続け、永久に追いつけない。叫び（push）は速いが取りこぼす。では巡回（poll）だけにすれば、今度は自分が仕留めた報せすら次の巡回まで自分の板に出ない（read-your-writes の崩れ）。速さを捨てず、即時の強制だけを捨てる。叫びは残し、取りこぼしの保険に定期巡回を足し、二本の報せを版で冪等に束ねる。ズレを禁じるのではなく、ズレに刻限を与える。取りこぼしを次の巡回で必ず拾い、古い叫びの後着では倒した主を蘇らせない結果整合性を、決定的な模擬戦で確かめる TypeScript の契約の物語。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-tamer-eventual-consistency/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-07-04T17:07:05+09:00","datePublished":"2026-07-04T17:07:05+09:00","description":"ギルドの中継係は、速さを誇りにしてきた。主が落ちた瞬間、迷宮の全階層の討伐状況板へ叫びを飛ばし、寸分の狂いもなく揃える。だが全階層の即時の復唱を強いるほど、こだまは反響を増幅し、魔力回線を灼いて自ら黙る。灼けた隙に叫びを取りこぼした階層は、討伐済の主を未討伐のまま掲げ続け、永久に追いつけない。叫び（push）は速いが取りこぼす。では巡回（poll）だけにすれば、今度は自分が仕留めた報せすら次の巡回まで自分の板に出ない（read-your-writes の崩れ）。速さを捨てず、即時の強制だけを捨てる。叫びは残し、取りこぼしの保険に定期巡回を足し、二本の報せを版で冪等に束ねる。ズレを禁じるのではなく、ズレに刻限を与える。取りこぼしを次の巡回で必ず拾い、古い叫びの後着では倒した主を蘇らせない結果整合性を、決定的な模擬戦で確かめる TypeScript の契約の物語。","headline":"コードテイマー【Eventual Consistency】取りこぼした叫びのあと、その階層だけが古いまま黙り込む〜叫びと巡回の二本を版で束ね、遅れても必ず追いつかせる〜","image":"https://www.nqou.net/public_images/2026/code-tamer-eventual-consistency/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/07/04/170705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#灼け落ちた中継室>灼け落ちた中継室</a></li><li><a href=#叫び一本の二つの綻び>叫び一本の、二つの綻び</a></li><li><a href=#叫びと巡回二本の道>叫びと巡回、二本の道</a></li><li><a href=#ズレに刻限を与える>ズレに、刻限を与える</a></li><li><a href=#鈴を鳴らす>鈴を、鳴らす</a><ol><li><a href=#-カイナの魔獣契約録tamers-registry>📜 カイナの魔獣契約録（Tamer&rsquo;s Registry）</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/07/04/170705/><img src=/public_images/2026/code-tamer-eventual-consistency/header.webp loading=lazy alt="Featured image of post コードテイマー【Eventual Consistency】取りこぼした叫びのあと、その階層だけが古いまま黙り込む〜叫びと巡回の二本を版で束ね、遅れても必ず追いつかせる〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/07/04/170705/>コードテイマー【Eventual Consistency】取りこぼした叫びのあと、その階層だけが古いまま黙り込む〜叫びと巡回の二本を版で束ね、遅れても必ず追いつかせる〜</a></h2><h3 class=article-subtitle>ギルドの中継係は、速さを誇りにしてきた。主が落ちた瞬間、迷宮の全階層の討伐状況板へ叫びを飛ばし、寸分の狂いもなく揃える。だが全階層の即時の復唱を強いるほど、こだまは反響を増幅し、魔力回線を灼いて自ら黙る。灼けた隙に叫びを取りこぼした階層は、討伐済の主を未討伐のまま掲げ続け、永久に追いつけない。叫び（push）は速いが取りこぼす。では巡回（poll）だけにすれば、今度は自分が仕留めた報せすら次の巡回まで自分の板に出ない（read-your-writes の崩れ）。速さを捨てず、即時の強制だけを捨てる。叫びは残し、取りこぼしの保険に定期巡回を足し、二本の報せを版で冪等に束ねる。ズレを禁じるのではなく、ズレに刻限を与える。取りこぼしを次の巡回で必ず拾い、古い叫びの後着では倒した主を蘇らせない結果整合性を、決定的な模擬戦で確かめる TypeScript の契約の物語。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>04, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 23分</time></div></footer></div></header><section class=article-content><h2 id=灼け落ちた中継室>灼け落ちた中継室</h2><p>焦げた魔力の匂いが、まだ抜けない。</p><p>俺は冒険者ギルドの中継係だ。迷宮は四十二層。各階層に「討伐状況板」が立っている。どの層の主（ぬし）が討伐済みで、どれがまだ生きているか——それを、全部の階層で揃えるのが俺の役目だ。冒険者は階を跨いで動く。三層で大蛇が落ちたという報せが、十二層の板にも、二十層の板にも、すぐに灯らなきゃいけない。そうでなきゃ、倒したはずの魔物にまた挑む阿呆が出る。</p><p>だから俺は、速さを誇ってきた。主が落ちた、その瞬間に、全階層へ叫びを飛ばす。全部の板が「受け取った」と復唱を返すまで、見届ける。誰よりも速く、寸分の狂いもなく揃える。それが中継係の腕だと、信じていた。</p><p>それが、灼けた。</p><p>地下の主が立て続けに落ちた、繁忙の刻だった。三層で大蛇、五層で双頭の狼、七層で岩の巨人。報せが、次々に飛び込んでくる。俺は、いつものように、全部を全階層へ響かせた。一つの討伐を四十二層すべてへ叫び、四十二の板すべてから「受け取った」の復唱を待つ。だが、その復唱が返るより先に、次の討伐の叫びが重なった。叫びが叫びを呼ぶ。復唱が復唱と擦れ合う。反響が、膨れ上がっていく。こだまが、こだまを呼ぶ。回線が、熱を持ち始めた。最初は、指先に伝わる程度の温み。それが、みるみる、触れれば火傷するほどに。魔力回線が、悲鳴のような高い音を立てて——灼け落ちた。壁一面に並んだ板の写しが、ひとつ、またひとつと暗くなって、半分が、闇に沈んだ。こだまが、止んだ。耳が痛いほどの、静寂だった。</p><p>回線を繋ぎ直し、暗かった板に、灯りが戻った。俺は、ひとつずつ、源の台帳と板の写しを照らし合わせていった。ほとんどは、合っていた。だが、三層の板の前で、手が止まった。討伐済みのはずの大蛇が、まだ「未討伐」と灯っている。あの夜、討伐の報せは、確かに来た。俺は、確かに、叫びを飛ばした。なのに、三層にだけ、届いていない。その朝も、冒険者が一人、三層から引き返してきた。「まだ大蛇がいると板に出てたから、装備を整え直してきた」と言って。とっくに、誰かが斬り伏せた相手だ。</p><p>回線を診に来た技師が、灼けた線の束を指でつまんで、言った。「これは配線の不具合じゃない。回線を灼く獣だ。市の外れに、変わった魔物使いがいる。そいつを訪ねろ」。それから、ひとこと付け足した。「この回線は、古い結界を通っている。だから、なおさら厄介だ」。</p><p>その魔物使いが、いま、中継室にいる。カイナ、と名乗った。灼けた回線の断面を、指で一度なぞって、それから三層の板の暗い灯りを、じっと見ている。急ぐ気配が、まるでなかった。俺が四十二層を報せで駆け回る、その速さで生きてきたのとは、逆の——ゆっくりとした時間が、その人の周りだけ、流れているようだった。</p><p>「速いのは、悪いことですか」と、俺は訊いた。問いというより、ぼやきに近かった。「全部を、今すぐ、寸分違わず揃えようとした。なのに、速くしようとするほど——かえって、何も届かなくなった。倒した大蛇が、三層じゃまだ生きてることになってる。冒険者が、まだいるぞって引き返してくる」。</p><p>カイナは振り返らずに、ひとつだけ訊いた。「お前の叫びは、&ldquo;届かなかったこと"を、お前に知らせるか」。</p><p>俺は、詰まった。「届かなかった……? 叫べば、届くものでしょう。届かなかったなんて、どうやって——」。</p><p>「そこだ」。カイナは灼けた回線の断面を、もう一度なぞった。「まず、その目で見せてやる」。</p><p>俺は、自分のやり方を見せた。難しいことは、何もしていない。主が落ちたら、その報せを叫びで全階層へ。受けた板は、その通りに書き換える。それだけだ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=c1>// 討伐状況板の共通の型：版（version, 単調増加）と、主が討伐済か。
+</span></span></span><span class=line><span class=cl><span class=kr>export</span> <span class=kr>interface</span> <span class=nx>BoardState</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=nx>version</span>: <span class=kt>number</span><span class=p>;</span> <span class=c1>// 単調増加。報せの新しさを順序づける番号。
+</span></span></span><span class=line><span class=cl>  <span class=nx>defeated</span>: <span class=kt>boolean</span><span class=p>;</span> <span class=c1>// その階層の主が討伐済か。
+</span></span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// Before: 叫び一本。受けた報せで無条件に上書きする（版の照合なし・巡回なし）。
+</span></span></span><span class=line><span class=cl><span class=kr>export</span> <span class=kr>class</span> <span class=nx>SyncBoard</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=kr>private</span> <span class=nx>state</span>: <span class=kt>BoardState</span> <span class=o>=</span> <span class=p>{</span> <span class=nx>version</span>: <span class=kt>0</span><span class=p>,</span> <span class=nx>defeated</span>: <span class=kt>false</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=c1>// 叫び（push）を受けたら、そのまま書き換える。
+</span></span></span><span class=line><span class=cl>  <span class=nx>onCry</span><span class=p>(</span><span class=nx>incoming</span>: <span class=kt>BoardState</span><span class=p>)</span><span class=o>:</span> <span class=k>void</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>this</span><span class=p>.</span><span class=nx>state</span> <span class=o>=</span> <span class=nx>incoming</span><span class=p>;</span> <span class=c1>// ← 版を見ない。古い叫びでも上書きする。
+</span></span></span><span class=line><span class=cl>  <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=nx>read</span><span class=p>()</span><span class=o>:</span> <span class=nx>BoardState</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=k>this</span><span class=p>.</span><span class=nx>state</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>報せには番号を振ってある。版（version）だ。主の様子が変わるたびに、ひとつ繰り上がる。三層の大蛇なら、未討伐が版1、討伐済みが版2。<code>onCry</code> が叫びを受けて、<code>state</code> を丸ごと書き換える。速いだろう。叫び一本に、全部を賭けた仕組みだ。</p><p>俺は、この単純さが、自慢だった。余計なものは、何もない。届いたら、書く。それだけ。仕組みが単純なら、速い。速ければ、親切だ。ずっと、そう信じてきた。</p><p>カイナは、コードを見て、何も言わなかった。ただ、模擬戦を組む、と言った。</p><h2 id=叫び一本の二つの綻び>叫び一本の、二つの綻び</h2><p>「源で、三層の主を討つ」とカイナは言った。源、というのは中央の台帳のことだ。迷宮のどこかにあって、本当の討伐状況を持っている。「版を1から2へ。討伐済みだ。その叫びを、三層の板へ飛ばす。——だが今日は、回線が灼けている。この一つの叫びを、落とす」。</p><p>カイナは、三層への <code>onCry</code> を、呼ばなかった。それだけだ。叫びを落とす、というのは、コードの上ではただ「呼ばない」ことだった。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span><span class=lnt>9
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=kr>const</span> <span class=nx>board</span> <span class=o>=</span> <span class=k>new</span> <span class=nx>SyncBoard</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// 板はまず版1（未討伐）の叫びを正常に受け取っている（平時の同期）。
+</span></span></span><span class=line><span class=cl><span class=nx>board</span><span class=p>.</span><span class=nx>onCry</span><span class=p>({</span> <span class=nx>version</span>: <span class=kt>1</span><span class=p>,</span> <span class=nx>defeated</span>: <span class=kt>false</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// 源で三層の主を討伐 → 版1から版2(討伐済)へ。
+</span></span></span><span class=line><span class=cl><span class=c1>// だが回線が灼けた隙に、この版2の叫びを「落とす」＝ onCry を一度も呼ばない。
+</span></span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nx>board</span><span class=p>.</span><span class=nx>read</span><span class=p>();</span> <span class=c1>// → { version: 1, defeated: false } のまま
+</span></span></span></code></pre></td></tr></table></div></div><p>三層の板は、版1のまま。未討伐。源は、もう版2だ。倒した大蛇が、三層では生きたまま、黙り込んでいる。</p><p>「三層は、自分が古いと、気づけるか」とカイナが訊いた。</p><p>俺は、ようやく、さっきの問いの意味が分かった。「……気づけない。叫びが来なかったことは、板には分からない。叫びは、来たときしか、何も言わないから」。</p><p>「だろう」とカイナは言った。「叫びは"来たこと"しか伝えない。&ldquo;来なかったこと"は、誰も伝えない」。</p><p>俺は、食い下がった。速さを捨てたくなかったんだと思う。「なら——もう一度、叫べばいい。取りこぼしたぶん、叫び直せば」。</p><p>カイナは、俺を見た。「その再送も、落ちたら? 落ちたことに、誰が気づく?」。</p><p>黙るしかなかった。叫び直しても、それが落ちたかどうかは、やっぱり叫びでは分からない。叫びという一本の道しか持たない限り、取りこぼした板は、自分が古いことに、永久に気づけない——だから、ただ黙り込む。落ちたかどうかを、確かめに行く者が、いる。叫びの届かない先を、こっちから覗きに行く何かが。俺は、その「何か」を、まだ言葉にできなかった。</p><p>カイナは、もう一つ、綻びを見せた。「繁忙で、叫びが渋滞すると、こうなる」。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=kr>const</span> <span class=nx>board</span> <span class=o>=</span> <span class=k>new</span> <span class=nx>SyncBoard</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// 先に新しい叫び（版2・討伐済）が届く。
+</span></span></span><span class=line><span class=cl><span class=nx>board</span><span class=p>.</span><span class=nx>onCry</span><span class=p>({</span> <span class=nx>version</span>: <span class=kt>2</span><span class=p>,</span> <span class=nx>defeated</span>: <span class=kt>true</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=nx>board</span><span class=p>.</span><span class=nx>read</span><span class=p>();</span> <span class=c1>// → { version: 2, defeated: true }
+</span></span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// 渋滞で遅れていた古い叫び（版1・未討伐）が、後から届く。
+</span></span></span><span class=line><span class=cl><span class=nx>board</span><span class=p>.</span><span class=nx>onCry</span><span class=p>({</span> <span class=nx>version</span>: <span class=kt>1</span><span class=p>,</span> <span class=nx>defeated</span>: <span class=kt>false</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// SyncBoard は版を見ないので、後着の古い報せで無条件に上書きする。
+</span></span></span><span class=line><span class=cl><span class=nx>board</span><span class=p>.</span><span class=nx>read</span><span class=p>();</span> <span class=c1>// → { version: 1, defeated: false } ← 倒した主が蘇る
+</span></span></span></code></pre></td></tr></table></div></div><p>版2が先に届いて、討伐済みになった。そのあとに、渋滞で遅れていた版1が、のろのろと届く。<code>SyncBoard</code> は版を見ない。後から来たものを、そのまま書く。だから——倒したはずの大蛇が、板にまた「未討伐」として現れた。蘇った。模擬戦の中の出来事だと分かっていても、俺は思わず、目を逸らした。あの朝、三層から引き返してきた冒険者の、怪訝そうな顔が、浮かんだ。</p><p>「叫びは、届く順を約束しない」とカイナは言った。「速い道は、順不同だ」。</p><p>俺は、二つの綻びを並べて、背筋が寒くなった。叫びは取りこぼす。叫びは順番を守らない。俺が誇ってきた速さは、その二つを、ずっと見ないふりをしていた。</p><p>カイナは手元の木札をいくつか並べ、中継の糸が途切れた時、そして絡まり合った時に何が起きるかを示した。目の前に現れたのは、沈黙する三層の板と、死から蘇る大蛇の悪夢だった。</p><p><img src=/public_images/2026/code-tamer-eventual-consistency/infographic_1.webp loading=lazy alt="Infographic sequence diagram showing double-submission race condition due to packet loss causing permanent divergence and delayed messages causing rollback"></p><p>速さだけを求めた報せが自滅し、あるいは過去に引き戻されて破綻する。その残酷な道理が、頭の中で像を結んでいた。俺は乾いた喉を鳴らし、次の言葉を待った。</p><h2 id=叫びと巡回二本の道>叫びと巡回、二本の道</h2><p>俺は、勢いで、逆に振れた。</p><p>「分かった。叫びが取りこぼすなら、順番も守らないなら——叫びを、捨てる」。我ながら、思い切った提案だと思った。「各階層が、定期的に、源へ"最新は?&ldquo;と訊きに行けばいい。巡回だ。巡回だけにすれば、取りこぼしも、順不同も、関係ない。源が答える最新が、いつも正しいんだから」。</p><p>カイナは、否定しなかった。「やってみろ」とだけ言った。</p><p>巡回だけの模擬戦は、確かに、取りこぼさなかった。源へ訊きに行って、最新を受け取る。落ちる叫びも、渋滞する叫びも、もうない。俺は、勝った気でいた。</p><p>「ただし」とカイナは言った。「こうなるぞ」。</p><p>「お前が、たった今、三層で大蛇を仕留めた。源には、版2が立つ。だが、お前が見ている三層の板は、源そのものじゃない。源を写した、手元の写しだ。次の巡回でその写しを書き直すまで——版1のまま。未討伐のまま。お前自身が、お前の討伐を、自分の手元で見られない。自分の報せを、自分で待つことになる」。</p><p>俺は、その一言で、固まった。</p><p>「俺が……俺の報せを、待つ?」。それは、想像しただけで、おかしかった。三層で大蛇を斬り倒して、振り返って、板を見る。なのに板は「未討伐」と灯っている。俺が、たった今、倒したのに。中継係の仕事は、報せを、誰よりも早く渡すことだ。その俺が、自分の渡した報せを、一番近いはずの自分の板で、待たされる。「それは——速さを、捨てることだ。即座に知れるはずのことを、わざわざ待つなんて」。</p><p>「もう一つある」とカイナは続けた。「全階層が、常に巡回の間隔ぶん、遅れる。繁忙でも、緊急でも、待つのは巡回の刻だ。速い道を捨てたぶん、誰も、即座には知れない」。</p><p>俺は、二つの代償を、並べた。叫びを捨てた世界は、取りこぼさない代わりに、誰もが遅れる。自分の手柄すら、待たされる。——叫びには、叫びの良さが、あったのだ。</p><p>カイナは、答えを言わなかった。代わりに、二つに分けて訊いた。「叫びは——何が良かった。巡回は——何が良かった」。</p><p>俺は、問われて、一つずつ、並べた。「叫びは……速い。落ちた瞬間、自分も、仲間も、即座に知れる。巡回は……遅いけど、取りこぼさない。確実だ」。</p><p>並べて、初めて、結べた。「——どっちか、じゃない。叫びは速さ、巡回は保険だ。両方、要る。叫びで即座に届けて、取りこぼしたぶんは、巡回が後ろから拾う」。</p><p>カイナは、小さく頷いたように見えた。「そこに、たどり着いたか」。</p><p>だが、すぐに、次の壁にぶつかった。「でも——叫びと巡回、二本あったら。同じ報せが二回来たり、片方が古かったりする。どっちを信じればいいんです?」。</p><p>「番号を使え」とカイナは言った。「報せが新しくなるたび、ひとつ繰り上がる番号——版を。叫びでも巡回でも、来た報せの番号が、手元より新しいときだけ、書き換える。同じか、古いなら、無視だ。これで、同じ報せが二本の道から二度来ても、一度しか効かない。順不同で来ても、一番新しい番号が、必ず勝つ」。</p><p>版、と俺は繰り返した。番号を振って、新しい方だけ採る。それなら、二度来ても、順番が狂っても、揺らがない。番号をふるのは、中央の台帳——ただ一つの源だ。源が一つだから、大きい版は、必ず新しいと言い切れる。</p><p>「前に、版で"誰かが割り込んだか"を見張る蔵があった、と聞くだろう」とカイナは言った。「あれは、書き戻すときに版を照らして、ぶつかった手をやり直させる、見張りの目だった。今すぐ揃えろ、と急いた蔵だ。——ここでは、違う。版は、二本の道から来た報せを、取り違えずに重ねるための、糊だ。同じ番号、別の役目だ」。</p><p>見張りの目ではなく、二本の道をつなぐ糊。同じ版という道具が、急ぐ蔵では衝突を弾き、ここでは、遅れてくる報せを、正しい順に積み直す。</p><p>妙な話だ、と思った。番号をふって、新しい方だけ採る。たったそれだけのことが、片方の蔵では「割り込みを許さない」厳しさになり、こっちの板では「遅れて来た者を、慌てず正しい場所に座らせる」寛さになる。道具は、同じ。何を守りたいかで、役目が、裏返る。</p><p>俺は、もうひとつ、引っかかっていたことを訊いた。中継係として、伝達の間（ま）には敏感だ。「待ってください。巡回は、源へ訊いて、答えが返るまで、間がある。その訊いてる間に、新しい叫びが届いたら? 巡回が持って帰る答えは、もう古いんじゃ?」。</p><p>「いい問いだ」とカイナは言った。</p><p>俺は、自分で言いかけて、気づいた。「巡回が、空中で古くなる……なら、持ち帰った報せが古いかどうか、手元と比べるしかない。番号をふって、新しい方だけ採るしか——」。</p><p>「そこまで言えれば」とカイナは言った。「もう半分は、契約できている」。</p><h2 id=ズレに刻限を与える>ズレに、刻限を与える</h2><p>カイナが施した契約は、拍子抜けするほど、コードが少なかった。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=c1>// After: 叫びと巡回を、単一の入口 merge へ集約する。
+</span></span></span><span class=line><span class=cl><span class=c1>// merge は「手元より新しい版だけ反映」＝単調・冪等。これが二本の道の糊。
+</span></span></span><span class=line><span class=cl><span class=kr>export</span> <span class=kr>class</span> <span class=nx>ConvergentBoard</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=kr>private</span> <span class=nx>state</span>: <span class=kt>BoardState</span> <span class=o>=</span> <span class=p>{</span> <span class=nx>version</span>: <span class=kt>0</span><span class=p>,</span> <span class=nx>defeated</span>: <span class=kt>false</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=c1>// 二本の道（叫び・巡回）の唯一の入口。版で冪等・単調にマージする。
+</span></span></span><span class=line><span class=cl>  <span class=kr>private</span> <span class=nx>merge</span><span class=p>(</span><span class=nx>incoming</span>: <span class=kt>BoardState</span><span class=p>)</span><span class=o>:</span> <span class=k>void</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=nx>incoming</span><span class=p>.</span><span class=nx>version</span> <span class=o>&gt;</span> <span class=k>this</span><span class=p>.</span><span class=nx>state</span><span class=p>.</span><span class=nx>version</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=k>this</span><span class=p>.</span><span class=nx>state</span> <span class=o>=</span> <span class=nx>incoming</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=c1>// incoming.version &lt;= 手元 → 既知/古い。無視（冪等・巻き戻らない）。
+</span></span></span><span class=line><span class=cl>  <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=c1>// 叫び（push）：低遅延。自分と仲間が即座に知る。取りこぼしうる。
+</span></span></span><span class=line><span class=cl>  <span class=nx>onCry</span><span class=p>(</span><span class=nx>incoming</span>: <span class=kt>BoardState</span><span class=p>)</span><span class=o>:</span> <span class=k>void</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>this</span><span class=p>.</span><span class=nx>merge</span><span class=p>(</span><span class=nx>incoming</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>  <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=c1>// 巡回（pull）：取りこぼしの保険。源から最新を取り、マージする。
+</span></span></span><span class=line><span class=cl>  <span class=kr>async</span> <span class=nx>poll</span><span class=p>(</span><span class=nx>fetchLatest</span><span class=o>:</span> <span class=p>()</span> <span class=o>=&gt;</span> <span class=nx>Promise</span><span class=p>&lt;</span><span class=nt>BoardState</span><span class=p>&gt;)</span><span class=o>:</span> <span class=nx>Promise</span><span class=p>&lt;</span><span class=nt>void</span><span class=p>&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=kr>const</span> <span class=nx>latest</span> <span class=o>=</span> <span class=k>await</span> <span class=nx>fetchLatest</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>    <span class=k>this</span><span class=p>.</span><span class=nx>merge</span><span class=p>(</span><span class=nx>latest</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>  <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=nx>read</span><span class=p>()</span><span class=o>:</span> <span class=nx>BoardState</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=k>this</span><span class=p>.</span><span class=nx>state</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>外から見れば、叫びの入口 <code>onCry</code> は、前と同じだ。源の形（<code>BoardState</code>）も、変えていない。変わったのは二つ。叫びを受ける口を、版を照らす <code>merge</code> に通したこと。そして、巡回 <code>poll</code> を、第二の道として足したこと。</p><p>「二つ変えたじゃないか、と思うか」とカイナは言った。俺の顔に出ていたんだろう。「だが、これは別々の修理じゃない。一つの契約の、二つの輪だ」。</p><p>カイナの説明は、こうだった。巡回は、源へ訊いて、答えが返るまで間がある。その間に新しい叫びが来れば、巡回が持ち帰る答えは、もう古い。版がなければ、巡回は、自分で巻き戻りを起こす。だから——版は、巡回の安全帯だ。巡回を足すなら、版は付いてくる。別々には、選べない。巡回だけでは順不同で巻き戻るし、版だけでは取りこぼしを拾えない。両方そろって、初めて「ズレても、必ず、正しく追いつく」が立つ。</p><p>俺は、模擬戦で、確かめた。</p><p>まず、署名になる一戦。さっきと同じに、版2の叫びを落とす。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=kr>const</span> <span class=nx>board</span> <span class=o>=</span> <span class=k>new</span> <span class=nx>ConvergentBoard</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// 板はまず版1（未討伐）を正常に受け取っている。
+</span></span></span><span class=line><span class=cl><span class=nx>board</span><span class=p>.</span><span class=nx>onCry</span><span class=p>({</span> <span class=nx>version</span>: <span class=kt>1</span><span class=p>,</span> <span class=nx>defeated</span>: <span class=kt>false</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// 源は版2(討伐済)へ進んでいるが、その叫びを「落とす」＝ onCry を呼ばない。
+</span></span></span><span class=line><span class=cl><span class=c1>// 巡回が無ければ、ここで板は版1のまま（一時のズレ・刻限内）。
+</span></span></span><span class=line><span class=cl><span class=nx>board</span><span class=p>.</span><span class=nx>read</span><span class=p>();</span> <span class=c1>// → { version: 1, defeated: false }
+</span></span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// 巡回（poll）が源へ最新を取りに行く。源は版2(討伐済)を返す。
+</span></span></span><span class=line><span class=cl><span class=k>await</span> <span class=nx>board</span><span class=p>.</span><span class=nx>poll</span><span class=p>(()</span> <span class=o>=&gt;</span> <span class=nx>Promise</span><span class=p>.</span><span class=nx>resolve</span><span class=p>({</span> <span class=nx>version</span>: <span class=kt>2</span><span class=p>,</span> <span class=nx>defeated</span>: <span class=kt>true</span> <span class=p>}));</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// 巡回が拾って merge(2&gt;1) → 反映。取りこぼしても巡回が必ず後ろから拾う＝収束。
+</span></span></span><span class=line><span class=cl><span class=nx>board</span><span class=p>.</span><span class=nx>read</span><span class=p>();</span> <span class=c1>// → { version: 2, defeated: true }
+</span></span></span></code></pre></td></tr></table></div></div><p>叫びを落としても、板は永久には黙り込まなかった。次の巡回が、源から版2を拾ってきて、追いついた。一時はズレる。だが、そのズレは、次の巡回までだ。</p><p>俺は、その様子を、何度も走らせて見た。叫びを落とす。板がズレる。巡回が来る。揃う。また落とす。ズレる。巡回。揃う。何度繰り返しても、ズレは、次の巡回をまたがなかった。永久に黙り込んでいた、あの三層の板が——落としても、必ず、追いついてくる。</p><p>後着の古い叫びも、試した。版2へ到達したあとに、渋滞で遅れた版1の叫びが届く。<code>merge</code> は、<code>1</code> が手元の <code>2</code> 以下だから、無視する。倒した大蛇は、もう蘇らない。</p><p>そして、俺が引っかかっていた、あの一戦。巡回が空中にある間に、新しい叫びが追い越したら。これを、決定的に再現するには、巡回の答えを、こっちで握って止めておく道具が要った。<code>deferred</code> だ。約束（Promise）の「解決する権利」を、外へ取り出しておくだけの、小さな道具だ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=c1>// deferred: Promise の resolve を外に取り出して握っておくヘルパ。
+</span></span></span><span class=line><span class=cl><span class=kd>function</span> <span class=nx>deferred</span><span class=p>&lt;</span><span class=nt>T</span><span class=p>&gt;()</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=kd>let</span> <span class=nx>resolve</span><span class=o>!:</span> <span class=p>(</span><span class=nx>v</span>: <span class=kt>T</span><span class=p>)</span> <span class=o>=&gt;</span> <span class=k>void</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=kd>let</span> <span class=nx>reject</span><span class=o>!:</span> <span class=p>(</span><span class=nx>e</span>: <span class=kt>unknown</span><span class=p>)</span> <span class=o>=&gt;</span> <span class=k>void</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>promise</span> <span class=o>=</span> <span class=k>new</span> <span class=nx>Promise</span><span class=p>&lt;</span><span class=nt>T</span><span class=p>&gt;((</span><span class=nx>res</span><span class=p>,</span> <span class=nx>rej</span><span class=p>)</span> <span class=o>=&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=nx>resolve</span> <span class=o>=</span> <span class=nx>res</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nx>reject</span> <span class=o>=</span> <span class=nx>rej</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=p>});</span>
+</span></span><span class=line><span class=cl>  <span class=k>return</span> <span class=p>{</span> <span class=nx>promise</span><span class=p>,</span> <span class=nx>resolve</span><span class=p>,</span> <span class=nx>reject</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>これで、源への問い合わせを <code>latestV2.promise</code> として渡しておき、好きな刻に <code>latestV2.resolve(...)</code> で答えを返せる。巡回が答えを持ち帰る、その瞬間を、こちらの手で決められる。源への問い合わせを、まだ返さないまま、空中に留めておけるわけだ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=kr>const</span> <span class=nx>board</span> <span class=o>=</span> <span class=k>new</span> <span class=nx>ConvergentBoard</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// 巡回の fetchLatest を Deferred にして、版2をまだ返さないまま poll を起動する。
+</span></span></span><span class=line><span class=cl><span class=c1>// poll は呼ばれた直後、await fetchLatest() で即サスペンドし（latestV2 が未解決）、制御が戻る。
+</span></span></span><span class=line><span class=cl><span class=c1>// ＝この時点で、巡回の継続（merge）にはまだ到達していない。
+</span></span></span><span class=line><span class=cl><span class=kr>const</span> <span class=nx>latestV2</span> <span class=o>=</span> <span class=nx>deferred</span><span class=p>&lt;</span><span class=nt>BoardState</span><span class=p>&gt;();</span>
+</span></span><span class=line><span class=cl><span class=kr>const</span> <span class=nx>pollPromise</span> <span class=o>=</span> <span class=nx>board</span><span class=p>.</span><span class=nx>poll</span><span class=p>(()</span> <span class=o>=&gt;</span> <span class=nx>latestV2</span><span class=p>.</span><span class=nx>promise</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// 巡回が源への問い合わせ中（空中）の間に、同期的に新しい叫び（版3）が追い越して
+</span></span></span><span class=line><span class=cl><span class=c1>// 手元を版3へ進める。onCry は同期的に完了するので、ここで手元は確実に版3になる。
+</span></span></span><span class=line><span class=cl><span class=nx>board</span><span class=p>.</span><span class=nx>onCry</span><span class=p>({</span> <span class=nx>version</span>: <span class=kt>3</span><span class=p>,</span> <span class=nx>defeated</span>: <span class=kt>true</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=nx>board</span><span class=p>.</span><span class=nx>read</span><span class=p>();</span> <span class=c1>// → { version: 3, defeated: true }
+</span></span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// ここで初めて、空中にあった巡回の答え（版2）を解決する。
+</span></span></span><span class=line><span class=cl><span class=nx>latestV2</span><span class=p>.</span><span class=nx>resolve</span><span class=p>({</span> <span class=nx>version</span>: <span class=kt>2</span><span class=p>,</span> <span class=nx>defeated</span>: <span class=kt>true</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=k>await</span> <span class=nx>pollPromise</span><span class=p>;</span> <span class=c1>// 巡回側の継続（merge(2)）を完了させる
+</span></span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nx>board</span><span class=p>.</span><span class=nx>read</span><span class=p>();</span> <span class=c1>// → { version: 3, defeated: true } ← 巻き戻らない
+</span></span></span></code></pre></td></tr></table></div></div><p>この一戦の順番には、理屈がある。まず、<code>board.poll(...)</code> を呼んだ瞬間、巡回はすぐ <code>await fetchLatest()</code> にぶつかる。だが <code>fetchLatest()</code> が返すのは、まだ解決していない約束（<code>latestV2.promise</code>）だ。だから巡回は、その一行で止まって、制御を呼び出し元へ返す——巡回の続き（<code>merge</code>）には、まだ一歩も進んでいない。その止まっている隙に、次の行の <code>onCry</code> が走る。<code>onCry</code> は、同期的に手元を版3へ進める。割り込みも、待ちもない。一方、空中の巡回が答え（版2）を持ち帰ってからの続き——つまり <code>merge(2)</code> は、<code>await</code> の先にある。<code>await</code> の先は、いますぐには走らない。マイクロタスクとして、いったん脇に置かれ、順番が来てから走る。だから <code>merge(2)</code> が動く頃には、手元はもう版3だ。<code>2</code> は <code>3</code> 以下だから、無視される。空中で古くなった巡回の答えが、追い越した新しい叫びを、踏み潰すことはない。</p><p>仮に順番が逆でも——巡回の答えが先に届いて、叫びが後でも——版が単調に増える限り、新しい方が勝つ。どちらが先でも、収束は壊れない。版は、巡回の安全帯だった。</p><p>版という盾があるからこそ、巡回は背後を守られ、叫びは先陣を切れる。二つの異なる歩幅が、版の刻印によって一つの足並みに揃う様子を、俺は頭の中で描き直した。</p>>Board: Return v2 (defeated)<pre><code>Board-&gt;&gt;Board: merge() 2 &gt; 1 -&gt; Update to v2\nPolling recovers lost data (Convergence)
+Note over Source,Board: \-\- Out-of-Order Cry Arrives Delayed \-\-
+Source-)Board: Cry(v1: undefeated) [Delayed]
+Board-&gt;&gt;Board: merge() 1 &lt;= 2 -&gt; Ignore\nNo Rollback (Boss stays defeated)
+Note over Source,Board: \-\- In-Flight Poll Overtaken by Cry \-\-
+Board-&gt;&gt;Source: poll() (awaiting response for v2)
+Source-)Board: Cry(v3: defeated) [Overtakes]
+Board-&gt;&gt;Board: merge() 3 &gt; 2 -&gt; Update to v3
+Source--&gt;&gt;Board: Return v2 (Arrived late)
+Board-&gt;&gt;Board: merge() 2 &lt;= 3 -&gt; Ignore\n(Late response rejected by version guard)
+</code></pre><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>--&gt;
+</span></span><span class=line><span class=cl>![Infographic sequence diagram showing Eventual Consistency via Push and Poll with Versioning preventing out-of-order rollbacks](/public_images/2026/code-tamer-eventual-consistency/infographic_2.webp)
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>空中で交差する叫びと巡回の残響が、どれほどねじれようとも、結果は常に正しい場所に収束する。その確信を得た俺たちの前に、模擬戦の決定的な結末が、文字となって浮かび上がった。
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>模擬戦を、まとめて走らせた。出力は、Before と After を、並べて見せた。
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>```text
+</span></span><span class=line><span class=cl>=== Before: SyncBoard（叫び一本・版なし・巡回なし） ===
+</span></span><span class=line><span class=cl>[源] 三層の主 大蛇 討伐 → v2(討伐済)
+</span></span><span class=line><span class=cl>[叫び→三層] v2 …取りこぼし（回線過負荷）
+</span></span><span class=line><span class=cl>[三層 read] { version: 1, defeated: false }  ← 倒したのに未討伐のまま（永久発散）
+</span></span><span class=line><span class=cl>[叫び→三層] 渋滞で先に v2 到着 → { version: 2, defeated: true }
+</span></span><span class=line><span class=cl>[叫び→三層] 遅れて v1 後着 → { version: 1, defeated: false }  ← 古い叫びで巻き戻り（蘇る）
+</span></span><span class=line><span class=cl>=&gt; 永久発散／巻き戻り
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>=== After: ConvergentBoard（叫び＋巡回・版で冪等マージ） ===
+</span></span><span class=line><span class=cl>[源] v2(討伐済)
+</span></span><span class=line><span class=cl>[叫び→三層] v2 …取りこぼし
+</span></span><span class=line><span class=cl>[三層 read] { version: 1, defeated: false }  ← 一時のズレ（刻限内）
+</span></span><span class=line><span class=cl>[巡回→三層] poll：源は v2 → merge 2&gt;1 → { version: 2, defeated: true }  ← 巡回が拾って収束
+</span></span><span class=line><span class=cl>[叫び→三層] 遅れて v1 後着 → merge 1≤2 → 無視 → { version: 2, defeated: true }  ← 蘇らない
+</span></span><span class=line><span class=cl>[巡回 in-flight] poll(v2)を待つ間に 叫び v3 追い越し → merge 3&gt;2 → v3
+</span></span><span class=line><span class=cl>[巡回 返着] poll の答え v2 → merge 2≤3 → 無視 → { version: 3, ... }  ← 空中の古い巡回も弾く
+</span></span><span class=line><span class=cl>=&gt; 収束（巻き戻らない）
+</span></span></code></pre></td></tr></table></div></div><p>板が、揃った。三層の大蛇は、全階層で討伐済み。取りこぼしても、次の巡回で追いつく。古い叫びでは、蘇らない。</p><p>俺は、ようやく、自分のしてきたことが、分かった。「俺は……ズレを、無くそうとしてたんだ。一寸の狂いもなく、今すぐ、全部を揃えようと。だから、回線が灼けた」。</p><p>カイナは、何も言わずに、聞いていた。</p><p>「そうじゃ、なかった」と俺は続けた。「ズレを、無くすんじゃない。ズレに、刻限を与えればいい。叫びで即座に届けて——取りこぼしても、次の巡回までには、必ず追いつく。その"までには"を、決めておけば、よかったんだ」。</p><p>「&ldquo;いつか揃う"だけなら」とカイナが言った。「何も言っていないのと、同じだ。ただの、先送りだ。だが、&ldquo;次の巡回までには揃う"と、刻限を切れば——それは、諦めじゃない。上限を決めた、設計だ」。</p><p>俺は、刻限を与える、という言葉を、胸の中で何度か転がした。ズレを禁じるな。ズレに、刻限を与えろ。それが、こだまを灼かずに、迷宮全体を調和させる、たった一つの作法だった。</p><p>速さは、捨てなくていい。叫びは、残す。捨てるのは、&ldquo;全部が今すぐ揃うまで待て"という、あの強制だけだ。</p><h2 id=鈴を鳴らす>鈴を、鳴らす</h2><p>カイナは、契約の証に、巡回の鈴をひとつ、卓に置いた。一定の刻で鳴って、各階層に「源へ訊きに行け」と促す、小さな鈴だ。</p><p>「この刻限は、どこまで短くできるんです」と俺は訊いた。「鈴を、もっと頻繁に鳴らせば、ズレは減る」。</p><p>「減る」とカイナは言った。「だが、全階層が一斉に、頻繁に訊きに行けば、今度は源に殺到して、また回線が悲鳴を上げる。訊きに行く刻を、少しずつ散らす工夫もある。変化がなければ、間隔を伸ばす工夫もある。——だが、それはこの板の話じゃない。今日の獣は、もう鎮まった」。</p><p>それから、カイナは付け足した。縛れるものと、縛れないものの境を。「巡回と版が消すのは、取りこぼしの永久発散と、後着の巻き戻りだけだ。遅れを一切許せない一貫性——たとえば、残りいくつ、という数を、今すぐ揃えねば困るもの——は、これでは律せない。あれは、前の蔵の賭け方だ。どこまで遅れを許せるか。それが、どちらの獣を選ぶかを、決める」。</p><p>俺は、卓の鈴を、手に取った。澄んだ音が、静かになった中継室に、ひとつ、渡った。揃うのを急がず、刻限を信じる——その作法の、最初の一打だった。これからは、叫びひとつに、巡回ひとつ。即座に届けて、こぼしたら拾う。揃うのを、急がない。</p><p>鈴の音が、引いていく。そのとき、気づいた。中継室の床の下——迷宮の古い結界の方から、長く、低い軋みが、まだ止まずに響いている。収まらない反響。ふと、思った。いま俺が、やめたこと。&ldquo;全部を、即座に、寸分違わず揃えろ"を。あの軋みは——まだ、どこかで、続けている気がする。</p><p>それ以上は、分からなかった。</p><p>カイナは、もう、中継室を出ようと、背を向けていた。振り返らずに、言った。「——あれを、灼かずに鎮める作法は、まだ誰も知らん。いずれ、な」。それだけ言って、出ていった。</p><p>俺は、鈴を、もう一度、握り直した。次の一巡の刻を、自分で決める。床下の軋みは、まだ低く続いている。けれど、それは、いつか手をつける獣として、遠くに置いておけばいい。今日揃えたのは、この板だ。倒した大蛇は、もう、どの階層でも、二度と蘇らない。</p><p>鈴を、鳴らす。</p><hr><h3 id=-カイナの魔獣契約録tamers-registry>📜 カイナの魔獣契約録（Tamer&rsquo;s Registry）</h3><ul><li><strong>魔獣名（クラス/パターン名）</strong>: エコー（伝播するこだま）／ 結果整合性（Eventual Consistency＝即時完全同期を諦め、ズレに刻限を与えて後で必ず収束させる。叫び＝push と巡回＝poll のハイブリッドを版で冪等・単調にマージする）</li><li><strong>危険度（難易度/バグの影響度）</strong>: ★★★★☆（板の文字は化けない。だが、揃えようと急ぐほど回線が灼け、灼けた隙の取りこぼしで一階層が永久に古いまま黙り込む＝倒した主が未討伐のまま。叫び直せば後着の古い叫びで蘇る。繁忙時にだけ露れて発覚が遅い＝整合性の障害）</li><li><strong>主な生態（アンチパターンの特徴）</strong>:<ul><li>即時完全同期の自滅＝全階層の即時の一致を強制し、反響が増幅して回線が過負荷で灼ける。「今すぐ・全部・寸分違わず」を求める設計そのものが過負荷を生む</li><li>取りこぼし→永久発散＝叫び（push）は速いが取りこぼす。取りこぼした階層は「来なかったこと」に気づけず、第二の経路が無ければ永久に追いつけない</li><li>後着の古い叫び→巻き戻り＝叫びは届く順を約束しない。版で順序づけねば、遅れて届いた古い叫びが新しい報せを上書きし、倒した主が蘇る（out-of-order／ロールバック）</li></ul></li><li><strong>契約のポイント（設計の要点）</strong>:<ul><li>結果整合性＝即時完全一致を諦め、「新たな更新が無ければ、いずれ最後の値へ収束する」を受け入れ、一時のズレを許す</li><li>ハイブリッド同期＝叫び（push・低遅延・自分と仲間が即座に・取りこぼす）を残し、巡回（pull・確実・遅い）を取りこぼしの保険に足す。push の弱点を pull が、pull の弱点（read-your-writes・遅延）を push が補う</li><li>版による冪等マージ＝叫び・巡回を単一の入口 <code>merge</code> に通し、手元より新しい版だけ反映（単調・冪等）。二度来ても一度しか効かず、順不同でも最新が勝つ。版は衝突検知（前話の楽観ロック）でなく、二本の報せを取り違えず重ねる糊（同じ道具・役割反転）</li><li>収束の刻限＝巡回間隔が「最悪どれだけズレるか」の上限。取りこぼしても次の巡回で必ず追いつく＝発散しない（&ldquo;いつか揃う"でなく"次の巡回までに揃う"と上限を切るから設計になる）</li><li>1:1＝Before（<code>SyncBoard.onCry</code> で版を見ず無条件上書き・巡回なし）→ After（<code>ConvergentBoard</code>：版照合のマージ＋巡回 <code>poll</code> を保険に追加）。外部入口と源の形は不変、差分は「マージを版照合にし、巡回を足した」一手＝&ldquo;叫び一本に賭けた"根を断つ、一つの契約の不可分な両輪（版＝巡回の安全帯）</li></ul></li><li><strong>契約外事項（保証しないこと）</strong>:<ul><li>強整合（前話の楽観ロック／悲観ロック）は逆の賭け方＝「今すぐ揃える」。遅延を一切許せない一貫性（残高・引き当て）には結果整合を選ばない。要件（許容できる遅延）で選ぶ</li><li>巡回の殺到＝全階層の一斉巡回は源に殺到する。巡回の刻を散らす（Full Jitter）・適応的ポーリング（変化が無ければ間隔を伸ばす）が要る（本話の最小形は固定間隔＋版マージに絞る）</li><li>CRDT・分散合意・実 DB レプリケーション＝衝突の構造的決定解決、合意アルゴリズム、データストアのレプリケーション機構は別レイヤー。本話はアプリ層の最小形</li><li>トランスポート詳細／read-your-writes の厳密保証＝WebSocket/SSE 接続・再接続、セッション保証等は契約外。本番は確立されたライブラリが自動フォールバックを担う</li></ul></li><li><strong>現在のステータス</strong>: 🟢 テイム完了（叫びを残し巡回を保険に足し、二本を版で冪等・単調にマージ。取りこぼしを次の巡回で必ず拾い、後着の古い叫びでは巻き戻らない。即時の強制は手放し、ズレに刻限を与えた）。アーク「整合性と状態」結幕——&ldquo;今すぐ揃える"を諦め、収束に刻限を与えて律する。回線の奥の軋みは、まだ遠くに</li></ul></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/typescript/>Typescript</a>
+<a href=/tags/eventual-consistency/>Eventual-Consistency</a>
+<a href=/tags/polling/>Polling</a>
+<a href=/tags/event-driven/>Event-Driven</a>
+<a href=/tags/read-your-writes/>Read-Your-Writes</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-tamer/>Code-Tamer</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/07/05/170705/><div class=article-image><img src=/public_images/2026/code-tamer-graceful-shutdown-abyss-null/header.webp loading=lazy data-key data-hash=/public_images/2026/code-tamer-graceful-shutdown-abyss-null/header.webp></div><div class=article-details><h2 class=article-title>コードテイマー【Graceful Shutdown】終いを急ぐ獣が、還らぬ客と開いた鍵を闇に残す〜受け入れを閉ざし、皆を還してから己を閉じる〜</h2></div></a></article><article class=has-image><a href=/2026/07/05/120705/><div class=article-image><img src=/public_images/2026/code-tamer-bulkhead/header.webp loading=lazy data-key data-hash=/public_images/2026/code-tamer-bulkhead/header.webp></div><div class=article-details><h2 class=article-title>コードテイマー【Bulkhead】汲み上げの大食らいが船中の魔力を飲み干し、守りの防壁が飢えて落ちる〜魔力槽を機能ごとに隔て、守りの取り分を絶やさない〜</h2></div></a></article><article class=has-image><a href=/2026/07/05/070705/><div class=article-image><img src=/public_images/2026/code-tamer-circuit-breaker/header.webp loading=lazy data-key data-hash=/public_images/2026/code-tamer-circuit-breaker/header.webp></div><div class=article-details><h2 class=article-title>コードテイマー【Circuit Breaker】倒れた一匹を見捨てられず、群れごと魔力が枯れ果てる〜倒れた相手への鎖を断ち、頃合いを見て繋ぎ直す〜</h2></div></a></article><article class=has-image><a href=/2026/07/04/120705/><div class=article-image><img src=/public_images/2026/code-tamer-optimistic-locking/header.webp loading=lazy data-key data-hash=/public_images/2026/code-tamer-optimistic-locking/header.webp></div><div class=article-details><h2 class=article-title>コードテイマー【Optimistic Locking】二人の手が同じ数を書き、一方の更新が静かに消える〜帳に版を刻み、後から来た手にやり直させる〜</h2></div></a></article><article class=has-image><a href=/2026/07/04/070705/><div class=article-image><img src=/public_images/2026/code-tamer-invalid-state-machine/header.webp loading=lazy data-key data-hash=/public_images/2026/code-tamer-invalid-state-machine/header.webp></div><div class=article-details><h2 class=article-title>コードテイマー【State Machine】氷の貌のまま、獣は炎を吐いて自壊する〜札を足さず、貌をただ一つに畳む〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

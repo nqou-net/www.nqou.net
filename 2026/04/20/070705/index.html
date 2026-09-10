@@ -1,0 +1,291 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="注文と注文明細がバラバラに操作され金額不整合が頻発する問題を、Aggregate RootのOrderが整合性の門番となり子要素への操作を一元管理するリファクタリング事例をPerl/Mooで解説"><title>コード探偵ロックの事件簿【Aggregate】帳簿崩壊の怪〜バラバラの注文が招く金額の亡霊〜</title><link rel=canonical href=https://www.nqou.net/2026/04/20/070705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コード探偵ロックの事件簿【Aggregate】帳簿崩壊の怪〜バラバラの注文が招く金額の亡霊〜"><meta property='og:description' content="注文と注文明細がバラバラに操作され金額不整合が頻発する問題を、Aggregate RootのOrderが整合性の門番となり子要素への操作を一元管理するリファクタリング事例をPerl/Mooで解説"><meta property='og:url' content='https://www.nqou.net/2026/04/20/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='perl'><meta property='article:tag' content='moo'><meta property='article:tag' content='aggregate'><meta property='article:tag' content='consistency-boundary'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-detective'><meta property='article:published_time' content='2026-04-20T07:07:05+09:00'><meta property='article:modified_time' content='2026-04-20T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-detective-aggregate/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コード探偵ロックの事件簿【Aggregate】帳簿崩壊の怪〜バラバラの注文が招く金額の亡霊〜"><meta name=twitter:description content="注文と注文明細がバラバラに操作され金額不整合が頻発する問題を、Aggregate RootのOrderが整合性の門番となり子要素への操作を一元管理するリファクタリング事例をPerl/Mooで解説"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-detective-aggregate/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-04-20T07:07:05+09:00","datePublished":"2026-04-20T07:07:05+09:00","description":"注文と注文明細がバラバラに操作され金額不整合が頻発する問題を、Aggregate RootのOrderが整合性の門番となり子要素への操作を一元管理するリファクタリング事例をPerl/Mooで解説","headline":"コード探偵ロックの事件簿【Aggregate】帳簿崩壊の怪〜バラバラの注文が招く金額の亡霊〜","image":"https://www.nqou.net/public_images/2026/code-detective-aggregate/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/04/20/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#事件現場バラバラの注文>事件現場——バラバラの注文</a></li><li><a href=#容疑者の浮上帳簿係のいない帳簿>容疑者の浮上——帳簿係のいない帳簿</a></li><li><a href=#推理披露aggregate-root-整合性の門番>推理披露——Aggregate Root: 整合性の門番</a><ol><li><a href=#orderitem門番の管理下に置く>OrderItem——門番の管理下に置く</a></li><li><a href=#orderaggregate-root-として再設計>Order——Aggregate Root として再設計</a></li><li><a href=#操作メソッド門番を通る唯一の道>操作メソッド——門番を通る唯一の道</a></li><li><a href=#全体像>全体像</a></li></ol></li><li><a href=#事件の終わりテスト通過>事件の終わり——テスト通過</a></li><li><a href=#エピローグ>エピローグ</a></li><li><a href=#探偵の調査報告書>探偵の調査報告書</a><ol><li><a href=#推理のステップ>推理のステップ</a></li><li><a href=#ロックより>ロックより</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/04/20/070705/><img src=/public_images/2026/code-detective-aggregate/header.webp loading=lazy alt="Featured image of post コード探偵ロックの事件簿【Aggregate】帳簿崩壊の怪〜バラバラの注文が招く金額の亡霊〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/04/20/070705/>コード探偵ロックの事件簿【Aggregate】帳簿崩壊の怪〜バラバラの注文が招く金額の亡霊〜</a></h2><h3 class=article-subtitle>注文と注文明細がバラバラに操作され金額不整合が頻発する問題を、Aggregate RootのOrderが整合性の門番となり子要素への操作を一元管理するリファクタリング事例をPerl/Mooで解説</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>20, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 11分</time></div></footer></div></header><section class=article-content><p>名刺を一枚、握りしめていた。</p><p>「レガシー・コード・インベスティゲーション」。先輩が退職する前日に、デスクの引き出しから取り出して渡してくれたものだ。「いいか、本当にヤバくなったらここに行け」。それだけ言って、先輩は荷物をまとめて会社を出ていった。</p><p>半年経った。本当にヤバくなった。</p><p>雑居ビルの前で立ち止まる。三階の窓に小さな看板が見える。「LCI」。探偵事務所か何かだろうか。エレベーターはない。階段を上がるしかない。</p><p>三階のドアの前で一瞬ためらった。先輩は「行けばわかる」としか言わなかった。何がわかるのか、さっぱりわからないまま、ノックした。</p><p>「開いているよ」</p><p>ドアを押すと、デスクの排熱とエナジードリンクの甘い匂いが混ざった空気が流れてきた。デスクトップPCが2台。飲みかけの缶が3本。そして——デスクの端に、小さな天秤が置いてあった。</p><p>男がその天秤の前に座っていた。左の皿にエナジードリンクの缶、右の皿に小さなメモ帳。缶を載せたり下ろしたりしている。</p><p>「あの……LCIの方ですか？ 先輩に名刺をもらって——」</p><p>「D社の新作エナジードリンク。比重1.04。成分表の糖質量から逆算すると1.038で、誤差0.2%。製造ロットの個体差の範囲内だね」</p><p>何を言っているんだ、この人は。</p><p>男がようやく顔を上げた。僕の手にある名刺を一瞥して、口元がわずかに動いた。</p><p>「ああ、カワモトの後輩か。彼が名刺を渡すのは、相当な重症のときだけだ」</p><p>先輩の名前を知っている。それだけで少し安心した。</p><p>「ロック。コードの探偵だ。——さて、見せてくれたまえ、ワトソン君」</p><p>「あの、僕の名前は——」</p><p>「コードだよ、コード。名前は後でいい」</p><p>ロックさんはPCの前に移動し、椅子をもう一脚引っ張ってきた。</p><p>（……先輩、あなたが何も説明しなかった理由がわかった気がする）</p><p>僕はノートPCを取り出し、注文管理システムのコードを画面に映した。</p><h2 id=事件現場バラバラの注文>事件現場——バラバラの注文</h2><p>「ECサイトの注文管理システムです。注文と注文明細のクラスがあって——問題は、月末の経理確認で合計金額と明細の合計が合わないことがあるんです」</p><p>僕はまず <code>OrderItem</code> クラスを見せた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>OrderItem</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(Str Num Int)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>id</span>           <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>  <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>product_name</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>  <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>unit_price</span>   <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span>  <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Num</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>quantity</span>     <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span>  <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Int</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>subtotal</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>unit_price</span> <span class=o>*</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>quantity</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>そして <code>Order</code> クラス。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Order</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(Str ArrayRef InstanceOf)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>id</span>    <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>items</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>      <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>isa</span>     <span class=o>=&gt;</span> <span class=n>ArrayRef</span><span class=p>[</span><span class=n>InstanceOf</span><span class=p>[</span><span class=s>&#39;OrderItem&#39;</span><span class=p>]],</span>
+</span></span><span class=line><span class=cl>    <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=o>[]</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>total_amount</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$total</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$total</span> <span class=o>+=</span> <span class=nv>$_</span><span class=o>-&gt;</span><span class=n>subtotal</span> <span class=k>for</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>items</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>return</span> <span class=nv>$total</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「3ヶ月前から、月末のたびに経理から連絡が来ます。『注文番号○○の合計金額が明細と合いません』。そのたびにSQLで合計金額を手動修正しました。3回。3回とも原因が違う場所で、3回とも同じ種類の不整合でした」</p><p>ロックさんはコードを上から下まで黙読していた。長い沈黙。</p><h2 id=容疑者の浮上帳簿係のいない帳簿>容疑者の浮上——帳簿係のいない帳簿</h2><p>「……ワトソン君、帳簿というものを知っているかね」</p><p>また「ワトソン君」だ。もう訂正する気力はない。それより帳簿という言葉が引っかかった。</p><p>「帳簿？ 複式簿記とかの？」</p><p>「会社の帳簿は、帳簿係が記入する。帳簿係以外の人間がペンを持って勝手に書き込んだら、残高は合わなくなる」ロックさんは画面を指さした。「君のコードには帳簿係がいない」</p><p>「帳簿係……つまり、<code>Order</code> クラスが帳簿係の役割を果たしていない、ということですか？」</p><p>「そもそも帳簿係になろうとしていない。この <code>items</code> は丸裸で公開されている。誰でも——API呼び出し側でも、バッチ処理でも——直接手を突っ込んで明細を書き換えられる」</p><p>ロックさんがエディタにコードを書き始めた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># 外部から items に直接 push できてしまう</span>
+</span></span><span class=line><span class=cl><span class=nb>push</span> <span class=nv>$order</span><span class=o>-&gt;</span><span class=nn>items</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>,</span> <span class=nn>OrderItem</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>id</span> <span class=o>=&gt;</span> <span class=s>&#39;ITEM-X&#39;</span><span class=p>,</span> <span class=n>product_name</span> <span class=o>=&gt;</span> <span class=s>&#39;Phantom&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>unit_price</span> <span class=o>=&gt;</span> <span class=mi>5000</span><span class=p>,</span> <span class=n>quantity</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 外部から OrderItem の属性を直接書き換えられる</span>
+</span></span><span class=line><span class=cl><span class=nv>$order</span><span class=o>-&gt;</span><span class=nn>items</span><span class=o>-&gt;</span><span class=p>[</span><span class=mi>0</span><span class=p>]</span><span class=o>-&gt;</span><span class=n>quantity</span><span class=p>(</span><span class=mi>99</span><span class=p>);</span>
+</span></span></code></pre></td></tr></table></div></div><p>「ここだ。<code>push $order->items->@*</code> は、帳簿の横にペンを置いて『ご自由にどうぞ』と書いているようなものだ。そして <code>quantity(99)</code> は、明細の数字を消しゴムで消して好きな数を書く行為だ。帳簿の管理人は何も知らないまま、帳尻が合わなくなる」</p><p>「でも、僕は3回SQLで合計金額を直しましたよ。そのたびに正しい値に戻して——」</p><p>「君は帳簿の数字を書き直しているだけで、帳簿のルールを修復していない。帳簿係がいない限り、明日また狂う。3回繰り返された理由はそれだ」</p><p>沈黙が落ちた。3ヶ月のモグラたたきの正体を、目の前の男が一言で言い当てた。</p><p>「犯人はバグではない。犯人は整合性境界の不在——帳簿係のいない帳簿だ」ロックさんはエナジードリンクの缶を手に取った。「DDD——ドメイン駆動設計の用語では、Aggregate の不在と呼ぶ」</p><p>「Aggregate……集約、ですか」</p><p>「関連するオブジェクトを束ね、1つの単位として整合性を保証する仕組みだ。そして束ねた塊の入口に門番を立てる。その門番を Aggregate Root——集約ルートと呼ぶ」</p><h2 id=推理披露aggregate-root-整合性の門番>推理披露——Aggregate Root: 整合性の門番</h2><p>「まず、門番の設計から始める」</p><p>ロックさんがエディタに新しいファイルを開いた。</p><h3 id=orderitem門番の管理下に置く>OrderItem——門番の管理下に置く</h3><p>「<code>OrderItem</code> の属性を外部から変更できないようにする。<code>rw</code> を <code>rwp</code> に変える」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>OrderItem</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(Str Num Int)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>id</span>           <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>  <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>product_name</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>  <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>unit_price</span>   <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rwp&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Num</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>quantity</span>     <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rwp&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Int</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>subtotal</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>unit_price</span> <span class=o>*</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>quantity</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<code>rwp</code> って何ですか？」</p><p>「read-write private の略だ。外部からは読み取りのみ。書き込みは <code>_set_quantity</code> のような内部メソッド経由でしかできない。帳簿の各行に鍵をかけるようなものだね」</p><h3 id=orderaggregate-root-として再設計>Order——Aggregate Root として再設計</h3><p>「次に、<code>Order</code> を Aggregate Root として再設計する。核心は3つ。外部からの直接設定の禁止、コピーによる読み取りアクセス、操作メソッドの一元化だ」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Order</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(Str Num ArrayRef InstanceOf)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Carp</span> <span class=sx>qw(croak)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>id</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>_items</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>isa</span>      <span class=o>=&gt;</span> <span class=n>ArrayRef</span><span class=p>[</span><span class=n>InstanceOf</span><span class=p>[</span><span class=s>&#39;OrderItem&#39;</span><span class=p>]],</span>
+</span></span><span class=line><span class=cl>    <span class=n>default</span>  <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=o>[]</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=n>init_arg</span> <span class=o>=&gt;</span> <span class=nb>undef</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>_total_amount</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;rwp&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>isa</span>      <span class=o>=&gt;</span> <span class=n>Num</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>default</span>  <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=mi>0</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=n>init_arg</span> <span class=o>=&gt;</span> <span class=nb>undef</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 読み取り専用アクセス（コピーを返す）</span>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>items</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>[</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>_items</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span> <span class=err>];</span>
+</span></span><span class=line><span class=cl><span class=err>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nv>sub</span> <span class=n>total_amount</span> <span class=p>(</span><span class=nv>$self</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_total_amount</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<code>init_arg => undef</code> って何ですか？」</p><p>「コンストラクタでの直接設定を禁止する宣言だ。<code>Order->new(items => [...])</code> と書いても無視される。帳簿を新品で渡すとき、最初から誰かの落書きが入っていたら困るだろう？」</p><p>「なるほど。じゃあ <code>items</code> メソッドがコピーを返すのは——」</p><p>「返した配列をいくら弄っても、元の帳簿には影響しない。閲覧用のコピーを渡し、原本は金庫にしまう。これが Aggregate Root の基本だ」</p><p>「でも、外部から <code>$order->_items</code> に直接アクセスされたら同じことでは？」</p><p>「アンダースコア始まりの属性名は『触るな』の慣習だ。Perl の世界では紳士協定だが、<code>items</code> メソッドでコピーを返している以上、正規のルートを通る限り原本には手が届かない」</p><p>「Javaの <code>private</code> みたいに完全に隠せないのが、少し不安です」</p><p>「Perl は信頼に基づく言語だ。壁を建てるのではなく、正しい入口を用意して、そこを通る理由を明確にする。門番は壁ではない。門番の存在が、正しい入口の場所を示す標識になる」</p><h3 id=操作メソッド門番を通る唯一の道>操作メソッド——門番を通る唯一の道</h3><p>「ここからが本丸だ。アイテムの追加・削除・数量変更は、すべて <code>Order</code> のメソッドを経由する」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>sub</span> <span class=nf>add_item</span> <span class=p>($self, %args) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$item</span> <span class=o>=</span> <span class=nn>OrderItem</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=nv>%args</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nb>push</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>_items</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>,</span> <span class=nv>$item</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_recalculate_total</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$item</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>remove_item</span> <span class=p>($self, $item_id) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>@remaining</span> <span class=o>=</span> <span class=nb>grep</span> <span class=p>{</span> <span class=nv>$_</span><span class=o>-&gt;</span><span class=n>id</span> <span class=ow>ne</span> <span class=nv>$item_id</span> <span class=p>}</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>_items</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>croak</span> <span class=s>&#34;Item not found: $item_id&#34;</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=nb>scalar</span> <span class=nv>@remaining</span> <span class=o>==</span> <span class=nb>scalar</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>_items</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*;</span>
+</span></span><span class=line><span class=cl>    <span class=err>$</span><span class=nv>self</span><span class=o>-&gt;</span><span class=nn>_items</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span> <span class=err>=</span> <span class=err>@</span><span class=nv>remaining</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_recalculate_total</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>update_item_quantity</span> <span class=p>($self, $item_id, $new_quantity) {</span>
+</span></span><span class=line><span class=cl>    <span class=n>croak</span> <span class=s>&#34;Quantity must be positive&#34;</span> <span class=k>unless</span> <span class=nv>$new_quantity</span> <span class=o>&gt;</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$item</span><span class=p>)</span> <span class=o>=</span> <span class=nb>grep</span> <span class=p>{</span> <span class=nv>$_</span><span class=o>-&gt;</span><span class=n>id</span> <span class=ow>eq</span> <span class=nv>$item_id</span> <span class=p>}</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>_items</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>croak</span> <span class=s>&#34;Item not found: $item_id&#34;</span> <span class=k>unless</span> <span class=nv>$item</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$item</span><span class=o>-&gt;</span><span class=n>_set_quantity</span><span class=p>(</span><span class=nv>$new_quantity</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_recalculate_total</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>_recalculate_total</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$total</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$total</span> <span class=o>+=</span> <span class=nv>$_</span><span class=o>-&gt;</span><span class=n>subtotal</span> <span class=k>for</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>_items</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*;</span>
+</span></span><span class=line><span class=cl>    <span class=err>$</span><span class=nv>self</span><span class=o>-&gt;</span><span class=n>_set__total_amount</span><span class=p>(</span><span class=nv>$total</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「すべてのメソッドの末尾に <code>_recalculate_total</code> がある。追加しても、削除しても、数量を変えても、合計金額は必ず再計算される。これが門番の仕事だ」</p><p>「合計金額を毎回再計算するのは、パフォーマンス的にどうなんですか？ 明細が100行あったら——」</p><p>「100行の足し算と、月末に経理から突きつけられる不整合の手動修正——どちらが高いかね、ワトソン君」</p><p>「……それは、経理のほうが圧倒的に高いです」</p><p>「整合性のコストを見積もるとき、壊れたときの修復コストを含めないのは、見積もりの詐欺だ」</p><p>返す言葉がなかった。3ヶ月分のSQL手動修正と、経理とのやり取りと、深夜の調査。あれは全部、門番を雇わなかったツケだった。</p><h3 id=全体像>全体像</h3><pre class=mermaid>
+	classDiagram
+    class Order {
+        -id: Str
+        -_items: ArrayRef~OrderItem~
+        -_total_amount: Num
+        +items() ArrayRef
+        +total_amount() Num
+        +add_item(%args) OrderItem
+        +remove_item(item_id)
+        +update_item_quantity(item_id, qty)
+        -_recalculate_total()
+    }
+
+    class OrderItem {
+        -id: Str
+        -product_name: Str
+        -unit_price: Num
+        -quantity: Int
+        +subtotal() Num
+    }
+
+    Order *-- OrderItem : contains (private)
+</pre><p>「……あ」</p><p>僕は画面を見つめたまま声が出た。</p><p>「だから直しても直しても壊れたのか」</p><p>3ヶ月のモグラたたき。合計金額をSQLで直しても、次に誰かが明細を直接触ったらまた壊れる。帳簿の数字を書き直しても、帳簿のルールが壊れているなら、明日また狂う。</p><p>「門番がいなかったから。帳簿のルールそのものが壊れていたんだ」</p><p>「ようやく事件の全貌が見えたようだね」</p><p>「既存の壊れたデータはどうすればいいですか」</p><p>「マイグレーションスクリプトで全注文の合計を再計算する。だが今日の仕事はそれではない。まず門番を立てることが先だ。門番がいれば、新しい不整合は生まれない」</p><h2 id=事件の終わりテスト通過>事件の終わり——テスト通過</h2><p>ロックさんの指示に従って、テストを書いた。</p><p>Aggregate Root 経由の操作で合計金額が常に正しいこと。アイテムの追加、削除、数量変更、すべての操作で <code>total_amount</code> が再計算されること。<code>items</code> メソッドが返すコピーを変更しても元の <code>Order</code> に影響しないこと。存在しないアイテムへの操作がエラーになること。</p><p>全テスト通過。</p><p>「……合計金額のテスト、Beforeのコードだったら確実に落ちてたやつが全部通ってます」</p><p>「帳簿係を雇ったのだから、帳簿が合うのは当然だよ」</p><p>ロックさんの口調は淡々としていた。当然のことを当然にやっただけだ、と言いたげだった。実際、そうなのかもしれない。門番を立てる。操作を一元化する。合計を再計算する。どれも特別なことではない。特別なのは、それをやっていなかった半年間のほうだ。</p><h2 id=エピローグ>エピローグ</h2><p>ロックさんが天秤のそばに戻った。エナジードリンクの缶を手に取り、一口飲む。</p><p>「ワトソン君、報酬の話をしよう」</p><p>「報酬……あ、そうですよね。料金はおいくらですか」</p><p>「金は要らない。ラクダ本の初版を持っていないかね。1991年刊。表紙がピンクのやつだ」</p><p>「……すみません、持ってないです」</p><p>「残念だ。では次善策として、このビルの1階の自販機で売っているD社の新作エナジードリンクを3本。比重の測定が途中でね」</p><p>「3本で……いいんですか」</p><p>「3本だ。初版のラクダ本が見つかったら、追加報酬として受け付ける。いつでも構わない」</p><p>ロックさんは天秤のメモ帳に何かを書き込んでいた。僕のことはもう意識の外にあるようだった。</p><p>階段を下りながら考えた。</p><p>自由に触れることが柔軟性だと思っていた。<code>Order</code> の中身を好きなところから書き換えられるのは、便利だと思っていた。でも、それは柔軟性じゃなかった。ただの無防備だ。</p><p>門番がいることで失われるのは、不正な操作の自由だけだ。正しい操作は、門番を通しても同じようにできる。むしろ門番がいるからこそ、操作した結果が壊れていないと信じられる。</p><p>1階の自販機でD社の新作を3本買った。缶を紙袋に入れて、三階のドアの前に置いておく。ノックはしなかった。比重の測定の邪魔をするのは気が引けた。</p><p>外に出ると、看板がまた目に入る。「LCI」。</p><p>……先輩、次に会ったら聞いてみよう。ラクダ本の初版、どこかで見つかりませんか、と。</p><hr><h2 id=探偵の調査報告書>探偵の調査報告書</h2><div class=table-wrapper><table><thead><tr><th style=text-align:left>容疑（アンチパターン）</th><th style=text-align:left>真実（パターン）</th><th style=text-align:left>証拠（効果）</th></tr></thead><tbody><tr><td style=text-align:left>整合性境界の不在（子要素の直接操作で金額不整合）</td><td style=text-align:left>Aggregate Root（Order が門番として整合性を保証）</td><td style=text-align:left>全操作で total_amount が自動再計算。手動修正が不要に</td></tr><tr><td style=text-align:left>items の丸裸公開（外部から push / 属性変更が自由）</td><td style=text-align:left>init_arg => undef + コピー返却で原本を保護</td><td style=text-align:left>外部からの直接操作が不可能に。items() はコピーを返すため安全</td></tr><tr><td style=text-align:left>rwで属性が外部から変更可能</td><td style=text-align:left>rwp で内部からのみ変更可能</td><td style=text-align:left>OrderItem の quantity / unit_price は Root 経由でのみ変更</td></tr></tbody></table></div><h3 id=推理のステップ>推理のステップ</h3><ol><li><strong>問題の特定</strong>: 合計金額と明細合計の不整合が繰り返し発生。SQLでの手動修正はモグラたたき</li><li><strong>原因の分析</strong>: <code>Order</code> が Aggregate Root として機能していない。<code>items</code> が外部に公開され、<code>OrderItem</code> の属性が <code>rw</code> で直接変更可能</li><li><strong>OrderItem の保護</strong>: <code>rw</code> を <code>rwp</code> に変更し、外部からの直接変更を禁止</li><li><strong>Order を Aggregate Root に</strong>: <code>_items</code> を <code>init_arg => undef</code> で保護。<code>items()</code> はコピーを返す</li><li><strong>操作メソッドの一元化</strong>: <code>add_item</code>, <code>remove_item</code>, <code>update_item_quantity</code> を Root に定義。すべての操作後に <code>_recalculate_total</code> で合計を再計算</li><li><strong>テスト検証</strong>: 全操作で total_amount の整合性が保たれること、コピーの安全性、エラーハンドリングを確認</li></ol><h3 id=ロックより>ロックより</h3><p>門番を立てることは、自由を奪うことではない。正しい入口を示すことだ。自由に書き込める帳簿は便利に見えるが、その便利さの代償は月末の不眠だった。門番は壁ではない。門番がいるからこそ、安心して帳簿を開ける。カワモトの後輩君にラクダ本の初版を探す余裕が生まれることを祈っているよ。</p></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/perl/>Perl</a>
+<a href=/tags/moo/>Moo</a>
+<a href=/tags/aggregate/>Aggregate</a>
+<a href=/tags/consistency-boundary/>Consistency-Boundary</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-detective/>Code-Detective</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/05/15/070705/><div class=article-image><img src=/public_images/2026/code-detective-bff/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-bff/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Backends for Frontends】最後の依頼〜一つの答えが全員を不満にする夜〜</h2></div></a></article><article class=has-image><a href=/2026/05/14/070705/><div class=article-image><img src=/public_images/2026/code-detective-api-gateway/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-api-gateway/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【API Gateway】窓口のない捜査本部〜マイクロサービスに個別に会いに行く悲劇〜</h2></div></a></article><article class=has-image><a href=/2026/05/13/070705/><div class=article-image><img src=/public_images/2026/code-detective-strangler-fig/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-strangler-fig/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Strangler Fig】外壁に伸びる蔓〜全面更改が新旧を窒息させる夜〜</h2></div></a></article><article class=has-image><a href=/2026/05/12/070705/><div class=article-image><img src=/public_images/2026/code-detective-anti-corruption-layer/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-anti-corruption-layer/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Anti-Corruption Layer】越境伝票の怪〜外様の略語が捜査本部を汚す夜〜</h2></div></a></article><article class=has-image><a href=/2026/05/11/070705/><div class=article-image><img src=/public_images/2026/code-detective-competing-consumers/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-competing-consumers/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Competing Consumers】重なる受領印〜増員だけでは消えない二重処理〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

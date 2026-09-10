@@ -1,0 +1,395 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="灯りと大道具、二体の人形が出番を譲り合ったまま暗転する舞台。内部状態を直接読み書きする密結合設計はなぜ二度目で壊れるのか。共有する進行表と短い制御ループで疎結合に協調させるBlackboard PatternのPython実装を追う。"><title>コードパペッティア【Blackboard Pattern】互いの出番を譲り合う二人の裏方人形〜暗く沈む舞台と、共有された進行表〜</title><link rel=canonical href=https://www.nqou.net/2026/07/26/070705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コードパペッティア【Blackboard Pattern】互いの出番を譲り合う二人の裏方人形〜暗く沈む舞台と、共有された進行表〜"><meta property='og:description' content="灯りと大道具、二体の人形が出番を譲り合ったまま暗転する舞台。内部状態を直接読み書きする密結合設計はなぜ二度目で壊れるのか。共有する進行表と短い制御ループで疎結合に協調させるBlackboard PatternのPython実装を追う。"><meta property='og:url' content='https://www.nqou.net/2026/07/26/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='python'><meta property='article:tag' content='multi-agent-orchestration'><meta property='article:tag' content='code-puppeteer'><meta property='article:published_time' content='2026-07-26T07:07:05+09:00'><meta property='article:modified_time' content='2026-07-26T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-puppeteer-multi-agent-orchestration/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コードパペッティア【Blackboard Pattern】互いの出番を譲り合う二人の裏方人形〜暗く沈む舞台と、共有された進行表〜"><meta name=twitter:description content="灯りと大道具、二体の人形が出番を譲り合ったまま暗転する舞台。内部状態を直接読み書きする密結合設計はなぜ二度目で壊れるのか。共有する進行表と短い制御ループで疎結合に協調させるBlackboard PatternのPython実装を追う。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-puppeteer-multi-agent-orchestration/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-07-26T07:07:05+09:00","datePublished":"2026-07-26T07:07:05+09:00","description":"灯りと大道具、二体の人形が出番を譲り合ったまま暗転する舞台。内部状態を直接読み書きする密結合設計はなぜ二度目で壊れるのか。共有する進行表と短い制御ループで疎結合に協調させるBlackboard PatternのPython実装を追う。","headline":"コードパペッティア【Blackboard Pattern】互いの出番を譲り合う二人の裏方人形〜暗く沈む舞台と、共有された進行表〜","image":"https://www.nqou.net/public_images/2026/code-puppeteer-multi-agent-orchestration/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/07/26/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#第1幕-予兆と調律--お先にどうぞが微笑ましい停滞を生む>第1幕: 予兆と調律 ── 「お先にどうぞ」が、微笑ましい停滞を生む</a></li><li><a href=#第2幕-絡糸と破綻--弾んだ掛け合いが唐突に途切れる>第2幕: 絡糸と破綻 ── 弾んだ掛け合いが、唐突に途切れる</a></li><li><a href=#第3幕-示唆と編み直し--譜面を示すだけ>第3幕: 示唆と編み直し ── 譜面を示すだけ</a><ol><li><a href=#beforepy>before.py</a></li><li><a href=#afterpy>after.py</a></li></ol></li><li><a href=#第4幕-開演と調和--指し矢が迷わず振れる>第4幕: 開演と調和 ── 指し矢が、迷わず振れる</a><ol><li><a href=#-操り人形師の覚書colettes-puppeteer-log>🎭 操り人形師の覚書（Colette&rsquo;s Puppeteer Log）</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/07/26/070705/><img src=/public_images/2026/code-puppeteer-multi-agent-orchestration/header.webp loading=lazy alt="Featured image of post コードパペッティア【Blackboard Pattern】互いの出番を譲り合う二人の裏方人形〜暗く沈む舞台と、共有された進行表〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/07/26/070705/>コードパペッティア【Blackboard Pattern】互いの出番を譲り合う二人の裏方人形〜暗く沈む舞台と、共有された進行表〜</a></h2><h3 class=article-subtitle>灯りと大道具、二体の人形が出番を譲り合ったまま暗転する舞台。内部状態を直接読み書きする密結合設計はなぜ二度目で壊れるのか。共有する進行表と短い制御ループで疎結合に協調させるBlackboard PatternのPython実装を追う。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>26, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 25分</time></div></footer></div></header><section class=article-content><p>舞台の高いところで、滑車がひとつ、軋みました。見上げると、綱元の格子から差し込む昼下がりの光の筋に、埃がゆっくりと舞っています。大道具の車輪がころがる音、誰かの掛け声、木づちの乾いた響き――稽古の物音が、いつもよりずっと賑やかに、舞台のあちこちから聞こえてくる日でした。</p><p>旅回りの一座との合同公演が、二日後に迫っていました。</p><h2 id=第1幕-予兆と調律--お先にどうぞが微笑ましい停滞を生む>第1幕: 予兆と調律 ── 「お先にどうぞ」が、微笑ましい停滞を生む</h2><p>点検簿を片手に、舞台と工房を行き来していると、遠くでアンとすれ違いました。</p><p>「今日はやけに騒がしいのね。あなたが何か壊す前に、片付けておくことね」</p><p>いつもの調子で言い捨てて、アンは奥へ消えていきます。皮肉の切れ味は、少しも鈍っていませんでした。それが、なんだか無性に安心する朝でした。</p><p>支配人の案内で、見慣れない女の人が舞台袖に現れたのは、それからすぐのことです。日に焼けた、快活な物腰。旅仕込みの、着慣れた実用的な外套には、あちこちに継ぎが当たっていて、それがかえって、場数を踏んだ貫禄のように見えました。稽古の様子をひとしきり眺めてから、彼女は感心したように言いました。</p><p>「評判通り、息の合った仕事をするのね」</p><p>フェアファクス女史――旅回りの一座を率いる、女座長でした。用件は簡潔で、興行師らしい早口です。二日後、彼女の一座とこの劇場の人形たちが、初めて肩を並べる大掛かりな一幕を披露する。舞台の袖を指し示しながら、彼女は身振りを交えて説明しました。暗転で客席を闇に沈め、その隙に大道具を丸ごと入れ替え、再び灯りを上げる――この呼吸を、幕間なしに休みなく三度続ける演目だということでした。これまでこの劇場が手がけてきたどの演目よりも、規模も速さも一段上のものでした。</p><p>「うちの一座は台詞と身のこなしはお手のものだけど、機械仕掛けの息合わせは門外漢でね。任せたわよ、お嬢さん」</p><p>コレットの肩を一度叩き、フェアファクス女史は懐から取り出した携帯用の予定表に何かをさっと書き込むと、支配人とともに、風のように去っていきました。長居はしない人のようでした。次の劇場へ向かう馬車が、もう表で待っているのかもしれません。</p><p>稽古は、何事もなかったように続きます。ちょうど、場面転換の練習に差し掛かるところでした。照明担当の人形と、大道具担当の人形――二体とも、この劇場に長く仕える顔なじみです。照明担当の人形は、いつも大道具の支度をよく確かめてから灯りを動かす、律儀な性分で、いつからか私たちは「石橋を叩くランプ人形」と呼ぶようになっていました。大道具担当の人形は、力こそ強いものの腰が重く、灯りが変わるのを見届けてからでないと動かない――こちらは「腰の重い書割人形」です。</p><p>合図があると、ランプ人形が小さなオルゴール仕掛けの声で、律儀に告げます。</p><p>「お先にどうぞ」</p><p>すると書割人形が、低く実直な声で返します。</p><p>「いや、そちらから」</p><p>「お先にどうぞ」</p><p>「いや、そちらから」</p><p>二言が、二度、三度と往復しました。ランプ人形の吊り腕は、下ろしかけては引っ込め、下ろしかけては引っ込め――その都度、天井の滑車がきゅ、きゅ、と控えめな音を立てます。書割人形のほうも、車輪を軋ませて半歩踏み出しては、律儀に後ずさりを繰り返していました。互いに一歩を譲り合ったまま、どちらも動きません。周りの人形たちが、くすくすと笑い声を立てています。木づちを持ったままの大工人形まで、手を止めて眺めていました。私は慌てて駆け寄り、声をかけました。</p><p>「はい、いいわよ、ランプさんから」</p><p>その一声で、二体はあっさりと動き出しました。灯りが落ち、大道具が入れ替わり、灯りが戻る。何の問題もなく、いつも通りの光景です。</p><p>けれど、笑いながら次の作業に戻ろうとして、ふと手が止まりました。――そういえば、いつもこうだった。二人の律儀な譲り合いは、いつだって私かマエストロの一声で、あっさり解けていた。誰かが背中を押してあげることが、当たり前すぎて、意識したことすらなかったのです。</p><p>二日後の本番では、この場面転換が、休みなく三度続きます。その都度、私が舞台袖に張り付いて、一声かけて回らなければならないのでしょうか。三度なら、まだいい。けれど本番の緊張の中で、間を外さず声をかけ続けられる自信は、正直ありませんでした。しかも本番には、旅の一座の演者たちも舞台に上がります。私の合図一つに、見知らぬ土地から来た人たちの芝居まで振り回されるのかと思うと、肩のあたりがずしりと重くなる気がしました。</p><p>工房の隅で、マエストロが道具の手入れをしながら、ちらとこちらへ目を向けたのが分かりました。何も言いません。いつもの、見守る姿勢です。</p><h2 id=第2幕-絡糸と破綻--弾んだ掛け合いが唐突に途切れる>第2幕: 絡糸と破綻 ── 弾んだ掛け合いが、唐突に途切れる</h2><p>「私が、二人の間を橋渡ししてあげればいい」</p><p>そう思いついたのが、始まりでした。ランプ人形と書割人形、それぞれの中にある「今、自分がどんな姿でいるか」を示す小さな値を、私が代わりに読み取って、次に何をすべきか指図してあげよう、という考えです。灯りが落ちているか。大道具が動いたか。その二つの値さえ見ていれば、誰が先に動くべきかは、私が判断してあげられる――そう信じて疑いませんでした。</p><p>指図役を書き上げるのに、さほど時間はかかりませんでした。空いた作業台に紙を広げ、三つの分かれ道を、順番に書き出していきます。まだどちらも動いていなければ、灯りを落とす。灯りが落ちていて、大道具がまだなら、大道具を動かす。両方済んでいれば、灯りを戻す。書きながら、我ながら筋が通っている、と思いました。単純で、見通しがよく、これなら二人の間に立って、私が代わりに判断してあげられる――そう信じて疑いませんでした。</p><p>机の上で試すと、狙い通りに動きました。灯りが落ち、大道具が入れ替わり、灯りが戻る――一度目の場面転換は、危なげなく完了したのです。私は安堵し、それから小さく独りごちました。</p><p>「動いてるけど、これじゃいつか糸が絡まる……」</p><p>手応えの裏に、うっすらとした違和感がありました。けれどその日は、他にも点検すべき人形が山ほどあります。違和感は、すぐに次の作業の下に埋もれてしまいました。</p><p>本番同様、続けて二度目の場面転換を試したのは、その日の夕方です。ランプ人形が、小さな声で切り出しかけました。</p><p>「お先に――」</p><p>そこで、ふつりと途切れたのです。</p><p>いつもなら、すかさず返ってくるはずの「いや、そちらから」が、聞こえてきません。灯りは、半分落ちたところで止まっています。舞台の半分が薄闇に沈み、残り半分だけがガスランプの色を保っている、ちぐはぐな明るさでした。書割人形の腕は、持ち上がりかけた姿勢のまま、静止していました。物音ひとつしません。さっきまでの、賑やかな稽古の物音が嘘のように、舞台袖だけが凪いだ水面のように静まり返っていました。</p><p>私は焦って、行き詰まったら二人まとめて動かしてしまおう、ととっさに指図役へ一手を書き足しました。けれど灯りが落ちきらないうちに、大道具の腕が勢いよく動き出し――危うく、二体がぶつかりかけたのです。冷や汗が背筋を伝いました。その一手は、すぐに取り下げました。</p><p>舞台は、暗く沈んだまま、動きません。ランプ人形と書割人形を、代わる代わる見つめます。何をどうすればいいのか、分かりませんでした。少し離れたところで、マエストロが道具の手入れの手を止め、こちらを見ているのに気づきました。</p><h2 id=第3幕-示唆と編み直し--譜面を示すだけ>第3幕: 示唆と編み直し ── 譜面を示すだけ</h2><p>マエストロが、埃をかぶった指揮棒と、小さな譜面台を持ち出してきたのは、それからすぐのことでした。譜面台には、何も乗っていません。空っぽの譜面立てを、マエストロは一度、静かに指し示しました。</p><p>「指揮者は、奏者の指を掴んでは動かさぬ。譜面を示すだけだ」</p><p>間を置かず、続けます。</p><p>「奏者が見るのは指揮者の顔ではない、譜面台の楽譜だ」</p><p>それだけ言うと、道具を置いて、工房の隅へ戻っていきました。答えは、示されないままです。</p><p>私は指図役のコードを手に、アンのところへ向かいました。アンは扇を広げたまま、紙面に目を落とし、しばらく黙って読んでいましたが、やがて扇の先で、三つの分かれ道が並んだ箇所を、こつん、こつんと叩きました。一瞥するなり、辛辣な声が返ってきます。</p><p>「あなた、二人分の糸を両手いっぱいに握りしめて、絡めているだけよ。人形遣いが両手を使い切ったら、その先はどうするつもり?」</p><p>「でも」私は思わず言い返しました。「一回目は、ちゃんと動いたのに……」</p><p>「一回きりなら、行き当たりばったりでも“たまたま”うまく動いて見えるものよ。同じことをもう一度させて、初めて馬脚を露わすの」</p><p>言葉が、すとんと腑に落ちました。私は、二人の間に自分から割り込んで、両方の内側を覗き込んで指図する必要などなかったのです。二人が見られる場所に、たった一枚の記録を置いて、それぞれが自分の持ち場だけを書き込めばいい。指揮者は、奏者の指を掴まない。譜面を示すだけだ。</p><p>作業台に向き直り、紙を新しく一枚広げます。頭の中で組み立て直すより先に、まず手を動かしたほうが早い性分でした。古い指図役の三つの分かれ道を、一つずつ書き写しながら、どこが悪かったのかを確かめていきます。なぜ、一回目はうまくいって、二回目で壊れたのか。まず、そこに正直に向き合わなければなりません。旧い仕立てを、お見せします。</p><h3 id=beforepy>before.py</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span><span class=lnt>51
+</span><span class=lnt>52
+</span><span class=lnt>53
+</span><span class=lnt>54
+</span><span class=lnt>55
+</span><span class=lnt>56
+</span><span class=lnt>57
+</span><span class=lnt>58
+</span><span class=lnt>59
+</span><span class=lnt>60
+</span><span class=lnt>61
+</span><span class=lnt>62
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=c1># file: agents/code-puppeteer/tests/multi-agent-orchestration/before.py</span>
+</span></span><span class=line><span class=cl><span class=s2>&#34;&#34;&#34;指図役StageDirectorによる二体の人形の内部フラグ直接操作(Before): リセット漏れ。
+</span></span></span><span class=line><span class=cl><span class=s2>
+</span></span></span><span class=line><span class=cl><span class=s2>照明担当のランプ人形と大道具担当の書割人形、二体の内部フラグ(is_down/has_moved)を
+</span></span></span><span class=line><span class=cl><span class=s2>StageDirectorが外から直接読み書きする。1回目の場面転換はどの分岐も条件が噛み合って
+</span></span></span><span class=line><span class=cl><span class=s2>正しく完了するが、3つ目の分岐でhas_movedのリセットを書き忘れているため、2回目に
+</span></span></span><span class=line><span class=cl><span class=s2>入った瞬間、どの分岐の条件も二度と噛み合わずtick()は恒久的にFalseを返し続ける
+</span></span></span><span class=line><span class=cl><span class=s2>(核心公理=繰り返しに耐える状態管理は、状態の置き場所と読み書きの規律を一箇所に
+</span></span></span><span class=line><span class=cl><span class=s2>決めて初めて成立する、への違反)。
+</span></span></span><span class=line><span class=cl><span class=s2>&#34;&#34;&#34;</span>
+</span></span><span class=line><span class=cl><span class=kn>import</span> <span class=nn>sys</span>
+</span></span><span class=line><span class=cl><span class=kn>import</span> <span class=nn>os</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># sys.path に `agents/code-puppeteer` を追加して `base.py` から `BaseAgent` をインポートする</span>
+</span></span><span class=line><span class=cl><span class=n>current_dir</span> <span class=o>=</span> <span class=n>os</span><span class=o>.</span><span class=n>path</span><span class=o>.</span><span class=n>dirname</span><span class=p>(</span><span class=n>os</span><span class=o>.</span><span class=n>path</span><span class=o>.</span><span class=n>abspath</span><span class=p>(</span><span class=vm>__file__</span><span class=p>))</span>
+</span></span><span class=line><span class=cl><span class=n>code_puppeteer_dir</span> <span class=o>=</span> <span class=n>os</span><span class=o>.</span><span class=n>path</span><span class=o>.</span><span class=n>abspath</span><span class=p>(</span><span class=n>os</span><span class=o>.</span><span class=n>path</span><span class=o>.</span><span class=n>join</span><span class=p>(</span><span class=n>current_dir</span><span class=p>,</span> <span class=s2>&#34;../..&#34;</span><span class=p>))</span>
+</span></span><span class=line><span class=cl><span class=k>if</span> <span class=n>code_puppeteer_dir</span> <span class=ow>not</span> <span class=ow>in</span> <span class=n>sys</span><span class=o>.</span><span class=n>path</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>    <span class=n>sys</span><span class=o>.</span><span class=n>path</span><span class=o>.</span><span class=n>append</span><span class=p>(</span><span class=n>code_puppeteer_dir</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kn>from</span> <span class=nn>base</span> <span class=kn>import</span> <span class=n>BaseAgent</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>class</span> <span class=nc>LightPuppet</span><span class=p>(</span><span class=n>BaseAgent</span><span class=p>):</span>
+</span></span><span class=line><span class=cl>    <span class=s2>&#34;&#34;&#34;照明担当のからくり人形。is_down は自分の今の姿を示す値のはずが、外から自由に読み書きされる&#34;&#34;&#34;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>def</span> <span class=fm>__init__</span><span class=p>(</span><span class=bp>self</span><span class=p>)</span> <span class=o>-&gt;</span> <span class=kc>None</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>        <span class=nb>super</span><span class=p>()</span><span class=o>.</span><span class=fm>__init__</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=n>name</span><span class=o>=</span><span class=s2>&#34;石橋を叩くランプ人形&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>system_prompt</span><span class=o>=</span><span class=s2>&#34;大道具の支度が整うのを確かめてから、灯りを動かしなさい。&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=bp>self</span><span class=o>.</span><span class=n>is_down</span><span class=p>:</span> <span class=nb>bool</span> <span class=o>=</span> <span class=kc>False</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>class</span> <span class=nc>StagehandPuppet</span><span class=p>(</span><span class=n>BaseAgent</span><span class=p>):</span>
+</span></span><span class=line><span class=cl>    <span class=s2>&#34;&#34;&#34;大道具担当のからくり人形。has_moved も同様に外部から直接操作される&#34;&#34;&#34;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>def</span> <span class=fm>__init__</span><span class=p>(</span><span class=bp>self</span><span class=p>)</span> <span class=o>-&gt;</span> <span class=kc>None</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>        <span class=nb>super</span><span class=p>()</span><span class=o>.</span><span class=fm>__init__</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=n>name</span><span class=o>=</span><span class=s2>&#34;腰の重い書割人形&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>system_prompt</span><span class=o>=</span><span class=s2>&#34;灯りが変わるのを確かめてから、大道具を動かしなさい。&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=bp>self</span><span class=o>.</span><span class=n>has_moved</span><span class=p>:</span> <span class=nb>bool</span> <span class=o>=</span> <span class=kc>False</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>class</span> <span class=nc>StageDirector</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>    <span class=s2>&#34;&#34;&#34;コレットが書いた、両人形の内部フラグを直接読み書きする指図役&#34;&#34;&#34;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>def</span> <span class=fm>__init__</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span> <span class=n>light</span><span class=p>:</span> <span class=n>LightPuppet</span><span class=p>,</span> <span class=n>stagehand</span><span class=p>:</span> <span class=n>StagehandPuppet</span><span class=p>)</span> <span class=o>-&gt;</span> <span class=kc>None</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>        <span class=bp>self</span><span class=o>.</span><span class=n>light</span> <span class=o>=</span> <span class=n>light</span>
+</span></span><span class=line><span class=cl>        <span class=bp>self</span><span class=o>.</span><span class=n>stagehand</span> <span class=o>=</span> <span class=n>stagehand</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>def</span> <span class=nf>tick</span><span class=p>(</span><span class=bp>self</span><span class=p>)</span> <span class=o>-&gt;</span> <span class=nb>bool</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=ow>not</span> <span class=bp>self</span><span class=o>.</span><span class=n>light</span><span class=o>.</span><span class=n>is_down</span> <span class=ow>and</span> <span class=ow>not</span> <span class=bp>self</span><span class=o>.</span><span class=n>stagehand</span><span class=o>.</span><span class=n>has_moved</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>            <span class=bp>self</span><span class=o>.</span><span class=n>light</span><span class=o>.</span><span class=n>is_down</span> <span class=o>=</span> <span class=kc>True</span>  <span class=c1># 灯りを落とす(1歩目)</span>
+</span></span><span class=line><span class=cl>            <span class=k>return</span> <span class=kc>True</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=bp>self</span><span class=o>.</span><span class=n>light</span><span class=o>.</span><span class=n>is_down</span> <span class=ow>and</span> <span class=ow>not</span> <span class=bp>self</span><span class=o>.</span><span class=n>stagehand</span><span class=o>.</span><span class=n>has_moved</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>            <span class=bp>self</span><span class=o>.</span><span class=n>stagehand</span><span class=o>.</span><span class=n>has_moved</span> <span class=o>=</span> <span class=kc>True</span>  <span class=c1># 大道具を動かす(2歩目)</span>
+</span></span><span class=line><span class=cl>            <span class=k>return</span> <span class=kc>True</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=bp>self</span><span class=o>.</span><span class=n>light</span><span class=o>.</span><span class=n>is_down</span> <span class=ow>and</span> <span class=bp>self</span><span class=o>.</span><span class=n>stagehand</span><span class=o>.</span><span class=n>has_moved</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>            <span class=bp>self</span><span class=o>.</span><span class=n>light</span><span class=o>.</span><span class=n>is_down</span> <span class=o>=</span> <span class=kc>False</span>  <span class=c1># 灯りを戻す(3歩目)</span>
+</span></span><span class=line><span class=cl>            <span class=k>return</span> <span class=kc>True</span>  <span class=c1># ここで has_moved のリセットを忘れている</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=kc>False</span>  <span class=c1># 押し付け合ったまま、どちらも動けない</span>
+</span></span></code></pre></td></tr></table></div></div><p>短いコードです。短くて、そして三つ目の分かれ道――<code>self.light.is_down = False</code>のすぐ後――に、すべての欠陥が詰まっています。灯りを戻したその直後、<code>self.stagehand.has_moved</code>を元に戻す一行が、ありません。</p><p>一回目の場面転換は、この抜け落ちに一度も触れずに終わります。<code>is_down</code>は<code>False→True→True→False</code>、<code>has_moved</code>は<code>False→False→True→True</code>と、三つの分かれ道すべてが順番に、行儀よく条件を満たしていくからです。けれど二回目に入った瞬間、状態は<code>is_down=False、has_moved=True</code>のまま――三つの分かれ道のどれも、この組み合わせを想定していません。<code>tick()</code>は、それきり<code>False</code>を返し続けます。</p><p>机上の模擬公演でも、その通りになりました。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=n>director</span> <span class=o>=</span> <span class=n>StageDirector</span><span class=p>(</span><span class=n>LightPuppet</span><span class=p>(),</span> <span class=n>StagehandPuppet</span><span class=p>())</span>
+</span></span><span class=line><span class=cl><span class=k>for</span> <span class=n>_</span> <span class=ow>in</span> <span class=nb>range</span><span class=p>(</span><span class=mi>3</span><span class=p>):</span>
+</span></span><span class=line><span class=cl>    <span class=n>director</span><span class=o>.</span><span class=n>tick</span><span class=p>()</span>  <span class=c1># 1回目の場面転換は、これで正しく完了する</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>results</span> <span class=o>=</span> <span class=p>[</span><span class=n>director</span><span class=o>.</span><span class=n>tick</span><span class=p>()</span> <span class=k>for</span> <span class=n>_</span> <span class=ow>in</span> <span class=nb>range</span><span class=p>(</span><span class=mi>10</span><span class=p>)]</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=bp>self</span><span class=o>.</span><span class=n>assertEqual</span><span class=p>(</span><span class=n>results</span><span class=p>,</span> <span class=p>[</span><span class=kc>False</span><span class=p>]</span> <span class=o>*</span> <span class=mi>10</span><span class=p>)</span>
+</span></span></code></pre></td></tr></table></div></div><p>一回目は、律儀に三手とも<code>True</code>を返します。ところが、続けて十回呼んでも、結果はすべて<code>False</code>。灯りも大道具の状態も、指一本動きません。過去に問題が起きなかったのは、そもそも場面転換を二度以上繰り返す機会が、これまで一度もなかったからです。しかも、これまでは私かマエストロの一声が、実質的な合図として二人の背中を押していました。今回、初めて人の声を挟まず自動でやらせようとして、ずっと寝ていた欠陥が、初めて目を覚ましたのです。</p><p>もちろん、抜け落ちていた一行――<code>self.stagehand.has_moved = False</code>――を書き足すだけでも、二回目はきっと動いたでしょう。けれど、それでは同じ種類の見落としを、また別の場所に仕込むだけです。もし三体目の人形――たとえば効果音を担当する人形――が加わったら、指図役の分かれ道はさらに増え、また別のどこかで、同じような戻し忘れが起きかねません。人形が増えるたびに、私が全員の内部フラグを、頭の中で正しく数え続けられる自信は、正直ありませんでした。</p><p>さて、編み直しです。</p><p>なぜ「二人の内部フラグを、私が直接読み書きする」という設計が壊れるのか――答えは、状態の記録がどこにもきちんと置かれていない、という一点に尽きます。二体の人形の「今どんな姿か」を示す値が、それぞれの内側に、外から自由に触れられる形で転がっている。一回きりの実行なら、行き当たりばったりの分かれ道でも、たまたま条件が噛み合って正しく見えます。けれど同じ手順をもう一度繰り返す段になって、戻し忘れがひとつでもあれば、以後どの分かれ道の条件も、二度と噛み合いません。</p><p>二人の人形と、私が書いた指図役。三者のあいだに、実際どんな糸が渡っていたのか、あらためて紙の上に描き起こしてみることにしました。</p><p><img src=/public_images/2026/code-puppeteer-multi-agent-orchestration/infographic_1.webp loading=lazy alt=指図役StageDirectorから二本の糸が伸び、ランプ人形LightPuppetの内部フラグis_downと、書割人形StagehandPuppetの内部フラグhas_movedを、それぞれ外から直接読み書きしているBeforeの密結合構造図。糸は人形の枠を越えて内側まで届いている。二体の人形の間に直接の糸は一本もなく、互いの姿を見ていない></p><p>描いてみて、初めて分かりました。ランプ人形と書割人形は、お互いの姿を一度も見ていません。二人のあいだに立っていたのは私の指図役だけで、その両手は、それぞれの人形の内側――本来は人形自身しか触れないはずの値――に、遠慮なく突っ込まれていたのです。</p><p>行き詰まったときに、力ずくで両方を同時に動かしてしまうという、その場しのぎの手も、根本の解決にはなりませんでした。原因――状態の一貫した記録がどこにもないこと――を放っておいたまま、症状にだけ後手で手当てすると、今度は逆向きの事故が起きます。灯りが落ちきる前に、大道具の腕が動き出す。壊れ方の形が変わるだけで、内部状態を直接いじり回す設計そのものは、何も変わっていないのです。</p><p>要るのは、<strong>Blackboardパターン</strong>――複数の主体が互いの内部状態を直接参照せず、共有された記録を介してのみ間接的に協調する設計です。二人が見られる場所に、公開された一枚の記録を置き、各人形は自分の持ち場だけを書き込む。記録の変化を見て、次に動くべき担当を決める役目は、<strong>制御コンポーネント</strong>――共有された記録を読むだけで、両者の内部機構には一切触れない、ごく単純な部品――に任せます。</p><h3 id=afterpy>after.py</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>  1
+</span><span class=lnt>  2
+</span><span class=lnt>  3
+</span><span class=lnt>  4
+</span><span class=lnt>  5
+</span><span class=lnt>  6
+</span><span class=lnt>  7
+</span><span class=lnt>  8
+</span><span class=lnt>  9
+</span><span class=lnt> 10
+</span><span class=lnt> 11
+</span><span class=lnt> 12
+</span><span class=lnt> 13
+</span><span class=lnt> 14
+</span><span class=lnt> 15
+</span><span class=lnt> 16
+</span><span class=lnt> 17
+</span><span class=lnt> 18
+</span><span class=lnt> 19
+</span><span class=lnt> 20
+</span><span class=lnt> 21
+</span><span class=lnt> 22
+</span><span class=lnt> 23
+</span><span class=lnt> 24
+</span><span class=lnt> 25
+</span><span class=lnt> 26
+</span><span class=lnt> 27
+</span><span class=lnt> 28
+</span><span class=lnt> 29
+</span><span class=lnt> 30
+</span><span class=lnt> 31
+</span><span class=lnt> 32
+</span><span class=lnt> 33
+</span><span class=lnt> 34
+</span><span class=lnt> 35
+</span><span class=lnt> 36
+</span><span class=lnt> 37
+</span><span class=lnt> 38
+</span><span class=lnt> 39
+</span><span class=lnt> 40
+</span><span class=lnt> 41
+</span><span class=lnt> 42
+</span><span class=lnt> 43
+</span><span class=lnt> 44
+</span><span class=lnt> 45
+</span><span class=lnt> 46
+</span><span class=lnt> 47
+</span><span class=lnt> 48
+</span><span class=lnt> 49
+</span><span class=lnt> 50
+</span><span class=lnt> 51
+</span><span class=lnt> 52
+</span><span class=lnt> 53
+</span><span class=lnt> 54
+</span><span class=lnt> 55
+</span><span class=lnt> 56
+</span><span class=lnt> 57
+</span><span class=lnt> 58
+</span><span class=lnt> 59
+</span><span class=lnt> 60
+</span><span class=lnt> 61
+</span><span class=lnt> 62
+</span><span class=lnt> 63
+</span><span class=lnt> 64
+</span><span class=lnt> 65
+</span><span class=lnt> 66
+</span><span class=lnt> 67
+</span><span class=lnt> 68
+</span><span class=lnt> 69
+</span><span class=lnt> 70
+</span><span class=lnt> 71
+</span><span class=lnt> 72
+</span><span class=lnt> 73
+</span><span class=lnt> 74
+</span><span class=lnt> 75
+</span><span class=lnt> 76
+</span><span class=lnt> 77
+</span><span class=lnt> 78
+</span><span class=lnt> 79
+</span><span class=lnt> 80
+</span><span class=lnt> 81
+</span><span class=lnt> 82
+</span><span class=lnt> 83
+</span><span class=lnt> 84
+</span><span class=lnt> 85
+</span><span class=lnt> 86
+</span><span class=lnt> 87
+</span><span class=lnt> 88
+</span><span class=lnt> 89
+</span><span class=lnt> 90
+</span><span class=lnt> 91
+</span><span class=lnt> 92
+</span><span class=lnt> 93
+</span><span class=lnt> 94
+</span><span class=lnt> 95
+</span><span class=lnt> 96
+</span><span class=lnt> 97
+</span><span class=lnt> 98
+</span><span class=lnt> 99
+</span><span class=lnt>100
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=c1># file: agents/code-puppeteer/tests/multi-agent-orchestration/after.py</span>
+</span></span><span class=line><span class=cl><span class=s2>&#34;&#34;&#34;進行表CueBoard + 指し矢run_cue_sequenceによる二体の人形の協調(After): Blackboard Pattern。
+</span></span></span><span class=line><span class=cl><span class=s2>
+</span></span></span><span class=line><span class=cl><span class=s2>両人形はもう互いの内部フラグに触れない。共有の進行表(CueBoard)には「灯り」と
+</span></span></span><span class=line><span class=cl><span class=s2>「大道具」それぞれの持ち場のフィールドだけがあり、各人形はcan_contributeで出番を
+</span></span></span><span class=line><span class=cl><span class=s2>判断し、contributeで自分の持ち場だけを書き換える。指し矢(run_cue_sequence)は
+</span></span></span><span class=line><span class=cl><span class=s2>進行表の状態だけを見て次の担当を選び、両者の内部機構には一切触れない。場面完了
+</span></span></span><span class=line><span class=cl><span class=s2>ごとのリセットは指し矢側の一箇所に集約され、書き忘れが構造的に起きにくい。
+</span></span></span><span class=line><span class=cl><span class=s2>Beforeと同じく人形の役目と場面転換3回の回数は変えていない(単一差分は状態の
+</span></span></span><span class=line><span class=cl><span class=s2>置き場所と読み書き規律のみ)。
+</span></span></span><span class=line><span class=cl><span class=s2>&#34;&#34;&#34;</span>
+</span></span><span class=line><span class=cl><span class=kn>import</span> <span class=nn>sys</span>
+</span></span><span class=line><span class=cl><span class=kn>import</span> <span class=nn>os</span>
+</span></span><span class=line><span class=cl><span class=kn>from</span> <span class=nn>typing</span> <span class=kn>import</span> <span class=n>Literal</span><span class=p>,</span> <span class=n>Protocol</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kn>from</span> <span class=nn>pydantic</span> <span class=kn>import</span> <span class=n>BaseModel</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># sys.path に `agents/code-puppeteer` を追加して `base.py` から `BaseAgent` をインポートする</span>
+</span></span><span class=line><span class=cl><span class=n>current_dir</span> <span class=o>=</span> <span class=n>os</span><span class=o>.</span><span class=n>path</span><span class=o>.</span><span class=n>dirname</span><span class=p>(</span><span class=n>os</span><span class=o>.</span><span class=n>path</span><span class=o>.</span><span class=n>abspath</span><span class=p>(</span><span class=vm>__file__</span><span class=p>))</span>
+</span></span><span class=line><span class=cl><span class=n>code_puppeteer_dir</span> <span class=o>=</span> <span class=n>os</span><span class=o>.</span><span class=n>path</span><span class=o>.</span><span class=n>abspath</span><span class=p>(</span><span class=n>os</span><span class=o>.</span><span class=n>path</span><span class=o>.</span><span class=n>join</span><span class=p>(</span><span class=n>current_dir</span><span class=p>,</span> <span class=s2>&#34;../..&#34;</span><span class=p>))</span>
+</span></span><span class=line><span class=cl><span class=k>if</span> <span class=n>code_puppeteer_dir</span> <span class=ow>not</span> <span class=ow>in</span> <span class=n>sys</span><span class=o>.</span><span class=n>path</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>    <span class=n>sys</span><span class=o>.</span><span class=n>path</span><span class=o>.</span><span class=n>append</span><span class=p>(</span><span class=n>code_puppeteer_dir</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kn>from</span> <span class=nn>base</span> <span class=kn>import</span> <span class=n>BaseAgent</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>class</span> <span class=nc>CueBoard</span><span class=p>(</span><span class=n>BaseModel</span><span class=p>):</span>
+</span></span><span class=line><span class=cl>    <span class=s2>&#34;&#34;&#34;進行表: 灯りと大道具、それぞれの持ち場だけを書き込む共有状態&#34;&#34;&#34;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>lights</span><span class=p>:</span> <span class=n>Literal</span><span class=p>[</span><span class=s2>&#34;up&#34;</span><span class=p>,</span> <span class=s2>&#34;down&#34;</span><span class=p>]</span> <span class=o>=</span> <span class=s2>&#34;up&#34;</span>
+</span></span><span class=line><span class=cl>    <span class=n>set_moved</span><span class=p>:</span> <span class=nb>bool</span> <span class=o>=</span> <span class=kc>False</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>class</span> <span class=nc>CuePlayer</span><span class=p>(</span><span class=n>Protocol</span><span class=p>):</span>
+</span></span><span class=line><span class=cl>    <span class=s2>&#34;&#34;&#34;知識源の共通インターフェース。継承は要求せず、このメソッド形を満たせば適合する(構造的な型付け)&#34;&#34;&#34;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>def</span> <span class=nf>can_contribute</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span> <span class=n>board</span><span class=p>:</span> <span class=n>CueBoard</span><span class=p>)</span> <span class=o>-&gt;</span> <span class=nb>bool</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>        <span class=s2>&#34;&#34;&#34;進行表を見て、自分の出番かどうかを判断する(相手の内部には触れない)&#34;&#34;&#34;</span>
+</span></span><span class=line><span class=cl>        <span class=o>...</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>def</span> <span class=nf>contribute</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span> <span class=n>board</span><span class=p>:</span> <span class=n>CueBoard</span><span class=p>)</span> <span class=o>-&gt;</span> <span class=n>CueBoard</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>        <span class=s2>&#34;&#34;&#34;自分の持ち場のフィールドだけを書き換えた進行表を返す&#34;&#34;&#34;</span>
+</span></span><span class=line><span class=cl>        <span class=o>...</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>class</span> <span class=nc>LightPuppet</span><span class=p>(</span><span class=n>BaseAgent</span><span class=p>):</span>
+</span></span><span class=line><span class=cl>    <span class=s2>&#34;&#34;&#34;照明担当のからくり人形。Beforeと役目は同じだが、内部フラグは持たず進行表だけを見る&#34;&#34;&#34;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>def</span> <span class=fm>__init__</span><span class=p>(</span><span class=bp>self</span><span class=p>)</span> <span class=o>-&gt;</span> <span class=kc>None</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>        <span class=nb>super</span><span class=p>()</span><span class=o>.</span><span class=fm>__init__</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=n>name</span><span class=o>=</span><span class=s2>&#34;石橋を叩くランプ人形&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>system_prompt</span><span class=o>=</span><span class=s2>&#34;大道具の支度が整うのを確かめてから、灯りを動かしなさい。&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>def</span> <span class=nf>can_contribute</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span> <span class=n>board</span><span class=p>:</span> <span class=n>CueBoard</span><span class=p>)</span> <span class=o>-&gt;</span> <span class=nb>bool</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=p>(</span><span class=n>board</span><span class=o>.</span><span class=n>lights</span> <span class=o>==</span> <span class=s2>&#34;up&#34;</span> <span class=ow>and</span> <span class=ow>not</span> <span class=n>board</span><span class=o>.</span><span class=n>set_moved</span><span class=p>)</span> <span class=ow>or</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=n>board</span><span class=o>.</span><span class=n>lights</span> <span class=o>==</span> <span class=s2>&#34;down&#34;</span> <span class=ow>and</span> <span class=n>board</span><span class=o>.</span><span class=n>set_moved</span>
+</span></span><span class=line><span class=cl>        <span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>def</span> <span class=nf>contribute</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span> <span class=n>board</span><span class=p>:</span> <span class=n>CueBoard</span><span class=p>)</span> <span class=o>-&gt;</span> <span class=n>CueBoard</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>        <span class=n>board</span><span class=o>.</span><span class=n>lights</span> <span class=o>=</span> <span class=s2>&#34;down&#34;</span> <span class=k>if</span> <span class=n>board</span><span class=o>.</span><span class=n>lights</span> <span class=o>==</span> <span class=s2>&#34;up&#34;</span> <span class=k>else</span> <span class=s2>&#34;up&#34;</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=n>board</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>class</span> <span class=nc>StagehandPuppet</span><span class=p>(</span><span class=n>BaseAgent</span><span class=p>):</span>
+</span></span><span class=line><span class=cl>    <span class=s2>&#34;&#34;&#34;大道具担当のからくり人形。Beforeと役目は同じだが、内部フラグは持たず進行表だけを見る&#34;&#34;&#34;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>def</span> <span class=fm>__init__</span><span class=p>(</span><span class=bp>self</span><span class=p>)</span> <span class=o>-&gt;</span> <span class=kc>None</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>        <span class=nb>super</span><span class=p>()</span><span class=o>.</span><span class=fm>__init__</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=n>name</span><span class=o>=</span><span class=s2>&#34;腰の重い書割人形&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>system_prompt</span><span class=o>=</span><span class=s2>&#34;灯りが変わるのを確かめてから、大道具を動かしなさい。&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>def</span> <span class=nf>can_contribute</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span> <span class=n>board</span><span class=p>:</span> <span class=n>CueBoard</span><span class=p>)</span> <span class=o>-&gt;</span> <span class=nb>bool</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=n>board</span><span class=o>.</span><span class=n>lights</span> <span class=o>==</span> <span class=s2>&#34;down&#34;</span> <span class=ow>and</span> <span class=ow>not</span> <span class=n>board</span><span class=o>.</span><span class=n>set_moved</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>def</span> <span class=nf>contribute</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span> <span class=n>board</span><span class=p>:</span> <span class=n>CueBoard</span><span class=p>)</span> <span class=o>-&gt;</span> <span class=n>CueBoard</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>        <span class=n>board</span><span class=o>.</span><span class=n>set_moved</span> <span class=o>=</span> <span class=kc>True</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=n>board</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>def</span> <span class=nf>run_cue_sequence</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>board</span><span class=p>:</span> <span class=n>CueBoard</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>players</span><span class=p>:</span> <span class=nb>list</span><span class=p>[</span><span class=n>CuePlayer</span><span class=p>],</span>
+</span></span><span class=line><span class=cl>    <span class=n>scenes</span><span class=p>:</span> <span class=nb>int</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>max_rounds</span><span class=p>:</span> <span class=nb>int</span> <span class=o>=</span> <span class=mi>20</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>)</span> <span class=o>-&gt;</span> <span class=n>CueBoard</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>    <span class=s2>&#34;&#34;&#34;指し矢: 進行表の状態だけを見て、次の担当を選ぶ。両人形の内部機構には一切触れない&#34;&#34;&#34;</span>
+</span></span><span class=line><span class=cl>    <span class=n>completed</span> <span class=o>=</span> <span class=mi>0</span>
+</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=n>_</span> <span class=ow>in</span> <span class=nb>range</span><span class=p>(</span><span class=n>max_rounds</span><span class=p>):</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=n>completed</span> <span class=o>&gt;=</span> <span class=n>scenes</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>            <span class=k>break</span>
+</span></span><span class=line><span class=cl>        <span class=n>candidates</span> <span class=o>=</span> <span class=p>[</span><span class=n>p</span> <span class=k>for</span> <span class=n>p</span> <span class=ow>in</span> <span class=n>players</span> <span class=k>if</span> <span class=n>p</span><span class=o>.</span><span class=n>can_contribute</span><span class=p>(</span><span class=n>board</span><span class=p>)]</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=ow>not</span> <span class=n>candidates</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>            <span class=k>break</span>  <span class=c1># 指し矢が誰も指せない=収束しない異常。無理に進めない</span>
+</span></span><span class=line><span class=cl>        <span class=n>board</span> <span class=o>=</span> <span class=n>candidates</span><span class=p>[</span><span class=mi>0</span><span class=p>]</span><span class=o>.</span><span class=n>contribute</span><span class=p>(</span><span class=n>board</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=n>board</span><span class=o>.</span><span class=n>lights</span> <span class=o>==</span> <span class=s2>&#34;up&#34;</span> <span class=ow>and</span> <span class=n>board</span><span class=o>.</span><span class=n>set_moved</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>            <span class=n>completed</span> <span class=o>+=</span> <span class=mi>1</span>
+</span></span><span class=line><span class=cl>            <span class=n>board</span><span class=o>.</span><span class=n>set_moved</span> <span class=o>=</span> <span class=kc>False</span>  <span class=c1># 次の場面転換のため進行表自身がリセットする(人形は関与しない)</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=n>board</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>can_contribute</code>と<code>contribute</code>――どちらも引数は進行表（<code>CueBoard</code>）だけです。相手の人形のインスタンスは、一切受け取っていません。ランプ人形も書割人形も、もう互いの内部を覗きません。進行表の公開されたフィールド（<code>lights</code>、<code>set_moved</code>）だけを見て、自分の出番かどうかを判断します。</p><p><code>CuePlayer</code>は、<strong><code>typing.Protocol</code></strong>――継承を要求せず、指定したメソッドの型さえ満たしていれば適合とみなされる、構造的な型付けの仕組み――で定義しました。ランプ人形も書割人形も、<code>CuePlayer</code>を明示的に継承してはいません。ただ、同じ形のメソッドを備えているというだけで、指し矢からは同じ顔ぶれとして扱われます。</p><p>指し矢――<code>run_cue_sequence</code>――のやることは、素っ気ないほど単純です。進行表を読んで、<code>can_contribute</code>が<code>True</code>を返す人形を集め、その一体に<code>contribute</code>を任せる。灯りが戻り、大道具も動き終えたら、場面が一つ完了したとみなして、進行表自身がリセットする――このリセットは、指し矢側のたった一箇所にしかありません。仮に三体目の人形――たとえば効果音を担当する人形――が加わったとしても、その人形に<code>can_contribute</code>と<code>contribute</code>さえ実装させれば済み、指し矢自身のこのリセット処理には、指一本触れずに済みます。書く場所が三つから一つに減った、というだけの話ではありません。場面の完了を判定する責任と、個々の人形が自分の出番を判断する責任とが、構造として初めて分かれた、ということでした。</p><p>言葉で辿るだけでは、まだ像がぼんやりしています。今度は、進行表を挟んで三者がどう繋がっているのかを、同じように紙の上へ描き起こしてみました。</p><p><img src=/public_images/2026/code-puppeteer-multi-agent-orchestration/infographic_2.webp loading=lazy alt=中央の共有進行表CueBoardにlights(灯りの持ち場)とset_moved(大道具の持ち場)の二つの欄があるAfterの疎結合構造図。ランプ人形LightPuppetと書割人形StagehandPuppetはcan_contributeで進行表を読んで出番を判断し、contributeでそれぞれ自分の持ち場の欄だけを書き換える。指し矢run_cue_sequenceは進行表を読むだけで、人形へは出番を指すだけ。誰も相手の内部には糸を伸ばしていない></p><p>描き上げてみると、指図役が両手を人形の内側へ突っ込んでいた、あの絵とはまるで違う姿になっていました。指し矢も、二体の人形も、互いの内側には一本の糸も伸ばしていません。誰もが見える進行表の上にだけ、みんなの糸が集まっている――それだけの違いでした。</p><p>改めて数え上げれば、灯りを落とす・戻す、大道具を動かす、という各人形の役目そのものも、場面転換を三回繰り返すという回数も、Before/Afterで一字も変えていません。<code>system_prompt</code>の文言さえ、そのままです。変わったのは、状態をどこに置き、誰がそれを読み書きできるかという規律だけでした。</p><p>三度の場面転換を、進行表越しに追い直してみます。Beforeの足取りは、一度きりの周回を終えると、出口のない箱に迷い込みます。Afterの足取りは、同じ形の輪をそのまま繰り返せる――この違いが、模擬公演でも、そのまま数字に表れました。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=n>light</span><span class=p>,</span> <span class=n>stagehand</span> <span class=o>=</span> <span class=n>LightPuppet</span><span class=p>(),</span> <span class=n>StagehandPuppet</span><span class=p>()</span>
+</span></span><span class=line><span class=cl><span class=n>board</span> <span class=o>=</span> <span class=n>CueBoard</span><span class=p>()</span>
+</span></span><span class=line><span class=cl><span class=n>run_cue_sequence</span><span class=p>(</span><span class=n>board</span><span class=p>,</span> <span class=p>[</span><span class=n>light</span><span class=p>,</span> <span class=n>stagehand</span><span class=p>],</span> <span class=n>scenes</span><span class=o>=</span><span class=mi>3</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 誰がいつ書き換えたか、因果順序を記録するスパイを挟んで確認する</span>
+</span></span><span class=line><span class=cl><span class=bp>self</span><span class=o>.</span><span class=n>assertEqual</span><span class=p>(</span><span class=n>log</span><span class=p>,</span> <span class=p>[</span><span class=n>light</span><span class=o>.</span><span class=n>name</span><span class=p>,</span> <span class=n>stagehand</span><span class=o>.</span><span class=n>name</span><span class=p>,</span> <span class=n>light</span><span class=o>.</span><span class=n>name</span><span class=p>]</span> <span class=o>*</span> <span class=mi>3</span><span class=p>)</span>
+</span></span></code></pre></td></tr></table></div></div><p>三場面ぶん、「灯り→大道具→灯り」の順が、一度も崩れずに三回繰り返されることを確かめました。誰がいつ進行表を書き換えたか――この並び順が一度でもずれていれば、出番判定の分かれ道のどこかが壊れている証拠になります。もう一つ、意地悪な確認もしました。三回を完走した進行表に、同じ顔ぶれ・同じ<code>scenes=3</code>で、もう一度<code>run_cue_sequence</code>を差し向けたのです。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=n>board</span> <span class=o>=</span> <span class=n>run_cue_sequence</span><span class=p>(</span><span class=n>CueBoard</span><span class=p>(),</span> <span class=p>[</span><span class=n>LightPuppet</span><span class=p>(),</span> <span class=n>StagehandPuppet</span><span class=p>()],</span> <span class=n>scenes</span><span class=o>=</span><span class=mi>3</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=n>board_before_second_call</span> <span class=o>=</span> <span class=n>board</span><span class=o>.</span><span class=n>model_copy</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>board</span> <span class=o>=</span> <span class=n>run_cue_sequence</span><span class=p>(</span><span class=n>board</span><span class=p>,</span> <span class=p>[</span><span class=n>LightPuppet</span><span class=p>(),</span> <span class=n>StagehandPuppet</span><span class=p>()],</span> <span class=n>scenes</span><span class=o>=</span><span class=mi>3</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=bp>self</span><span class=o>.</span><span class=n>assertEqual</span><span class=p>(</span><span class=n>board</span><span class=p>,</span> <span class=n>board_before_second_call</span><span class=p>)</span>
+</span></span></code></pre></td></tr></table></div></div><p>これは、正直に種明かしをしておかなければなりません。<code>completed</code>は<code>run_cue_sequence</code>が呼ばれるたびにゼロから数え直す、その場限りの変数です。だから二度目の呼び出しは、「もう終わっているから何もしない」と即座に打ち切っているわけではなく、内部では三場面ぶんをもう一度フルに周回しています。ただ、進行表が完了直後と同じ値から出発するので、同じ道筋をたどって、同じ着地点に静かに戻ってくる――暴走もせず、値の食い違いも起きません。即座に止まる仕組みではなく、もう一周させても同じ収束点に戻ってくる、という違う種類の安心でした。</p><p>各人形が自分の持ち場しか書き換えていないことも、確かめておきます。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=n>board</span> <span class=o>=</span> <span class=n>CueBoard</span><span class=p>(</span><span class=n>lights</span><span class=o>=</span><span class=s2>&#34;up&#34;</span><span class=p>,</span> <span class=n>set_moved</span><span class=o>=</span><span class=kc>False</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=n>LightPuppet</span><span class=p>()</span><span class=o>.</span><span class=n>contribute</span><span class=p>(</span><span class=n>board</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=bp>self</span><span class=o>.</span><span class=n>assertEqual</span><span class=p>(</span><span class=n>board</span><span class=o>.</span><span class=n>set_moved</span><span class=p>,</span> <span class=kc>False</span><span class=p>)</span>  <span class=c1># ランプ人形はset_movedに触れない</span>
+</span></span></code></pre></td></tr></table></div></div><p>進行表に、そもそも不正な値を渡そうとすればどうなるか――<code>CueBoard(lights="dim")</code>のように、<code>Literal</code>にない文字列を渡すと、Pydanticの<code>ValidationError</code>が、きちんと撥ねてくれることも確認しました。分類の土台となる型判定が、正しく働いている証です。</p><p>似た仕組みを、以前――一つの入力を、どのエージェントに振り分けるか決めた回でも見た気がする、と思われるかもしれません。あのときの案内役は、一つの依頼を受け取って、ふさわしい行き先へ一度だけ渡せば、それで役目を終えました。今回はそれとは違います。ランプ人形と書割人形は、一度渡して終わりの相手ではありません。同じ進行表を、場面が完成するまで何度も読み書きしながら、時間をかけて舞台を仕上げていく――単発の割り振りではなく、継続する協調でした。</p><p>回数の上限――<code>max_rounds</code>――にも、念のため触れておきます。ずっと前、迷路から出られなくなった探鉱人形に、考える回数の上限を設けた回がありました。あのときは、回数の上限そのものが答えでした。今回の<code>max_rounds</code>は、あくまで保険です。指し矢の本来の終わり方は、場面の完了数――<code>completed</code>――が、目当ての<code>scenes</code>に届いた時点で、輪の先頭で静かに気づいて抜けるだけです。「誰も出番を指せなくなったら終わる」という分かれ道も用意してはありますが、正直に言えば、今回のランプ人形と書割人形の組み合わせでは、この道を通ることは一度もありません。どちらか一方には、必ず出番が回ってくるように、二人の<code>can_contribute</code>を噛み合わせて作ったからです。この分かれ道は、たとえば人形が一体、うっかり顔ぶれから抜け落ちていたときのような、本来あってはならない事態のための保険であり、もしここへ迷い込めば、<code>completed</code>は目当てに届かないまま、進行表はそのときの姿で静かに返ります。例外は上がりません。</p><p>正直に、留保も置いておきます。持ち場のフィールドだけを書くという規律は、Pythonの型が強制してくれるものではありません。もし将来、別の人形が他人の持ち場を直接書き換えるようなことがあれば、同じ問題が形を変えて戻ってくるでしょう。指し矢の選び方――今回は候補の先頭を選ぶだけの、単純な仕組みでした――も、それで常に十分とは限りません。候補が三体、四体と増えれば、もっと丁寧な選び方が要る場面も出てくるはずです。何場面まで無事に進んだのかを、呼び出す側がどう確かめるのかも、今回はまだ、進行表の中身を見比べる以上の仕組みを用意していません。</p><h2 id=第4幕-開演と調和--指し矢が迷わず振れる>第4幕: 開演と調和 ── 指し矢が、迷わず振れる</h2><p>本番当日。フェアファクス女史の一座と、この劇場の人形たちが、初めて肩を並べました。</p><p>三度の場面転換――灯りが落ち、大道具が入れ替わり、灯りが戻る――が、一度も詰まることなく、滑らかに続きます。ランプ人形と書割人形の「お先にどうぞ」「いや、そちらから」は、進行表の指し矢がひとりでに次の持ち場を指し示すたび、迷いなく短く交わされては、すぐに次の一手へと繋がっていきました。客席からは、暗転のたびに小さなどよめきが起き、灯りが戻るたびに、まったく違う景色が広がっていることに、旅の一座の団員たちも目を丸くしていました。舞台袖から見守る私は、指し矢が振れるたびに、小さく頷いていました。</p><p>幕が下りたあと、フェアファクス女史が袖から出てきました。三度の場面転換を食い入るように見ていたのでしょう、興奮の残る様子で、満足げに笑います。</p><p>「見事だったわ。どこの継ぎ目でうちの一座が入っても、迷わず息が合う」</p><p>続けて、こう言い残しました。</p><p>「また大きい仕事を持ち込むかもしれないから、覚悟しておいてちょうだい」</p><p>謝礼の品は、何も残しませんでした。ただ、次の仕事の気配だけを置いて、颯爽と去っていきます。</p><p>「あの二人、息が合うと思ったら、今度は張り合いがなくてつまらないくらいね」</p><p>通りすがりにアンが、いつもの調子で軽口を叩きました。</p><p>マエストロは、指揮棒をそっと片付けながら、こちらを見ずに言いました。</p><p>「……譜面は、破れなかったな」</p><p>それだけ言って、いつもの作業へ戻っていきました。</p><p>思えば、この糸の調整期に入ってからというもの、私が向き合ってきたのは、いつも一体の人形の中身でした。増え続ける記憶をどう刈り込むか。壊れた相棒に、どう向き合うか。今回、初めて相手にしたのは、一体の中身ではなく、二体の間にある何もない空間――そこに何を置くかという問題でした。二人の間に割り込んで、両方の内側を握りしめる必要はなかったのです。見える場所に、一枚の記録を置くだけで、二人はちゃんと、自分の出番を見つけられました。</p><p>その夜、革表紙の「操り人形師の覚書」を開きます。九ページ目です。今夜のことを書き終えたところで、私は初めて棚からこれまでの束を取り出し、今夜のページと並べて見比べてみました。書く道具も、書き方も、少しずつ変わってきたことに気づいて、小さく笑って、束を仕舞います。</p><p>窓の外では、じきに夜が明けます。二日後に迫っていたはずの本番は、もう昨日のことになっていました。</p><hr><h3 id=-操り人形師の覚書colettes-puppeteer-log>🎭 操り人形師の覚書（Colette&rsquo;s Puppeteer Log）</h3><ul><li><strong>調整したからくり（モジュール/関数名）</strong>: <code>StageDirector</code>（Before: 両人形の内部フラグ<code>is_down</code>/<code>has_moved</code>を直接読み書きし、場面完了時のリセットを1箇所書き忘れる）→ <code>CueBoard</code> + <code>CuePlayer</code>（<code>can_contribute</code>/<code>contribute</code>）+ <code>run_cue_sequence</code>（After: 進行表の公開フィールドのみを介した疎結合協調、リセットは進行表側の一箇所に集約）</li><li><strong>思考のゼンマイ（思考素子/LLMの特性）</strong>:<ul><li>各人形は「今どの状態か」を自分だけの内部フラグとして持ちうるが、それを外部が自由に読み書きできる設計は、1回きりの実行では偶然動いて見えても、繰り返しに耐えない</li></ul></li><li><strong>操り糸の張り具合（運糸の法/プロンプトと制御）</strong>:<ul><li>Pydanticの<code>CueBoard</code>を共有状態とし、<code>typing.Protocol</code>で定義した<code>CuePlayer</code>（<code>can_contribute</code>/<code>contribute</code>）を各人形が実装、<code>run_cue_sequence</code>が進行表の状態だけを見て次の担当を選ぶ構造</li></ul></li><li><strong>舞台裏の絡まり（背伸びの過ち/避けるべき罠）</strong>:<ul><li>コレットが仲裁役として二体の人形の内部フラグに直接手を伸ばし、状態の一貫した記録をどこにも持たない設計にしてしまったこと。行き詰まりを力技（両方同時に動かす）で解こうとして、衝突寸前の事故を招いたことも含む</li></ul></li><li><strong>模擬公演の記録（検証のポイント）</strong>:<ul><li>Beforeが1回目は成功し2回目で恒久停止すること、Afterが3回の場面転換をすべて完走すること、各人形が自分の持ち場のフィールドしか書き換えないこと、3回完走後に同じ条件でもう一度呼んでも暴走せず同じ着地点へ静かに戻ること、進行表への不正な値がpydanticに撥ねられること</li></ul></li><li><strong>マエストロの言葉</strong>:<ul><li><em>「指揮者は、奏者の指を掴んでは動かさぬ。譜面を示すだけだ」</em></li></ul></li></ul></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/python/>Python</a>
+<a href=/tags/multi-agent-orchestration/>Multi-Agent-Orchestration</a>
+<a href=/tags/code-puppeteer/>Code-Puppeteer</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/07/29/070705/><div class=article-image><img src=/public_images/2026/code-puppeteer-code-puppeteer-integrated/header.webp loading=lazy data-key data-hash=/public_images/2026/code-puppeteer-code-puppeteer-integrated/header.webp></div><div class=article-details><h2 class=article-title>コードパペッティア【KISS Principle】鍵と歯車で着膨れた扉番からくり〜積み上げた十の備えと、選び抜いた三本の糸〜</h2></div></a></article><article class=has-image><a href=/2026/07/28/070705/><div class=article-image><img src=/public_images/2026/code-puppeteer-agent-self-reflection/header.webp loading=lazy data-key data-hash=/public_images/2026/code-puppeteer-agent-self-reflection/header.webp></div><div class=article-details><h2 class=article-title>コードパペッティア【Reflection Loop】まだ足りないと繰り返す肖像人形〜逃げ水の完成と、閉じられる採点表〜</h2></div></a></article><article class=has-image><a href=/2026/07/27/070705/><div class=article-image><img src=/public_images/2026/code-puppeteer-human-in-the-loop/header.webp loading=lazy data-key data-hash=/public_images/2026/code-puppeteer-human-in-the-loop/header.webp></div><div class=article-details><h2 class=article-title>コードパペッティア【Human-in-the-Loop】待ったなしの猟師人形〜凍りつく舞台裏と、遅れて届く合図〜</h2></div></a></article><article class=has-image><a href=/2026/07/25/070705/><div class=article-image><img src=/public_images/2026/code-puppeteer-self-correction-retry/header.webp loading=lazy data-key data-hash=/public_images/2026/code-puppeteer-self-correction-retry/header.webp></div><div class=article-details><h2 class=article-title>コードパペッティア【Self-Correction Loop】いつもの毒舌を失くした相棒のオルゴール〜過熱する繰り言と、正しく止める勇気〜</h2></div></a></article><article class=has-image><a href=/2026/07/24/070705/><div class=article-image><img src=/public_images/2026/code-puppeteer-sliding-window-memory/header.webp loading=lazy data-key data-hash=/public_images/2026/code-puppeteer-sliding-window-memory/header.webp></div><div class=article-details><h2 class=article-title>コードパペッティア【Sliding Window Memory】夜更けに任務を忘れる夜警人形〜膨らむ今夜と、石盤ひと枚の覚え〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

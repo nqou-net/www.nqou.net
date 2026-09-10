@@ -1,0 +1,387 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="クラス内部でnewを直書きしたコードがCI環境でテスト不可能になる問題を、コンストラクタインジェクションとMoo::RoleのConsumerOfで解決するリファクタリング事例"><title>コード探偵ロックの事件簿【Dependency Injection】密室の new〜依存を手渡す者が扉を開く〜</title><link rel=canonical href=https://www.nqou.net/2026/04/14/070705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コード探偵ロックの事件簿【Dependency Injection】密室の new〜依存を手渡す者が扉を開く〜"><meta property='og:description' content="クラス内部でnewを直書きしたコードがCI環境でテスト不可能になる問題を、コンストラクタインジェクションとMoo::RoleのConsumerOfで解決するリファクタリング事例"><meta property='og:url' content='https://www.nqou.net/2026/04/14/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='perl'><meta property='article:tag' content='moo'><meta property='article:tag' content='dependency-injection'><meta property='article:tag' content='constructor-injection'><meta property='article:tag' content='moo-role'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-detective'><meta property='article:published_time' content='2026-04-14T07:07:05+09:00'><meta property='article:modified_time' content='2026-04-14T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-detective-dependency-injection/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コード探偵ロックの事件簿【Dependency Injection】密室の new〜依存を手渡す者が扉を開く〜"><meta name=twitter:description content="クラス内部でnewを直書きしたコードがCI環境でテスト不可能になる問題を、コンストラクタインジェクションとMoo::RoleのConsumerOfで解決するリファクタリング事例"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-detective-dependency-injection/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-04-14T07:07:05+09:00","datePublished":"2026-04-14T07:07:05+09:00","description":"クラス内部でnewを直書きしたコードがCI環境でテスト不可能になる問題を、コンストラクタインジェクションとMoo::RoleのConsumerOfで解決するリファクタリング事例","headline":"コード探偵ロックの事件簿【Dependency Injection】密室の new〜依存を手渡す者が扉を開く〜","image":"https://www.nqou.net/public_images/2026/code-detective-dependency-injection/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/04/14/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#カフェの隣席>カフェの隣席</a></li><li><a href=#new-の指紋採取><code>new</code> の指紋採取</a></li><li><a href=#密室を開く鍵>密室を開く鍵</a></li><li><a href=#赤から緑へ>赤から緑へ</a></li><li><a href=#47件の-new>47件の <code>new</code></a></li><li><a href=#探偵の調査報告書>探偵の調査報告書</a><ol><li><a href=#推理のステップ>推理のステップ</a></li><li><a href=#ロックより>ロックより</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/04/14/070705/><img src=/public_images/2026/code-detective-dependency-injection/header.webp loading=lazy alt="Featured image of post コード探偵ロックの事件簿【Dependency Injection】密室の new〜依存を手渡す者が扉を開く〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/04/14/070705/>コード探偵ロックの事件簿【Dependency Injection】密室の new〜依存を手渡す者が扉を開く〜</a></h2><h3 class=article-subtitle>クラス内部でnewを直書きしたコードがCI環境でテスト不可能になる問題を、コンストラクタインジェクションとMoo::RoleのConsumerOfで解決するリファクタリング事例</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>14, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 14分</time></div></footer></div></header><section class=article-content><h2 id=カフェの隣席>カフェの隣席</h2><p>土曜の午後、行きつけのカフェでノートPCを開いていた。</p><p>画面には GitHub Actions のワークフロー結果。赤い。全部赤い。先週CIを導入してから、テストが一つも通らない。ローカルでは全部グリーンなのに。</p><p>チームが5人に増えたタイミングで「そろそろCIを入れよう」と提案したのは私だ。創業期から一人でサーバーサイドを書いてきた。テストも書いている。コードには自信がある。だから余計に苛立つ。CIの設定が悪いのではないかと3日間調べたが、設定に問題はなかった。</p><p>「……失礼。その赤いログだが、問題はCIではないね」</p><p>隣の席から声がした。</p><p>振り向くと、コートを着た男が分厚い洋書を膝に置いたまま、私の画面を見ていた。表紙には「Programming Perl」の文字が見えた——それも第3版の、かなり年季の入ったやつだ。</p><p>「は？　すみません、どなたですか」</p><p>男はこちらの困惑を無視して続けた。</p><p>「そのテストコード、<code>new</code> を何箇所で呼んでいる？　いや、テストコードではない——テスト対象のクラスの中で」</p><p>初対面の人にコードを覗かれている。普通なら不快だ。だが指摘が具体的すぎて、反射的にエディタのタブを切り替えてしまった。</p><p><code>ReportGenerator.pm</code>。メソッドの中に <code>DataSource::CSV->new</code>、<code>Formatter::HTML->new</code>、<code>Mailer::SMTP->new</code> が並んでいる。</p><p>「3箇所ですけど……それが何か？」</p><p>男がコートの内ポケットから名刺を取り出した。</p><p>「レガシー・コード・インベスティゲーション」——探偵事務所。ロック、と名前が書いてある。</p><p>財布を開いた。半年前にフリーランスの先輩からもらった名刺が、レシートの間に挟まっていた。同じデザイン。同じ肩書き。あのとき先輩は私のコードをちらっと見て「おまえ、全部自分で <code>new</code> してるな。まあ Service Locator よりはマシかもしれないけど」と意味ありげに笑っていた。Service Locator が何なのかも訊かなかった。動いているコードを変える理由はないと思っていたから。</p><p>「……あ」</p><p>「おや、どこかで私の名刺を？」</p><p>「知り合いからもらったんです。忘れてました。……探偵ごっこですか？」</p><p>男——ロックさんが真顔で答えた。</p><p>「ごっこではないよ。ロックだ。そして君はいまから私のワトソン君だ」</p><p>先輩が「面白い人がいる」と言っていた意味がわかった。面白いというか、一方的だ。</p><h2 id=new-の指紋採取><code>new</code> の指紋採取</h2><p>ロックさんが自分の本を閉じ、断りもなく私の向かいの席に移動した。</p><p>「まず現場検証だ。問題のクラスを見せてもらおう」</p><p>私は <code>ReportGenerator.pm</code> を画面に出した。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>ReportGenerator</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>generate</span> <span class=p>($self, $params) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$source</span>    <span class=o>=</span> <span class=nn>DataSource::CSV</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>path</span> <span class=o>=&gt;</span> <span class=nv>$params</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>file</span><span class=p>});</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$formatter</span> <span class=o>=</span> <span class=nn>Formatter::HTML</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$mailer</span>    <span class=o>=</span> <span class=nn>Mailer::SMTP</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>host</span> <span class=o>=&gt;</span> <span class=s>&#39;smtp.example.com&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$data</span>   <span class=o>=</span> <span class=nv>$source</span><span class=o>-&gt;</span><span class=n>fetch</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$report</span> <span class=o>=</span> <span class=nv>$formatter</span><span class=o>-&gt;</span><span class=nb>format</span><span class=p>(</span><span class=nv>$data</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$mailer</span><span class=o>-&gt;</span><span class=nb>send</span><span class=p>(</span><span class=n>to</span> <span class=o>=&gt;</span> <span class=nv>$params</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>to</span><span class=p>},</span> <span class=n>body</span> <span class=o>=&gt;</span> <span class=nv>$report</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>{</span> <span class=n>status</span> <span class=o>=&gt;</span> <span class=s>&#39;sent&#39;</span><span class=p>,</span> <span class=n>to</span> <span class=o>=&gt;</span> <span class=nv>$params</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>to</span><span class=p>}</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>ロックさんが画面を一瞥して言った。</p><p>「密室だね」</p><p>「密室？」</p><p>「このクラスは密室だよ、ワトソン君。鍵をかけた部屋の中で、自分だけで全てを完結しようとしている。CSVファイルがある、SMTPサーバーに繋がる——それは<strong>密室の中にいる者だけが知っている前提</strong>だ」</p><p>「でも、<code>ReportGenerator->new</code> は引数なしで作れますよ。シンプルじゃないですか」</p><p>「シンプルに見えるのは、複雑さを隠しているからだ」</p><p>ロックさんが画面を指差した。</p><p>「このコンストラクタは何も要求しない。何に依存しているか、<strong>嘘をついている</strong>。外から見れば、このクラスは何も必要としていないように見える。だが実際は、CSVファイルとHTMLフォーマッタとSMTPサーバーがなければ動かない」</p><p>「嘘って……動いてますよ。ローカルでは全テスト通ってます」</p><p>「ローカルには何がある？」</p><p>「開発用のCSVファイルと、テスト用のSMTPサーバーです」</p><p>「CIには？」</p><p>止まった。CIにはどちらもない。だから落ちる。</p><p>「……ああ」</p><p>「テスト対象のクラスの中で <code>new</code> を呼んでいる場所を、私は<strong>指紋</strong>と呼んでいる。犯人が現場に残す証拠だ。指紋が多いほど、そのクラスは密結合度が高い」</p><p>ロックさんが私のPCを操作して——やめてほしいのだが——テストコードを開いた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># --- テストA: 正常系...のつもり ---</span>
+</span></span><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;テストA: レポート生成&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$gen</span> <span class=o>=</span> <span class=nn>ReportGenerator</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=c1># ↑ 依存ゼロで生成できてしまう</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=nb>eval</span> <span class=p>{</span> <span class=nv>$gen</span><span class=o>-&gt;</span><span class=n>generate</span><span class=p>(</span><span class=nv>$params</span><span class=p>)</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=c1># data/report.csv が存在しない → 死ぬ</span>
+</span></span><span class=line><span class=cl>    <span class=c1># smtp.example.com に接続できない → 死ぬ</span>
+</span></span><span class=line><span class=cl>    <span class=n>like</span> <span class=vg>$@</span><span class=p>,</span> <span class=sx>qr/Cannot open/</span><span class=p>,</span> <span class=s>&#39;ファイルがないのでエラー&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<code>new</code> は成功する。依存が3つ隠されているのに。壊れるのは <code>generate</code> を呼んだ瞬間だ。しかも壊れ方はファイルの有無やネットワーク環境に依存する——<strong>環境依存のテスト</strong>だ」</p><p>「でも、テストのために設計を変えるのは本末転倒じゃないですか？　テストが環境に依存しているなら、環境を揃えればいい話で——」</p><p>ロックさんが首を振った。</p><p>「逆だ、ワトソン君。テストしやすい設計こそが、正しい設計の指標なんだよ。環境を揃えるのは対症療法だ。密室の中に酸素ボンベを持ち込んでも、密室であることは変わらない」</p><p>反論したかった。でも、CIの赤いログは私の味方をしてくれなかった。</p><h2 id=密室を開く鍵>密室を開く鍵</h2><p>「密室を開くのは簡単だ。扉を作ればいい。——いや、正確には<strong>鍵穴</strong>を作る」</p><p>ロックさんが新しいファイルを書き始めた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Role::DataSource</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo::Role</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>requires</span> <span class=s>&#39;fetch&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<code>requires 'fetch'</code>——これだけですか？」</p><p>「これが鍵穴の形を決めている。<code>fetch</code> というメソッドを持つ者だけが、この鍵穴に合う鍵になれる。CSV でも API でも、テスト用のモックでもいい。<strong>形が合えば開く</strong>」</p><p>同様に、フォーマッタとメーラーの Role も書いた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Role::Formatter</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo::Role</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>requires</span> <span class=s>&#39;format&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Role::Mailer</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo::Role</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>requires</span> <span class=s>&#39;send&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「次に、密室の壁を壊す」</p><p>ロックさんが <code>ReportGenerator.pm</code> を書き換えた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>ReportGenerator</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(ConsumerOf)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>source</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>isa</span>      <span class=o>=&gt;</span> <span class=n>ConsumerOf</span><span class=p>[</span><span class=s>&#39;Role::DataSource&#39;</span><span class=p>],</span>
+</span></span><span class=line><span class=cl>    <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>formatter</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>isa</span>      <span class=o>=&gt;</span> <span class=n>ConsumerOf</span><span class=p>[</span><span class=s>&#39;Role::Formatter&#39;</span><span class=p>],</span>
+</span></span><span class=line><span class=cl>    <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>mailer</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>isa</span>      <span class=o>=&gt;</span> <span class=n>ConsumerOf</span><span class=p>[</span><span class=s>&#39;Role::Mailer&#39;</span><span class=p>],</span>
+</span></span><span class=line><span class=cl>    <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>generate</span> <span class=p>($self, $params) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$data</span>   <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>source</span><span class=o>-&gt;</span><span class=n>fetch</span><span class=p>(</span><span class=nv>$params</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$report</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>formatter</span><span class=o>-&gt;</span><span class=nb>format</span><span class=p>(</span><span class=nv>$data</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>mailer</span><span class=o>-&gt;</span><span class=nb>send</span><span class=p>(</span><span class=n>to</span> <span class=o>=&gt;</span> <span class=nv>$params</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>to</span><span class=p>},</span> <span class=n>body</span> <span class=o>=&gt;</span> <span class=nv>$report</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>{</span> <span class=n>status</span> <span class=o>=&gt;</span> <span class=s>&#39;sent&#39;</span><span class=p>,</span> <span class=n>to</span> <span class=o>=&gt;</span> <span class=nv>$params</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>to</span><span class=p>}</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<code>required</code> にしたら、<code>new</code> のときに必ず渡さないといけないですよね。引数が3つ増える。面倒じゃないですか」</p><p>「面倒に感じるなら、それはクラスの責務が多すぎるという別の事件だよ。コンストラクタの引数の数は、依存の数だ。依存の数は、責務の数だ。5つも10個もあるなら、クラスを分割すべきだ。コンストラクタは<strong>正直に告白している</strong>のだよ」</p><p>引数が3つ——依存が3つ。言われれば当然だ。今まで <code>new</code> の引数がゼロ＝シンプルだと思い込んでいたが、あれは正直だったのではなく、<strong>黙秘していただけ</strong>だった。</p><p>「……わかりました。でも、<code>ConsumerOf</code> というのが気になります。<code>InstanceOf['DataSource::CSV']</code> のほうが素直じゃないですか？」</p><p>「具象に依存する錠前は、特定の鍵でしか開かない。<code>DataSource::CSV</code> に依存すれば、テスト時にモックを渡せない——<code>isa</code> のチェックで弾かれる。<code>ConsumerOf</code> で Role に依存すれば、その Role を <code>with</code> しているクラスなら何でも受け入れる」</p><p><code>InstanceOf</code> は身分証の確認だ。「お前は CSV か？」と訊く。<code>ConsumerOf</code> は能力の確認だ。「お前は <code>fetch</code> できるか？」と訊く。身分ではなく能力——それなら、テスト用のモックだって能力さえ持っていれば通れる。</p><p>「……なるほど。<code>InstanceOf</code> だとモックが弾かれるのか。それは困る」</p><p>「そういうことだ。<code>ConsumerOf['Role::DataSource']</code> は、<code>Role::DataSource</code> を consume——消費しているオブジェクトを要求する。<code>with</code> で Role を取り込んでいれば、CSV でも API でもモックでも通る。<code>ConsumerOf</code> の名前の通りだよ」</p><p>腑に落ちた。依存先を具象クラスではなく Role にする。テスト時はモック、本番時は実装——鍵穴の形さえ合えばいい。</p><p>既存の具象クラスにも変更が必要だ。ロックさんが <code>DataSource::CSV</code> を開いた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>DataSource::CSV</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>with</span> <span class=s>&#39;Role::DataSource&#39;</span><span class=p>;</span>  <span class=c1># ← この1行を追加</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>path</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>fetch</span> <span class=p>($self, $params = {})</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=nb>open</span> <span class=k>my</span> <span class=nv>$fh</span><span class=p>,</span> <span class=s>&#39;&lt;&#39;</span><span class=p>,</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>path</span>
+</span></span><span class=line><span class=cl>        <span class=ow>or</span> <span class=nb>die</span> <span class=s>&#34;Cannot open @{[$self-&gt;path]}: $!&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>@rows</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>while</span> <span class=p>(</span><span class=k>my</span> <span class=nv>$line</span> <span class=o>=</span> <span class=sr>&lt;$fh&gt;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=nb>chomp</span> <span class=nv>$line</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=nb>push</span> <span class=nv>@rows</span><span class=p>,</span> <span class=p>[</span><span class=nb>split</span> <span class=sr>/,/</span><span class=p>,</span> <span class=nv>$line</span><span class=p>];</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=nb>close</span> <span class=nv>$fh</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=o>\</span><span class=nv>@rows</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<code>with 'Role::DataSource'</code> を足すだけ。既存のメソッドが <code>requires</code> を満たしていれば、合成は成功する。もし <code>fetch</code> を実装していなければ、この時点でエラーになる——<strong>実行前に</strong>だ」</p><p><code>new</code> の直書きがダメ。外から渡す——。</p><p>ふと、先輩の言葉が頭に浮かんだ。半年前、名刺を渡されたときに聞いた言葉。「全部自分で <code>new</code> してるな。まあ Service Locator よりはマシかもしれないけど」。あのときは意味がわからなかった。でも今なら、少しだけ輪郭が見える。</p><p>「ロックさん、一つ訊いていいですか。Service Locator っていうのは、<code>new</code> の直書きとは違うんですか？　以前、知り合いにそういう言葉を言われたことがあって」</p><p>ロックさんの目が光った——ように見えた。</p><p>「良い質問だ、ワトソン君。先日、ある現場で Service Locator という仲介人を相手にした。あれはグローバルなレジストリから依存を<strong>取りに行く</strong>手法だった。<code>ServiceLocator->resolve('validator')</code> のように。今回の <code>new</code> の直書きは、自分で依存を<strong>作っている</strong>。<code>DataSource::CSV->new</code> のように」</p><p>「取りに行くのと、自分で作るのは違いますよね」</p><p>「方向は違うが、問題は同じだ。<strong>どちらも依存が外から見えない</strong>。Service Locator はグローバルな帳簿に依存を隠す。<code>new</code> の直書きはメソッドの中に依存を閉じ込める。依存が外から見えないバリエーションが2つあるだけだ」</p><p>ロックさんがテーブルの紙ナプキンに図を描いた。</p><pre class=mermaid>
+	graph TB
+    subgraph &#34;3つの依存獲得パターン&#34;
+        direction TB
+        A[&#34;① new の直書き&lt;br/&gt;自分で作る&#34;] --&gt;|&#34;密結合&#34;| X[&#34;依存が外から見えない&#34;]
+        B[&#34;② Service Locator&lt;br/&gt;レジストリに取りに行く&#34;] --&gt;|&#34;暗黙的依存&#34;| X
+        C[&#34;③ Constructor DI&lt;br/&gt;外から渡してもらう&#34;] --&gt;|&#34;明示的依存&#34;| Y[&#34;依存がコンストラクタで宣言される&#34;]
+    end
+</pre><p>「Dependency Injection だけが Push だ。依存を<strong>渡してもらう</strong>。<code>new</code> の引数として、外から手渡す。方向が根本的に違う」</p><p>Pull か Push か。先輩の言葉がようやく腑に落ちた。先輩はあのとき、私のコードが全部 Pull——自分で作る、自分で取りに行く——だと見抜いていたのだ。「Service Locator よりはマシ」という皮肉も、いま思えば「同じ Pull 族だけどな」という意味だったのだろう。悔しいが、半年越しで負けを認めるしかない。</p><p>「……続けてください」</p><p>「<code>new</code> の直書きは、密室に閉じこもって自分で鍵を作る。Service Locator は、共有のロッカーから鍵を取りに行く。DI は、玄関で鍵を手渡してもらう。手渡してもらえば、どの鍵かは渡す側が決められる。テスト時にはテスト用の鍵、本番時には本物の鍵だ」</p><h2 id=赤から緑へ>赤から緑へ</h2><p>「では、密室を開いた結果を確認しよう」</p><p>ロックさんがテストコードを書き始めた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># --- テスト用モック実装 ---</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>DataSource::Mock</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>with</span> <span class=s>&#39;Role::DataSource&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>data</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=p>[[</span><span class=s>&#39;Alice&#39;</span><span class=p>,</span> <span class=mi>100</span><span class=p>],</span> <span class=p>[</span><span class=s>&#39;Bob&#39;</span><span class=p>,</span> <span class=mi>200</span><span class=p>]]</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>fetch</span> <span class=p>($self, $params = {})</span> <span class=p>{</span> <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>data</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Formatter::Mock</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>with</span> <span class=s>&#39;Role::Formatter&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>last_input</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>format</span> <span class=p>($self, $data) {</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>last_input</span><span class=p>(</span><span class=nv>$data</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=s>&#34;formatted:&#34;</span> <span class=o>.</span> <span class=nb>scalar</span><span class=p>(</span><span class=nv>$data</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>)</span> <span class=o>.</span> <span class=s>&#34; rows&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Mailer::Mock</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>with</span> <span class=s>&#39;Role::Mailer&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>sent</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=o>[]</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>send</span> <span class=p>($self, %args) {</span>
+</span></span><span class=line><span class=cl>    <span class=nb>push</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>sent</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>,</span> <span class=p>{</span> <span class=n>to</span> <span class=o>=&gt;</span> <span class=nv>$args</span><span class=p>{</span><span class=n>to</span><span class=p>},</span> <span class=n>body</span> <span class=o>=&gt;</span> <span class=nv>$args</span><span class=p>{</span><span class=n>body</span><span class=p>}</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=mi>1</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「モッククラスは全て Role を消費している。<code>with 'Role::DataSource'</code> があるから <code>ConsumerOf</code> のチェックを通る。だが CSV ファイルも SMTP サーバーも使わない。テスト用の偽の鍵だ」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># --- テストA: モック注入でレポート生成 ---</span>
+</span></span><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;テストA: モック注入でレポート生成&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$mailer</span> <span class=o>=</span> <span class=nn>Mailer::Mock</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$gen</span> <span class=o>=</span> <span class=nn>ReportGenerator</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>source</span>    <span class=o>=&gt;</span> <span class=nn>DataSource::Mock</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>formatter</span> <span class=o>=&gt;</span> <span class=nn>Formatter::Mock</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>mailer</span>    <span class=o>=&gt;</span> <span class=nv>$mailer</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$result</span> <span class=o>=</span> <span class=nv>$gen</span><span class=o>-&gt;</span><span class=n>generate</span><span class=p>({</span> <span class=n>to</span> <span class=o>=&gt;</span> <span class=s>&#39;test@example.com&#39;</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>is</span> <span class=nv>$result</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>status</span><span class=p>},</span> <span class=s>&#39;sent&#39;</span><span class=p>,</span> <span class=s>&#39;レポートが送信された&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span> <span class=nb>scalar</span><span class=p>(</span><span class=nv>$mailer</span><span class=o>-&gt;</span><span class=nn>sent</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>),</span> <span class=mi>1</span><span class=p>,</span> <span class=s>&#39;メール1件送信&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span> <span class=nv>$mailer</span><span class=o>-&gt;</span><span class=nn>sent</span><span class=o>-&gt;</span><span class=p>[</span><span class=mi>0</span><span class=p>]{</span><span class=n>to</span><span class=p>},</span> <span class=s>&#39;test@example.com&#39;</span><span class=p>,</span> <span class=s>&#39;宛先が正しい&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span></code></pre></td></tr></table></div></div><p>テストを実行した。緑。CSVファイルがなくてもSMTPサーバーがなくても、通る。</p><p>「……CIでも通りますよね、これ」</p><p>「当然だ。外部リソースに依存していない。どの環境でも同じ結果になる」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># --- テストB: フォーマッタの動作検証 ---</span>
+</span></span><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;テストB: フォーマッタへのデータ受け渡し&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$formatter</span> <span class=o>=</span> <span class=nn>Formatter::Mock</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$gen</span> <span class=o>=</span> <span class=nn>ReportGenerator</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>source</span>    <span class=o>=&gt;</span> <span class=nn>DataSource::Mock</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>data</span> <span class=o>=&gt;</span> <span class=p>[[</span><span class=s>&#39;x&#39;</span><span class=p>,</span> <span class=mi>1</span><span class=p>]]),</span>
+</span></span><span class=line><span class=cl>        <span class=n>formatter</span> <span class=o>=&gt;</span> <span class=nv>$formatter</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>mailer</span>    <span class=o>=&gt;</span> <span class=nn>Mailer::Mock</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=nv>$gen</span><span class=o>-&gt;</span><span class=n>generate</span><span class=p>({</span> <span class=n>to</span> <span class=o>=&gt;</span> <span class=s>&#39;test@example.com&#39;</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>is</span> <span class=nb>scalar</span><span class=p>(</span><span class=nv>$formatter</span><span class=o>-&gt;</span><span class=nn>last_input</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>),</span> <span class=mi>1</span><span class=p>,</span> <span class=s>&#39;フォーマッタに1行渡された&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span></code></pre></td></tr></table></div></div><p>「Before では <code>Formatter::HTML</code> がハードコードされていて差し替えられなかった。After では <code>Formatter::Mock</code> を渡してデータの受け渡しを検証できる。しかも各テストが独自のモックを持つから、テスト間の状態汚染もない」</p><p>もう一つ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># --- テストC: 依存不足はnew()で即検知 ---</span>
+</span></span><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;テストC: 依存不足の早期検出&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=nb>eval</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=nn>ReportGenerator</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=n>source</span> <span class=o>=&gt;</span> <span class=nn>DataSource::Mock</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=c1># formatter と mailer を渡し忘れ</span>
+</span></span><span class=line><span class=cl>        <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=n>like</span> <span class=vg>$@</span><span class=p>,</span> <span class=sx>qr/required/</span><span class=p>,</span> <span class=s>&#39;new() の時点でエラー&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span></code></pre></td></tr></table></div></div><p>「Before では <code>new</code> が素通りして <code>generate</code> で爆発していた。After では <code>new</code> の時点で止まる」</p><p>「検知のタイミングが、実行時から構築時に前倒しされた……」</p><p>「その通り。密室は開かれた。鍵穴が見える。鍵を持っていない者は、部屋に入れない。それが<strong>正直な設計</strong>だ」</p><p>最後に、Composition Root の話が出た。</p><p>「<code>new</code> を呼ぶのは本番コードでは1箇所だけにしたまえ。アプリケーションのエントリポイントだ。<strong>Composition Root</strong> と呼ばれる」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># main.pl（Composition Root）</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>ReportGenerator</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>DataSource::CSV</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Formatter::HTML</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Mailer::SMTP</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$generator</span> <span class=o>=</span> <span class=nn>ReportGenerator</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>source</span>    <span class=o>=&gt;</span> <span class=nn>DataSource::CSV</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>path</span> <span class=o>=&gt;</span> <span class=s>&#39;data/report.csv&#39;</span><span class=p>),</span>
+</span></span><span class=line><span class=cl>    <span class=n>formatter</span> <span class=o>=&gt;</span> <span class=nn>Formatter::HTML</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>mailer</span>    <span class=o>=&gt;</span> <span class=nn>Mailer::SMTP</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>host</span> <span class=o>=&gt;</span> <span class=s>&#39;smtp.example.com&#39;</span><span class=p>),</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nv>$generator</span><span class=o>-&gt;</span><span class=n>generate</span><span class=p>({</span> <span class=n>to</span> <span class=o>=&gt;</span> <span class=s>&#39;user@example.com&#39;</span> <span class=p>});</span>
+</span></span></code></pre></td></tr></table></div></div><p>「ここだけが具象クラスを知っている。<code>ReportGenerator</code> 自身は <code>Role::DataSource</code> としか話さない。CSV か API かは、この1箇所が決める。テストコードも同じ構造で、ここだけがモッククラスを知っている」</p><h2 id=47件の-new>47件の <code>new</code></h2><p>ロックさんが席を立ち、洋書を小脇に抱えた。</p><p>「さて、私はこの本の続きを読まなければならない。第8章のタイイングが佳境でね」</p><p>「あの——ちゃんとお願いしたいことがあるんですけど。うちのコード、他にも <code>new</code> がたくさんあって——」</p><p>「必要なら事務所に来たまえ。名刺は持っているだろう？」</p><p>ロックさんがコートを翻してカフェの出口に向かった。ドアベルが鳴った。</p><p>一人残された。コーヒーはとっくに冷めていた。</p><p>エディタで <code>->new</code> を検索してみた。</p><p>47件。</p><p><code>ReportGenerator</code> だけの話ではなかった。バッチ処理のクラス、通知サービス、ログ出力——あちこちで、クラスが自分の内側で依存を作っていた。密室がたくさんあった。</p><p>47個の密室。一つずつ、鍵穴を作っていくしかないんだろうな。</p><p>テーブルに財布の中の名刺を置いた。今度は忘れないように、PCの横に立てかけた。</p><p>「レガシー・コード・インベスティゲーション」。月曜日に連絡しよう。</p><hr><h2 id=探偵の調査報告書>探偵の調査報告書</h2><div class=table-wrapper><table><thead><tr><th style=text-align:left>容疑（アンチパターン）</th><th style=text-align:left>真実（パターン）</th><th style=text-align:left>証拠（効果）</th></tr></thead><tbody><tr><td style=text-align:left>new の直書き（依存の内部生成）</td><td style=text-align:left>コンストラクタ DI（依存の外部注入）</td><td style=text-align:left>依存がコンストラクタで明示され、テスト時にモック差し替え可能</td></tr><tr><td style=text-align:left>具象クラスへの直接依存</td><td style=text-align:left>Moo::Role + ConsumerOf によるインターフェース分離</td><td style=text-align:left>実装の差し替えが自由、Open/Closed 原則に準拠</td></tr><tr><td style=text-align:left>依存の組み立てが散在</td><td style=text-align:left>Composition Root（1箇所での組み立て）</td><td style=text-align:left>依存グラフが一箇所で見渡せる</td></tr></tbody></table></div><h3 id=推理のステップ>推理のステップ</h3><ol><li>クラス内の <code>->new</code> を検索し、メソッドの中で生成している依存を洗い出す</li><li>依存ごとに <code>Moo::Role</code> でインターフェース（<code>requires</code>）を定義する</li><li>既存の具象クラスに <code>with 'Role::...'</code> を追加してロールを消費させる</li><li>対象クラスに <code>has ... => (isa => ConsumerOf['Role::...'], required => 1)</code> を追加する</li><li>メソッド内の <code>ClassName->new(...)</code> を <code>$self->属性名</code> に置き換える</li><li>メインスクリプト（Composition Root）で依存を組み立てて注入する</li><li>テストではモック実装を注入し、外部リソースなしで動作確認する</li></ol><h3 id=ロックより>ロックより</h3><p>密室の犯人は、いつも内側から鍵をかけている。自分だけで完結しようとする。外の助けを必要としないふりをする。だがテストの赤いランプが、その嘘を暴く。</p><p><code>new</code> を外に出したまえ。依存を手渡してもらうことは、弱さではない。正直さだ。コンストラクタが「私にはこれが必要だ」と宣言するとき、コードは初めて信頼に足る存在になる。</p><p>密室を開く鍵は、いつも外側にある。</p></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/perl/>Perl</a>
+<a href=/tags/moo/>Moo</a>
+<a href=/tags/dependency-injection/>Dependency-Injection</a>
+<a href=/tags/constructor-injection/>Constructor-Injection</a>
+<a href=/tags/moo-role/>Moo-Role</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-detective/>Code-Detective</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/04/15/070705/><div class=article-image><img src=/public_images/2026/code-detective-registry/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-registry/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Registry】三者面談〜DI信者が見落とした「正しい棚」の使い方〜</h2></div></a></article><article class=has-image><a href=/2026/04/13/070705/><div class=article-image><img src=/public_images/2026/code-detective-service-locator/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-service-locator/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Service Locator】万能レジストリの共犯〜便利な仲介人が隠した依存の糸〜</h2></div></a></article><article class=has-image><a href=/2026/03/12/070705/><div class=article-image><img src=/public_images/2026/code-detective-singleton/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-singleton/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Singleton／DI】便利すぎる万能薬の副作用〜消えた証拠〜</h2></div></a></article><article class=has-image><a href=/2026/05/15/070705/><div class=article-image><img src=/public_images/2026/code-detective-bff/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-bff/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Backends for Frontends】最後の依頼〜一つの答えが全員を不満にする夜〜</h2></div></a></article><article class=has-image><a href=/2026/05/14/070705/><div class=article-image><img src=/public_images/2026/code-detective-api-gateway/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-api-gateway/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【API Gateway】窓口のない捜査本部〜マイクロサービスに個別に会いに行く悲劇〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

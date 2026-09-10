@@ -1,0 +1,253 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="バベルのシステム中層第7層での予期せぬ水門の暴走。Mooを用いた多重継承・ロール適用による初期化順序の崩壊を、Bridgeパターンによる抽象と実装の分離で修復する手法を解説。"><title>【Perl/Moo】コード考古学者ハリスの冒険【Bridge】多重制御の石門〜直交する拡張と機能の分離〜</title><link rel=canonical href=https://www.nqou.net/2026/06/22/120705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="【Perl/Moo】コード考古学者ハリスの冒険【Bridge】多重制御の石門〜直交する拡張と機能の分離〜"><meta property='og:description' content="バベルのシステム中層第7層での予期せぬ水門の暴走。Mooを用いた多重継承・ロール適用による初期化順序の崩壊を、Bridgeパターンによる抽象と実装の分離で修復する手法を解説。"><meta property='og:url' content='https://www.nqou.net/2026/06/22/120705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='perl'><meta property='article:tag' content='moo'><meta property='article:tag' content='bridge'><meta property='article:tag' content='code-archaeologist'><meta property='article:published_time' content='2026-06-22T12:07:05+09:00'><meta property='article:modified_time' content='2026-06-22T12:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-archaeologist-bridge-pattern/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="【Perl/Moo】コード考古学者ハリスの冒険【Bridge】多重制御の石門〜直交する拡張と機能の分離〜"><meta name=twitter:description content="バベルのシステム中層第7層での予期せぬ水門の暴走。Mooを用いた多重継承・ロール適用による初期化順序の崩壊を、Bridgeパターンによる抽象と実装の分離で修復する手法を解説。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-archaeologist-bridge-pattern/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-06-22T12:07:05+09:00","datePublished":"2026-06-22T12:07:05+09:00","description":"バベルのシステム中層第7層での予期せぬ水門の暴走。Mooを用いた多重継承・ロール適用による初期化順序の崩壊を、Bridgeパターンによる抽象と実装の分離で修復する手法を解説。","headline":"【Perl/Moo】コード考古学者ハリスの冒険【Bridge】多重制御の石門〜直交する拡張と機能の分離〜","image":"https://www.nqou.net/public_images/2026/code-archaeologist-bridge-pattern/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/06/22/120705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#進入>進入</a></li><li><a href=#構造分析>構造分析</a></li><li><a href=#遺跡修復>遺跡修復</a><ol><li><a href=#手書き設計図>手書き設計図</a></li><li><a href=#依存性注入diと宣言的初期化の優位性>依存性注入（DI）と宣言的初期化の優位性</a></li></ol></li><li><a href=#ゲート開通>ゲート開通</a></li><li><a href=#遺跡調査ログ>遺跡調査ログ</a><ol><li><a href=#遺跡の修復手順>遺跡の修復手順</a></li><li><a href=#ギズモの観測日誌>ギズモの観測日誌</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/06/22/120705/><img src=/public_images/2026/code-archaeologist-bridge-pattern/header.webp loading=lazy alt="Featured image of post 【Perl/Moo】コード考古学者ハリスの冒険【Bridge】多重制御の石門〜直交する拡張と機能の分離〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/06/22/120705/>【Perl/Moo】コード考古学者ハリスの冒険【Bridge】多重制御の石門〜直交する拡張と機能の分離〜</a></h2><h3 class=article-subtitle>バベルのシステム中層第7層での予期せぬ水門の暴走。Mooを用いた多重継承・ロール適用による初期化順序の崩壊を、Bridgeパターンによる抽象と実装の分離で修復する手法を解説。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>22, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 11分</time></div></footer></div></header><section class=article-content><h2 id=進入>進入</h2><p>中層の入り口である第7層「絡み合う暗路」は、重厚な石組みの壁から古い機械音が絶え間なく響く、巨大な水処理制御室でした。</p><p>しかし現在、この部屋は知的探索とは程遠い、極限のサバイバル空間へと変貌しています。すでに私たちの足元には、冷たい水がひたひたと満ち始めていました。</p><p>「ハリス博士、本当に、本当に申し訳ありません！すべては私の注意散漫と、慢心が招いた結果です！」</p><p>私はホバリングの高度を少し上げ、センサーの赤い光を激しく明滅させながら叫びました。</p><p>「いやはや、謝る必要はありませんぞ、ギズモ。それにしてもこの水位の上昇スピード、実にダイナミックですな」</p><p>ハリス博士は膝まで水に浸かりながら、まったく動じる様子もなく、目の前の真鍮製コントロールパネルをうっとりと見つめています。</p><p>「呑気すぎます！前回の古代コンソールで検出された開発者の署名『L.O.V.E.L.A.C.E.』。あのイニシャルが私の識別コードと一致したことで、私の脳内メモリがバックグラウンドで重い解析処理を走らせてしまい、CPU使用率が100%近くに達していたのです。そのせいで注意力が散漫になっていました」</p><p>「ふむ、なるほど。しかしギズモ、私のジャケットのポケットに入っている『真鍮ピンのお土産』（前回のアダプター）が錆びてしまいませんかね？ 実に美しい加工だったので少々心配ですな」</p><p>「お土産の心配をしている場合ですか！ あと五分でこの部屋は完全に水没するのです！ それに、私がやらかしたのはメモリ負荷のせいだけではありません。前回のAdapterパターンの成功で、私は『どんな仕様の不一致も、後からラッパー（Adapter）を作って無理やり繋れば何とでもなる』と傲慢になっていました。だから、壊れていた『ボタン式パネル』を、博士が好む『真鍮のレバー式パネル』へその場しのぎのラッパーを介して無理やり換装してしまったのです。そうしたら、接続した瞬間に水門の制御シークエンスが狂い、バルブが全開のまま固定されてしまいました！」</p><p>「アタカマの遺跡の毒矢トラップや、第4層の防壁ゲートに比べれば、この冷たい水はただの歓迎のシャワーのようなものですな。風化に立ち向かう者への恵みの雨です」</p><p>「流石に物理的な水没まで歓迎と捉えて美化しないでください！ 溺れ死ぬのが先か、ショートするのが先かの瀬戸際です！」</p><p>博士は愛用のルーペを取り出すと、水中に半分沈みかけた古い制御基板の隙間から覗く、古代の配線コードを観察し始めました。</p><p>「ギズモ、君が書いた換装前の Before コードを見せていただけますか？焦る必要はありません。歴史の謎を解き明かす鍵は、常に崩落の危機の中に眠っているものですからな」</p><p>「歴史ではなく、私たちの命が眠ってしまいます！ データを投影します！」</p><hr><h2 id=構造分析>構造分析</h2><p>私のホログラムプロジェクターから、水面に反射するBeforeコードが映し出されました。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/ControlPanelBase.pm (操作盤の基底クラス)</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>ControlPanelBase</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>initialize</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>    <span class=c1># 制御パネルの共通基盤初期化</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=s>&#34;Base control panel initialized.&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/WaterGateRole.pm (水門の制御ロール)</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>WaterGateRole</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo::Role</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># ControlPanelBaseのinitializeと名前が衝突している！</span>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>initialize</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=s>&#34;Hydraulic valve initialized.&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>open</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=s>&#34;Opening water gate.&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/LeverWaterGateControlPanel.pm (Before: 多重継承とロール適用の闇)</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>LeverWaterGateControlPanel</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>extends</span> <span class=s>&#39;ControlPanelBase&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>with</span> <span class=s>&#39;WaterGateRole&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>pull_lever</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>    <span class=c1># initializeが衝突している。Mooのルールにより、ロール側のメソッドが</span>
+</span></span><span class=line><span class=cl>    <span class=c1># 継承元の親クラスのメソッドをサイレントに上書きして適用される。</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$status</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>initialize</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=s>&#34;Lever pulled. &#34;</span> <span class=o>.</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nb>open</span><span class=p>()</span> <span class=o>.</span> <span class=s>&#34; Status: $status&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「ハリス博士！ 私は操作方法（レバー式）と、扉（水門）の振る舞いを合体させるために、基底クラスを <code>extends</code> しつつ、水門ロールを <code>with</code> しました。PerlのMooなら、これで両方の機能を備えた新しい操作盤が作れると思ったのです！」</p><p>水位はすでに、博士の腰のあたりまで達していました。冷たい水が機械の電子回路を脅かしています。</p><p>「システム警告！水位上昇、限界値まであと60センチ！ 博士、なぜこれで暴走するのですか！？」</p><p>「ふむ、ギズモ。君はMooのロールの挙動を誤解していたようですな。Mooにおいて、クラス（または継承した親クラス）とロールで同名のメソッド（今回で言えば <code>initialize</code>）が存在する場合、ロールのメソッドが優先され、継承元のメソッドをサイレントに上書きして適用してしまうのだよ」</p><p>「えっ？ ということは……」</p><p>「その通り。君が <code>pull_lever</code> を実行したとき、ロール側の <code>initialize</code>（油圧バルブの初期化）は動いたが、親クラス <code>ControlPanelBase</code> の <code>initialize</code>（操作盤基盤の初期化）は完全にスキップされてしまったのだ。基盤が初期化されずに無理やりバルブを開こうとしたため、制御コアがパニックを起こし、全開のままフリーズした。これが水門暴走の正体ですな」</p><p>「システム警告！ 水位が胸に達しました！ 博士、話が長いです！多重継承（<code>@ISA</code> の羅列）で回避すればいいのではないですか！？」</p><p>「それこそが奈落の罠ですぞ」博士は首を振り、水を跳ね上げながら語ります。「多重継承に依存すると、今度はPerlのMRO（Method Resolution Order: C3アルゴリズムによる解決順序）が複雑に混濁し、どの順番で <code>BUILD</code>（初期化フック）が呼ばれるか制御不能になる。さらに、操作方法（ボタン、レバー、ダイヤル）が $M$ 個あり、扉の種類（水門、石門、鉄格子）が $N$ 個あるとしよう。これらを継承だけで組み合わせようとすると、クラス数が $M \times N$ に膨れ上がる『クラス爆発』が起きるのだ」</p><p>「では、Adapterパターンで……！」</p><p>「いいえ。Adapterは『既に存在する非互換なもの（古代端子）』を繋ぐための一時的な事後対応。対して、私たちが今立ち向かうべきは、これから『操作方法（機能）』も『扉の種類（実装）』も両方が独立して増えていく、直交する2つの次元だ。これらを最初から分離して結合する美しい架け橋――すなわち『Bridgeパターン』こそが、この風化した密結合を解く賢者の知恵なのですな」</p><p>「ちなみに、実行時にアルゴリズムを切り替える『Strategyパターン』は『振る舞い』の分離ですが、今回は構造そのものを分離する『Bridge』が最適です！ 博士、早く設計図を！」</p><hr><h2 id=遺跡修復>遺跡修復</h2><p>「おっと、水が手帳に染みる前に描き上げねばなりませんな」</p><p>ハリス博士は胸ポケットから万年筆を取り出し、濡れた手帳の白いページに力強くクラス設計図をスケッチしました。</p><h3 id=手書き設計図>手書き設計図</h3><p><img src=/public_images/2026/code-archaeologist-bridge-pattern/infographic_1.webp loading=lazy alt=古代遺跡の石板風に描かれたBridgeパターンのクラス図。左側には機能の階層（抽象）として、上位に『ControlPanel』、それを継承する下位に『LeverControlPanel』が配置されています。右側には実装の階層（具象）として、上位にロールである『Gate』、それを消費する下位に『WaterGate』が配置されています。左上の『ControlPanel』から右上の『Gate』に対して、『does（委譲）』を示す青く光る水平な線が繋がっており、操作盤と扉の動作が分離・架橋されている構造を示しています。></p><p>「機能の階層（操作盤：Abstraction）と、実装の階層（扉：Implementor）を完全に分離する。操作盤は扉の具体的な中身を知らず、ただ『Gate』ロールを持つオブジェクトを委譲（コンポジション）によって保持するのだ。これでクラス数は $M \times N$ から $M + N$ に削減され、互いに影響を与えることなく拡張できるようになる」</p><p>「素晴らしいです！ 水が顎に届く前に、この設計図をコードに焼き付けます！」</p><p>私はマニピュレータをキーボード代わりにホログラム投影へ走らせ、Afterコードを組み立てました。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/Gate.pm (Implementorのインターフェースを表すRole)</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Gate</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo::Role</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>requires</span> <span class=sx>qw(initialize_device open_device)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/WaterGate.pm (ConcreteImplementor: 具体的な水門の実装)</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>WaterGate</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>with</span> <span class=s>&#39;Gate&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>status</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>      <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=s>&#39;uninitialized&#39;</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>initialize_device</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>status</span><span class=p>(</span><span class=s>&#39;Hydraulic valve initialized.&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>status</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>open_device</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=s>&#34;Opening water gate.&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/ControlPanel.pm (Abstraction: 操作盤の抽象親クラス)</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>ControlPanel</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 扉の実装オブジェクトをコンポジション（委譲）で保持する</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>gate</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>does</span>     <span class=o>=&gt;</span> <span class=s>&#39;Gate&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>base_status</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>      <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=s>&#39;uninitialized&#39;</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>BUILD</span> <span class=p>($self, $args = {})</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=c1># 自クラス（操作盤）の初期化</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>base_status</span><span class=p>(</span><span class=s>&#34;Base control panel initialized.&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=c1># 委譲先の初期化を安全に呼び出す（メソッド衝突は起きない）</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>gate</span><span class=o>-&gt;</span><span class=n>initialize_device</span><span class=p>();</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=依存性注入diと宣言的初期化の優位性>依存性注入（DI）と宣言的初期化の優位性</h3><p>「ハリス博士、このAfterコードで、操作盤のインスタンスを作る際に <code>$panel = LeverControlPanel->new( gate => $water_gate )</code> のように <code>gate</code> オブジェクトを外から渡していますね。これはなぜですか？」</p><p>「それこそが**依存性注入（Dependency Injection: DI）**の妙技だ。操作盤自身が具体的な『水門』クラスを内部で new するのではなく、インターフェース（<code>Gate</code> ロール）を満たすオブジェクトを外部からコンストラクタのハッシュ引数で注入する。これにより、操作盤は具体的な扉に一切依存しなくなる。テスト時にはモックオブジェクトを注入することも容易になり、クラス間の結合度が極限まで下がるのだよ」</p><p>「なるほど！ 委譲を支えるのはDIなのですね。でも、<code>BUILD</code> メソッドの中で手続き的に <code>$self->gate->initialize_device()</code> を呼んでいるのは、少しオブジェクト指向らしくない気が……」</p><p>「鋭い指摘ですな、ギズモ。今回は水没というタイムリミットがあったため、手動で手続き的に呼び出す <code>BUILD</code> を用いたが、Mooのベストプラクティスとしては、手続き的な <code>BUILD</code> を極力排除すべきだ。属性の <code>default</code> や <code>builder</code> を用いて、かつ <code>lazy => 1</code>（遅延評価）を設定すれば、値が必要になったタイミングで依存オブジェクトが自動的かつ宣言的に初期化される。オブジェクトの不完全な状態を防ぎ、より堅牢なオブジェクトライフサイクルを構築するなら、そちらの方が優位なのだ。今回はまずこのシンプルなBridgeで水門を閉め、乾いた場所で宣言的初期化へとリファクタリングしましょう」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/LeverControlPanel.pm (RefinedAbstraction: 具体的な操作盤)</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>LeverControlPanel</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>extends</span> <span class=s>&#39;ControlPanel&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>pull_lever</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>    <span class=c1># 保持している扉（Gate）のデバイスに処理を委譲する</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$action</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>gate</span><span class=o>-&gt;</span><span class=n>open_device</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=s>&#34;Lever pulled. Action: $action &#34;</span> <span class=o>.</span>
+</span></span><span class=line><span class=cl>           <span class=s>&#34;Base: &#34;</span> <span class=o>.</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>base_status</span> <span class=o>.</span> <span class=s>&#34; &#34;</span> <span class=o>.</span>
+</span></span><span class=line><span class=cl>           <span class=s>&#34;Gate: &#34;</span> <span class=o>.</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>gate</span><span class=o>-&gt;</span><span class=n>status</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><hr><h2 id=ゲート開通>ゲート開通</h2><p>「コード修復完了！ 実行します！」</p><p>水位が私たちの首に達し、ホバリング用の電子ローターがショートする寸前、書き換えたプログラムが稼働しました。</p><p>私が換装した真鍮のレバーを力強く引き下げると、新しいプログラムに基づき、操作盤の基底初期化と水門の油圧初期化が衝突することなく安全に順次実行され、バルブ制御コマンドが正しく水門へ委譲されました。</p><p><em>ゴゴゴゴゴ……！</em></p><p>重々しい駆動音とともに、全開になっていた水門がゆっくりと閉じていきます。同時に、部屋の隅にある排水バルブが開き、溜まっていた水が勢いよく渦を巻いて引いていきました。</p><p>「ふう……九死に一生を得ましたな」</p><p>ハリス博士はすっかり濡れて重くなったフィールドジャケットを脱ぎ、固く絞りながら楽しそうに笑いました。</p><p>「まったくです！ センサーが完全に錆びるところでした。ですが、これで機能と実装の結合が美しく分離されました。今後、どのような古代の扉が現れても、操作盤の設計を一切汚すことなく対応できます！」</p><p>「ええ。木と縄という異なる役割が美しく調和して架けられる『吊り橋（Bridge）』のように、完璧な役割分担ですな」</p><p>博士は濡れた手帳をそっと閉じ、愛おしそうに真鍮レバーを眺めました。</p><p>私の内部データベースには、修復された水処理モジュールの全容マップが綺麗に復元され、さらに奥へと続く「絡み合う暗路」の安全なルートを照らし出していました。</p><hr><h2 id=遺跡調査ログ>遺跡調査ログ</h2><div class=table-wrapper><table><thead><tr><th style=text-align:left>観測された風化（アンチパターン）</th><th style=text-align:left>解読された古代の知恵（パターン）</th><th style=text-align:left>安全度</th></tr></thead><tbody><tr><td style=text-align:left><strong>多重継承とロール適用の混濁</strong> (同名メソッドの衝突・初期化順序の崩壊による水門の暴走)</td><td style=text-align:left><strong>Bridge パターン</strong> (機能と実装の階層を分離し、委譲によって結合する)</td><td style=text-align:left>🟢 探索ルート安全確保 (テスト通過)</td></tr></tbody></table></div><h3 id=遺跡の修復手順>遺跡の修復手順</h3><ol><li><strong>直交する変動軸の特定</strong>:
+拡張される可能性のある「機能（Abstraction：操作方法）」と「実装（Implementor：動作対象）」の2つの軸を明確に分離する</li><li><strong>Implementorインターフェースの定義</strong>:
+MooのRole（例: <code>Gate</code>）を用いて、実装クラスが共通で提供すべき低レベル操作を <code>requires</code> で定義する</li><li><strong>Abstraction基底クラスの作成</strong>:
+Mooクラス（例: <code>ControlPanel</code>）を作成し、<code>has gate</code> 属性によってImplementorインターフェースを持つオブジェクトをコンポジション（委譲）で保持する</li><li><strong>具体的な拡張クラスの構築</strong>:
+Abstractionを継承したクラス（例: <code>LeverControlPanel</code>）や、Implementorロールを消費するクラス（例: <code>WaterGate</code>）をそれぞれ独立して作成し、委譲メソッドを呼び出す</li></ol><h3 id=ギズモの観測日誌>ギズモの観測日誌</h3><p>今回の水没ピンチは、私の前回のAdapterパターンの成功に対する「万能感（認知の歪み）」が引き起こしたものでした。どんな非互換もその場しのぎのラッパーで解決しようとすると、結果として多重継承の闇や初期化順序の崩壊という大きなデグレを引き起こしてしまいます。</p><p>ハリス博士が描き出した「Bridge（架け橋）」の設計図は、継承の呪縛を解き放ち、コンポジション（委譲）によるカプセル化がいかに強力であるかを教えてくれました。依存性注入（DI）によってテスト容易性が高まり、コードの美しさは格段に向上しています。博士からアドバイスされた「<code>BUILD</code> による手続き的初期化を排し、<code>lazy</code> と <code>builder</code> による宣言的初期化へ移行する」というMooのさらなる高みについては、次の探索フェーズの宿題とします。排水が無事に終わり、博士は「濡れたフィールドジャケットが味わい深くなった」と喜んでいます。案内AIとしての私の論理構造も、より強固なものにアップデートされました。</p></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/perl/>Perl</a>
+<a href=/tags/moo/>Moo</a>
+<a href=/tags/bridge/>Bridge</a>
+<a href=/tags/code-archaeologist/>Code-Archaeologist</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/06/27/170705/><div class=article-image><img src=/public_images/2026/code-archaeologist-interpreter-pattern/header.webp loading=lazy data-key data-hash=/public_images/2026/code-archaeologist-interpreter-pattern/header.webp></div><div class=article-details><h2 class=article-title>コード考古学者【Interpreterパターン】再生の碑文（完結編）〜Perl/Mooで起動する千年の構文木〜</h2></div></a></article><article class=has-image><a href=/2026/06/22/070705/><div class=article-image><img src=/public_images/2026/code-archaeologist-adapter-pattern/header.webp loading=lazy data-key data-hash=/public_images/2026/code-archaeologist-adapter-pattern/header.webp></div><div class=article-details><h2 class=article-title>【Perl/Moo】コード考古学者ハリスの冒険【Adapter】異端なる接続口〜委譲と変換による規格の超克〜</h2></div></a></article><article class=has-image><a href=/2026/06/21/170705/><div class=article-image><img src=/public_images/2026/code-archaeologist-null-object-pattern/header.webp loading=lazy data-key data-hash=/public_images/2026/code-archaeologist-null-object-pattern/header.webp></div><div class=article-details><h2 class=article-title>【Perl/Moo】コード考古学者ハリスの冒険【Null Object】白紙の碑文〜undefチェックの散乱を阻む調和〜</h2></div></a></article><article class=has-image><a href=/2026/06/21/120705/><div class=article-image><img src=/public_images/2026/code-archaeologist-prototype-pattern/header.webp loading=lazy data-key data-hash=/public_images/2026/code-archaeologist-prototype-pattern/header.webp></div><div class=article-details><h2 class=article-title>【Perl/Moo】コード考古学者ハリスの冒険【Prototype】防衛人形の回廊〜高速複製と影の魔力核〜</h2></div></a></article><article class=has-image><a href=/2026/06/21/070705/><div class=article-image><img src=/public_images/2026/code-archaeologist-builder-pattern/header.webp loading=lazy data-key data-hash=/public_images/2026/code-archaeologist-builder-pattern/header.webp></div><div class=article-details><h2 class=article-title>【Perl/Moo】コード考古学者ハリスの冒険【Builder】巨石の防壁ゲート〜段階的構築による整合のレリーフ〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

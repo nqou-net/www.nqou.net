@@ -1,0 +1,475 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="操舵訓練の一手をキーストロークで打ち間違えたとき、既に実行した yaw と thrust を戻す手段がコードに無く、日誌には \" yaw変更\" とだけ残っていた。動作をオブジェクトに引き上げ、実行と戻し方の両方をそのオブジェクトが持つ command パターンを、rubyの兄弟クラス群と履歴スタックで解説します。"><title>コードナビゲーター【Command】操舵訓練で消えた一手〜戻し方を知ってるのは、動かした本人だけ〜</title><link rel=canonical href=https://www.nqou.net/2026/08/06/070705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コードナビゲーター【Command】操舵訓練で消えた一手〜戻し方を知ってるのは、動かした本人だけ〜"><meta property='og:description' content="操舵訓練の一手をキーストロークで打ち間違えたとき、既に実行した yaw と thrust を戻す手段がコードに無く、日誌には \" yaw変更\" とだけ残っていた。動作をオブジェクトに引き上げ、実行と戻し方の両方をそのオブジェクトが持つ command パターンを、rubyの兄弟クラス群と履歴スタックで解説します。"><meta property='og:url' content='https://www.nqou.net/2026/08/06/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='ruby'><meta property='article:tag' content='command'><meta property='article:tag' content='undo'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-navigator'><meta property='article:published_time' content='2026-08-06T07:07:05+09:00'><meta property='article:modified_time' content='2026-08-06T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-navigator-command-helm-undo/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コードナビゲーター【Command】操舵訓練で消えた一手〜戻し方を知ってるのは、動かした本人だけ〜"><meta name=twitter:description content="操舵訓練の一手をキーストロークで打ち間違えたとき、既に実行した yaw と thrust を戻す手段がコードに無く、日誌には \" yaw変更\" とだけ残っていた。動作をオブジェクトに引き上げ、実行と戻し方の両方をそのオブジェクトが持つ command パターンを、rubyの兄弟クラス群と履歴スタックで解説します。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-navigator-command-helm-undo/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-08-06T07:07:05+09:00","datePublished":"2026-08-06T07:07:05+09:00","description":"操舵訓練の一手をキーストロークで打ち間違えたとき、既に実行した yaw と thrust を戻す手段がコードに無く、日誌には \"yaw変更\" とだけ残っていた。動作をオブジェクトに引き上げ、実行と戻し方の両方をそのオブジェクトが持つ Command パターンを、Rubyの兄弟クラス群と履歴スタックで解説します。","headline":"コードナビゲーター【Command】操舵訓練で消えた一手〜戻し方を知ってるのは、動かした本人だけ〜","image":"https://www.nqou.net/public_images/2026/code-navigator-command-helm-undo/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/08/06/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#第1幕-異変訓練で消えた一手>第1幕 異変——訓練で消えた一手</a></li><li><a href=#第2幕-解析呼び出しに溶けた三行>第2幕 解析——呼び出しに溶けた三行</a></li><li><a href=#第3幕-引き直し動作を物にする>第3幕 引き直し——動作を、物にする</a></li><li><a href=#第4幕-模擬航走履歴を逆再生する>第4幕 模擬航走——履歴を、逆再生する</a><ol><li><a href=#-オリオール号-航海日誌navigators-log>🚀 オリオール号 航海日誌（Navigator&rsquo;s Log）</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/08/06/070705/><img src=/public_images/2026/code-navigator-command-helm-undo/header.webp loading=lazy alt="Featured image of post コードナビゲーター【Command】操舵訓練で消えた一手〜戻し方を知ってるのは、動かした本人だけ〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/08/06/070705/>コードナビゲーター【Command】操舵訓練で消えた一手〜戻し方を知ってるのは、動かした本人だけ〜</a></h2><h3 class=article-subtitle>操舵訓練の一手をキーストロークで打ち間違えたとき、既に実行した yaw と thrust を戻す手段がコードに無く、日誌には "yaw変更" とだけ残っていた。動作をオブジェクトに引き上げ、実行と戻し方の両方をそのオブジェクトが持つ Command パターンを、Rubyの兄弟クラス群と履歴スタックで解説します。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>06, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 41分</time></div></footer></div></header><section class=article-content><h2 id=第1幕-異変訓練で消えた一手>第1幕 異変——訓練で消えた一手</h2><p>シミュレータ室のドアを閉めると、通路のかすかな低音が急に途切れて、耳の底に自分の血の巡る音が戻ってきた。</p><p>俺はダグ。この恒星間貨物船〈オリオール号〉の機関士だ。船暮らしはもう二十年を超えていて、船の中の場所という場所にはたいてい用事で足を踏み入れてきた。それでも、シミュレータ室には年に一度しか下りない。ここは船の深部にあって、窓がひとつも無い。天井の照明は少し落としてあって、実運用のブリッジと同じ暗さを再現している。中央にはダミー操舵卓が一台、その周りにモニタが数面。船が実際に動いていない部屋の中で、船を動かす手つきだけを身につける場所だ。</p><p>〈オリオール号〉には、全乗員が年次で基本操舵の実技講習を受ける規定がある。事故で操舵手が動けなくなった場合の冗長性を、全乗員で担保するための安全規約だ。俺自身は今年は受験する年ではない。教官役の割り当てで来ている。教官は操舵席の斜め後ろに座って、受験者の実技を横で見る。危ないキーストロークの癖を指摘し、「なぜここでこの操作をした」を訊ねる係。手を出す係ではない、口を出す係だ。</p><p>今日の受験者は三ヶ月前に赴任してきた副操舵手見習い——カデットだ。基本操舵はほぼ問題ない、と別の教官から引き継ぎを受けている。ただし、緊急時のキーストロークが早すぎて、桁を一つ間違えることがある、とも書いてあった。俺はコンソールの脇の椅子に腰を下ろして、卓の上のモニタに目をやる。カデットは操舵席で、実技のメニュー画面を静かに開いているところだ。</p><p>卓の斜め横、別のコンソールにミラがいた。</p><p>〈オリオール号〉の航法士。俺の長年の相棒だ。ミラはシミュレータ室のもう一台の卓を引き寄せて、モニタの一面に訓練プログラムのコードを開いている。今日は俺の教官業の付き添いというわけではないらしい。ミラの左手はキーボードに置かれていない。卓の端に、トランプ大の小さな紙片が伏せて重ねて置いてある。五、六枚。縁は少しくたびれていて、幾度も指で摘まれたあとの手ざわりが遠目にも見える。何度も使い込まれた道具の顔をしている。</p><p>俺はそのカードの束を見て、口の中で「またか」と一言だけ吐いて、視線をカデットの操舵卓に戻す。ミラの手癖には慣れている。理由はいずれ本人が言うだろうから、俺から先に聞くことはしない。</p><p>「今日は、姿勢とバラストの数値だけ回すの」</p><p>ミラが、モニタから顔を上げて言った。俺にというより、卓の端のカードに向かって話しているような具合だ。「燃料は、次の寄港まで動かさない。今日の題材は、&ldquo;戻せる操作"に絞っての話」。</p><p>俺はうなずいた。シミュレータだから、姿勢もバラストも、数値がモニタの中で動くだけだ。本物のスラスタなら、噴射した瞬間に燃料タンクの残量が実際に減る。減った燃料は、コードのどこを叩いても戻ってこない。今日はそういう話をする日ではない、ということだ。俺は椅子に浅く座り直して、カデットに軽く頷いてみせる。始めてくれ、の合図だ。</p><p>カデットは緊張気味に、一度深く息を吐いてから、実技メニューの最初の一手を叩いた。</p><p><code>helm.execute_yaw(+5.0)</code></p><p>モニタの yaw の表示が、<code>0.0</code> から <code>+5.0</code> に切り替わる。日誌欄に「yaw変更」の一行が追加される。カデットは軽く肩の力を抜いて、次のキーに指を伸ばした。バラスト配分を左三十パーセントに寄せる操作だ。指がキーを押した。数字を打ち込む——。</p><p><code>helm.execute_ballast(300)</code></p><p>音は無い。ただ、モニタの一部が赤くなった。コンソールの下段に、警告が浮かぶ:「ballast は 0..100 の範囲」。カデットの指が、途中で止まった。桁を一つ、間違えていた。三十と打つはずのところが、三百になった。</p><p>日誌欄には「yaw変更」の一行が、まだ一行だけある。二手目の記録は無い。バリデーションが弾いたから、<code>@log</code> には何も書かれなかった。</p><p>カデットは俺のほうに振り向いた。</p><p>「あの、教官、」と、少しかすれた声で言った。「今の、消してください、消せますか？　桁を一つ間違えました、三十と打つはずが、三百と打ってしまって——」</p><p>俺は口を開きかけて、途中で止まった。</p><p><em>消す手段は、コードに無い。</em></p><p>一手目の <code>execute_yaw(+5.0)</code> は、既に <code>@yaw</code> の中に足し込まれている。日誌に残っているのは「yaw変更」の四文字だけ。何度動いたか、どっちに動いたかは、書いてない。反対に打ち直すには「今、何度動いているか」を知る必要があって、それには「動かす前は何度だったか」も要る。カデットが動かした量は、モニタ上の実測値と、カデットの記憶の中にしか残っていない。</p><p>俺はカデットの肩に軽く手を置いた。声が上ずらないように、意識して低く言う。</p><p>「一旦、待て。yaw を反対に打ち返すのはあとでいい」</p><p>カデットは自分の日誌欄を、上から下まで一度なぞる。「これだけ、しか、書いてない」と小さくつぶやく。俺はうなずいた。書いてないから、復元できない。カデットが叩いた 5.0 という数字は、<code>@yaw</code> の中に足された値と、コードのどこにも数字として残っていない。俺の頭の中にすら、正確な値は残っていない——俺は目で <code>+5.0</code> を見ただけで、暗記していない。</p><p>これは訓練だ。数値が狂うだけで済む。ただ、この <code>HelmConsole</code> は実運用と同じコードベースだ。俺は事故解析側の当事者を長年やってきた——機関士は事故のあと、ログを掘って原因を追う立場にある。実運用でこれが発動したら、日誌を掘っても「yaw変更」の一行しか出てこない。何度動いたかが復元できない事故解析は、俺の仕事にとって、最悪の状態のひとつだ。</p><p>俺は視線をミラに向けた。</p><p>「消せないのはいい——いや、良くはないが、後回しでもいい」と、俺はまずそう切り出した。「まず、記録だ。何度動いたか、どっちに動かしたか。それが日誌にちゃんと残ってれば、後から反対に打つくらいはできる。日誌に、打ったコマンド文字列でも残しとけばいい」</p><p>ミラは、モニタから顔を上げた。俺のほうを見て、それから卓の端の紙片の束のほうへ、体をひとつ動かした。一番上のカードを、伏せから表に返す。</p><p>黒インクで、はっきりと書かれていた。「yaw +5.0」。</p><p>ミラは静かに言った。「文字列で残しても、あとで &ldquo;反対に打つ&rdquo; を、誰が知ってる？　ダグが知ってる？　カデットが？　マニュアルを引く？　どこかの誰かに翻訳を頼む？」</p><p>俺は口を開きかけて、答えを出す前に閉じた。誰が知っているか、と問われると、答えが出ない。ダグが知っているとは限らない。カデットは緊張していて、後から自分の記憶を疑うかもしれない。マニュアルには「yaw を +5.0 動かした場合の反対は yaw を -5.0 動かす」なんて表は無い——当たり前だ。それは動作の話であって、静的なマニュアルに書ける話じゃない。</p><p>ミラは、続けた。</p><p>「&ldquo;反対に打つ&rdquo; を知ってるのは、動かした本人だけよ」</p><p>そう言って、カードをそのまま裏返す。裏には「yaw -5.0」と、同じ筆跡で書いてあった。表と裏が、ペアで書き付けてある。動かした本人が、自分の戻し方を、あらかじめ、一緒に書いておく——そういう紙片。</p><p>「動かした本人が、自分の戻し方も、一緒に書いておく」</p><p>ミラは、カードを一枚だけ、卓に表を上にして置いた。</p><p>カデットは、自分の実技セッションが中断状態にあることに気づいたらしい。「あの、少し、外の空気を——」と小さく言い残して、シミュレータ室のドアを開けて出て行った。ドアが閉まる小さな音が、深部のシミュレータ室の静けさに一度だけ響いて、消えた。カデットはたぶん、通路の給水機のところで、水を一杯だけ飲んでから戻ってくる。それまでの間は、俺とミラの二人だ。</p><p>ミラは、卓のもう一台のほうにコンソールを引き寄せた。</p><p>「見てみよう。動かした本人が、戻し方を持ってない——それが、今日の綻び」</p><h2 id=第2幕-解析呼び出しに溶けた三行>第2幕 解析——呼び出しに溶けた三行</h2><p>ミラは、俺の目の前のモニタに、Before の <code>HelmConsole</code> を呼び出した。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=k>class</span> <span class=nc>HelmConsole</span>
+</span></span><span class=line><span class=cl>  <span class=kp>attr_reader</span> <span class=ss>:yaw</span><span class=p>,</span> <span class=ss>:ballast</span><span class=p>,</span> <span class=ss>:thrust_log</span><span class=p>,</span> <span class=ss>:log</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>initialize</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@yaw</span> <span class=o>=</span> <span class=mi>0</span><span class=o>.</span><span class=mi>0</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@ballast</span> <span class=o>=</span> <span class=mi>50</span> <span class=c1># 左配分の百分率（右は 100 - @ballast）</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@thrust_log</span> <span class=o>=</span> <span class=mi>0</span><span class=o>.</span><span class=mi>0</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@log</span> <span class=o>=</span> <span class=o>[]</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>execute_yaw</span><span class=p>(</span><span class=n>delta</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@yaw</span> <span class=o>+=</span> <span class=n>delta</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@log</span> <span class=o>&lt;&lt;</span> <span class=s2>&#34;yaw変更&#34;</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>execute_ballast</span><span class=p>(</span><span class=n>left_pct</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=k>raise</span> <span class=no>ArgumentError</span><span class=p>,</span> <span class=s2>&#34;ballast は 0..100 の範囲&#34;</span> <span class=k>unless</span> <span class=p>(</span><span class=mi>0</span><span class=o>..</span><span class=mi>100</span><span class=p>)</span><span class=o>.</span><span class=n>cover?</span><span class=p>(</span><span class=n>left_pct</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=vi>@ballast</span> <span class=o>=</span> <span class=n>left_pct</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@log</span> <span class=o>&lt;&lt;</span> <span class=s2>&#34;バラスト調整&#34;</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>execute_thrust</span><span class=p>(</span><span class=n>delta</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@thrust_log</span> <span class=o>+=</span> <span class=n>delta</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@log</span> <span class=o>&lt;&lt;</span> <span class=s2>&#34;スラスタ噴射&#34;</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p>俺はモニタに顔を近づけて、上から下まで一度読み下した。</p><p>「<code>execute_yaw</code> は <code>@yaw += delta</code> と <code>@log &lt;&lt; "yaw変更"</code> の二行。<code>execute_ballast</code> は範囲チェックしてから <code>@ballast = left_pct</code> と <code>@log &lt;&lt; "バラスト調整"</code>。<code>execute_thrust</code> は <code>@thrust_log += delta</code> と <code>@log &lt;&lt; "スラスタ噴射"</code>。……全部、二行だな。実行して、日誌に一行残す」</p><p>シンプルだ、悪意も無い。ただ、と俺は独り言のように続けた。「&ldquo;実行"って書いてあるからには、&ldquo;戻す&rdquo; もあってしかるべきなのに、この三メソッドには &ldquo;戻す&rdquo; ものが無い。動かして、日誌に &ldquo;動かした&rdquo; と書いて、それで終わりだ」。</p><p>ミラは、俺の指がモニタの <code>@log &lt;&lt; "yaw変更"</code> の一行の上で止まっているのを見ていた。</p><p>「動作は関数呼び出しの中で消えたの」とミラは言った。「呼び出しの中に溶けて、記録に残らなかった」</p><p>俺は少し、その言葉を口の中で転がした。「溶ける、か。……確かに、<code>execute_yaw(+5.0)</code> を呼んだあと、この <code>+5.0</code> はどこに残ってる？　<code>@yaw</code> の中に足し込まれて、消えた。日誌には &ldquo;yaw変更&rdquo; とだけ」。ミラは頷いた。「そう。動作の実体は、<code>@yaw</code> の中に足された値と、&ldquo;yaw変更&rdquo; の四文字と、それだけ。&ldquo;5.0&rdquo; という数字は、どこにも残ってない。数字がどこにも残ってないから、&ldquo;反対に打つ&rdquo; ができない」。</p><p>俺はその「溶ける」という言葉の下に、事故解析側の実感を敷きたくなった。&ldquo;yaw変更&rdquo; の四文字は、動作の種類を書いているだけで、動作そのものを書いてない。あとから日誌を読み返した誰かが、「この時点で yaw は何度動いたのだろう」と思っても、その答えは日誌の中に無い。答えが無い記録は、記録として役立たない。</p><p>ミラは、モニタの脇に別のウィンドウを開いて、この HelmConsole の Git のログを画面外に呼び出したような素振りをした。俺の位置からは具体的な行までは見えない。ミラが引いたのは、担当者の名前でも、コミットのハッシュでもなく、この最初の実装が生まれた頃の意図のほうだ。</p><p>「この最初の実装、悪意はないの」とミラは言った。「日誌に &ldquo;何かした&rdquo; を残す意識は、あった。それが <code>@log &lt;&lt; "yaw変更"</code> の一行——残す気は、あった。ただ、&ldquo;何を・どれだけ・どっちに&rdquo; を残す粒度と、&ldquo;戻すには何をすればいいか&rdquo; の情報が、抜けていた」</p><p>「粒度と、戻し方か」と俺は繰り返した。</p><p>ミラは頷いた。「そう。&ldquo;動かした&rdquo; だけを書いて、&ldquo;何を動かしたか&rdquo; と &ldquo;どう戻すか&rdquo; は、書いてない。書いてないから、あとから読み返しても、戻せない、解析もできない」</p><p>俺は椅子の背に少しだけ寄りかかった。前任者は、雑じゃない。日誌に一行残そう、と決めた時点で、記録する意志はあった。ただ、その一行の中に &ldquo;何を&rdquo; を書かなかった。&ldquo;残す意識&rdquo; と &ldquo;残す粒度&rdquo; は、別の話だ——粒度が抽象になった瞬間、記録は残っていないのと同じになる。実運用の日誌が肥大するのを避けたかった気持ちも分かる、当時の判断としては合理的だ。ただ、その判断は &ldquo;動作が復元できる粒度&rdquo; を担保しない。</p><p>ミラは、卓の端で伏せてあったカード束を、全て表に返した。コンソールの周りに、順に並べる。</p><p>「yaw +5.0」「ballast 50→30」「thrust +0.8」</p><p>三枚が横に並んだ。俺の視線は、自然にカードに落ちた。「表に、実行したこと。じゃあ、裏には——」と俺が言いかけると、ミラは無言で、カードを一枚ずつ、裏返していった。</p><p>「yaw -5.0」「ballast 30→50」「thrust -0.8」</p><p>表と裏が、ペアになった動作の書き付け。</p><p>「動作の一個一個に、&ldquo;何を実行した&rdquo; と &ldquo;どう戻すか&rdquo; の両方を書き込んでおく」とミラは言った。「一枚一枚が、自分の戻し方を、知ってる」</p><p>紙の一枚が、動作の一個。裏に、戻し方——俺は自分の中で、そう言葉にした。</p><p>ここで俺は、少しだけ手前に戻って確認したくなった。「これ、この前見せてくれたやつと、似てるな」。ミラが、この前ドッキングの制御プログラムを引き直したときの話だ。「オブジェクトに操作を持たせて、<code>HelmConsole</code> みたいなやつが委譲する。あの形だ」。</p><p>ミラは、卓の三枚のカードから、一枚だけを手に取って、掌に立てた。「形は近い。入れ物の数が違うの」。ミラは掌のカードを軽く持ち上げてから、卓に戻す。「あれは——Context が、現在の状態オブジェクトを一個だけ差し替えて持つ形。あの形は、Context が &ldquo;今の状態&rdquo; を、一個だけ 持つの。今日のは、&ldquo;した操作&rdquo; を、複数、順に積む」。</p><p>俺は卓の三枚のカードに視線を落とした。「一個じゃない、三個並んでる」</p><p>「あれは &lsquo;今&rsquo; を握るの」とミラは言った。「今日のは &lsquo;した&rsquo; を握る。握ってる場所が違うから、戻せる」</p><p>俺はそれを、口の中で繰り返した。「……握ってるものが、違う、と」。今はまだ、全部は繋がらない。ただ、&ldquo;今&rdquo; と &ldquo;した&rdquo; が別のものだ、というのは、なんとなく身体には入る。ミラは、詳しくはコードを見ながら、と続きを引き取った。</p><p>ミラは、コンソールに Before の <code>HelmConsole</code> をロードして、カデットの三手を再現した。yaw を +5.0 動かし、ballast に 300 を打ち込む——赤字の警告が出て、二手目の記録は残らない。そのまま thrust を +0.8 動かす。日誌欄には、<code>["yaw変更", "スラスタ噴射"]</code> の二行だけが並んでいる。</p><p>「今、消したい？　消せる？」ミラが訊いた。</p><p>俺は首を横に振った。「消せない。undo メソッドが無い。あったとしても、日誌に &ldquo;yaw変更&rdquo; とだけ残ってるやつを &ldquo;反対に&rdquo; 動かすには、動かした量が要る。その量が、日誌のどこにも残ってない」</p><p>ミラは無言で、モニタの <code>@yaw</code> の値を指した。<code>+5.0</code>。「この 5.0 は、<code>@yaw</code> の中に足し込まれて、日誌のどこにも数字として残ってない。反対に打つには、この 5.0 をどこかから取ってこないといけない——取ってくる場所が、無い」</p><p>そうだ。そこが、&ldquo;呼び出しの中に溶けた&rdquo; という言葉の意味だ。</p><p>ミラは、卓のカード束から、「yaw +5.0/yaw -5.0」のペアを一枚、手に取った。表を伏せてから、裏をめくって、裏の一行だけを、声に出して読み上げた。</p><p>「yaw、マイナス、五、点、ゼロ」</p><p>俺は目を丸くした。「……表を見ないで、裏だけを？」</p><p>「そう」とミラは言った。「戻すときに知りたいのは、&ldquo;戻し方&rdquo; の一行だけなの。実行した中身は、その一行を出せる場所に置いてあれば、あとで参照すればいい」</p><p>裏だけを、読む——動かした本人（カード）が、自分の戻し方を、知ってるから、こっちは、呼ぶだけでいい。俺は自分の中で、そう言い直した。</p><p>俺は椅子の背から体を起こして、コンソールに向き直った。「これを、コードにするのか」。</p><p>ミラは、頷いた。「動作の一個一個を、カードにする。カードには、表（実行）と裏（戻し方）が書いてある——それを、コードのクラスとして、立てる」</p><h2 id=第3幕-引き直し動作を物にする>第3幕 引き直し——動作を、物にする</h2><p>ミラは、新しいエディタ画面を開いた。</p><p>「一クラスずつ、見せる」</p><p>最初に書き始めたのは、<code>YawCommand</code> だった。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=k>class</span> <span class=nc>YawCommand</span>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>initialize</span><span class=p>(</span><span class=n>delta</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@delta</span> <span class=o>=</span> <span class=n>delta</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>execute</span><span class=p>(</span><span class=n>context</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=n>context</span><span class=o>.</span><span class=n>apply_yaw</span><span class=p>(</span><span class=vi>@delta</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>undo</span><span class=p>(</span><span class=n>context</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=n>context</span><span class=o>.</span><span class=n>apply_yaw</span><span class=p>(</span><span class=o>-</span><span class=vi>@delta</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>to_log</span><span class=p>(</span><span class=n>kind</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=k>case</span> <span class=n>kind</span>
+</span></span><span class=line><span class=cl>    <span class=k>when</span> <span class=ss>:done</span>   <span class=k>then</span> <span class=s2>&#34;[実行] yaw </span><span class=si>#{</span><span class=n>format_signed</span><span class=p>(</span><span class=vi>@delta</span><span class=p>)</span><span class=si>}</span><span class=s2>&#34;</span>
+</span></span><span class=line><span class=cl>    <span class=k>when</span> <span class=ss>:undone</span> <span class=k>then</span> <span class=s2>&#34;[巻戻] yaw </span><span class=si>#{</span><span class=n>format_signed</span><span class=p>(</span><span class=o>-</span><span class=vi>@delta</span><span class=p>)</span><span class=si>}</span><span class=s2>&#34;</span>
+</span></span><span class=line><span class=cl>    <span class=k>end</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=kp>private</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>format_signed</span><span class=p>(</span><span class=n>v</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=n>v</span> <span class=o>&gt;=</span> <span class=mi>0</span> <span class=o>?</span> <span class=s2>&#34;+</span><span class=si>#{</span><span class=n>v</span><span class=si>}</span><span class=s2>&#34;</span> <span class=p>:</span> <span class=n>v</span><span class=o>.</span><span class=n>to_s</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p>俺は画面を上から下まで一度読んで、最初の違和感を口にした。</p><p>「クラスに親がない。継承もインクルードも無い」</p><p>「Ruby は、同じ形のメソッドを持つ兄弟クラスで足りるの」とミラは言った。「このクラスと、この後出す二つが、<code>execute</code> と <code>undo</code> と <code>to_log</code> の三つを持ってる——それだけで、Ruby は、同じ形として扱う。型で聞かず、呼べるかで判断する」</p><p>これは、以前ミラが港ごとの方言の話をしたときに置いてくれた足場だ。Ruby は「これは何クラスか」を先に確かめるんじゃなくて、「呼べるかどうか」で判断する。だから、共通の親クラスを立てなくても、<code>execute</code> と <code>undo</code> と <code>to_log</code> を三つとも持っている三つのクラスは、コードの中で同じように扱える。俺の視線は <code>execute(context)</code> と <code>undo(context)</code> の二行の間を、何度か往復した。</p><p>「<code>execute(context)</code> と <code>undo(context)</code>。……表と裏か」</p><p>ミラは頷いた。「そう。一枚のカードが、自分の実行と、自分の戻し方の、両方を知ってる」</p><p>ミラは卓のカード束から、「yaw +5.0/yaw -5.0」の一枚を、モニタの前にそっと置いた。「これが、YawCommand の一個」。</p><p>俺は、コードのほうに視線を戻して、もう一つ気になる点を訊いた。「<code>context</code> って何だ、この引数は」。</p><p>「<code>context</code> は、<code>HelmConsole</code> のことよ」とミラは言った。「&ldquo;実際に値を動かす場所&rdquo; のこと。カードは、自分では yaw の値を持たない——値を持ってるのは <code>HelmConsole</code> の側。カードは <code>HelmConsole</code> に &ldquo;yaw を、+5.0、動かして&rdquo; と、頼む。それが <code>context.apply_yaw(@delta)</code> の、一行」</p><p>俺は少し、そこで止まった。カード（Command）は、&ldquo;何を動かすか&rdquo; と &ldquo;どれだけ動かすか&rdquo; だけを、知ってる。&ldquo;どこの値を動かすか（HelmConsole の中）&rdquo; は、知らない。値を実際に動かすのは、頼まれた <code>HelmConsole</code> の側だ。カードは頼む側、HelmConsole は動かす側。</p><p>「<code>context</code> を、<code>initialize</code> じゃなくて <code>execute</code> の引数で受け取るのは、なんでだ」と俺は続けた。「カードが生まれるときに、動かす先の HelmConsole を、一緒に持たせておいてもよさそうだが」</p><p>「カードには、&ldquo;何を・どれだけ&rdquo; だけを持たせるの」とミラは言った。「&ldquo;どの HelmConsole に頼むか&rdquo; は、実行の瞬間に、外から差し込む。同じカードを、別の HelmConsole に対しても、使える形に、しておく——今日は一つの HelmConsole しか出てこないけど、後で複数の卓を持つ場面が来たら、この形が効く」</p><p>俺は頷いた。カードは、動かす対象を、事前に決めない——実行の瞬間に、外から渡す。カードの独立性を保つための、設計判断。</p><p>「役割が、二つに分かれてる」と俺は言った。「頼む側と、動かす側と」</p><p>ミラは、頷いた。「同じ動作を、頼む役と、動かす役に、分ける」</p><p>続けて、<code>ThrustCommand</code> を書いた。中身は <code>YawCommand</code> とほぼ同じ形だ。<code>initialize</code> で <code>@delta</code> を持ち、<code>execute</code> は <code>context.apply_thrust(@delta)</code>、<code>undo</code> は <code>-@delta</code> を渡す。<code>to_log</code> の中身も同じ形。同じ形が、二つ。ミラは卓のカード束から「thrust +0.8/thrust -0.8」の一枚を、YawCommand のカードの隣に置いた。「これで、二個」。</p><p>次に、ミラは <code>BallastCommand</code> を書き始めた。</p><p>途中で、俺の目が止まった。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=k>class</span> <span class=nc>BallastCommand</span>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>initialize</span><span class=p>(</span><span class=n>new_left_pct</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=k>raise</span> <span class=no>ArgumentError</span><span class=p>,</span> <span class=s2>&#34;ballast は 0..100 の範囲&#34;</span> <span class=k>unless</span> <span class=p>(</span><span class=mi>0</span><span class=o>..</span><span class=mi>100</span><span class=p>)</span><span class=o>.</span><span class=n>cover?</span><span class=p>(</span><span class=n>new_left_pct</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=vi>@new_left</span> <span class=o>=</span> <span class=n>new_left_pct</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@prev_left</span> <span class=o>=</span> <span class=kp>nil</span> <span class=c1># execute の瞬間にセット</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p>「あ？　<code>@prev_left = nil</code>？」</p><p>ミラは、頷いた。「これが今日の、一番大事なところ」。ミラは続きを書いた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>execute</span><span class=p>(</span><span class=n>context</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@prev_left</span> <span class=o>=</span> <span class=n>context</span><span class=o>.</span><span class=n>ballast</span> <span class=c1># 実行前の値を、カードが自分の内側に書き留める</span>
+</span></span><span class=line><span class=cl>    <span class=n>context</span><span class=o>.</span><span class=n>apply_ballast</span><span class=p>(</span><span class=vi>@new_left</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>undo</span><span class=p>(</span><span class=n>context</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=n>context</span><span class=o>.</span><span class=n>apply_ballast</span><span class=p>(</span><span class=vi>@prev_left</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>to_log</span><span class=p>(</span><span class=n>kind</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=k>case</span> <span class=n>kind</span>
+</span></span><span class=line><span class=cl>    <span class=k>when</span> <span class=ss>:done</span>   <span class=k>then</span> <span class=s2>&#34;[実行] ballast </span><span class=si>#{</span><span class=vi>@prev_left</span><span class=si>}</span><span class=s2>→</span><span class=si>#{</span><span class=vi>@new_left</span><span class=si>}</span><span class=s2>&#34;</span>
+</span></span><span class=line><span class=cl>    <span class=k>when</span> <span class=ss>:undone</span> <span class=k>then</span> <span class=s2>&#34;[巻戻] ballast </span><span class=si>#{</span><span class=vi>@new_left</span><span class=si>}</span><span class=s2>→</span><span class=si>#{</span><span class=vi>@prev_left</span><span class=si>}</span><span class=s2>&#34;</span>
+</span></span><span class=line><span class=cl>    <span class=k>end</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<code>execute</code> の中で、<code>@prev_left</code> に、<code>context</code> の今の <code>ballast</code> を書き込んでる」と俺は読み下した。「……何のためだ、これは」。</p><p>ミラは、卓のカード束から「ballast 50→30/ballast 30→50」の一枚を手に取って、掌に立てた。「Yaw と Thrust は、差分——delta で動かすの。だから、<code>undo</code> は <code>-@delta</code> で戻る」。ミラは掌のカードを軽く振った。「Ballast は、絶対値の設定なの。<code>context.apply_ballast(30)</code> は、&ldquo;ballast を 30 にする&rdquo;、で、&ldquo;30 動かす&rdquo;、じゃない。&ldquo;30 にする&rdquo; の反対は、"-30 にする&rdquo; じゃない——元の値に戻す。だから、<code>-</code> では戻せない」</p><p>俺はその言葉を、口の中で確かめた。絶対値と差分は、違う。&ldquo;30 にする&rdquo; の反対は、&ldquo;元の値に戻す&rdquo;。元の値を、知ってないと、戻せない。</p><p>「戻すには、実行前の値を、そのカードが、自分の内側に、書き留めておく必要があるの」とミラは言った。「<code>execute</code> の中で <code>@prev_left = context.ballast</code> の、一行。カードが、自分が動かす前の値を、自分の内側に、書き留める」</p><p>ミラは、掌のカードの裏面の余白を指差す真似をしてから、卓に戻した。「カードの表を書いた瞬間には、裏の &ldquo;50→30&rdquo; の &ldquo;50&rdquo; は、まだ書けない——ballast が今いくつかは、実行の瞬間に、見に行かないと、分からないから。戻し方の一部は、実行の瞬間にしか、手に入らない」。</p><p>「これは、Memento っていう、別の航法術と、混ざってるの」ミラは付け加えた。「&ldquo;実行前の状態を、あとで戻すために取っておく&rdquo; 発想。Command が Memento の役を兼ねる形も、ペアで使う形もある。今日は Command が、兼ねてる」</p><p>俺はカードの三枚目を、卓の他の二枚の隣に置いた。一つの型に、他の型のかけらが、混ざる。融通が利く。教科書のどのページに載っているのかは、俺には分からない。ただ、コードの中で、それが動いて、日誌に &ldquo;何を・どれだけ・どちらに&rdquo; が残るのなら、俺は充分だ。</p><p>ミラは、次に <code>HelmConsole</code> を書き直し始めた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=k>class</span> <span class=nc>HelmConsole</span>
+</span></span><span class=line><span class=cl>  <span class=kp>attr_reader</span> <span class=ss>:yaw</span><span class=p>,</span> <span class=ss>:ballast</span><span class=p>,</span> <span class=ss>:thrust_log</span><span class=p>,</span> <span class=ss>:log</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>initialize</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@yaw</span> <span class=o>=</span> <span class=mi>0</span><span class=o>.</span><span class=mi>0</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@ballast</span> <span class=o>=</span> <span class=mi>50</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@thrust_log</span> <span class=o>=</span> <span class=mi>0</span><span class=o>.</span><span class=mi>0</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@history</span> <span class=o>=</span> <span class=o>[]</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@log</span> <span class=o>=</span> <span class=o>[]</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=c1># Command から呼ばれる &#34;実際に値を動かす&#34; ヘルパー（副作用主体・1行）</span>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>apply_yaw</span><span class=p>(</span><span class=n>delta</span><span class=p>)</span> <span class=o>=</span> <span class=p>(</span><span class=vi>@yaw</span> <span class=o>+=</span> <span class=n>delta</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>apply_ballast</span><span class=p>(</span><span class=n>pct</span><span class=p>)</span> <span class=o>=</span> <span class=p>(</span><span class=vi>@ballast</span> <span class=o>=</span> <span class=n>pct</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>apply_thrust</span><span class=p>(</span><span class=n>delta</span><span class=p>)</span> <span class=o>=</span> <span class=p>(</span><span class=vi>@thrust_log</span> <span class=o>+=</span> <span class=n>delta</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=c1># Invoker 相当：Command を受け取って「実行→履歴に積む→自己記述を日誌に残す」の3手を束ねる</span>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>execute</span><span class=p>(</span><span class=n>command</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=n>command</span><span class=o>.</span><span class=n>execute</span><span class=p>(</span><span class=nb>self</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@history</span> <span class=o>&lt;&lt;</span> <span class=n>command</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@log</span> <span class=o>&lt;&lt;</span> <span class=n>command</span><span class=o>.</span><span class=n>to_log</span><span class=p>(</span><span class=ss>:done</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=n>command</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=c1># 履歴の末尾から1枚取って裏（undo）を呼び、巻戻の1行を日誌に残す</span>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>undo</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=kp>nil</span> <span class=k>if</span> <span class=vi>@history</span><span class=o>.</span><span class=n>empty?</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>command</span> <span class=o>=</span> <span class=vi>@history</span><span class=o>.</span><span class=n>pop</span>
+</span></span><span class=line><span class=cl>    <span class=n>command</span><span class=o>.</span><span class=n>undo</span><span class=p>(</span><span class=nb>self</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@log</span> <span class=o>&lt;&lt;</span> <span class=n>command</span><span class=o>.</span><span class=n>to_log</span><span class=p>(</span><span class=ss>:undone</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=n>command</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p>俺の視線は、まず <code>apply_yaw</code> の一行で止まった。「<code>def apply_yaw(delta) = (@yaw += delta)</code>。これ、<code>def ... end</code> じゃなくて、<code>=</code> の右にそのまま書いてある」</p><p>「エンドレスメソッドの、副作用版よ」とミラは言った。「Ruby 3.0 以降で、本体が一行だけのメソッドは、<code>def 名前(引数) = 式</code> って書けるの。<code>def...end</code> を書かないで、<code>=</code> の右に、そのまま。値を返すだけの一行——例えば <code>def name = :approaching</code> みたいな形が、素直な使い方」</p><p>「今日のは、<code>+=</code> の代入だな」</p><p>「そう。<code>=</code> の右に、代入や <code>+=</code> みたいな副作用を書きたいときは、<code>()</code> で囲む——<code>(@yaw += delta)</code>。囲まないと文法上、右辺として読まれない。副作用主体のメソッドを一行で書くときの、決まり」</p><p>俺は頷いた。<code>def...end</code> の三行が、<code>=</code> の右にひとかたまりの式として畳まれる形として、頭に置いた。</p><p>次に、俺は下のメソッドに目を戻した。「<code>execute_*</code> が消えて、<code>apply_*</code> に名前が変わった。なんで名前を変えた」。</p><p>「<code>execute</code> は、Command と HelmConsole の、両方が持つ動詞になったの」とミラは言った。「Command は <code>execute(context)</code> を持ってて、HelmConsole も <code>execute(command)</code> を新しく持つ。ぶつかるから、HelmConsole 側は、&ldquo;実際に値を動かす&rdquo; って意味の <code>apply_*</code> に、変えた。<strong>Command の <code>execute</code> は &ldquo;自分の execute を context に頼む&rdquo;、<code>apply_*</code> は &ldquo;context が実際に値を動かす&rdquo;</strong>。動詞を、層で分けた」</p><p>動詞に、層がある。俺はその言葉を、頭のノートに置いた。一階（Command の execute）と、二階（HelmConsole の apply_*）で、名前を変えた。同じ &ldquo;実行&rdquo; を、頼む側と、動かす側で、書き分けた。俺の中で、少しずつ絵が繋がってくる。</p><p>ミラは、<code>execute(command)</code> の三行を、指で順に叩いた。</p><p>「<code>command.execute(self)</code>、<code>@history &lt;&lt; command</code>、<code>@log &lt;&lt; command.to_log(:done)</code>。一個の操作を実行するときに、必ず &ldquo;履歴に積む&rdquo; と &ldquo;日誌に自己記述を残す&rdquo; が、ついてくる」</p><p>「三行。全部、順に、走るのか」と俺は言った。</p><p>「そう。分けて書くと、履歴に積み忘れたり、日誌に書き忘れたりする。一メソッドに束ねれば、書き忘れる場所が、ない」</p><p>一個の実行に、三つの後始末が、必ず、ついてくる。俺は独り言のように、そう言葉にした。忘れる場所が、塞がれている。</p><p>俺は下の <code>undo</code> メソッドに視線を移した。</p><p>「<code>return nil if @history.empty?</code>。……山が空のときは、nil か」</p><p>「戻せるものが無ければ、静かに nil を返すの」とミラは言った。「raise で騒がない。呼ぶ側が、nil を見て、何もしないか、次の判断をするかを、決める」</p><p>「空の状態で undo を呼ぶこと自体は、想定外じゃないの」ミラは付け加えた。「初期状態からいきなり undo を試したくなる場面はある。想定外じゃない、普通の状態には、例外は、投げない——ArgumentError の 300 みたいな &ldquo;そもそも受け付けない値&rdquo; とは、線が違う」</p><p>「<code>@history.pop</code>。……山の一番上から、一枚、取る」と俺は続けた。</p><p>ミラは頷いた。「最後に積んだものから、順に取り出すの。山の形、と呼ぶ人もいる。データ構造の名前としては、&ldquo;スタック&rdquo;——後入れ先出し、って呼ぶの。undo は、&ldquo;直前の一手から順に戻す&rdquo; のが自然だから、この形と、噛み合う」</p><p>俺は配列の <code>&lt;&lt;</code> と <code>pop</code> を、頭の中で並べた。<code>&lt;&lt;</code> は末尾に積む。<code>pop</code> は末尾から取り出す。最後に置いたやつから、順に、上から。同じデータ構造の使い方に &ldquo;履歴スタック&rdquo; と名前を付けて呼ぶ流儀があるらしい——今日はその、一番シンプルな形が目の前にある。</p><p>そうして、俺は少しだけ、椅子の背に体を戻した。三つのカードクラスと、書き直された HelmConsole。全体を、もう一度見渡す。</p><p>ミラは、モニタの脇に、書き上がった三クラスと HelmConsole の関係を、一枚の見取り図にまとめて表示した。</p><p><img src=/public_images/2026/code-navigator-command-helm-undo/infographic_1.webp loading=lazy alt="HelmConsole から三つのカードクラス（YawCommand・ThrustCommand・BallastCommand）へ「頼む」と書かれた金の矢印が伸びるクラス図。三つのカードクラスは同じ execute / undo / to_log を持つ兄弟で、継承の線はどこにも無い。BallastCommand だけ prev_left を追加で持つ。"></p><p>三枚のカードクラスが、同じ形を持って横に並ぶ。HelmConsole から三本、矢印が伸びて、それぞれのカードに &ldquo;頼む&rdquo; と書いてある。継承の線は、どこにも、無い。</p><p>「これ、この前見せてくれた State と、今日のと」と俺は改めて言った。「どっちも、オブジェクトに操作を持たせて、Context か HelmConsole が委譲する。形は、近いな」</p><p>ミラは、卓の三枚のカードを右手で示して、左手で「一個」の形を作った。</p><p>「形は近いの。入れ物の数が、違う」ミラは左手をそのままに、右手をカード束の上でひらひらと動かした。「あれは、Context が <code>@state</code> に &ldquo;今の状態&rdquo; を、一個だけ、持つ。今日のは、HelmConsole が <code>@history</code> に、&ldquo;した操作&rdquo; を、複数、順に、積む」</p><p>「一個と、積む、と」と俺は言った。</p><p>「あれは &lsquo;今&rsquo; を握るの」ミラは続けた。「あれは &lsquo;次にどこに進めるか&rsquo; が、分かる——今の状態が、次を持ってるから。今日のは &lsquo;した&rsquo; を握る。&lsquo;前に何をしたか&rsquo; が、分かる——履歴に、積まれてるから。握ってる場所が違うから、戻せる」</p><p>俺は自分の中で、その言葉を組み立て直した。あれは &ldquo;今&rdquo; しか、要らなかった。次に進むから。今日のは &ldquo;過去&rdquo; が、要る。戻すから。&ldquo;今&rdquo; と &ldquo;した&rdquo; は、違う。俺はミラのカードを持つ手を見た。カードが、三枚、卓に並んでいる。あれは、一枚しか要らなかった。今日のは、三枚、積んで、上から順に、取る。</p><p>ミラは、掌の一枚を卓に戻して、三枚を横に並べ直した。</p><p>「これを、Command——動作パターン、って呼ぶの」</p><p>Command——動作パターン。動作の一個一個を、オブジェクトにして、実行と戻し方を、そのオブジェクトが、両方持つ。実行したオブジェクトは、実行した順に、履歴に、積んでいく——ミラは、そう言い添えた。俺は、卓の三枚のカードを、一度、目でなぞった。</p><p>「戻し方を、知ってるのは、動かした本人だけ」ミラは、掌に一枚のカードを、そっと載せて、表と裏をゆっくりと見せた。「表が、実行。裏が、戻し方。一枚のカードが、自分の実行と、自分の戻し方の、両方を、知ってる。他の誰も、知らなくていい」</p><p>俺は少し、その言葉を頭の中で置き直した。誰が戻し方を知っているか、と、さっき第一幕で問われたとき、俺は答えられなかった。ダグは知らないかもしれない。カデットは自分の記憶を疑うかもしれない。マニュアルには書けない。今、答えが立った——動かした本人（カード）が、知ってる。他の誰も、知らなくていい。</p><p>俺は椅子から少しだけ身を乗り出して、卓のカード束の下から、無地の一枚を借りた。ミラのペンを借りて、表に「yaw +5.0」と書いてみる。裏を返して、「yaw -5.0」と書く。書き終わったカードを、卓の他の三枚の隣に、表を上にして置いた。</p><p>「カードを書き足すのは、動かす前の、一回だけ」と俺は言った。「書き足したら、あとは execute と undo を、このカード自身に、頼む」</p><p>ミラは、俺が書き終わるまで、卓の傍らで、口を挟まずに、待っていた。書き終わったあとも、正誤を口に出しては言わなかった。ただ、俺のカードを、他の三枚と並べて、視線を一度落として、それでよし、というふうに、視線を上げた。</p><p>「動作が、物として、日誌に、残るの」ミラはそう続けた。「動作が呼び出しの中に溶けないで、履歴という、物の場所に、順に、積まれる。戻し方は、動作を書いた本人（カード）が、持ってる——HelmConsole でも、外の誰かでもなく、動作、それぞれが」</p><p>俺は自分の中で、その言葉のかたちを、静かに、確かめた。&ldquo;物として、残る&rdquo; と、&ldquo;戻し方を、本人が、持つ&rdquo;。それだけ。それ以上を、ミラは、言わなかった。</p><h2 id=第4幕-模擬航走履歴を逆再生する>第4幕 模擬航走——履歴を、逆再生する</h2><p>ミラは、コンソールから顔を上げた。</p><p>「保証を見る前に、一つだけ」</p><p>俺は椅子に浅く座り直して、頷いた。</p><p>「あれは、&ldquo;今&rdquo; を、今日のは、&ldquo;した&rdquo; を、それぞれ、握る」とミラは言った。「だから、戻せるのは、Command が &ldquo;した&rdquo; を、積んだ分だけ——積んでない過去は、戻せない」</p><p>「……なるほど。積んだ分だけ、か」と俺は言った。今日の議論のかたちが、そこで一度、閉じた。次に見るのは、この &ldquo;積んだ分だけ戻せる&rdquo; の、内側と、外側だ。</p><p>ミラは、テストコードのファイルを、モニタに呼び出した。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=k>def</span> <span class=nf>test_normal_sequence_before_after_state_equivalence</span>
+</span></span><span class=line><span class=cl>  <span class=n>before</span> <span class=o>=</span> <span class=no>Before</span><span class=o>::</span><span class=no>HelmConsole</span><span class=o>.</span><span class=n>new</span>
+</span></span><span class=line><span class=cl>  <span class=n>before</span><span class=o>.</span><span class=n>execute_yaw</span><span class=p>(</span><span class=mi>5</span><span class=o>.</span><span class=mi>0</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=n>before</span><span class=o>.</span><span class=n>execute_ballast</span><span class=p>(</span><span class=mi>30</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=n>before</span><span class=o>.</span><span class=n>execute_thrust</span><span class=p>(</span><span class=mi>0</span><span class=o>.</span><span class=mi>8</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=n>after</span> <span class=o>=</span> <span class=no>After</span><span class=o>::</span><span class=no>HelmConsole</span><span class=o>.</span><span class=n>new</span>
+</span></span><span class=line><span class=cl>  <span class=n>after</span><span class=o>.</span><span class=n>execute</span><span class=p>(</span><span class=no>After</span><span class=o>::</span><span class=no>YawCommand</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=mi>5</span><span class=o>.</span><span class=mi>0</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>  <span class=n>after</span><span class=o>.</span><span class=n>execute</span><span class=p>(</span><span class=no>After</span><span class=o>::</span><span class=no>BallastCommand</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=mi>30</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>  <span class=n>after</span><span class=o>.</span><span class=n>execute</span><span class=p>(</span><span class=no>After</span><span class=o>::</span><span class=no>ThrustCommand</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=mi>0</span><span class=o>.</span><span class=mi>8</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span> <span class=n>before</span><span class=o>.</span><span class=n>yaw</span><span class=p>,</span> <span class=n>after</span><span class=o>.</span><span class=n>yaw</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span> <span class=n>before</span><span class=o>.</span><span class=n>ballast</span><span class=p>,</span> <span class=n>after</span><span class=o>.</span><span class=n>ballast</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span> <span class=n>before</span><span class=o>.</span><span class=n>thrust_log</span><span class=p>,</span> <span class=n>after</span><span class=o>.</span><span class=n>thrust_log</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p>「まず、挙動を変えていないことを、先頭で証明するの」とミラは言った。</p><p>正常系の三手——yaw を +5.0、ballast を 50 から 30 へ、thrust を +0.8。Before の <code>execute_*</code> を直接呼んだときと、After の <code>execute(command)</code> を経由したときで、<code>@yaw</code> と <code>@ballast</code> と <code>@thrust_log</code> の最終値が、完全に一致する。挙動は変わっていない。引き直しの規律の、最初の一枚だ。俺はモニタの緑のドットを見て、頷いた。</p><p>次のテストを、ミラが呼び出した。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=k>def</span> <span class=nf>test_log_format_difference</span>
+</span></span><span class=line><span class=cl>  <span class=n>before</span> <span class=o>=</span> <span class=no>Before</span><span class=o>::</span><span class=no>HelmConsole</span><span class=o>.</span><span class=n>new</span>
+</span></span><span class=line><span class=cl>  <span class=n>before</span><span class=o>.</span><span class=n>execute_yaw</span><span class=p>(</span><span class=mi>5</span><span class=o>.</span><span class=mi>0</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=n>before</span><span class=o>.</span><span class=n>execute_ballast</span><span class=p>(</span><span class=mi>30</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=n>before</span><span class=o>.</span><span class=n>execute_thrust</span><span class=p>(</span><span class=mi>0</span><span class=o>.</span><span class=mi>8</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span> <span class=o>[</span><span class=s2>&#34;yaw変更&#34;</span><span class=p>,</span> <span class=s2>&#34;バラスト調整&#34;</span><span class=p>,</span> <span class=s2>&#34;スラスタ噴射&#34;</span><span class=o>]</span><span class=p>,</span> <span class=n>before</span><span class=o>.</span><span class=n>log</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=n>after</span> <span class=o>=</span> <span class=no>After</span><span class=o>::</span><span class=no>HelmConsole</span><span class=o>.</span><span class=n>new</span>
+</span></span><span class=line><span class=cl>  <span class=n>after</span><span class=o>.</span><span class=n>execute</span><span class=p>(</span><span class=no>After</span><span class=o>::</span><span class=no>YawCommand</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=mi>5</span><span class=o>.</span><span class=mi>0</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>  <span class=n>after</span><span class=o>.</span><span class=n>execute</span><span class=p>(</span><span class=no>After</span><span class=o>::</span><span class=no>BallastCommand</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=mi>30</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>  <span class=n>after</span><span class=o>.</span><span class=n>execute</span><span class=p>(</span><span class=no>After</span><span class=o>::</span><span class=no>ThrustCommand</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=mi>0</span><span class=o>.</span><span class=mi>8</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=o>[</span><span class=s2>&#34;[実行] yaw +5.0&#34;</span><span class=p>,</span> <span class=s2>&#34;[実行] ballast 50→30&#34;</span><span class=p>,</span> <span class=s2>&#34;[実行] thrust +0.8&#34;</span><span class=o>]</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>after</span><span class=o>.</span><span class=n>log</span>
+</span></span><span class=line><span class=cl>  <span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p>「日誌の、形が、変わった」と俺は言った。「&ldquo;yaw変更&rdquo; が、"[実行] yaw +5.0&rdquo; になった。何度、どちらに動いたかが、書いてある。ballast も、&ldquo;50→30&rdquo; と、変化の前後が、書いてある」</p><p>ミラは頷いた。「挙動は同じ。日誌の粒度だけが、違う。事故解析側にとって、この違いが、あとでどれくらい効くかは、日誌を掘る立場の人が、一番よく分かる」</p><p>俺は椅子の背に体を戻して、視線をモニタの緑のドットに、少しだけ長く置いた。&ldquo;yaw変更&rdquo; じゃない。"[実行] yaw +5.0"。数字が、書いてある。日誌を掘って、&ldquo;どの時点で、yaw が、何度、動いたか&rdquo; が、そのまま、読める。この一行だけで、俺の仕事は、格段に楽になる。</p><p>ミラは、モニタの隣に、履歴スタックの動きを一枚の図にまとめた。</p><p><img src=/public_images/2026/code-navigator-command-helm-undo/infographic_2.webp loading=lazy alt="左の縦積みが実行順（execute 3回）で [実行] yaw +5.0 → [実行] ballast 50→30 → [実行] thrust +0.8。右の縦積みが undo の向きで [巻戻] thrust -0.8 → [巻戻] ballast 30→50 → [巻戻] yaw -5.0。左右をつなぐ横矢印に「popの順序」と書かれ、実行順と巻戻順が鏡合わせになっていることを示すスタック図。"></p><p>積んだ順と、取り出す順が、鏡合わせになっている。上に置いたやつから、順に、返される——山の形が、そのまま undo の順序になる。</p><p>ミラは、次のテストを呼び出した。undo の実演だ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=k>def</span> <span class=nf>test_undo_restores_initial_state_and_logs_reverse_order</span>
+</span></span><span class=line><span class=cl>  <span class=n>after</span> <span class=o>=</span> <span class=no>After</span><span class=o>::</span><span class=no>HelmConsole</span><span class=o>.</span><span class=n>new</span>
+</span></span><span class=line><span class=cl>  <span class=n>after</span><span class=o>.</span><span class=n>execute</span><span class=p>(</span><span class=no>After</span><span class=o>::</span><span class=no>YawCommand</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=mi>5</span><span class=o>.</span><span class=mi>0</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>  <span class=n>after</span><span class=o>.</span><span class=n>execute</span><span class=p>(</span><span class=no>After</span><span class=o>::</span><span class=no>BallastCommand</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=mi>30</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>  <span class=n>after</span><span class=o>.</span><span class=n>execute</span><span class=p>(</span><span class=no>After</span><span class=o>::</span><span class=no>ThrustCommand</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=mi>0</span><span class=o>.</span><span class=mi>8</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=n>after</span><span class=o>.</span><span class=n>undo</span>
+</span></span><span class=line><span class=cl>  <span class=n>after</span><span class=o>.</span><span class=n>undo</span>
+</span></span><span class=line><span class=cl>  <span class=n>after</span><span class=o>.</span><span class=n>undo</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span> <span class=mi>0</span><span class=o>.</span><span class=mi>0</span><span class=p>,</span> <span class=n>after</span><span class=o>.</span><span class=n>yaw</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span> <span class=mi>50</span><span class=p>,</span> <span class=n>after</span><span class=o>.</span><span class=n>ballast</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span> <span class=mi>0</span><span class=o>.</span><span class=mi>0</span><span class=p>,</span> <span class=n>after</span><span class=o>.</span><span class=n>thrust_log</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=o>[</span><span class=s2>&#34;[巻戻] thrust -0.8&#34;</span><span class=p>,</span> <span class=s2>&#34;[巻戻] ballast 30→50&#34;</span><span class=p>,</span> <span class=s2>&#34;[巻戻] yaw -5.0&#34;</span><span class=o>]</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>after</span><span class=o>.</span><span class=n>log</span><span class=o>.</span><span class=n>last</span><span class=p>(</span><span class=mi>3</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p>正常系の三手を積んでから、undo を三回、順に呼ぶ。<code>@yaw</code> と <code>@ballast</code> と <code>@thrust_log</code> は、全て、初期値に戻る。日誌の末尾三行は、<code>[巻戻] thrust -0.8</code>、<code>[巻戻] ballast 30→50</code>、<code>[巻戻] yaw -5.0</code>——山の上から、順に、取り出したから、巻戻の順序は、&ldquo;した順&rdquo; の逆になる。</p><p>「実行の順と、巻戻の順は、逆になる」と俺は言った。「山の形、そのままだな」</p><p>ミラは頷いた。「最後に積んだやつから、最初に戻る。&ldquo;した順&rdquo; と &ldquo;戻す順&rdquo; は、鏡合わせ」</p><p>次のテストで、ミラは、カデットの誤操作を、コードで再現した。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=k>def</span> <span class=nf>test_misoperation_undo</span>
+</span></span><span class=line><span class=cl>  <span class=n>after</span> <span class=o>=</span> <span class=no>After</span><span class=o>::</span><span class=no>HelmConsole</span><span class=o>.</span><span class=n>new</span>
+</span></span><span class=line><span class=cl>  <span class=n>after</span><span class=o>.</span><span class=n>execute</span><span class=p>(</span><span class=no>After</span><span class=o>::</span><span class=no>YawCommand</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=mi>5</span><span class=o>.</span><span class=mi>0</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=n>assert_raises</span><span class=p>(</span><span class=no>ArgumentError</span><span class=p>)</span> <span class=p>{</span> <span class=no>After</span><span class=o>::</span><span class=no>BallastCommand</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=mi>300</span><span class=p>)</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=n>after</span><span class=o>.</span><span class=n>execute</span><span class=p>(</span><span class=no>After</span><span class=o>::</span><span class=no>ThrustCommand</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=mi>0</span><span class=o>.</span><span class=mi>8</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=n>after</span><span class=o>.</span><span class=n>undo</span>
+</span></span><span class=line><span class=cl>  <span class=n>after</span><span class=o>.</span><span class=n>undo</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span> <span class=mi>0</span><span class=o>.</span><span class=mi>0</span><span class=p>,</span> <span class=n>after</span><span class=o>.</span><span class=n>yaw</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span> <span class=mi>50</span><span class=p>,</span> <span class=n>after</span><span class=o>.</span><span class=n>ballast</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span> <span class=mi>0</span><span class=o>.</span><span class=mi>0</span><span class=p>,</span> <span class=n>after</span><span class=o>.</span><span class=n>thrust_log</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span> <span class=mi>0</span><span class=p>,</span> <span class=n>after</span><span class=o>.</span><span class=n>history_size</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p>俺はコードを読み下して、少しだけ止まった。「<code>BallastCommand.new(300)</code> のところで、raise してる。……<code>execute</code> の中じゃなくて、<code>new</code> の中で、raise か」</p><p>「そう」とミラは言った。「生成の瞬間に、弾くの。範囲外の値を、そもそも Command のオブジェクトとして、作らせない。<code>execute(command)</code> の三手の途中で、例外を投げないで済む」</p><p>俺はその意味を、頭の中で組み立てた。もし <code>execute</code> の中で raise していたら、どこで raise するかで、話が変わる。<code>command.execute(self)</code> の中で <code>context.apply_ballast(...)</code> を呼ぶ前に弾けば、副作用は起きずに済む。ただ、<code>command.execute(self)</code> の中で「先に <code>apply_*</code> を呼んで、それから何かのチェックで raise する」ような設計にしてしまうと、値だけ動いて、履歴にも日誌にも載っていない——中途半端に部分適用された、宙ぶらりんの状態が生まれる。生成の瞬間に弾けば、その中途半端が起きる場所自体が、無くなる。範囲外の値を持った Command オブジェクトが、そもそも生成されない。&ldquo;しかけて失敗した&rdquo; は、履歴の外、という一貫性が、<code>initialize</code> の一行で、Command の型そのものに立つ。</p><p>「バラストの 300 は、Command として、そもそも、生まれてないから、履歴に、積まれない」と俺は言った。「undo は、二回で、yaw と thrust の、二手が、全部、戻る。……エラーで、生まれなかったやつは、山に、無い」</p><p>ミラは頷いた。「&ldquo;した&rdquo; と、&ldquo;しかけて失敗した&rdquo; は、違うの。積むのは、&ldquo;した&rdquo; だけ」</p><p>俺は、テストの最後の一行に目を移した。<code>assert_equal 0, after.history_size</code>。山の中身は、ゼロ。二回の undo で、二枚のカードが、山から、消えた。</p><p>次のテストを、ミラが呼び出した。to_log の、単体の確認だ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=k>def</span> <span class=nf>test_to_log_for_each_command</span>
+</span></span><span class=line><span class=cl>  <span class=n>yaw</span> <span class=o>=</span> <span class=no>After</span><span class=o>::</span><span class=no>YawCommand</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=mi>5</span><span class=o>.</span><span class=mi>0</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span> <span class=s2>&#34;[実行] yaw +5.0&#34;</span><span class=p>,</span> <span class=n>yaw</span><span class=o>.</span><span class=n>to_log</span><span class=p>(</span><span class=ss>:done</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span> <span class=s2>&#34;[巻戻] yaw -5.0&#34;</span><span class=p>,</span> <span class=n>yaw</span><span class=o>.</span><span class=n>to_log</span><span class=p>(</span><span class=ss>:undone</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=n>yaw_negative</span> <span class=o>=</span> <span class=no>After</span><span class=o>::</span><span class=no>YawCommand</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=o>-</span><span class=mi>3</span><span class=o>.</span><span class=mi>0</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span> <span class=s2>&#34;[実行] yaw -3.0&#34;</span><span class=p>,</span> <span class=n>yaw_negative</span><span class=o>.</span><span class=n>to_log</span><span class=p>(</span><span class=ss>:done</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span> <span class=s2>&#34;[巻戻] yaw +3.0&#34;</span><span class=p>,</span> <span class=n>yaw_negative</span><span class=o>.</span><span class=n>to_log</span><span class=p>(</span><span class=ss>:undone</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=n>thrust</span> <span class=o>=</span> <span class=no>After</span><span class=o>::</span><span class=no>ThrustCommand</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=mi>0</span><span class=o>.</span><span class=mi>8</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span> <span class=s2>&#34;[実行] thrust +0.8&#34;</span><span class=p>,</span> <span class=n>thrust</span><span class=o>.</span><span class=n>to_log</span><span class=p>(</span><span class=ss>:done</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=n>context</span> <span class=o>=</span> <span class=no>After</span><span class=o>::</span><span class=no>HelmConsole</span><span class=o>.</span><span class=n>new</span>
+</span></span><span class=line><span class=cl>  <span class=n>ballast</span> <span class=o>=</span> <span class=no>After</span><span class=o>::</span><span class=no>BallastCommand</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=mi>30</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=n>ballast</span><span class=o>.</span><span class=n>execute</span><span class=p>(</span><span class=n>context</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span> <span class=s2>&#34;[実行] ballast 50→30&#34;</span><span class=p>,</span> <span class=n>ballast</span><span class=o>.</span><span class=n>to_log</span><span class=p>(</span><span class=ss>:done</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span> <span class=s2>&#34;[巻戻] ballast 30→50&#34;</span><span class=p>,</span> <span class=n>ballast</span><span class=o>.</span><span class=n>to_log</span><span class=p>(</span><span class=ss>:undone</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p>俺は <code>yaw_negative</code> の行に目を留めた。「delta が -3.0 のとき、<code>to_log(:done)</code> は <code>[実行] yaw -3.0</code>、<code>to_log(:undone)</code> は <code>[巻戻] yaw +3.0</code>。符号の処理も、ちゃんと入ってるな」</p><p>「正の値なら <code>+</code>、負の値ならそのまま——<code>format_signed</code> の、一行の判定」とミラは言った。「日誌の粒度は、符号までを、含む」</p><p>俺は少し、その細部の丁寧さに、頷いた。&ldquo;yaw +5.0&rdquo; と &ldquo;yaw -5.0&rdquo; が、目で見て、すぐ区別できる——これは、事故解析側にとって、地味だが、大きい。</p><p>次のテストは、空の山の undo だ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span><span class=lnt>9
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=k>def</span> <span class=nf>test_undo_on_empty_history_returns_nil</span>
+</span></span><span class=line><span class=cl>  <span class=n>after</span> <span class=o>=</span> <span class=no>After</span><span class=o>::</span><span class=no>HelmConsole</span><span class=o>.</span><span class=n>new</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=n>assert_nil</span> <span class=n>after</span><span class=o>.</span><span class=n>undo</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span> <span class=mi>0</span><span class=o>.</span><span class=mi>0</span><span class=p>,</span> <span class=n>after</span><span class=o>.</span><span class=n>yaw</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span> <span class=mi>50</span><span class=p>,</span> <span class=n>after</span><span class=o>.</span><span class=n>ballast</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span> <span class=mi>0</span><span class=o>.</span><span class=mi>0</span><span class=p>,</span> <span class=n>after</span><span class=o>.</span><span class=n>thrust_log</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span> <span class=o>[]</span><span class=p>,</span> <span class=n>after</span><span class=o>.</span><span class=n>log</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p>初期状態の <code>HelmConsole</code> に対して、いきなり <code>undo</code> を呼ぶと、<code>nil</code> が返る。値は、動かない。日誌にも、何も、積まれない。</p><p>「呼ぶ側が、nil を見て、何もしないか、次の判断をするか、を決める」と俺は繰り返した。「raise で、騒がない。……戻せるものが無ければ、静かに、答える」</p><p>最後のテストは、<code>BallastCommand</code> の prev の証拠だ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=k>def</span> <span class=nf>test_ballast_command_holds_its_own_prev_per_instance</span>
+</span></span><span class=line><span class=cl>  <span class=n>context50</span> <span class=o>=</span> <span class=no>After</span><span class=o>::</span><span class=no>HelmConsole</span><span class=o>.</span><span class=n>new</span>
+</span></span><span class=line><span class=cl>  <span class=n>command50</span> <span class=o>=</span> <span class=no>After</span><span class=o>::</span><span class=no>BallastCommand</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=mi>30</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=n>context50</span><span class=o>.</span><span class=n>execute</span><span class=p>(</span><span class=n>command50</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span> <span class=mi>30</span><span class=p>,</span> <span class=n>context50</span><span class=o>.</span><span class=n>ballast</span>
+</span></span><span class=line><span class=cl>  <span class=n>context50</span><span class=o>.</span><span class=n>undo</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span> <span class=mi>50</span><span class=p>,</span> <span class=n>context50</span><span class=o>.</span><span class=n>ballast</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=n>context40</span> <span class=o>=</span> <span class=no>After</span><span class=o>::</span><span class=no>HelmConsole</span><span class=o>.</span><span class=n>new</span>
+</span></span><span class=line><span class=cl>  <span class=n>context40</span><span class=o>.</span><span class=n>execute</span><span class=p>(</span><span class=no>After</span><span class=o>::</span><span class=no>BallastCommand</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=mi>40</span><span class=p>))</span> <span class=c1># ballast を 40 へ寄せておく</span>
+</span></span><span class=line><span class=cl>  <span class=n>command_second</span> <span class=o>=</span> <span class=no>After</span><span class=o>::</span><span class=no>BallastCommand</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=mi>30</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=n>context40</span><span class=o>.</span><span class=n>execute</span><span class=p>(</span><span class=n>command_second</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span> <span class=mi>30</span><span class=p>,</span> <span class=n>context40</span><span class=o>.</span><span class=n>ballast</span>
+</span></span><span class=line><span class=cl>  <span class=n>context40</span><span class=o>.</span><span class=n>undo</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span> <span class=mi>40</span><span class=p>,</span> <span class=n>context40</span><span class=o>.</span><span class=n>ballast</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p>俺はコードを、二度読んだ。初期 ballast が 50 の HelmConsole に、<code>BallastCommand.new(30)</code> を execute して、undo すると、50 に戻る。別の場面では、初期 ballast を 40 に寄せてから、別の <code>BallastCommand.new(30)</code> を execute して、undo すると、40 に戻る。同じ設計値の Command でも、実行した瞬間の場面が違えば、戻る場所も、違う。</p><p>「同じ 30 に設定するカードでも、実行した瞬間、<code>context.ballast</code> が 50 なら、戻り先は 50。40 なら、戻り先は 40」と俺は言った。「カードは、実行の瞬間の場面を、記憶する」</p><p>ミラは頷いた。「そう。だから、一枚のカードは、一回だけ使うの。同じ Command のインスタンスを、二回 execute すると、二回目の <code>@prev_left</code> が、上書きされて、以降の undo は、二回目の直前の値にしか、戻らない」</p><p>「一枚、一回、か」</p><p>「そう。契約として、そう決めておく」とミラは言った。「Command の内側で、&ldquo;再利用は禁止&rdquo; のチェックを、書き足したりはしない——書けば、書くほど、コードが太る。契約違反は、呼ぶ側の責任にする。カードの喩えとも、そのまま繋がる——一枚のカードは、一回だけ、使う」</p><p>俺は少し、その割り切りに、頷いた。ミラは、防御コードで太らせない、と決めている。呼ぶ側が、契約を、守る。ドキュメントとテストが、その契約を、示す。俺の位置から見ても、これは、清々しいほうの判断だ。</p><p>そこで、俺は椅子に少しだけ寄りかかって、モニタの緑のドット七つ、を、目で数えた。全部、通っている。警告は、無い。</p><p>ミラは、コンソールを一度、静かに置いて、卓の端のカード束を、両手で軽く整えた。順に重ねて、伏せて、卓の隅に、そっと置き直す。無音の所作だ。紙片同士の、かすかな擦れ音だけが、シミュレータ室の静けさに、一瞬だけ、混じる。俺はそれを、視界の端で追ってから、視線をモニタに戻した。</p><p>「保証しないことも、話しておく」</p><p>ミラの、そのひとことを、俺は待っていた。</p><p>「今日の題材は、姿勢と、バラストの、数値の話だった。実際に噴射した燃料の消費は、undo で、燃料タンクに、戻ってきたりしない——今日のは、そもそも、そういう話じゃない、と、最初に、切ったやつ」</p><p>俺は頷いた。「そうだな。消せない、と言うしかない場面が、俺の仕事にも、ある」。ここは、俺が言葉に出しておく番だ、と思った。「燃料は、戻らない。送った通信も、取り消せない。だから、そういう操作は、&ldquo;する前に&rdquo; 止める、設計が、別に、要る」</p><p>「Command は、&ldquo;戻せるものを、戻す道具&rdquo; なの」とミラは言った。「&ldquo;戻せないものを、戻せる&rdquo; とは、言わない」</p><p>俺はもう一つ、気になっていたことを、訊いた。「実運用で、これを長く動かすと、<code>@history</code> は、どんどん、太らないか」</p><p>「太るの」ミラは、頷いた。「上限をつけて、古いカードを、捨てるか。区切りで、束ねるか。&ldquo;積む&rdquo; までが、Command の、仕事、で、&ldquo;何個まで、積むか&rdquo; は、運用の、判断。ここは、Command の、外」</p><p>俺は、その線引きが、腑に落ちた。Command が、責任を持って言えることと、言えないことの、境目——これが、はっきり引かれている。境目を曖昧にしないから、この道具は、道具として、使える。</p><p>「もう一つ、思い出した」と俺は続けた。「もし、新しい Command クラスに、<code>undo</code> を、書き忘れたら、どうなる」</p><p>「undo を、呼んだ瞬間に、<code>NoMethodError</code> で、鳴るの」とミラは言った。「Ruby は、動的型付けだから、書き忘れは、実行時にしか、鳴らない。だから、模擬航走が、生命線」</p><p>俺は独り言のように、「シリーズの、支柱だな」と、口の中で言った。書き忘れは、実行時にしか、鳴らない——ミラと仕事をしてきて、何度も聞いた話だ。だから、テストを、常に、走らせる。ここは、変わらない。</p><p>ミラは、最後に、少しだけ声を落として言った。「Ruby には、<code>instance_variable_set</code> みたいな、反則技もあるの。HelmConsole の外から、<code>@history</code> を、勝手に空にすることも、書けてしまう。そこは、規約と、レビューで、守る領分」</p><p>俺は頷いた。ここも、境目の話だ。言語で守れることと、規約とレビューで守ることの、境目——境目を、Command のせいにしない。</p><p>ミラは、椅子を回転させて、シミュレータ室のダミー操舵卓の方に、体を向けた。</p><p>「もう一度、走らせてみるの」</p><p>俺は姿勢を戻して、モニタを見た。ミラは、カデットの三手を、綺麗に、再現した——バラストの 300 の桁ミスは、再現しない。今回は、<code>BallastCommand.new(30)</code> を、正しく、渡す。三手は、順に、積まれる。</p><p>日誌欄に、三行が、積まれた。</p><p><code>[実行] yaw +5.0</code>
+<code>[実行] ballast 50→30</code>
+<code>[実行] thrust +0.8</code></p><p>何を、どれだけ、どちらに動かしたかが、三行に、残っている。「&ldquo;yaw変更&rdquo; じゃない、<code>[実行] yaw +5.0</code>。数字が、書いてある」と、俺はもう一度、心の中で確かめた。</p><p>ミラは、<code>undo</code> を、一度、呼んだ。</p><p><code>@thrust_log</code> が、<code>+0.8</code> から、<code>0.0</code> に、落ちた。日誌欄の末尾に、<code>[巻戻] thrust -0.8</code> の一行が、積まれる。</p><p>ミラは、少し間を置いてから、二度目の <code>undo</code> を呼んだ。</p><p><code>@ballast</code> が、<code>30</code> から、<code>50</code> に、戻った。日誌欄の末尾に、<code>[巻戻] ballast 30→50</code> の一行が、積まれる。</p><p>ミラは、また、少しだけ、間を置いた。</p><p>俺は、モニタの <code>@yaw</code> の表示が、<code>+5.0</code> のまま、待っているのを見た。あとひとつ、<code>undo</code> が呼ばれれば、この 5.0 も、0.0 に落ちる。俺はその、待っている一瞬に、少しだけ、考えた。</p><p><em>動かしたのは、さっきの、カデットだ。戻し方を、知ってるのは——カデットが、書いた？　いや、カデットは、書いてない。書けなかった。カデットが叩いた三手を、あとから、コードの中で、積み直したこのカードの、裏だ。動かした本人と、書いた本人と、実行した本人は、コードの上では、同じ物になる</em></p><p>ミラが、三度目の <code>undo</code> を、呼んだ。</p><p><code>@yaw</code> が、<code>+5.0</code> から、<code>0.0</code> に、落ちた。日誌欄の末尾に、<code>[巻戻] yaw -5.0</code> の一行が、積まれる。</p><p>モニタの数値表示は、<code>yaw = 0.0</code>、<code>ballast = 50</code>、<code>thrust_log = 0.0</code>。全て、初期値だ。日誌欄には、六行の記録が、順に、並んでいる。実行の三行と、巻戻の三行と。表と裏が、順に、読まれ、順に、返された。</p><p>俺は自分が書いた無地のカードを、卓の隅の束に、ゆっくりと戻した。表を伏せて、他の五枚の上に、そっと重ねる。指先に、紙のかすかな厚みが残った。</p><p>六枚の記録が、日誌に、順に、並んだ。表、三枚、裏、三枚。実行の順に、積んで、実行の逆順に、返した。動かしたのは本人、戻し方を、知ってるのも、動かした本人。</p><p>ミラは、卓の端で、カード束を、伏せて、重ね終えた。俺の位置からは、ミラの手が、動いたのか、動かなかったのか、はっきりとは、分からない。ただ、卓の隅の紙片の束は、静かに、置かれている。</p><p>通路のほうから、遠く、足音が近づいてきた。カデットが、水を一杯飲んで、戻ってくる頃合いだ。俺は姿勢を、教官席の座り方に、戻した。次の一手を、どう指導するかは、この記録を、少しだけ、カデットにも見せてから、決めることになる。</p><hr><h3 id=-オリオール号-航海日誌navigators-log>🚀 オリオール号 航海日誌（Navigator&rsquo;s Log）</h3><ul><li>航法術（パターン名）: Command（動作を <code>execute</code> / <code>undo</code> / <code>to_log</code> を持つオブジェクトに引き上げ、履歴スタックに順に積む振る舞いパターン。Ruby の兄弟クラス群と、配列の <code>&lt;&lt;</code> / <code>pop</code> の"山の形"で実装した）</li><li>発生事象（症状）: シミュレータ室での訓練セッション中、副操舵手見習いがバラスト値を三十と打つべきところ三百と打ち間違え、範囲チェックの <code>ArgumentError</code> で二手目は拒否された。だが一手目の yaw と、そのあと続けて叩いた三手目の thrust は既に実行済みで、戻す手段がコードに無かった。日誌には「yaw変更」「スラスタ噴射」とだけ残っていて、何度・どちらに動かしたかが、記録から復元できなかった。訓練プログラムのコードは実運用と同じコードベースを共有しているため、この綻びは実運用の事故解析にも波及するリスクがあった</li><li>原因（旧航路の問題）: <code>HelmConsole</code> が <code>execute_yaw</code> / <code>execute_ballast</code> / <code>execute_thrust</code> を直接呼びで即時反映し、日誌には <code>@log &lt;&lt; "yaw変更"</code> のような動作の種類名だけを一行残す設計だった。動作の実体は関数呼び出しの中に溶けて、<code>5.0</code> という数字がコードのどこにも残らず、戻し方の情報もどこにも書かれていなかった。前任者に &ldquo;残す意識&rdquo; はあった（<code>@log &lt;&lt; "..."</code> の一行がある）が、&ldquo;残す粒度&rdquo; と &ldquo;戻し方の情報&rdquo; が抜けていた——粒度が抽象になった瞬間、記録は残っていないのと同じになる</li><li>処置（引き直しの要点）: 動作を <code>YawCommand</code> / <code>ThrustCommand</code> / <code>BallastCommand</code> の三つの兄弟クラス（継承なし・ダックタイピング）に引き上げ、各クラスに <code>execute(context)</code> / <code>undo(context)</code> / <code>to_log(kind)</code> を持たせた。Yaw と Thrust は差分ベースで <code>undo</code> は <code>-@delta</code>。Ballast は絶対値操作のため、<code>execute</code> の瞬間に <code>@prev_left = context.ballast</code> の一行で元の値をカード自身の内側に書き留め、<code>undo</code> で <code>context.apply_ballast(@prev_left)</code> で戻す（Memento の役を Command が兼ねる形）。<code>HelmConsole#execute(command)</code> は「実行→履歴に積む→自己記述を日誌に残す」の三手を必ず束ね、<code>undo</code> は履歴の末尾から一枚取って裏を呼び、巻戻の一行を日誌に残す（空スタックのときは静かに nil を返す）。Command 側の <code>execute</code> と重複するのを避けて、HelmConsole 側の &ldquo;実際に値を動かす&rdquo; メソッドは <code>apply_yaw</code> / <code>apply_ballast</code> / <code>apply_thrust</code> にリネームした——動詞を層で分けた</li><li>保証外事項: 外部副作用は戻らない（実際に噴射した燃料の消費・通信相手に届いた電波・送信済みコマンドは <code>undo</code> で戻せない、Command が戻すのはコード上の記録された数値の状態だけ）／履歴を無制限に積むとメモリを食う（上限や区切りは Command の外の運用の判断）／同時実行は想定外（マルチスレッド対応は別の航法術＝同期・排他制御の領分）／Ruby は動的型付けで <code>undo</code> や <code>to_log</code> を書き忘れれば実行時に <code>NoMethodError</code> で鳴る（模擬航走が生命線）／<code>instance_variable_set</code> などの反則技で <code>@history</code> を外から書き換えられるのは言語では防げない（規約とレビューで守る）／契約「一枚のカードは一回だけ使う（1 Command = 1 実行）」は Command の内側でチェックせず呼び出し側の責任にする</li><li>模擬航走結果: 全 7 runs / 30 assertions、警告ゼロで全灯緑（正常系の Before=After 挙動同値・日誌の形式差の明示・undo 三手の実演・誤操作シナリオでの <code>ArgumentError</code> 拒否と <code>undo</code> 二回での初期値復帰・<code>to_log</code> の構造化記録の各 Command 単体確認・空履歴 <code>undo</code> の nil 返し・<code>BallastCommand</code> の prev 保持を異なる初期状態から確認）</li><li>次の針路: マクロコマンド（複数の Command を一つに束ねる型）と、履歴上限の運用ルール（古いカードを FIFO で捨てるか、区切りで束ねるか）の導入を検討予定。マクロ化しても既存三クラス（<code>YawCommand</code> / <code>BallastCommand</code> / <code>ThrustCommand</code>）は無改変で済む</li></ul></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/ruby/>Ruby</a>
+<a href=/tags/command/>Command</a>
+<a href=/tags/undo/>Undo</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-navigator/>Code-Navigator</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/08/10/070705/><div class=article-image><img src=/public_images/2026/code-navigator-composite-cargo-hold/header.webp loading=lazy data-key data-hash=/public_images/2026/code-navigator-composite-cargo-hold/header.webp></div><div class=article-details><h2 class=article-title>コードナビゲーター【Composite】船倉、箱の中の箱〜重さを尋ねる相手は、1つでいいの〜</h2></div></a></article><article class=has-image><a href=/2026/08/09/070705/><div class=article-image><img src=/public_images/2026/code-navigator-value-object-coordinates/header.webp loading=lazy data-key data-hash=/public_images/2026/code-navigator-value-object-coordinates/header.webp></div><div class=article-details><h2 class=article-title>コードナビゲーター【Value Object】航路計算室、混ざる数字たち〜数字は、単位を着てないと、混ざるの〜</h2></div></a></article><article class=has-image><a href=/2026/08/08/070705/><div class=article-image><img src=/public_images/2026/code-navigator-null-object-missing-sensor/header.webp loading=lazy data-key data-hash=/public_images/2026/code-navigator-null-object-missing-sensor/header.webp></div><div class=article-details><h2 class=article-title>コードナビゲーター【Null Object】欠測センサーの見張り所〜"ない"を、"何もしない"で置くの〜</h2></div></a></article><article class=has-image><a href=/2026/08/07/070705/><div class=article-image><img src=/public_images/2026/code-navigator-facade-preflight-check/header.webp loading=lazy data-key data-hash=/public_images/2026/code-navigator-facade-preflight-check/header.webp></div><div class=article-details><h2 class=article-title>コードナビゲーター【Facade】出航前点検、ブリッジに漏れた四系統の作法〜入口は一つでも、部屋は四つ残る〜</h2></div></a></article><article class=has-image><a href=/2026/08/05/070705/><div class=article-image><img src=/public_images/2026/code-navigator-state-docking-sequence/header.webp loading=lazy data-key data-hash=/public_images/2026/code-navigator-state-docking-sequence/header.webp></div><div class=article-details><h2 class=article-title>コードナビゲーター【State】接舷シーケンスの飛び越し事故〜順番は、書き並べるものじゃなくて、渡っていくものよ〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>
