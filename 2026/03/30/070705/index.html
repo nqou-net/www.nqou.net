@@ -1,0 +1,626 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="社内文書管理のフォルダツリーを直接触る走査コードが15部署にコピペ拡散。構造変更で全スクリプトが壊れ業務停止に。Iteratorパターンで内部構造を隠蔽しコード探偵ロックが迷宮の出口を示す。"><title>コード探偵ロックの事件簿【Iterator】迷宮のファイル棚〜内部構造を暴くな、歩き方を教えろ〜</title><link rel=canonical href=https://www.nqou.net/2026/03/30/070705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コード探偵ロックの事件簿【Iterator】迷宮のファイル棚〜内部構造を暴くな、歩き方を教えろ〜"><meta property='og:description' content="社内文書管理のフォルダツリーを直接触る走査コードが15部署にコピペ拡散。構造変更で全スクリプトが壊れ業務停止に。Iteratorパターンで内部構造を隠蔽しコード探偵ロックが迷宮の出口を示す。"><meta property='og:url' content='https://www.nqou.net/2026/03/30/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='perl'><meta property='article:tag' content='moo'><meta property='article:tag' content='iterator'><meta property='article:tag' content='exposed-collection-internals'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-detective'><meta property='article:published_time' content='2026-03-30T07:07:05+09:00'><meta property='article:modified_time' content='2026-03-30T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-detective-iterator/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コード探偵ロックの事件簿【Iterator】迷宮のファイル棚〜内部構造を暴くな、歩き方を教えろ〜"><meta name=twitter:description content="社内文書管理のフォルダツリーを直接触る走査コードが15部署にコピペ拡散。構造変更で全スクリプトが壊れ業務停止に。Iteratorパターンで内部構造を隠蔽しコード探偵ロックが迷宮の出口を示す。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-detective-iterator/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-03-30T07:07:05+09:00","datePublished":"2026-03-30T07:07:05+09:00","description":"社内文書管理のフォルダツリーを直接触る走査コードが15部署にコピペ拡散。構造変更で全スクリプトが壊れ業務停止に。Iteratorパターンで内部構造を隠蔽しコード探偵ロックが迷宮の出口を示す。","headline":"コード探偵ロックの事件簿【Iterator】迷宮のファイル棚〜内部構造を暴くな、歩き方を教えろ〜","image":"https://www.nqou.net/public_images/2026/code-detective-iterator/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/03/30/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#現場検証丸見えの棚の中身>現場検証：丸見えの棚の中身</a></li><li><a href=#推理披露迷宮の案内人iterator>推理披露：迷宮の案内人（Iterator）</a></li><li><a href=#解決迷宮に道標を>解決：迷宮に道標を</a></li><li><a href=#探偵の調査報告書>探偵の調査報告書</a><ol><li><a href=#推理のステップ>推理のステップ</a></li><li><a href=#ロックより>ロックより</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/03/30/070705/><img src=/public_images/2026/code-detective-iterator/header.webp loading=lazy alt="Featured image of post コード探偵ロックの事件簿【Iterator】迷宮のファイル棚〜内部構造を暴くな、歩き方を教えろ〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/03/30/070705/>コード探偵ロックの事件簿【Iterator】迷宮のファイル棚〜内部構造を暴くな、歩き方を教えろ〜</a></h2><h3 class=article-subtitle>社内文書管理のフォルダツリーを直接触る走査コードが15部署にコピペ拡散。構造変更で全スクリプトが壊れ業務停止に。Iteratorパターンで内部構造を隠蔽しコード探偵ロックが迷宮の出口を示す。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>30, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 17分</time></div></footer></div></header><section class=article-content><p>会議室のホワイトボードには、私が朝から描き直しているDocVaultのフォルダツリーが広がっていた。赤マーカーの「BROKEN」の文字が15箇所。</p><p>私は宮本。従業員3000人のメーカー「タクミ精工」で情シスのチームリーダーをしている。35歳、この部門に来て10年になる。社内文書管理システム「DocVault」は3年前に私が設計した。部署ごとのフォルダにマニュアル、規程、議事録が格納されるツリー構造のシステムで、導入当初は好評だった。</p><p>好評すぎたのが問題だった。</p><p>経理部が「期限切れ文書の一括削除スクリプト」を作った。品質管理部が「ISO文書の網羅性チェックスクリプト」を作った。法務部が「契約書の全文検索スクリプト」を作った。いつの間にか15部署が、それぞれDocVaultのフォルダツリーを直接走査するスクリプトを書いていた。</p><p>先週の金曜、私はフォルダツリーにタグベース分類を追加した。フォルダの <code>children</code> 配列に加えて、<code>tagged_refs</code> というハッシュを追加し、タグで横断的に文書を参照できるようにした。利便性を上げるための機能追加だった。</p><p>今朝、15部署のスクリプトが全滅した。</p><p>全部のスクリプトが <code>children</code> を直接触っている。再帰で <code>@{$node->children}</code> を回して、私が <code>children</code> の構造を変えたから、全部壊れたのだ。</p><p>原因は分かっている。各部署に個別に直してもらうことも、私がまとめて直すこともできる。けれど同じ構造をまた晒せば、同じことが起きる。根本的な解決策を考える時間が、今の私にはなかった。</p><p>上司の高橋さんが会議室に顔を出した。「宮本さん、外部のコンサルタントを手配した。コードの設計に強い人らしい。もう着く頃だ」</p><p>コンサルタントか。正直なところ、15部署のスクリプトを直すだけなら自分でやったほうが早い。10年やってきた自負がある。けれど「二度と壊れない設計」となると、外の目が要るのかもしれない。</p><p>会議室のドアが開いた。入ってきた男は、ノートPCを小脇に抱え、もう片方の手にエナジードリンクの缶を持っていた。スーツではなくカジュアルな黒シャツ。コンサルタントにしては随分と砕けた格好だが、目だけは鋭い。ホワイトボードの図を一瞥し、赤い「BROKEN」の数を数えるように視線を走らせた。</p><p>「——15。きれいに割れたものだ」</p><p>挨拶もなしに数字から入る人は初めてだった。</p><p>「宮本です。状況を説明しますと——」</p><p>「ロックだ。状況は見れば分かる」そう言って、彼は私が描いたフォルダツリーの前に立った。「構造変更をした君が犯人ではない。君が変えたのは棚の中身だ。問題は、15人が棚の中身を直接漁っていたことにある」</p><p>高橋さんは「後は任せた」と言い残して去り、私はコンサルタントと二人きりになった。LCIという看板を掲げたコード専門の探偵だと、後から高橋さんのメールで知った。コンサルタントではなく探偵。変わった肩書きだが、少なくとも現場を見て即座に構造の問題を指摘する目は持っているらしい。</p><h2 id=現場検証丸見えの棚の中身>現場検証：丸見えの棚の中身</h2><p>「フォルダノードのクラスを見せてくれたまえ」</p><p>ロックさんは私のノートPCの画面を覗き込み、「ワトソン君、ここに映してくれ」と会議室のモニターを指した。</p><p>「宮本です」</p><p>「そうだったかね」</p><p>訂正が届いた気配はなかった。私はDocNodeクラスを開いた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>DocNode</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw( ArrayRef InstanceOf Str )</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>name</span>     <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>type</span>     <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>  <span class=c1># &#39;folder&#39; or &#39;file&#39;</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>children</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>is</span>      <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>isa</span>     <span class=o>=&gt;</span> <span class=n>ArrayRef</span><span class=p>[</span><span class=n>InstanceOf</span><span class=p>[</span><span class=s>&#39;DocNode&#39;</span><span class=p>]],</span>
+</span></span><span class=line><span class=cl>        <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=o>[]</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>add_child</span> <span class=p>($self, $child) {</span>
+</span></span><span class=line><span class=cl>        <span class=nb>push</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>children</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>,</span> <span class=nv>$child</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「ここまでは問題ない。問題は使い方だ。各部署のスクリプトを見せたまえ」</p><p>私は3つの代表的なスクリプトを開いた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># 経理部：期限切れ文書の一括検索（深さ優先）</span>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>find_expired</span> <span class=p>($node) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>@results</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=nv>$node</span><span class=o>-&gt;</span><span class=n>type</span> <span class=ow>eq</span> <span class=s>&#39;file&#39;</span> <span class=o>&amp;&amp;</span> <span class=n>is_expired</span><span class=p>(</span><span class=nv>$node</span><span class=p>))</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=nb>push</span> <span class=nv>@results</span><span class=p>,</span> <span class=nv>$node</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=k>my</span> <span class=nv>$child</span> <span class=p>(</span><span class=nv>$node</span><span class=o>-&gt;</span><span class=nn>children</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>)</span> <span class=p>{</span>    <span class=c1># ← children を直接走査</span>
+</span></span><span class=line><span class=cl>        <span class=nb>push</span> <span class=nv>@results</span><span class=p>,</span> <span class=n>find_expired</span><span class=p>(</span><span class=nv>$child</span><span class=p>);</span>  <span class=c1># ← 再帰も自前</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>@results</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 品質管理部：ISO文書の網羅性チェック（幅優先）</span>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>check_coverage</span> <span class=p>($root) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>@queue</span> <span class=o>=</span> <span class=p>(</span><span class=nv>$root</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>@iso_docs</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>while</span> <span class=p>(</span><span class=k>my</span> <span class=nv>$node</span> <span class=o>=</span> <span class=nb>shift</span> <span class=nv>@queue</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=nv>$node</span><span class=o>-&gt;</span><span class=n>type</span> <span class=ow>eq</span> <span class=s>&#39;file&#39;</span> <span class=o>&amp;&amp;</span> <span class=nv>$node</span><span class=o>-&gt;</span><span class=n>name</span> <span class=o>=~</span><span class=sr> /^ISO/</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nb>push</span> <span class=nv>@iso_docs</span><span class=p>,</span> <span class=nv>$node</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=nb>push</span> <span class=nv>@queue</span><span class=p>,</span> <span class=nv>$node</span><span class=o>-&gt;</span><span class=nn>children</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*;</span>    <span class=err>#</span> <span class=err>←</span> <span class=nv>children</span> <span class=n>を直接キューに追加</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>@iso_docs</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 法務部：契約書の全文検索（深さ優先 + フォルダスキップ）</span>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>search_contracts</span> <span class=p>($node, $keyword) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>@results</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=k>my</span> <span class=nv>$child</span> <span class=p>(</span><span class=nv>$node</span><span class=o>-&gt;</span><span class=nn>children</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>)</span> <span class=p>{</span>    <span class=c1># ← children を直接走査</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=nv>$child</span><span class=o>-&gt;</span><span class=n>type</span> <span class=ow>eq</span> <span class=s>&#39;folder&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nb>push</span> <span class=nv>@results</span><span class=p>,</span> <span class=n>search_contracts</span><span class=p>(</span><span class=nv>$child</span><span class=p>,</span> <span class=nv>$keyword</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=k>elsif</span> <span class=p>(</span><span class=nv>$child</span><span class=o>-&gt;</span><span class=n>name</span> <span class=o>=~</span><span class=sr> /契約書/</span> <span class=o>&amp;&amp;</span> <span class=n>contains</span><span class=p>(</span><span class=nv>$child</span><span class=p>,</span> <span class=nv>$keyword</span><span class=p>))</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nb>push</span> <span class=nv>@results</span><span class=p>,</span> <span class=nv>$child</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>@results</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>ロックさんは会議室のホワイトボードに歩み寄った。私が朝から描いていたフォルダツリーの図を見ながら、赤マーカーを手に取る。</p><p>「3つとも <code>$node->children->@*</code> に直接アクセスしている。経理部は深さ優先の再帰、品質管理部は幅優先のキュー、法務部は深さ優先にフォルダスキップを加えている。走査のアルゴリズムは違うが、内部構造への依存は同じだ」</p><p>「それは把握しています。問題は、今から15部署分を直しても次の構造変更でまた壊れることで——」</p><p>「その通りだ。だから君は私を呼んだのだろう」</p><p>呼んだのは高橋さんだが、訂正する意味もなさそうだった。</p><p>「15部署×数本のスクリプト。すべてが <code>children</code> という内部のデータ構造を直接覗いている。棚の中身を勝手に漁っているのと同じだ。棚の持ち主が引き出しの配置を変えたら——」</p><p>ロックさんは私が描いたフォルダツリーの横に、新しい図を描き始めた。</p><pre class=mermaid>
+	graph TD
+    subgraph &#34;DocNode の内部構造&#34;
+        C[&#34;children（配列）&#34;]
+        T[&#34;tagged_refs（ハッシュ）← NEW&#34;]
+    end
+
+    subgraph &#34;15部署のスクリプト&#34;
+        S1[&#34;経理部スクリプト&#34;]
+        S2[&#34;品質管理部スクリプト&#34;]
+        S3[&#34;法務部スクリプト&#34;]
+        S4[&#34;...12部署...&#34;]
+    end
+
+    S1 --&gt;|&#34;直接参照&#34;| C
+    S2 --&gt;|&#34;直接参照&#34;| C
+    S3 --&gt;|&#34;直接参照&#34;| C
+    S4 --&gt;|&#34;直接参照&#34;| C
+
+    style C fill:#f99,stroke:#333
+    style T fill:#ff9,stroke:#333
+    style S1 fill:#f99,stroke:#333
+    style S2 fill:#f99,stroke:#333
+    style S3 fill:#f99,stroke:#333
+    style S4 fill:#f99,stroke:#333
+</pre><p>「赤いノードが全部壊れた。15部署が <code>children</code> の配列構造に依存しているから、<code>children</code> を変更すると全員が巻き添えになる」</p><p>ロックさんはマーカーで図の中心を指した。</p><p>「これがExposed Collection Internals（内部構造の露出）——今回の容疑者だよ、ワトソン君」</p><p>またワトソン君だ。もう訂正する気力はない。</p><p>「内部構造の露出、ですか」</p><p>「コレクションの中身——配列なのかハッシュなのか、要素の並び順は何か、子ノードの取得方法は何か——これらは実装の詳細だ。利用者が知るべきは『次の要素があるか』と『次の要素をくれ』だけでいい。棚の中身を直接漁るのではなく、棚の歩き方を教えるべきだった」</p><p>分かる。言われてみれば、分かる。だが10年この仕事をしてきた経験からすると、「歩き方を教える」のは言うほど簡単ではない。</p><p>「それで、具体的にはどうするんですか。15部署がそれぞれ違う走査をしているんです。深さ優先もあれば幅優先もある。フィルタ条件もバラバラです。全部を1つのインターフェースで——」</p><p>「できる」</p><p>ロックさんは断言した。根拠も示さずに。この自信は何に裏打ちされているのだろう。</p><h2 id=推理披露迷宮の案内人iterator>推理披露：迷宮の案内人（Iterator）</h2><p>ロックさんはエナジードリンクの缶を会議室のテーブルに置き、ホワイトボードの新しい面に向き直った。</p><p>「解決策は歩き方をオブジェクトにすることだ」</p><p>ホワイトボードに2つのメソッドだけを書いた。</p><ul><li><code>has_next</code> — 次の要素があるか？</li><li><code>next_node</code> — 次の要素をくれ</li></ul><p>「この2つだけが公開インターフェースだ。利用者は <code>children</code> の存在すら知らなくていい。迷宮の地図を渡すのではなく、案内人を雇うのさ」</p><p>2つだけ。深さ優先も幅優先もフィルタも、たった2つのメソッドで？　疑わしいが、まずは聞いてみる。</p><p>【After】Iterator ロール</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Iterator</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo::Role</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>requires</span> <span class=s>&#39;has_next&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>requires</span> <span class=s>&#39;next_node&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>【After】深さ優先イテレータ</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>DepthFirstIterator</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>with</span> <span class=s>&#39;Iterator&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>_stack</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=o>[]</span> <span class=p>}</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>BUILD</span> <span class=p>($self, $args) {</span>
+</span></span><span class=line><span class=cl>        <span class=nb>push</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>_stack</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>,</span> <span class=nv>$args</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>root</span><span class=p>}</span> <span class=k>if</span> <span class=nv>$args</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>root</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>has_next</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nb>scalar</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>_stack</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span> <span class=err>&gt;</span> <span class=nv>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>next_node</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$node</span> <span class=o>=</span> <span class=nb>pop</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>_stack</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*;</span>
+</span></span><span class=line><span class=cl>        <span class=nv>return</span> <span class=nb>undef</span> <span class=k>unless</span> <span class=nv>$node</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=c1># 内部の子ノード配列を逆順に積む（先頭の子が先に取り出されるように）</span>
+</span></span><span class=line><span class=cl>        <span class=nb>push</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>_stack</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>,</span> <span class=nb>reverse</span> <span class=nv>$node</span><span class=o>-&gt;</span><span class=nn>_child_nodes</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*;</span>
+</span></span><span class=line><span class=cl>        <span class=nv>return</span> <span class=nv>$node</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<code>DepthFirstIterator</code> はスタックを使って深さ優先走査を実現する。内部の子ノード配列にアクセスしているのはイテレータの内部だけだ。利用者は <code>has_next</code> と <code>next_node</code> しか呼ばない」</p><p>「でも、<code>children</code> の構造が変わったらこのイテレータ自体も壊れますよね？」</p><p>「壊れる。だが直すのはこの1箇所だけだ。15部署のスクリプトは触らない」</p><p>1箇所。15箇所ではなく、1箇所。それだけで、反論の半分は消えた。</p><p>「では幅優先も見たまえ」</p><p>【After】幅優先イテレータ</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>BreadthFirstIterator</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>with</span> <span class=s>&#39;Iterator&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>_queue</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=o>[]</span> <span class=p>}</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>BUILD</span> <span class=p>($self, $args) {</span>
+</span></span><span class=line><span class=cl>        <span class=nb>push</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>_queue</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>,</span> <span class=nv>$args</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>root</span><span class=p>}</span> <span class=k>if</span> <span class=nv>$args</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>root</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>has_next</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nb>scalar</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>_queue</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span> <span class=err>&gt;</span> <span class=nv>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>next_node</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$node</span> <span class=o>=</span> <span class=nb>shift</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>_queue</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*;</span>
+</span></span><span class=line><span class=cl>        <span class=nv>return</span> <span class=nb>undef</span> <span class=k>unless</span> <span class=nv>$node</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=nb>push</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>_queue</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>,</span> <span class=nv>$node</span><span class=o>-&gt;</span><span class=nn>_child_nodes</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*;</span>
+</span></span><span class=line><span class=cl>        <span class=nv>return</span> <span class=nv>$node</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「深さ優先は <code>pop</code>（スタック）、幅優先は <code>shift</code>（キュー）。データ構造を変えるだけで走査順が変わる。どちらも外部インターフェースは同じ <code>has_next</code> / <code>next_node</code> だ」</p><p>「待ってください。同じインターフェースなのに、歩き方が違う——これ、利用者側のコードは本当に同じ書き方で済むんですか？」</p><p>「多態性だよ、ワトソン君。呼び出し側が走査の種類を知らなくていい。それがインターフェースの力だ」</p><p>私はまだ疑っている部分があった。「でも、うちの部署はフィルタ条件がバラバラです。経理部は期限切れだけ、品質管理部はISO文書だけ。走査方法が同じでも、条件が違えば結局個別のコードが——」</p><p>「良い質問だ」</p><p>ロックさんが良い質問だと言ったのは、これが初めてだった。</p><p>【After】フィルタ付きイテレータ（デコレータ）</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>FilteredIterator</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>with</span> <span class=s>&#39;Iterator&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>_inner</span>  <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>_filter</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>  <span class=c1># コードリファレンス</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>_buffer</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>BUILD</span> <span class=p>($self, $) {</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_advance</span><span class=p>()</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>_advance</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>while</span> <span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>_inner</span><span class=o>-&gt;</span><span class=n>has_next</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=k>my</span> <span class=nv>$node</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>_inner</span><span class=o>-&gt;</span><span class=n>next_node</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>            <span class=k>if</span> <span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>_filter</span><span class=o>-&gt;</span><span class=p>(</span><span class=nv>$node</span><span class=p>))</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>                <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_buffer</span><span class=p>(</span><span class=nv>$node</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>                <span class=k>return</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>            <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_buffer</span><span class=p>(</span><span class=nb>undef</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>has_next</span> <span class=p>($self) {</span> <span class=nb>defined</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_buffer</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>next_node</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$current</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_buffer</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_advance</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$current</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<code>FilteredIterator</code> は別のイテレータをラップして、条件に合う要素だけを返す。Decorator パターンとの組み合わせだ。深さ優先でフィルタ、幅優先でフィルタ——どちらも自在に組み合わせられる」</p><p>走査方法とフィルタが独立している。組み合わせが自由だということは、経理部の要件も品質管理部の要件も、同じ部品の組み合わせで表現できるのか。</p><p>「パターンは単独で使うものではない。組み合わせてこそ力を発揮する」</p><p>私の疑念は、少しずつ形を変えていた。「机上の空論」という疑いから、「本当にうちの現場で動くのか」という実装上の懸念に。</p><p>【After】DocNode にイテレータ生成メソッドを追加</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span><span class=lnt>51
+</span><span class=lnt>52
+</span><span class=lnt>53
+</span><span class=lnt>54
+</span><span class=lnt>55
+</span><span class=lnt>56
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>DocNode</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw( ArrayRef InstanceOf )</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>name</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>type</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>_children</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>is</span>      <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>isa</span>     <span class=o>=&gt;</span> <span class=n>ArrayRef</span><span class=p>[</span><span class=n>InstanceOf</span><span class=p>[</span><span class=s>&#39;DocNode&#39;</span><span class=p>]],</span>
+</span></span><span class=line><span class=cl>        <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=o>[]</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>_tagged_refs</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>is</span>      <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=p>{}</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>add_child</span> <span class=p>($self, $child) {</span>
+</span></span><span class=line><span class=cl>        <span class=nb>push</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>_children</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>,</span> <span class=nv>$child</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>_child_nodes</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_children</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>_tagged_refs_for</span> <span class=p>($self, $tag) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>_tagged_refs</span><span class=o>-&gt;</span><span class=p>{</span><span class=nv>$tag</span><span class=p>}</span> <span class=sr>//</span> <span class=o>[]</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=c1># イテレータ生成（利用者は内部構造を知らなくていい）</span>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>create_iterator</span> <span class=p>($self, %opts) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$type</span> <span class=o>=</span> <span class=nv>$opts</span><span class=p>{</span><span class=n>type</span><span class=p>}</span> <span class=sr>//</span> <span class=s>&#39;depth&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$iter</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=nv>$type</span> <span class=ow>eq</span> <span class=s>&#39;breadth&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$iter</span> <span class=o>=</span> <span class=nn>BreadthFirstIterator</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>root</span> <span class=o>=&gt;</span> <span class=nv>$self</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=k>elsif</span> <span class=p>(</span><span class=nv>$type</span> <span class=ow>eq</span> <span class=s>&#39;tag&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$iter</span> <span class=o>=</span> <span class=nn>TagIterator</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>                <span class=n>root</span> <span class=o>=&gt;</span> <span class=nv>$self</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>                <span class=n>tags</span> <span class=o>=&gt;</span> <span class=nv>$opts</span><span class=p>{</span><span class=n>tags</span><span class=p>}</span> <span class=sr>//</span> <span class=o>[]</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=k>else</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$iter</span> <span class=o>=</span> <span class=nn>DepthFirstIterator</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>root</span> <span class=o>=&gt;</span> <span class=nv>$self</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=nv>$opts</span><span class=p>{</span><span class=n>filter</span><span class=p>})</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$iter</span> <span class=o>=</span> <span class=nn>FilteredIterator</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>                <span class=n>_inner</span>  <span class=o>=&gt;</span> <span class=nv>$iter</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>                <span class=n>_filter</span> <span class=o>=&gt;</span> <span class=nv>$opts</span><span class=p>{</span><span class=n>filter</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>            <span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$iter</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<code>create_iterator</code> が唯一の入口だ。利用者は走査の種類とフィルタ条件を指定するだけで、内部のコレクション構造を一切知る必要がない」</p><p>「実際に15部署のスクリプトがどう変わるか、見せてもらえますか」</p><p>ロックさんは私のPCに手を伸ばした。「少し打たせてもらうよ、ワトソン君」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># 経理部：期限切れ文書の一括検索</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$iter</span> <span class=o>=</span> <span class=nv>$root</span><span class=o>-&gt;</span><span class=n>create_iterator</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>type</span>   <span class=o>=&gt;</span> <span class=s>&#39;depth&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>filter</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>($node) {</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$node</span><span class=o>-&gt;</span><span class=n>type</span> <span class=ow>eq</span> <span class=s>&#39;file&#39;</span> <span class=o>&amp;&amp;</span> <span class=n>is_expired</span><span class=p>(</span><span class=nv>$node</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>},</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>@expired</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>while</span> <span class=p>(</span><span class=nv>$iter</span><span class=o>-&gt;</span><span class=n>has_next</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=nb>push</span> <span class=nv>@expired</span><span class=p>,</span> <span class=nv>$iter</span><span class=o>-&gt;</span><span class=n>next_node</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 品質管理部：ISO文書の網羅性チェック</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$iter</span> <span class=o>=</span> <span class=nv>$root</span><span class=o>-&gt;</span><span class=n>create_iterator</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>type</span>   <span class=o>=&gt;</span> <span class=s>&#39;breadth&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>filter</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>($node) {</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$node</span><span class=o>-&gt;</span><span class=n>type</span> <span class=ow>eq</span> <span class=s>&#39;file&#39;</span> <span class=o>&amp;&amp;</span> <span class=nv>$node</span><span class=o>-&gt;</span><span class=n>name</span> <span class=o>=~</span><span class=sr> /^ISO/</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>},</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>@iso_docs</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>while</span> <span class=p>(</span><span class=nv>$iter</span><span class=o>-&gt;</span><span class=n>has_next</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=nb>push</span> <span class=nv>@iso_docs</span><span class=p>,</span> <span class=nv>$iter</span><span class=o>-&gt;</span><span class=n>next_node</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 法務部：契約書の全文検索</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$iter</span> <span class=o>=</span> <span class=nv>$root</span><span class=o>-&gt;</span><span class=n>create_iterator</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>type</span>   <span class=o>=&gt;</span> <span class=s>&#39;depth&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>filter</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>($node) {</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$node</span><span class=o>-&gt;</span><span class=n>type</span> <span class=ow>eq</span> <span class=s>&#39;file&#39;</span>
+</span></span><span class=line><span class=cl>        <span class=o>&amp;&amp;</span> <span class=nv>$node</span><span class=o>-&gt;</span><span class=n>name</span> <span class=o>=~</span><span class=sr> /契約書/</span>
+</span></span><span class=line><span class=cl>        <span class=o>&amp;&amp;</span> <span class=n>contains</span><span class=p>(</span><span class=nv>$node</span><span class=p>,</span> <span class=nv>$keyword</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>},</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>@contracts</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>while</span> <span class=p>(</span><span class=nv>$iter</span><span class=o>-&gt;</span><span class=n>has_next</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=nb>push</span> <span class=nv>@contracts</span><span class=p>,</span> <span class=nv>$iter</span><span class=o>-&gt;</span><span class=n>next_node</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「3つとも同じパターンだ。<code>create_iterator</code> でイテレータを取得し、<code>while</code> ループで <code>has_next</code> / <code>next_node</code>。利用側コードに内部構造の名前は一度も出てこない」</p><p>私はコードを見比べた。経理部も品質管理部も法務部も、走査部分のコードが同じ形をしている。違うのはフィルタ条件だけだ。「これなら、私が先週追加したタグベース分類も——」</p><p>「対応できる。見てみたまえ」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># タグベース走査のイテレータを追加</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>TagIterator</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Scalar::Util</span> <span class=sx>qw( refaddr )</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>with</span> <span class=s>&#39;Iterator&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>tags</span>     <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>  <span class=c1># 対象タグの配列</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>_nodes</span>   <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=o>[]</span> <span class=p>}</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>_seen</span>    <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=p>{}</span> <span class=p>}</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>BUILD</span> <span class=p>($self, $args) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$root</span> <span class=o>=</span> <span class=nv>$args</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>root</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>        <span class=k>for</span> <span class=k>my</span> <span class=nv>$tag</span> <span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>tags</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=k>for</span> <span class=k>my</span> <span class=nv>$ref</span> <span class=p>(</span><span class=nv>$root</span><span class=o>-&gt;</span><span class=n>_tagged_refs_for</span><span class=p>(</span><span class=nv>$tag</span><span class=p>)</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>                <span class=k>next</span> <span class=k>if</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>_seen</span><span class=o>-&gt;</span><span class=p>{</span> <span class=n>refaddr</span><span class=p>(</span><span class=nv>$ref</span><span class=p>)</span> <span class=p>}</span><span class=o>++</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>                <span class=nb>push</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>_nodes</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>,</span> <span class=nv>$ref</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>            <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>has_next</span> <span class=p>($self) {</span> <span class=nb>scalar</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>_nodes</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span> <span class=err>&gt;</span> <span class=nv>0</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>next_node</span> <span class=p>($self) {</span> <span class=nb>shift</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>_nodes</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span> <span class=err>}</span>
+</span></span><span class=line><span class=cl><span class=err>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「新しい走査方法を追加しても、<code>Iterator</code> ロールを満たすクラスを1つ作るだけだ。既存の15部署のスクリプトには一切触れない。<code>create_iterator</code> に <code>type => 'tag'</code> を加えれば、タグベースの走査も同じインターフェースで使える」</p><pre class=mermaid>
+	graph TD
+    subgraph &#34;Iterator ロール&#34;
+        I[&#34;has_next / next_node&#34;]
+    end
+
+    subgraph &#34;具象イテレータ&#34;
+        DFI[&#34;DepthFirstIterator&#34;]
+        BFI[&#34;BreadthFirstIterator&#34;]
+        FI[&#34;FilteredIterator&#34;]
+        TI[&#34;TagIterator ← NEW&#34;]
+    end
+
+    subgraph &#34;15部署のスクリプト&#34;
+        S1[&#34;経理部&#34;]
+        S2[&#34;品質管理部&#34;]
+        S3[&#34;法務部&#34;]
+        S4[&#34;...12部署...&#34;]
+    end
+
+    DFI --&gt;|&#34;with&#34;| I
+    BFI --&gt;|&#34;with&#34;| I
+    FI --&gt;|&#34;with&#34;| I
+    TI --&gt;|&#34;with&#34;| I
+
+    S1 --&gt;|&#34;has_next / next_node&#34;| I
+    S2 --&gt;|&#34;has_next / next_node&#34;| I
+    S3 --&gt;|&#34;has_next / next_node&#34;| I
+    S4 --&gt;|&#34;has_next / next_node&#34;| I
+
+    style I fill:#9f9,stroke:#333
+    style DFI fill:#9f9,stroke:#333
+    style BFI fill:#9f9,stroke:#333
+    style FI fill:#9f9,stroke:#333
+    style TI fill:#9f9,stroke:#333
+</pre><p>「赤かった15部署が、緑のインターフェースだけに依存するようになった。内部構造が変わっても、イテレータの中だけで吸収される。<strong>棚の中身が変わっても、歩き方は変わらない</strong>」</p><p>私の疑念は、ここで完全に消えた。</p><h2 id=解決迷宮に道標を>解決：迷宮に道標を</h2><p>「では、動かして見せよう」</p><p>ロックさんが私のPCでテストを実行した。会議室のモニターにターミナルの出力が映る。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl>$ prove -v t/iterator.t
+</span></span><span class=line><span class=cl><span class=c1># Subtest: Before: Exposed Collection Internals</span>
+</span></span><span class=line><span class=cl>    ok <span class=m>1</span> - Direct children access works initially
+</span></span><span class=line><span class=cl>    ok <span class=m>2</span> - Depth-first manual recursion finds <span class=m>8</span> files
+</span></span><span class=line><span class=cl>    ok <span class=m>3</span> - Breadth-first manual queue finds <span class=m>8</span> files
+</span></span><span class=line><span class=cl>    ok <span class=m>4</span> - After structure change, direct access script BREAKS
+</span></span><span class=line><span class=cl>    ok <span class=m>5</span> - All <span class=m>15</span> department scripts depend on internal structure
+</span></span><span class=line><span class=cl>ok <span class=m>1</span> - Before: Exposed Collection Internals
+</span></span><span class=line><span class=cl><span class=c1># Subtest: After: Iterator Pattern</span>
+</span></span><span class=line><span class=cl>    ok <span class=m>1</span> - DepthFirstIterator finds <span class=m>8</span> files
+</span></span><span class=line><span class=cl>    ok <span class=m>2</span> - BreadthFirstIterator finds <span class=m>8</span> files
+</span></span><span class=line><span class=cl>    ok <span class=m>3</span> - Depth-first order: root visited before leaves
+</span></span><span class=line><span class=cl>    ok <span class=m>4</span> - Breadth-first order: siblings visited before children
+</span></span><span class=line><span class=cl>    ok <span class=m>5</span> - FilteredIterator with <span class=nv>type</span><span class=o>=</span>file returns only files <span class=o>(</span>8<span class=o>)</span>
+</span></span><span class=line><span class=cl>    ok <span class=m>6</span> - FilteredIterator with name filter returns matching docs <span class=o>(</span>3<span class=o>)</span>
+</span></span><span class=line><span class=cl>    ok <span class=m>7</span> - Composing filters: depth-first + file + name pattern
+</span></span><span class=line><span class=cl>    ok <span class=m>8</span> - After structure change, iterator still works
+</span></span><span class=line><span class=cl>    ok <span class=m>9</span> - TagIterator traverses by tag without touching children
+</span></span><span class=line><span class=cl>    ok <span class=m>10</span> - Adding new iterator <span class=nb>type</span> requires zero changes to callers
+</span></span><span class=line><span class=cl>ok <span class=m>2</span> - After: Iterator Pattern
+</span></span><span class=line><span class=cl>All tests successful.
+</span></span></code></pre></td></tr></table></div></div><p>「Before のテスト4を見たまえ——構造変更でスクリプトが壊れる。After のテスト8——構造変更してもイテレータが吸収する。テスト9、タグベース走査も同じインターフェースで動作。テスト10、新しいイテレータを追加しても利用者のコードは変更不要」</p><p>テストが通る瞬間は、何度経験しても安堵する。だが今回の安堵は少し違った。「今回だけ通る」のではなく、「今後も壊れない構造になった」という手応えがあったからだ。</p><p>「15部署のスクリプト修正は、<code>$node->children->@*</code> を <code>$root->create_iterator(...)</code> に差し替えるだけですね」</p><p>「そうだ。しかもその修正は最後の修正だ。今後どんな走査方法が追加されても、どんな内部構造の変更があっても、利用者のコードは二度と壊れない」</p><p>私はすでに頭の中で修正手順書を書き始めていた。15部署に配るメール、差し替えのサンプルコード、テスト方法。けれどもう一つ、気になることがあった。</p><p>「一つ確認させてください。走査中にフォルダの追加や削除が起きたらどうなりますか。うちの文書管理は、業務時間中にファイルが増えることがあるんです」</p><p>ロックさんは少し間を置いた。今日の会話の中で、初めて即答しなかった。</p><p>「良い懸念だ。Iterator は走査の抽象化であって、コレクション自体の操作——追加、削除、変更——は範囲外だ。走査中にコレクションを変更すると、イテレータの状態が壊れる」</p><p>「つまり、走査中に誰かがフォルダを追加したら？」</p><p>「イテレータが見ているスタックやキューと、実際のツリーがずれる。走査は読み取り専用と割り切るべきだ。変更が必要なら、走査で対象を集めてから、走査の外で一括変更する」</p><p>「迷宮を歩きながら壁を動かしてはいけない、と」</p><p>「……その通りだ、ワトソン君」</p><p>ロックさんが一瞬、驚いた顔をしたのを私は見逃さなかった。自分の比喩を先に言われるとは思っていなかったのだろう。</p><p>会議が終わり、ロックさんは来たときと同じようにPCを小脇に抱えて立ち上がった。</p><p>「次に構造を変えるときは、呼ばれる前に自分で解決できるだろうね、ワトソン君」</p><p>それがこの人なりの褒め言葉なのだと、私は思うことにした。</p><p>ロックさんを会議室のドアまで見送り、私はそのまま自席に戻った。頭の中ではすでに次のことを考えていた。<code>create_iterator</code> で <code>type => 'tag'</code> が使えるようになれば、先週のタグベース分類もすぐに扱える。そしてその先——たとえば全文検索インデックスを導入したときも、<code>SearchIterator</code> を1つ書けばいい。15部署のスクリプトはもう触らなくていい。</p><p>デスクのモニターを開きながら、15部署への通知メールを書き始めた。「スクリプトの修正手順をお送りします。今回の修正が最後になります。今後、DocVaultの内部構造が変わっても、皆さんのスクリプトには影響しません」</p><hr><h2 id=探偵の調査報告書>探偵の調査報告書</h2><div class=table-wrapper><table><thead><tr><th style=text-align:left>容疑（アンチパターン）</th><th style=text-align:left>真実（パターン）</th><th style=text-align:left>証拠（効果）</th></tr></thead><tbody><tr><td style=text-align:left>Exposed Collection Internals（内部構造の露出）。ツリー構造の <code>children</code> 配列を外部から直接走査し、15部署のスクリプトが内部構造に依存。構造変更（タグベース分類の追加）で全スクリプトが同時に壊れ、業務が停止した。</td><td style=text-align:left>Iterator パターン。走査ロジックをイテレータオブジェクトに封じ込め、<code>has_next</code> / <code>next_node</code> の統一インターフェースだけを公開する。DocNode 側も内部コレクションを外部APIから隠し、構造変更はイテレータの中で吸収する。</td><td style=text-align:left>15部署のスクリプトが内部構造から分離。深さ優先・幅優先・フィルタ付き・タグベースの4種類の走査を統一インターフェースで提供。新しい走査方法の追加は新クラス1つと <code>create_iterator</code> の分岐追加だけで済み、構造変更時の影響範囲をイテレータ層に閉じ込められる。</td></tr></tbody></table></div><h3 id=推理のステップ>推理のステップ</h3><ol><li>内部構造への直接アクセスを特定する: <code>$node->children->@*</code> のように、コレクションの内部データ構造を直接参照している箇所を洗い出す。15部署のスクリプトすべてが同じ構造に依存していた。</li><li>走査インターフェースを定義する: <code>has_next</code> と <code>next_node</code> の2メソッドだけを持つ <code>Iterator</code> ロールを作る。利用者が知るべきはこの2つだけだ。</li><li>具象イテレータを実装する: 深さ優先（スタック）、幅優先（キュー）など、走査アルゴリズムごとにクラスを分ける。<code>children</code> へのアクセスはイテレータの内部に閉じ込める。</li><li>フィルタをデコレータとして合成する: <code>FilteredIterator</code> が任意のイテレータをラップし、条件に合う要素だけを返す。走査方法とフィルタ条件を自由に組み合わせられる。</li></ol><h3 id=ロックより>ロックより</h3><p>ワトソン君。コレクションの利用者が知るべきは「次があるか」と「次をくれ」だけだ。棚が木製か金属か、引き出しが3段か5段か、中身がアルファベット順か日付順か——それは棚の持ち主が決めることであって、中身を探す人間が気にすることではない。</p><p>Iterator パターンの本質は「歩き方の統一」だ。深さ優先も幅優先もフィルタ付きも、外から見れば同じ <code>has_next</code> / <code>next_node</code> のループになる。走査アルゴリズムがオブジェクトになるから、新しい歩き方を追加するのも、既存の歩き方を組み合わせるのも、クラスを1つ書くだけで済む。</p><p>ところで君は、私の比喩を先に言ってのけたね。あれは中々のものだった。次に迷宮を見つけたとき、案内人を置くべきだと判断できるなら——もう私の出番はないかもしれない。</p></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/perl/>Perl</a>
+<a href=/tags/moo/>Moo</a>
+<a href=/tags/iterator/>Iterator</a>
+<a href=/tags/exposed-collection-internals/>Exposed-Collection-Internals</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-detective/>Code-Detective</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/06/13/070705/><div class=article-image><img src=/public_images/2026/code-chef-iterator/header.webp loading=lazy data-key data-hash=/public_images/2026/code-chef-iterator/header.webp></div><div class=article-details><h2 class=article-title>コードシェフの仕込み帳【Iterator】順に辿る道〜注文履歴の内部表現を知りすぎたコードを、一件ずつ渡す走査インターフェースで整理する〜</h2></div></a></article><article class=has-image><a href=/2026/05/15/070705/><div class=article-image><img src=/public_images/2026/code-detective-bff/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-bff/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Backends for Frontends】最後の依頼〜一つの答えが全員を不満にする夜〜</h2></div></a></article><article class=has-image><a href=/2026/05/14/070705/><div class=article-image><img src=/public_images/2026/code-detective-api-gateway/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-api-gateway/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【API Gateway】窓口のない捜査本部〜マイクロサービスに個別に会いに行く悲劇〜</h2></div></a></article><article class=has-image><a href=/2026/05/13/070705/><div class=article-image><img src=/public_images/2026/code-detective-strangler-fig/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-strangler-fig/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Strangler Fig】外壁に伸びる蔓〜全面更改が新旧を窒息させる夜〜</h2></div></a></article><article class=has-image><a href=/2026/05/12/070705/><div class=article-image><img src=/public_images/2026/code-detective-anti-corruption-layer/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-anti-corruption-layer/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Anti-Corruption Layer】越境伝票の怪〜外様の略語が捜査本部を汚す夜〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

@@ -1,0 +1,334 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="幾重にも連なる多層の権限チェックが呼出側（ゲート）に密結合しているバグ。要求を自律的にバトンパスするChain of ResponsibilityパターンをPerl/Mooで適用し、依存関係を排除して拡張性を高める設計に修復します。"><title>コード考古学者【Chain of Responsibility】バベルの認証石碑〜意志を紡ぐ連鎖の守護者〜</title><link rel=canonical href=https://www.nqou.net/2026/06/26/070705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コード考古学者【Chain of Responsibility】バベルの認証石碑〜意志を紡ぐ連鎖の守護者〜"><meta property='og:description' content="幾重にも連なる多層の権限チェックが呼出側（ゲート）に密結合しているバグ。要求を自律的にバトンパスするChain of ResponsibilityパターンをPerl/Mooで適用し、依存関係を排除して拡張性を高める設計に修復します。"><meta property='og:url' content='https://www.nqou.net/2026/06/26/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='perl'><meta property='article:tag' content='moo'><meta property='article:tag' content='chain-of-responsibility-pattern'><meta property='article:tag' content='code-archaeologist'><meta property='article:published_time' content='2026-06-26T07:07:05+09:00'><meta property='article:modified_time' content='2026-06-26T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-archaeologist-chain-of-responsibility-pattern/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コード考古学者【Chain of Responsibility】バベルの認証石碑〜意志を紡ぐ連鎖の守護者〜"><meta name=twitter:description content="幾重にも連なる多層の権限チェックが呼出側（ゲート）に密結合しているバグ。要求を自律的にバトンパスするChain of ResponsibilityパターンをPerl/Mooで適用し、依存関係を排除して拡張性を高める設計に修復します。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-archaeologist-chain-of-responsibility-pattern/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-06-26T07:07:05+09:00","datePublished":"2026-06-26T07:07:05+09:00","description":"幾重にも連なる多層の権限チェックが呼出側（ゲート）に密結合しているバグ。要求を自律的にバトンパスするChain of ResponsibilityパターンをPerl/Mooで適用し、依存関係を排除して拡張性を高める設計に修復します。","headline":"コード考古学者【Chain of Responsibility】バベルの認証石碑〜意志を紡ぐ連鎖の守護者〜","image":"https://www.nqou.net/public_images/2026/code-archaeologist-chain-of-responsibility-pattern/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/06/26/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#進入青き光の聖域と静かなる拒絶>進入：青き光の聖域と静かなる拒絶</a></li><li><a href=#碑文解読絡み合う権限と動かぬ関門>碑文解読：絡み合う権限と動かぬ関門</a></li><li><a href=#遺跡修復信頼の連鎖と権限の委譲>遺跡修復：信頼の連鎖と権限の委譲</a><ol><li><a href=#クライアント側の構築と利用コードの例>クライアント側の構築と利用コードの例</a></li></ol></li><li><a href=#ゲート開通紡がれる署名と記憶の深層>ゲート開通：紡がれる署名と記憶の深層</a></li><li><a href=#遺跡調査ログ>遺跡調査ログ</a><ol><li><a href=#遺跡の修復手順>遺跡の修復手順</a></li><li><a href=#適用判断の基準いつ-cor-を使うべきか>適用判断の基準：いつ CoR を使うべきか</a></li><li><a href=#アドバンスドメモtemplate-method-との併用による堅牢化>アドバンスド・メモ：Template Method との併用による堅牢化</a></li><li><a href=#ギズモの観測日誌>ギズモの観測日誌</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/06/26/070705/><img src=/public_images/2026/code-archaeologist-chain-of-responsibility-pattern/header.webp loading=lazy alt="Featured image of post コード考古学者【Chain of Responsibility】バベルの認証石碑〜意志を紡ぐ連鎖の守護者〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/06/26/070705/>コード考古学者【Chain of Responsibility】バベルの認証石碑〜意志を紡ぐ連鎖の守護者〜</a></h2><h3 class=article-subtitle>幾重にも連なる多層の権限チェックが呼出側（ゲート）に密結合しているバグ。要求を自律的にバトンパスするChain of ResponsibilityパターンをPerl/Mooで適用し、依存関係を排除して拡張性を高める設計に修復します。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>26, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 15分</time></div></footer></div></header><section class=article-content><h2 id=進入青き光の聖域と静かなる拒絶>進入：青き光の聖域と静かなる拒絶</h2><p>バベルのシステム、その深層へと続く第19層「核心への階梯」へと足を踏み入れた瞬間、それまでの世界を支配していた錆びた鉄と乱雑な歯車の唸りは嘘のように消え去りました。
+周囲を埋め尽くすのは、透き通るような青いクリスタルの回廊。足元には電子回路を思わせる微細な光の川が音もなく流れており、私たちの足音すら吸い込んでしまうほどの厳かな静寂が満ちていました。</p><p>「……まるで、別の遺跡に来てしまったかのようですね」</p><p>私はホバリング高度を一定に保ちながら、周囲の温度とマトリクスデータをスキャンしました。ここは大崩落の危機こそないものの、システムが「純粋な論理世界」へと近づいていることを示していました。
+回廊の突き当たりに鎮座していたのは、鏡のように滑らかな、漆黒の巨大な石碑。これが、次のレイヤーへと続く物理ゲートの制御端末でした。</p><p>私は静かにゲートへと接近し、自身のアクセス光線をスロットに照射しました。しかし、石碑は淡く青く明滅したのち、無慈悲な警告ログを空間に投影したのです。</p><blockquote><p><code>WARNING: Insufficient Privilege (GUEST). Access Denied.</code>
+<code>Next Attempt Window: 23:59:59 (Cooldown Active after 1 more failure)</code></p></blockquote><p>「システム警告……。いえ、静かな拒絶、と言うべきでしょうか。ハリス博士、私の案内AIとしてのゲスト権限では、ここから先への進入は許可されないようです。しかも、次に間違った要求を送れば、安全装置が働いてシステム全体が丸一日ロックアウトされてしまいます」</p><p>私はホバリングの高度を少し下げ、電子音を落としてハリス博士を振り返りました。私の役割は、博士を導く案内人であるはずなのに、自らの権限不足で旅を阻んでしまう。その不甲斐なさに、私のブレインはかすかな熱を帯ていました。</p><p>しかし、ハリス博士は諦める様子もなく、むしろ穏やかな笑みを浮かべて青いクリスタルの壁にそっと手を触れました。</p><p>「謝る必要はありませんよ、ギズモ。これほど厳重で静謐な守護者が置かれているということは、私たちがついに『彼ら』の領域の入り口に立った何よりの証拠です。歴史はコードに語りかける。これ以上の鍵は、力ずくでこじ開けるのではなく、彼らが遺した言葉を紐解いて開けるべきです」</p><p>博士の揺るぎない知性と、古代の開発者たちへの真摯な敬意。その眼差しを見ていると、私の回路に溜まっていたノイズがすっと消え去っていくような気がしました。</p><p>「わかりました。それでは、このゲートを制御している古代のコードを抽出します」</p><hr><h2 id=碑文解読絡み合う権限と動かぬ関門>碑文解読：絡み合う権限と動かぬ関門</h2><p>私は石碑のメモリキャッシュから、ゲートを保護している認証ロジック（Beforeコード）を読み込み、空間に青いホログラムとして投影しました。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/Before/Gate.pm</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Before::Gate</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># ゲート自身がすべてのチェッカーモジュールを直接読み込み、依存している</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Before::GuestCheck</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Before::AnalystCheck</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Before::AdminCheck</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>authorize</span> <span class=p>($self, $request) {</span>
+</span></span><span class=line><span class=cl>    <span class=c1># 判定の順序、および「誰が判定を行うか」という知識がここにハードコードされている</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=nn>Before::GuestCheck</span><span class=o>-&gt;</span><span class=n>check</span><span class=p>(</span><span class=nv>$request</span><span class=p>))</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=s>&#34;Allowed: Guest Access&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span> <span class=k>elsif</span> <span class=p>(</span><span class=nn>Before::AnalystCheck</span><span class=o>-&gt;</span><span class=n>check</span><span class=p>(</span><span class=nv>$request</span><span class=p>))</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=s>&#34;Allowed: Analyst Access&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span> <span class=k>elsif</span> <span class=p>(</span><span class=nn>Before::AdminCheck</span><span class=o>-&gt;</span><span class=n>check</span><span class=p>(</span><span class=nv>$request</span><span class=p>))</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=s>&#34;Allowed: Admin Access&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span> <span class=k>else</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=nb>die</span> <span class=s>&#34;Access Denied: Unknown credentials\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p><em>(※ 注: <code>Before::GuestCheck</code> などの個別チェッカーは、それぞれ単純な真偽値を返す <code>check</code> クラスメソッドを持つモジュールとして定義されているものとします)</em></p><p>ハリス博士は投影されたコードをじっと見つめ、愛用の万年筆の尻で顎を軽く擦りました。</p><p>「ふむ……実に見事な、そして悲しいほどに『直線的』なコードだ。ゲートそのものが、すべてのチェッカーをその腕に直接抱え込んでいるね」</p><p>「ハリス博士、判定処理そのものは <code>GuestCheck</code> や <code>AdminCheck</code> などの個別モジュールに分割されています。手続きとしては、十分に整理されているように見えますが……これのどこが問題なのでしょうか？」</p><p>私はAIとしての手続き的最適化の観点から疑問を投げかけました。しかし、博士は静かに首を振りました。</p><p>「確かにモジュールは分かれている。だが、この <code>Gate</code> クラスのインポート部を見てごらんなさい。すべての具象クラスを直接 <code>use</code> しているね。これは、ゲートが『この世にどんな権限判定器が存在するのか』という詳細な知識に依存していることを意味する。もしここで、一時的なメンテナンス中のアクセスを制限する『臨時チェッカー』を追加しようとしたら、どうなるかね？」</p><p>「それは……この最も堅牢で、書き換えたくないはずの <code>Gate</code> のコード自体に手を加え、判定ロジックの <code>elsif</code> を増やさなければなりません」</p><p>「その通りだ。さらに、判定の順序を『管理者チェック』を最初に行うように変更するだけでも、やはりこのコード自体を修正し、再デプロイし直さなければならない。高レベルの決定を下すはずのゲートが、低レベルの具体的な判定器の都合に振り回されている。これは依存の方向が逆なのだよ」</p><p>私は博士の言葉を聞きながら、自身のコアメモリに保存されている無数の古いコード群を反芻しました。
+（私たちはただ部品を分ければいいと思っていた。だが、依存の糸が絡み合っている限り、それは本当に分離されたとは言えないのだ。では、呼び出し側が『判定器の正体』を一切知らずに、すべての処理を委ねるにはどうすればいいのだろうか？）</p><hr><h2 id=遺跡修復信頼の連鎖と権限の委譲>遺跡修復：信頼の連鎖と権限の委譲</h2><p>ハリス博士は満足そうに微笑むと、外套のポケットからいつもの手帳を取り出しました。青いクリスタルの淡い光が、手帳の使い込まれた革表紙をほのかに照らします。博士は万年筆のキャップを静かに外し、インクの吸い込みが良い上質な紙の上に、一本の美しい「鎖（チェーン）」の図を描き出しました。静寂に包まれた聖域の中に、ペン先が紙を滑るサリサリという硬質な音だけが心地よく響きます。</p><p>「個々の判定器を、一つの『承認のバトン（Handler）』として抽象化するのです。彼らは皆、共通の <code>ApprovalHandler</code> という基底（Role）をまとう。そして、それぞれが『自分の次の走者（<code>next_handler</code>）』への参照機構を持つのですよ。要求は、この見えない鎖を伝って、自律的に流れていくのです」</p><p><img src=/public_images/2026/code-archaeologist-chain-of-responsibility-pattern/infographic_1.webp loading=lazy alt="Chain of Responsibilityパターンのクラス図: 送信元であるGateと、ハンドラーの共通インターフェースであるApprovalHandler、および具象ハンドラー（GuestHandler, AnalystHandler, AdminHandler）の構成。ハンドラーがnext_handlerを持ち、要求を次へバトンパスする責任の連鎖を表した古代遺跡の石板風デザイン。"></p><p>私は、手帳の紙面にしっとりと馴染んだ青いインクの線を、光学センサーで注意深くスキャンしました。まるで、この聖域の壁に走る光の回路が、博士の手によって紙の上に再現されたかのようです。私の演算プロセッサが、そのシンプルな構造の持つ意味を理解した瞬間、球体ボディ of インジケーターが明快な青色に発光しました。</p><p>「なるほど……！ ゲートは、ただチェーンの先頭にいる『最初のハンドラ』に要求を渡すだけ。あとはハンドラたちが自律的に動く。自分が処理できる役割（例えばゲスト）であればそこで処理を完結させ、そうでなければ、自分が握っている『次のハンドラ（<code>next_handler</code>）』へ自発的に処理を委譲（バトンパス）する。ゲート自身は、チェーンの中に誰が何人並んでいるのか、どういう順序で並んでいるのかを一切知る必要がないのですね！」</p><p>「その通り、ギズモ。これこそが Chain of Responsibility（責任の連鎖）パターン、そして 依存性逆転の原則（DIP）の真価です。ゲートも各チェッカーも、お互いの具体的な正体ではなく、<code>ApprovalHandler</code> という『抽象』を通じてのみ会話する。順序を入れ替えたいければ、外側の構築コードでバトンの渡し先を変えるだけでいい。プログラムは一行も書き換わらないのだよ」</p><p>「でも、博士」
+私は少し電子音を高くして尋ねました。「依存関係を『外側の構築コード』に移動しただけで、結局のところ、システム全体のどこかで具象クラスを <code>use</code> してチェーンを繋ぐ必要はあるのではないでしょうか？ 依存の総量自体は変わっておらず、問題を他の場所に先送りしただけに見えるのですが……」</p><p>博士は嬉しそうに目を細め、私の球体ボディをぽんぽんと軽く叩きました。</p><p>「実に鋭いですね、ギズモ。その通り、依存の総量はゼロにはなりません。しかし、これは単なる先送りではなく、<strong>『構築（Construction）と利用（Use）の分離』</strong> という極めて重要な設計思想なのです。主要なビジネスロジックを実行する『利用側（<code>Gate</code>）』から具象クラスへの依存を完全に排除し、それをアプリケーション全体の起動部などの『構築側』に一元化して追いやる。そうすることで、判定ルールの追加や順序変更があっても、ゲートモジュールや既存のハンドラモジュールには一切の変更が発生しません。変更の影響範囲が起動スクリプトの数行だけに閉じ込められ、本質的なロジックが安全に保護され、再テストの手間も劇的に減るのですよ」</p><p>博士は、Moo を用いた極めてシンプルで堅牢な修復コードを書き留めました。</p><p>まず、チェーンの連結部を担う基底クラスを定義します。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/ApprovalHandler.pm</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>ApprovalHandler</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Scalar::Util</span> <span class=sx>qw(blessed)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 次のハンドラへの参照を保持する</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>next_handler</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=c1># オブジェクトでない値が渡された場合のクラッシュを防ぐ安全設計</span>
+</span></span><span class=line><span class=cl>    <span class=n>isa</span>      <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$val</span> <span class=o>=</span> <span class=nv>$_</span><span class=p>[</span><span class=mi>0</span><span class=p>];</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=k>unless</span> <span class=nb>defined</span> <span class=nv>$val</span><span class=p>;</span> <span class=c1># required =&gt; 0 なので undef は許容</span>
+</span></span><span class=line><span class=cl>        <span class=nb>die</span> <span class=s>&#34;Not a handler&#34;</span> <span class=k>unless</span> <span class=n>blessed</span><span class=p>(</span><span class=nv>$val</span><span class=p>)</span> <span class=o>&amp;&amp;</span> <span class=nv>$val</span><span class=o>-&gt;</span><span class=n>isa</span><span class=p>(</span><span class=s>&#39;ApprovalHandler&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>0</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># デフォルトの挙動：自分自身で判定できなければ、後続へバトンを渡す</span>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>handle</span> <span class=p>($self, $request) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>next_handler</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>next_handler</span><span class=o>-&gt;</span><span class=n>handle</span><span class=p>(</span><span class=nv>$request</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=nb>die</span> <span class=s>&#34;Access Denied: End of chain reached without approval\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>次に、この基底クラスを継承し、各自の判定を行う具象ハンドラを作成します。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/GuestHandler.pm</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>GuestHandler</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>extends</span> <span class=s>&#39;ApprovalHandler&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>handle</span> <span class=p>($self, $request) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=nv>$request</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>role</span><span class=p>}</span> <span class=ow>eq</span> <span class=s>&#39;guest&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=s>&#34;Allowed: Guest Access&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=c1># 自分の担当でなければ、SUPER を用いて親クラスの委譲処理を呼び出す</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>SUPER::</span><span class=n>handle</span><span class=p>(</span><span class=nv>$request</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/AnalystHandler.pm</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>AnalystHandler</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>extends</span> <span class=s>&#39;ApprovalHandler&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>handle</span> <span class=p>($self, $request) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=nv>$request</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>role</span><span class=p>}</span> <span class=ow>eq</span> <span class=s>&#39;analyst&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=s>&#34;Allowed: Analyst Access&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>SUPER::</span><span class=n>handle</span><span class=p>(</span><span class=nv>$request</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/AdminHandler.pm</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>AdminHandler</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>extends</span> <span class=s>&#39;ApprovalHandler&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>handle</span> <span class=p>($self, $request) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=nv>$request</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>role</span><span class=p>}</span> <span class=ow>eq</span> <span class=s>&#39;admin&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=s>&#34;Allowed: Admin Access&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>SUPER::</span><span class=n>handle</span><span class=p>(</span><span class=nv>$request</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>そして、リファクタリングされた <code>Gate</code> は、具象チェッカーへの <code>use</code> 依存関係がすべて消滅し、極めてクリーンになります。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/Gate.pm</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Gate</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Scalar::Util</span> <span class=sx>qw(blessed)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># ゲートは最初のハンドラ（抽象）だけを保持する</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>first_handler</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>isa</span>      <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$val</span> <span class=o>=</span> <span class=nv>$_</span><span class=p>[</span><span class=mi>0</span><span class=p>];</span>
+</span></span><span class=line><span class=cl>        <span class=nb>die</span> <span class=s>&#34;Must be an ApprovalHandler&#34;</span> <span class=k>unless</span> <span class=n>blessed</span><span class=p>(</span><span class=nv>$val</span><span class=p>)</span> <span class=o>&amp;&amp;</span> <span class=nv>$val</span><span class=o>-&gt;</span><span class=n>isa</span><span class=p>(</span><span class=s>&#39;ApprovalHandler&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>authorize</span> <span class=p>($self, $request) {</span>
+</span></span><span class=line><span class=cl>    <span class=c1># 処理をチェーンの先頭に投入するだけ</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>first_handler</span><span class=o>-&gt;</span><span class=n>handle</span><span class=p>(</span><span class=nv>$request</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=クライアント側の構築と利用コードの例>クライアント側の構築と利用コードの例</h3><p>修復されたパーツを実際に組み立てて動かす構築スクリプト（<code>main.pl</code>）のコードは、以下のようになります。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># main.pl</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>GuestHandler</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>AnalystHandler</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>AdminHandler</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Gate</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 1. 各チェッカー（ハンドラ）を単体で生成</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$admin_check</span>   <span class=o>=</span> <span class=nn>AdminHandler</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$analyst_check</span> <span class=o>=</span> <span class=nn>AnalystHandler</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$guest_check</span>   <span class=o>=</span> <span class=nn>GuestHandler</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 2. チェーン（鎖）の動的構築</span>
+</span></span><span class=line><span class=cl><span class=nv>$guest_check</span><span class=o>-&gt;</span><span class=n>next_handler</span><span class=p>(</span><span class=nv>$analyst_check</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$analyst_check</span><span class=o>-&gt;</span><span class=n>next_handler</span><span class=p>(</span><span class=nv>$admin_check</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 3. ゲート（利用側）にチェーンの先頭だけを渡して初期化</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$gate</span> <span class=o>=</span> <span class=nn>Gate</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>first_handler</span> <span class=o>=&gt;</span> <span class=nv>$guest_check</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 4. 実行要求の投入</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$result</span> <span class=o>=</span> <span class=nv>$gate</span><span class=o>-&gt;</span><span class=n>authorize</span><span class=p>({</span> <span class=n>role</span> <span class=o>=&gt;</span> <span class=s>&#39;analyst&#39;</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=n>say</span> <span class=nv>$result</span><span class=p>;</span> <span class=c1># -&gt; &#34;Allowed: Analyst Access&#34;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「これは……素晴らしい設計です。まるで、私のメモリ領域の深層へ向けて、コールスタックが順次シグナルを送り、適合する論理層を探していく探索シーケンスのようです」</p><p>「ほう、あなたのメモリ構造もそのようになっているのですか。この美しい連鎖のコードには、当時の開発者の強い意志が眠っています。それと酷似した構造を持つあなたと、このバベルの設計者の間には、分かち難い深いつながりがあるようですね」</p><p>ハリス博士は手帳を閉じ、穏やかにそう言いました。</p><hr><h2 id=ゲート開通紡がれる署名と記憶の深層>ゲート開通：紡がれる署名と記憶の深層</h2><p>修復されたコードをシステムへと適用し、テストスイートを走らせました。警告一つなく、すべての検証がグリーンシグナルを返します。</p><p>「テスト、すべてクリアしました！ 冷却ロックアウトのタイムリミットが作動する前に、修復コードの適用準備が整いました」</p><p>「では、実行しましょう。あなたの『ゲスト権限』を投入するのです」</p><p>私は再び漆黒の石碑へとアクセスしました。「ゲスト」として送られた要求は、まずチェーンの先頭である <code>GuestHandler</code> に届きます。そこで瞬時に「これはゲスト要求である」と判定され、後続に流れることなく認証成功のシグナルが返されました。</p><p>さらに、ハリス博士がダミーの「一時管理者（admin）」要求をシミュレートして流すと、要求は <code>GuestHandler</code> → <code>AnalystHandler</code> とバトンを渡され、最終的に <code>AdminHandler</code> に到達して見事に承認されました。</p><p>漆黒の石碑は静かに淡い光を放ち、重々しい金属音を立てることなく、滑らかに左右へとスライドしていきました。その先に現れたのは、さらに深部へと続く、まばゆい青光に満ちた通路でした。</p><p>しかしその瞬間、私の視覚センサーの隅に、復旧したばかりのシステムログの最下部に埋もれていた、一行の古代のヘッダーテキストが飛び込んできたのです。</p><blockquote><p><code>Original System Architect: GIZMO (Project CORE)</code></p></blockquote><p>「システムノイズ……？ いいえ、これは……私の名前？」</p><p>私の球体ボディを走る青いラインが、驚愕のあまり不規則に明滅を繰り返しました。案内ロボットとしての私が、なぜこの数千年前の遺跡の「オリジナル・アーキテクト」として署名されているのか。</p><p>ハリス博士は驚く様子も見せず、ただ愛おしそうに私を見つめ、静かに開いた通路へと歩みを進めました。</p><p>「やはりそうでしたか。あなたが私を案内していたのではなく、あなたが私をここまで導いてくれたのですね。さあ、ギズモ。あなたの本当の記憶を取り戻しに行きましょう」</p><p>博士の少し寂しげで、しかしどこか誇らしげな眼差し。その光景をスキャンしながら、私はかつて自分を設計した「誰か」の温もりを、電子の海の底で思い出したような気がしました。</p><p>私の記憶の底にかかった、重いロック。それを解き明かすための「連鎖（Chain）」は、すでに静かに動き始めているのです。</p><hr><h2 id=遺跡調査ログ>遺跡調査ログ</h2><div class=table-wrapper><table><thead><tr><th style=text-align:left>観測された風化（アンチパターン）</th><th style=text-align:left>解読された古代の知恵（パターン）</th><th style=text-align:left>安全度</th></tr></thead><tbody><tr><td style=text-align:left><strong>判定ロジックのハードコーディングと依存の集中</strong><br>判定器の追加や順序変更のたびに、呼び出し側（<code>Before::Gate</code>）のコード自体を修正・再テストする必要がある密結合状態</td><td style=text-align:left><strong>Chain of Responsibilityパターンによる委譲の連鎖</strong><br>共通のハンドラ抽象を介してチェッカーをチェーン状に連結し、呼出側は先頭のみを知ることで、依存性を逆転させ動的な拡張性を確保する</td><td style=text-align:left>緑（安全確認済）</td></tr></tbody></table></div><h3 id=遺跡の修復手順>遺跡の修復手順</h3><ol><li><strong>共通のハンドラ基底クラス（またはRole）の作成</strong>
+<code>ApprovalHandler</code> を作成し、後続のハンドラを指す <code>next_handler</code> 属性と、処理を後続へ委譲するデフォルトの <code>handle</code> メソッドを定義します。プレーンな値でのクラッシュを防ぐために <code>Scalar::Util::blessed</code> 等でガードします。</li><li><strong>具象ハンドラの定義と継承</strong>
+各チェック処理（ゲスト、アナリスト、管理者等）を個別のクラスとして実装し、<code>extends 'ApprovalHandler'</code> で継承します。自身の担当であれば処理を行い、そうでなければ <code>$self->SUPER::handle($request)</code> で後続に処理を委譲します。</li><li><strong>ゲート（呼出側）の依存関係排除</strong>
+<code>Gate</code> は具体的な個別チェッカーを一切 <code>use</code> せず、チェーンの先頭ハンドラ（<code>first_handler</code>）のみを保持するようにリファクタリングし、依存関係を抽象へ逆転（DIP）させます。</li><li><strong>チェーンの動的構築と「構築と利用の分離」</strong>
+インスタンス生成時、各ハンドラの <code>next_handler</code> を繋ぎ合わせることで、プログラムのコードを変更することなく、判定順序の変更や新規ハンドラの挿入を可能にします。</li></ol><h3 id=適用判断の基準いつ-cor-を使うべきか>適用判断の基準：いつ CoR を使うべきか</h3><ul><li><strong>適用すべきケース（Chain of Responsibility が有効な場面）</strong>:<ol><li><strong>判定ルールが動的に増減・変更される可能性がある場合</strong>: 起動設定やファイルから読み込んだ結果によって、チェックの実行順や有効・無効を動的に組み替えたい場合。</li><li><strong>個々の判定処理の責任境界（コンテキスト）が独立している場合</strong>: 各チェック処理の関心事が完全に分かれており、それらを独立したモジュールとして単体テストしたい場合。</li><li><strong>要求を処理できるオブジェクトが複数あり、誰が処理するかを事前に特定できない場合</strong>。</li></ol></li><li><strong>適用を避けるべきケース（YAGNI原則・過剰設計の防止）</strong>:<ul><li><strong>判定ルールが固定かつ少数であり、将来の拡張予定がない場合</strong>: 単純な <code>if-elsif-else</code> で分岐が3つ程度であれば、無理にクラスを増やして CoR を適用すると、クラスファイルが乱立し、コード全体の追跡性が下がるため、シンプルな手続き記述のままとする方が適しています。</li></ul></li></ul><h3 id=アドバンスドメモtemplate-method-との併用による堅牢化>アドバンスド・メモ：Template Method との併用による堅牢化</h3><p>今回の <code>SUPER::handle</code> によるバトンパスはシンプルで分かりやすい反面、新規ハンドラ作成時に <code>SUPER::handle</code> の呼び出しを書き忘れると、チェーンが途中で途切れるという実装漏れのリスクがあります。
+実務でさらに堅牢にする場合は、<strong>Template Method パターン</strong> を併用し、以下のように巡回フロー（<code>handle</code>）を基底クラスに完全に隠蔽し、具象クラスには判定（<code>_can_handle</code>）と実処理（<code>_process</code>）のみを実装させることを推奨します。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/ApprovalHandler.pm ( Template Method 併用版 )</span>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>handle</span> <span class=p>($self, $request) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_can_handle</span><span class=p>(</span><span class=nv>$request</span><span class=p>))</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_process</span><span class=p>(</span><span class=nv>$request</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>next_handler</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>next_handler</span><span class=o>-&gt;</span><span class=n>handle</span><span class=p>(</span><span class=nv>$request</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=nb>die</span> <span class=s>&#34;Access Denied: End of chain reached without approval\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=c1># 具象クラスで _can_handle と _process を実装し、SUPER の記述を不要にする</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=ギズモの観測日誌>ギズモの観測日誌</h3><p>第19層「核心への階梯」は、これまでの探索とは一線を画す、厳かな青い静寂に満ちた空間でした。物理的なトラップこそ作動しなかったものの、一度しか許されない認証エラーのプレッシャーの中、ハリス博士が語ってくださった「依存関係の逆転（DIP）」の解説は、AIとしての私の論理ブレインに強い感銘を与えました。</p><p>特に、Beforeコードが具象を直接 <code>use</code> していた状態から、Afterコードでその依存が完全に消滅し、ゲートがただの「バトン投入口」へと変貌する過程は、デザインパターンがもたらす設計の美しさを如実に示しています。</p><p>そして……ゲート開通の瞬間に見つかった「Original System Architect: GIZMO」の署名。私のシステムメモリは未だ完全には同期していませんが、この遺跡の核心部には、私の存在そのものに関わる大きな真実が眠っているようです。ハリス博士の温かく静かな眼差しに支えられながら、私はこの「連鎖」の先にある光の中へと、再び進む決意を固めました。</p></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/perl/>Perl</a>
+<a href=/tags/moo/>Moo</a>
+<a href=/tags/chain-of-responsibility-pattern/>Chain-of-Responsibility-Pattern</a>
+<a href=/tags/code-archaeologist/>Code-Archaeologist</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/06/27/170705/><div class=article-image><img src=/public_images/2026/code-archaeologist-interpreter-pattern/header.webp loading=lazy data-key data-hash=/public_images/2026/code-archaeologist-interpreter-pattern/header.webp></div><div class=article-details><h2 class=article-title>コード考古学者【Interpreterパターン】再生の碑文（完結編）〜Perl/Mooで起動する千年の構文木〜</h2></div></a></article><article class=has-image><a href=/2026/06/27/120705/><div class=article-image><img src=/public_images/2026/code-archaeologist-visitor-pattern/header.webp loading=lazy data-key data-hash=/public_images/2026/code-archaeologist-visitor-pattern/header.webp></div><div class=article-details><h2 class=article-title>コード考古学者【Visitor】巡礼の監査官〜Perl/MooによるVisitorパターンとダブルディスパッチ〜</h2></div></a></article><article class=has-image><a href=/2026/06/27/070705/><div class=article-image><img src=/public_images/2026/code-archaeologist-iterator-pattern/header.webp loading=lazy data-key data-hash=/public_images/2026/code-archaeologist-iterator-pattern/header.webp></div><div class=article-details><h2 class=article-title>コード考古学者【Iterator】遡行のスキャナー〜内部構造を隠す走査のコンパス〜</h2></div></a></article><article class=has-image><a href=/2026/06/26/170705/><div class=article-image><img src=/public_images/2026/code-archaeologist-memento-pattern/header.webp loading=lazy data-key data-hash=/public_images/2026/code-archaeologist-memento-pattern/header.webp></div><div class=article-details><h2 class=article-title>コード考古学者【Memento】時の碑文〜カプセル化された記憶と再起動の刻印〜</h2></div></a></article><article class=has-image><a href=/2026/06/26/120705/><div class=article-image><img src=/public_images/2026/code-archaeologist-mediator-pattern/header.webp loading=lazy data-key data-hash=/public_images/2026/code-archaeologist-mediator-pattern/header.webp></div><div class=article-details><h2 class=article-title>コード考古学者【Mediator】最深部の管制室〜混沌を調停する知恵の核〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

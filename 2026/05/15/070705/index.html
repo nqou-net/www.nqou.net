@@ -1,0 +1,244 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="共通APIがWebとMobile双方に「過剰かつ不足」になる問題を、クライアント専用バックエンド（BFF）で分化するPerl/Moo実装です"><title>コード探偵ロックの事件簿【Backends for Frontends】最後の依頼〜一つの答えが全員を不満にする夜〜</title><link rel=canonical href=https://www.nqou.net/2026/05/15/070705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コード探偵ロックの事件簿【Backends for Frontends】最後の依頼〜一つの答えが全員を不満にする夜〜"><meta property='og:description' content="共通APIがWebとMobile双方に「過剰かつ不足」になる問題を、クライアント専用バックエンド（BFF）で分化するPerl/Moo実装です"><meta property='og:url' content='https://www.nqou.net/2026/05/15/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='perl'><meta property='article:tag' content='moo'><meta property='article:tag' content='backends-for-frontends'><meta property='article:tag' content='bff'><meta property='article:tag' content='one-size-fits-all-api'><meta property='article:tag' content='over-fetching'><meta property='article:tag' content='under-fetching'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-detective'><meta property='article:published_time' content='2026-05-15T07:07:05+09:00'><meta property='article:modified_time' content='2026-05-15T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-detective-bff/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コード探偵ロックの事件簿【Backends for Frontends】最後の依頼〜一つの答えが全員を不満にする夜〜"><meta name=twitter:description content="共通APIがWebとMobile双方に「過剰かつ不足」になる問題を、クライアント専用バックエンド（BFF）で分化するPerl/Moo実装です"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-detective-bff/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-05-15T07:07:05+09:00","datePublished":"2026-05-15T07:07:05+09:00","description":"共通APIがWebとMobile双方に「過剰かつ不足」になる問題を、クライアント専用バックエンド（BFF）で分化するPerl/Moo実装です","headline":"コード探偵ロックの事件簿【Backends for Frontends】最後の依頼〜一つの答えが全員を不満にする夜〜","image":"https://www.nqou.net/public_images/2026/code-detective-bff/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/05/15/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#二度目の訪問>二度目の訪問</a></li><li><a href=#余分と不足が同時に起きている>余分と不足が同時に起きている</a></li><li><a href=#それぞれの玄関を立てる>それぞれの玄関を立てる</a><ol><li><a href=#まず共通の約束ごとを作る>まず共通の約束ごとを作る</a></li><li><a href=#web専用バックエンド>Web専用バックエンド</a></li><li><a href=#mobile専用バックエンド>Mobile専用バックエンド</a></li></ol></li><li><a href=#構造の変化>構造の変化</a><ol><li><a href=#before-全クライアントが同一レスポンスを受け取る>Before: 全クライアントが同一レスポンスを受け取る</a></li><li><a href=#after-各クライアントが専用bffを持つ>After: 各クライアントが専用BFFを持つ</a></li></ol></li><li><a href=#制服が二着になった>制服が二着になった</a></li><li><a href=#探偵の調査報告書>探偵の調査報告書</a><ol><li><a href=#推理のステップ>推理のステップ</a></li><li><a href=#ロックより>ロックより</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/05/15/070705/><img src=/public_images/2026/code-detective-bff/header.webp loading=lazy alt="Featured image of post コード探偵ロックの事件簿【Backends for Frontends】最後の依頼〜一つの答えが全員を不満にする夜〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/05/15/070705/>コード探偵ロックの事件簿【Backends for Frontends】最後の依頼〜一つの答えが全員を不満にする夜〜</a></h2><h3 class=article-subtitle>共通APIがWebとMobile双方に「過剰かつ不足」になる問題を、クライアント専用バックエンド（BFF）で分化するPerl/Moo実装です</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>15, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 10分</time></div></footer></div></header><section class=article-content><h2 id=二度目の訪問>二度目の訪問</h2><p>前回、Gateway を置いたら解決した。</p><p>あのスプレッドシートを最後に開いた日から2ヶ月が経った。<code>CheckoutController</code> の依存は <code>gateway</code> だけになり、バックエンドのエンドポイントが変わっても、もうルーティングテーブルだけを直せばいい。それは今も正しく動いていた。</p><p>次の問題は別の場所から来た。</p><p>「モバイルチームから苦情が来てるんですけど」と同僚が言ったのは、先週の金曜だった。「Gateway 経由の <code>/product/detail</code> のレスポンスが重すぎるって。帯域が厳しいらしくて、いくつかのフィールド削れないかって」</p><p>僕は Gateway のコードを開いた。商品詳細は10フィールドを返していた。モバイルアプリが使うのは5フィールドだった。残り5フィールドは、Web の管理画面専用のデータだった。</p><p>逆もあった。モバイルが欲しい「関連おすすめ商品」は、Gateway に実装していない。Web には不要だったから。今は、モバイルが別の API を追加で呼んでいた。</p><p>田中さんに聞いたら「またロックさんのとこ行けば」と即答だった。</p><hr><p>雑居ビルの三階に来たのは初めてだった。前回はロックさんが来てくれた。階段の手すりに触れながら登っていると、「来たことのない場所に、二度目が来る理由」について考えた。設計の問題かもしれない、と思いながら来たのも初めてだった。</p><p>ドアを押すと、想像していたより静かな部屋だった。エナジードリンクの缶が2本。デスクは片付いている。ロックさんは何かを読んでいて、顔を上げなかった。</p><p>「ワトソン君。前回の窓口が、今度は容疑者になったかね」</p><p>僕はまだ何も言っていない。</p><p>「……田中さんに言われてまた来ました。モバイルのチームから苦情が来ています」</p><p>ロックさんが読んでいたものを伏せて、椅子を回した。</p><p>「座りたまえ。何が重いと言っている」</p><hr><h2 id=余分と不足が同時に起きている>余分と不足が同時に起きている</h2><p>「Gateway 経由の商品詳細 API です」</p><p>ラップトップを開いて、<code>ProductService.get_product</code> が返す構造を示した。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>ProductService</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>get_product</span> <span class=p>($self, $product_id) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>id</span>             <span class=o>=&gt;</span> <span class=nv>$product_id</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>name</span>           <span class=o>=&gt;</span> <span class=s>&#39;Widget Pro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>price</span>          <span class=o>=&gt;</span> <span class=mi>2980</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>tax_rate</span>       <span class=o>=&gt;</span> <span class=mf>0.1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>stock_count</span>    <span class=o>=&gt;</span> <span class=mi>42</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>warehouse_code</span> <span class=o>=&gt;</span> <span class=s>&#39;WH-03&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>restock_date</span>   <span class=o>=&gt;</span> <span class=s>&#39;2026-06-01&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>category_path</span>  <span class=o>=&gt;</span> <span class=s>&#39;Electronics &gt; Gadgets &gt; Widgets&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>thumbnail_url</span>  <span class=o>=&gt;</span> <span class=s>&#39;/images/widget-pro.jpg&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>last_updated</span>   <span class=o>=&gt;</span> <span class=s>&#39;2026-05-10T12:00:00Z&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「10フィールドです。Web の管理画面は在庫数、倉庫コード、入荷予定日、カテゴリパスを使います。モバイルアプリは商品名、価格、サムネイルと在庫の有無だけ」</p><p>「モバイルが使うのは何フィールドかね」</p><p>「5つです」</p><p>ロックさんが無言でフィールドを数えた。「残り5つは？」</p><p>「Web 専用のデータです。モバイルには使いません」</p><p>「それだけかね」</p><p>「逆もあります」と続けた。「モバイルは関連商品のリストが必要なんですが、Web には不要なので Gateway に実装していない。今はモバイルアプリが別の API を追加で呼んでいます」</p><p>ロックさんが立ち上がり、ホワイトボードに書いた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>Web   ← [10フィールド] ← Gateway ← ProductService
+</span></span><span class=line><span class=cl>Mobile ← [10フィールド] ← Gateway ← ProductService
+</span></span><span class=line><span class=cl>Mobile → RecommendationService（別途呼び出し）
+</span></span></code></pre></td></tr></table></div></div><p>「これは Gateway の失敗かね」</p><p>少し間があった。来る前から、ずっと考えていた問いだった。</p><p>「……それを確かめに来ました。前回の Gateway は間違っていたんですか」</p><p>「間違いではない」ロックさんはそう言って、ホワイトボードの <code>Gateway</code> を指した。「前回、窓口を一本化した。依存の被害半径を止めた。それは今も生きている。だが一手で終わる問題ではなかった」</p><p>「では今回の問題は何ですか」</p><p>「窓口が全員に同じ答えを配っていることだよ。容疑者の名前は <strong>One-size-fits-all API</strong> だ——一枚の制服で全員を満足させようとした結果、誰にも合わない制服が生まれた」</p><p>モバイルは5フィールドのために10フィールドを受け取り続け、必要な関連商品のためだけに追加のリクエストを投げ続けている。</p><p>「Over-fetching と Under-fetching が、同じ API で同時に起きている事件だよ、ワトソン君」</p><hr><h2 id=それぞれの玄関を立てる>それぞれの玄関を立てる</h2><p>「解決策はクライアントの数だけ窓口を立てることだ」</p><p>「……また増やすんですか。前回は一本にしたのに」</p><p>「統一したのは依存の被害半径だよ。今度は分けるのはレスポンスの形だ。同じ問題を解いているわけではない」</p><p>少し考えてから、理解した気がした。Gateway が解いたのは「誰もが 4 サービスを直接知っている」問題だった。今回は「同じ答えを全員に渡している」問題だ。違う問題だ。</p><p>「統一は問題を解いた。分化は問題に応える」ロックさんが静かに言った。「順序が違うだけで、矛盾ではない」</p><h3 id=まず共通の約束ごとを作る>まず共通の約束ごとを作る</h3><p>「最初に役割の契約を定義する」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>BFF::Role::Builder</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo::Role</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>requires</span> <span class=s>&#39;build_product_response&#39;</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<code>BFF::Role::Builder</code> を使うクラスは、必ず <code>build_product_response</code> を実装しなければならない。WebのBFFもMobileのBFFも、同じ問いに答える義務を持つ。答え方だけが違う」</p><p>「Roleを使うのは、共通インターフェースを保証するためですか」</p><p>「そうだよ。どちらのBFFも <code>build_product_response</code> を持つと約束してある。契約のない分化は、ただの散らかりだ」</p><h3 id=web専用バックエンド>Web専用バックエンド</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>WebBff</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(Object)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>with</span> <span class=s>&#39;BFF::Role::Builder&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>upstream</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Object</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>build_product_response</span> <span class=p>($self, $product_id) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$p</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>upstream</span><span class=o>-&gt;</span><span class=n>get_product</span><span class=p>(</span><span class=nv>$product_id</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>id</span>             <span class=o>=&gt;</span> <span class=nv>$p</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>id</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>        <span class=n>name</span>           <span class=o>=&gt;</span> <span class=nv>$p</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>name</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>        <span class=n>price</span>          <span class=o>=&gt;</span> <span class=nv>$p</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>price</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>        <span class=n>tax_rate</span>       <span class=o>=&gt;</span> <span class=nv>$p</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>tax_rate</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>        <span class=n>stock_count</span>    <span class=o>=&gt;</span> <span class=nv>$p</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>stock_count</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>        <span class=n>warehouse_code</span> <span class=o>=&gt;</span> <span class=nv>$p</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>warehouse_code</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>        <span class=n>restock_date</span>   <span class=o>=&gt;</span> <span class=nv>$p</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>restock_date</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>        <span class=n>category_path</span>  <span class=o>=&gt;</span> <span class=nv>$p</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>category_path</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<code>WebBff</code> は管理画面が必要とする8フィールドを選んで返す。フィールドを選ぶ判断は、管理画面を一番知っているチームが持つ」</p><h3 id=mobile専用バックエンド>Mobile専用バックエンド</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>MobileBff</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(Object)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>with</span> <span class=s>&#39;BFF::Role::Builder&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>upstream</span>               <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Object</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>recommendation_service</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Object</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>build_product_response</span> <span class=p>($self, $product_id) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$p</span>    <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>upstream</span><span class=o>-&gt;</span><span class=n>get_product</span><span class=p>(</span><span class=nv>$product_id</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$recs</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>recommendation_service</span><span class=o>-&gt;</span><span class=n>get_similar</span><span class=p>(</span><span class=nv>$product_id</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>id</span>              <span class=o>=&gt;</span> <span class=nv>$p</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>id</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>        <span class=n>name</span>            <span class=o>=&gt;</span> <span class=nv>$p</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>name</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>        <span class=n>price</span>           <span class=o>=&gt;</span> <span class=nv>$p</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>price</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>        <span class=n>thumbnail_url</span>   <span class=o>=&gt;</span> <span class=nv>$p</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>thumbnail_url</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>        <span class=n>in_stock</span>        <span class=o>=&gt;</span> <span class=nv>$p</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>stock_count</span><span class=p>}</span> <span class=o>&gt;</span> <span class=mi>0</span> <span class=p>?</span> <span class=mi>1</span> <span class=p>:</span> <span class=mi>0</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>recommendations</span> <span class=o>=&gt;</span> <span class=nv>$recs</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<code>MobileBff</code> は必要な5フィールドだけ、そして関連商品を一緒に返す。モバイルアプリが別途 API を呼ぶ必要はなくなる」</p><p><code>in_stock</code> に気づいた。「<code>stock_count</code> をそのまま渡していない。0より大きければ <code>1</code>、そうでなければ <code>0</code> に変換してますね」</p><p>「モバイルアプリは在庫数を画面に表示しない。在庫があるかどうかだけ知ればいい。形を整えるのがBFFの仕事だよ」</p><p>「では、認証はどうなりますか。前回 Gateway に集約したけれど、BFFを立てたら認証も分散しませんか」</p><p>「BFFの仕事はデータの形を整えることだよ。認証は今も Gateway が担う。BFFは <code>upstream</code> として既存の仕組みを使えばいい。共通処理を重複させる必要はない」</p><p>「つまり Gateway を消すのではなく」</p><p>「消さない。Gateway はルーティングと認証を担い続ける。BFFは Gateway の後ろ、またはその横でデータを整える。役割を分担するんだよ」</p><hr><h2 id=構造の変化>構造の変化</h2><p>Before と After で依存の形がどう変わるかを整理すると、変化が見えやすくなります。</p><h3 id=before-全クライアントが同一レスポンスを受け取る>Before: 全クライアントが同一レスポンスを受け取る</h3><pre class=mermaid>
+	classDiagram
+    class WebClient {
+        +get_product(id)
+    }
+    class MobileClient {
+        +get_product(id)
+        +get_recommendations(id)
+    }
+    class ApiGateway {
+        +handle(token, path, args)
+    }
+    class ProductService {
+        +get_product()
+    }
+    class RecommendationService {
+        +get_similar()
+    }
+    WebClient --&gt; ApiGateway : 全10フィールド
+    MobileClient --&gt; ApiGateway : 全10フィールド
+    MobileClient --&gt; RecommendationService : 別途呼び出し
+    ApiGateway --&gt; ProductService
+</pre><h3 id=after-各クライアントが専用bffを持つ>After: 各クライアントが専用BFFを持つ</h3><pre class=mermaid>
+	classDiagram
+    class WebClient {
+        +get_product(id)
+    }
+    class MobileClient {
+        +get_product(id)
+    }
+    class WebBff {
+        +upstream
+        +build_product_response(id)
+    }
+    class MobileBff {
+        +upstream
+        +recommendation_service
+        +build_product_response(id)
+    }
+    class ApiGateway {
+        +handle(token, path, args)
+        +get_product(id)
+    }
+    class ProductService {
+        +get_product()
+    }
+    class RecommendationService {
+        +get_similar()
+    }
+    WebClient --&gt; WebBff : Web向け8フィールド
+    MobileClient --&gt; MobileBff : Mobile向け5フィールド+recs
+    WebBff --&gt; ApiGateway : upstream
+    MobileBff --&gt; ApiGateway : upstream
+    ApiGateway --&gt; ProductService
+    MobileBff --&gt; RecommendationService
+</pre><p><code>WebClient</code> と <code>MobileClient</code> はそれぞれ専用のBFFを持ち、それぞれが必要な形のデータを受け取ります。<code>RecommendationService</code> の追加呼び出しも <code>MobileBff</code> の中に収まっています。</p><hr><h2 id=制服が二着になった>制服が二着になった</h2><p>テストで確認した。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># WebBff: Web管理画面向け8フィールドを返す</span>
+</span></span><span class=line><span class=cl><span class=n>ok</span><span class=p>(</span><span class=nb>defined</span> <span class=nv>$web_res</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>warehouse_code</span><span class=p>},</span> <span class=s>&#39;WebBff には warehouse_code がある&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>ok</span><span class=p>(</span><span class=nb>defined</span> <span class=nv>$web_res</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>restock_date</span><span class=p>},</span>   <span class=s>&#39;WebBff には restock_date がある&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>ok</span><span class=p>(</span><span class=nb>defined</span> <span class=nv>$web_res</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>category_path</span><span class=p>},</span>  <span class=s>&#39;WebBff には category_path がある&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>ok</span><span class=p>(</span><span class=o>!</span><span class=nb>defined</span> <span class=nv>$web_res</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>recommendations</span><span class=p>},</span> <span class=s>&#39;WebBff には recommendations がない&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># MobileBff: Mobile向け最小フィールド + recommendations を返す</span>
+</span></span><span class=line><span class=cl><span class=n>ok</span><span class=p>(</span><span class=nb>defined</span> <span class=nv>$mobile_res</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>in_stock</span><span class=p>},</span>        <span class=s>&#39;MobileBff には in_stock がある&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>ok</span><span class=p>(</span><span class=nb>defined</span> <span class=nv>$mobile_res</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>recommendations</span><span class=p>},</span> <span class=s>&#39;MobileBff には recommendations がある&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>ok</span><span class=p>(</span><span class=o>!</span><span class=nb>defined</span> <span class=nv>$mobile_res</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>warehouse_code</span><span class=p>},</span> <span class=s>&#39;MobileBff に warehouse_code はない&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>ok</span><span class=p>(</span><span class=o>!</span><span class=nb>defined</span> <span class=nv>$mobile_res</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>restock_date</span><span class=p>},</span>   <span class=s>&#39;MobileBff に restock_date はない&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>ok</span><span class=p>(</span><span class=o>!</span><span class=nb>defined</span> <span class=nv>$mobile_res</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>category_path</span><span class=p>},</span>  <span class=s>&#39;MobileBff に category_path はない&#39;</span><span class=p>);</span>
+</span></span></code></pre></td></tr></table></div></div><p>全部 <code>ok</code> だった。</p><p>「Web には必要なフィールドだけ。Mobile には必要なフィールドだけ、プラス関連商品」と声に出してみた。</p><p>「それぞれの玄関ができた」ロックさんが言った。</p><p>「前回の Gateway は……正しかったんですね」</p><p>「そうだよ。前回は被害半径を止めた。今回は形を分けた。どちらが欠けても、今日の答えには辿り着けなかった」</p><p>（設計に最後の一手はない。前回の答えが今回の土台になった——今回の答えが、次の土台になる。それが設計なのかもしれない）</p><p>ラップトップを閉じて、立ち上がった。</p><hr><p>ロックさんが声をかけてきたのは、帰ろうとしたときだった。</p><p>「待ちたまえ、ワトソン君」</p><p>振り向いた。ロックさんは窓の方を向いたままだった。</p><p>「一つ聞いてもよいかね。おまえは今回、自分で仮説を持ってきたかね」</p><p>「……『BFF』というものかもしれないと、来る前に少し調べました」</p><p>「よろしい」</p><p>間があった。</p><p>「今日が私の最後の依頼だ」</p><p>「え——それは、どういう意味ですか」</p><p>「そのままの意味だよ」</p><p>何を言うべきか分からなかった。引き止めるのも変だし、理由を聞いても答えないと思った。2回の訪問で、そういう人だと分かっていた。</p><p>「わかりました。——ありがとうございました、ロックさん」</p><p>ロックさんは何も言わなかった。それでいいと思った。</p><hr><p>階段を下りて、外に出た。振り返ったとき、LCI の看板の横に、小さな「準備中」のカードが下がっていた。いつからそこにあったのか、分からなかった。</p><p>あれから事務所へは行っていない。田中さんに聞いたら、「LCIはもう閉まっている」とだけ言われた。理由は聞かなかった。——次の事件は、自分で解いた。</p><hr><h2 id=探偵の調査報告書>探偵の調査報告書</h2><div class=table-wrapper><table><thead><tr><th>容疑（アンチパターン）</th><th>真実（パターン）</th><th>証拠（効果）</th></tr></thead><tbody><tr><td>One-size-fits-all API</td><td>Backends for Frontends（BFF）</td><td>WebとMobileがそれぞれ必要なフィールドだけを受け取れる</td></tr><tr><td>Over-fetching（不要フィールドの受信）</td><td><code>WebBff</code> / <code>MobileBff</code> によるレスポンスの整形</td><td>Mobileが不要な5フィールドを受け取らなくなる</td></tr><tr><td>Under-fetching（Chatty I/O）</td><td><code>MobileBff</code> への <code>RecommendationService</code> 統合</td><td>Mobileが関連商品を1リクエストで取得できる</td></tr><tr><td>共通APIによるチーム間の摩擦</td><td>クライアント種別ごとのBFF所有</td><td>WebチームはWebBffを、MobileチームはMobileBffを独立して管理できる</td></tr></tbody></table></div><h3 id=推理のステップ>推理のステップ</h3><ol><li>全クライアントが同一エンドポイントを呼んでいる場合、各クライアントが実際に使うフィールドを並べて比較する</li><li>Over-fetching（受け取るが使わないフィールド）と Under-fetching（必要だが取れないデータ）を同時に確認する</li><li><code>BFF::Role::Builder</code>（または同等の契約）を定め、各BFFが守るべき共通インターフェースを先に決める</li><li><code>WebBff</code> と <code>MobileBff</code> を分けて実装し、それぞれが自クライアントの形に合わせたレスポンスを組み立てる</li><li>認証・ルーティングなど共通処理は既存の Gateway に残し、BFFはレスポンス整形に集中させる</li><li>テストで「自分のクライアントに不要なフィールドを返さないこと」「必要なデータが1リクエストで取れること」を確認する</li></ol><p>BFFが肥大化するリスクには注意が必要です。複数のクライアントを1つのBFFで担当すると、汎用APIと同じ問題が再発します。「1クライアント種別 = 1BFF」を原則とし、ビジネスロジックはBFFに持ち込まず、下流サービスへ委譲してください。</p><p>Gateway との関係も重要です。BFFはGatewayを置き換えるのではなく、後ろ側でデータを整える役割を担います。認証・ルーティングはGatewayに残し、BFFは整形に徹することで、それぞれが薄く保てます。</p><h3 id=ロックより>ロックより</h3><p>「一つの答えで全員を満足させようとするな。全員に合う答えは、結局誰にも届かない。相手の形を知り、相手の形に合わせて整えること——それが、すべての設計の出発点だよ。統一は問題を解く。分化は問題に応える。おまえはそれを二回で学んだ。よろしい。——それぞれの玄関を作りたまえ、ワトソン君。次は自分で建てることだ」</p></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/perl/>Perl</a>
+<a href=/tags/moo/>Moo</a>
+<a href=/tags/backends-for-frontends/>Backends-for-Frontends</a>
+<a href=/tags/bff/>Bff</a>
+<a href=/tags/one-size-fits-all-api/>One-Size-Fits-All-Api</a>
+<a href=/tags/over-fetching/>Over-Fetching</a>
+<a href=/tags/under-fetching/>Under-Fetching</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-detective/>Code-Detective</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/05/14/070705/><div class=article-image><img src=/public_images/2026/code-detective-api-gateway/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-api-gateway/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【API Gateway】窓口のない捜査本部〜マイクロサービスに個別に会いに行く悲劇〜</h2></div></a></article><article class=has-image><a href=/2026/05/13/070705/><div class=article-image><img src=/public_images/2026/code-detective-strangler-fig/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-strangler-fig/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Strangler Fig】外壁に伸びる蔓〜全面更改が新旧を窒息させる夜〜</h2></div></a></article><article class=has-image><a href=/2026/05/12/070705/><div class=article-image><img src=/public_images/2026/code-detective-anti-corruption-layer/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-anti-corruption-layer/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Anti-Corruption Layer】越境伝票の怪〜外様の略語が捜査本部を汚す夜〜</h2></div></a></article><article class=has-image><a href=/2026/05/11/070705/><div class=article-image><img src=/public_images/2026/code-detective-competing-consumers/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-competing-consumers/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Competing Consumers】重なる受領印〜増員だけでは消えない二重処理〜</h2></div></a></article><article class=has-image><a href=/2026/05/10/070705/><div class=article-image><img src=/public_images/2026/code-detective-dlq/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-dlq/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Dead Letter Queue】差し戻し地獄〜リトライの檻に囚われたメッセージ〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

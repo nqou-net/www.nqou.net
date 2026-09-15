@@ -1,0 +1,288 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="複数マイクロサービスへの直接通信でクライアントが疲弊する問題を、API Gateway と集約オブジェクトで一本化する Perl/Moo 実装です"><title>コード探偵ロックの事件簿【API Gateway】窓口のない捜査本部〜マイクロサービスに個別に会いに行く悲劇〜</title><link rel=canonical href=https://www.nqou.net/2026/05/14/070705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コード探偵ロックの事件簿【API Gateway】窓口のない捜査本部〜マイクロサービスに個別に会いに行く悲劇〜"><meta property='og:description' content="複数マイクロサービスへの直接通信でクライアントが疲弊する問題を、API Gateway と集約オブジェクトで一本化する Perl/Moo 実装です"><meta property='og:url' content='https://www.nqou.net/2026/05/14/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='perl'><meta property='article:tag' content='moo'><meta property='article:tag' content='api-gateway'><meta property='article:tag' content='direct-client-to-microservice'><meta property='article:tag' content='gateway-aggregation'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-detective'><meta property='article:published_time' content='2026-05-14T07:07:05+09:00'><meta property='article:modified_time' content='2026-05-14T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-detective-api-gateway/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コード探偵ロックの事件簿【API Gateway】窓口のない捜査本部〜マイクロサービスに個別に会いに行く悲劇〜"><meta name=twitter:description content="複数マイクロサービスへの直接通信でクライアントが疲弊する問題を、API Gateway と集約オブジェクトで一本化する Perl/Moo 実装です"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-detective-api-gateway/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-05-14T07:07:05+09:00","datePublished":"2026-05-14T07:07:05+09:00","description":"複数マイクロサービスへの直接通信でクライアントが疲弊する問題を、API Gateway と集約オブジェクトで一本化する Perl/Moo 実装です","headline":"コード探偵ロックの事件簿【API Gateway】窓口のない捜査本部〜マイクロサービスに個別に会いに行く悲劇〜","image":"https://www.nqou.net/public_images/2026/code-detective-api-gateway/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/05/14/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#フロントエンドチームに来た探偵>フロントエンドチームに来た探偵</a></li><li><a href=#4-本の電話線>4 本の電話線</a></li><li><a href=#受付を一人立てろ>受付を一人立てろ</a><ol><li><a href=#まず受付を設計する>まず受付を設計する</a></li><li><a href=#集約の仕事を専門室へ>集約の仕事を専門室へ</a></li><li><a href=#クライアントの変化>クライアントの変化</a></li></ol></li><li><a href=#構造の変化>構造の変化</a><ol><li><a href=#before-クライアントが-4-サービスを直接知っている>Before: クライアントが 4 サービスを直接知っている</a></li><li><a href=#after-gateway-が窓口を一本化する>After: Gateway が窓口を一本化する</a></li></ol></li><li><a href=#電話線が-1-本になる>電話線が 1 本になる</a></li><li><a href=#探偵の調査報告書>探偵の調査報告書</a><ol><li><a href=#推理のステップ>推理のステップ</a></li><li><a href=#ロックより>ロックより</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/05/14/070705/><img src=/public_images/2026/code-detective-api-gateway/header.webp loading=lazy alt="Featured image of post コード探偵ロックの事件簿【API Gateway】窓口のない捜査本部〜マイクロサービスに個別に会いに行く悲劇〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/05/14/070705/>コード探偵ロックの事件簿【API Gateway】窓口のない捜査本部〜マイクロサービスに個別に会いに行く悲劇〜</a></h2><h3 class=article-subtitle>複数マイクロサービスへの直接通信でクライアントが疲弊する問題を、API Gateway と集約オブジェクトで一本化する Perl/Moo 実装です</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>14, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 10分</time></div></footer></div></header><section class=article-content><h2 id=フロントエンドチームに来た探偵>フロントエンドチームに来た探偵</h2><p>バックエンドチームから連絡が来た。今度は Order サービスのベースパスが変わるという。3ヶ月で 6 回目だった。</p><p>僕はモニタの右側に Excel を開き、「API エンドポイント一覧」のシートを探した。更新済みの黄色セルが散らばる表の中に、また新しい修正箇所を書き足す。それがここ数ヶ月の仕事の一部だった。</p><p>「失礼、フロントエンドチームはここかね」</p><p>振り向かずに答えた。「田中さんから聞いてきましたか」</p><p>「ああ、境界の揉め事があるなら LCI に行けと言われてね。そちらのシニアエンジニアから紹介状をもらってきたよ」</p><p>ロックさんと名乗るその人は、名刺を机に置きながら、何のことわりもなく隣の椅子を引いて座った。そして開いたままの Excel を眺めた。</p><p>「これは……捜査員名簿かね。それとも戦争のときに作る緊急連絡先の一覧か」</p><p>初めて画面を指摘された気がした。同僚は誰もこのファイルに何も言わなかった。「API のエンドポイントが変わるたびに、フロントのコードを修正するためです。一覧がないと何を直せばいいか分からない」</p><p>「なるほど。全員に個別に会いに行くから、全員の住所が必要になる、ということだね」</p><p>僕は少し間を置いてから「そのとおりです」と答えた。初対面の人間に言われた言葉とは思えないくらい、正確だった。</p><p>「それで、ワトソン君。コードを見せてもらえるか」</p><p>「……田中さんから、その呼び名の説明も受けていますか」</p><p>「受けていないね」</p><p>「では流します」</p><hr><h2 id=4-本の電話線>4 本の電話線</h2><p>「これが、チェックアウト処理のコードです」</p><p>僕は VS Code を前面に出した。淡々と説明する気力しかなかった。「<code>user_service</code>、<code>product_service</code>、<code>order_service</code>、<code>payment_service</code>。4 つ全部を直接呼んでいます」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>CheckoutController</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(Object)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>user_service</span>    <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Object</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>product_service</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Object</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>order_service</span>   <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Object</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>payment_service</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Object</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>checkout</span> <span class=p>($self, $user_id, $product_id, $amount) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$user</span>    <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>user_service</span><span class=o>-&gt;</span><span class=n>get_user</span><span class=p>(</span><span class=nv>$user_id</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$product</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>product_service</span><span class=o>-&gt;</span><span class=n>get_product</span><span class=p>(</span><span class=nv>$product_id</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$stock</span>   <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>product_service</span><span class=o>-&gt;</span><span class=n>check_stock</span><span class=p>(</span><span class=nv>$product_id</span><span class=p>,</span> <span class=nv>$amount</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=nb>die</span> <span class=s>&#34;Out of stock\n&#34;</span> <span class=k>unless</span> <span class=nv>$stock</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>available</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$order</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>order_service</span><span class=o>-&gt;</span><span class=n>create_order</span><span class=p>({</span>
+</span></span><span class=line><span class=cl>        <span class=n>user_id</span>    <span class=o>=&gt;</span> <span class=nv>$user_id</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>product_id</span> <span class=o>=&gt;</span> <span class=nv>$product_id</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>amount</span>     <span class=o>=&gt;</span> <span class=nv>$amount</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>});</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$payment</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>payment_service</span><span class=o>-&gt;</span><span class=n>charge</span><span class=p>({</span>
+</span></span><span class=line><span class=cl>        <span class=n>user_id</span>  <span class=o>=&gt;</span> <span class=nv>$user_id</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>order_id</span> <span class=o>=&gt;</span> <span class=nv>$order</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>id</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>        <span class=n>total</span>    <span class=o>=&gt;</span> <span class=nv>$product</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>price</span><span class=p>}</span> <span class=o>*</span> <span class=nv>$amount</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>{</span> <span class=n>order</span> <span class=o>=&gt;</span> <span class=nv>$order</span><span class=p>,</span> <span class=n>payment</span> <span class=o>=&gt;</span> <span class=nv>$payment</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>ロックさんはコードを見ながら、<code>has</code> の行を声に出さずに指で数えた。4 本ぶんの指を折った。</p><p>「認証は？」</p><p>「各サービスにそれぞれ実装されています。先月 Product チームがトークン検証の方式を変えたとき、フロントは 5 ファイル修正しました」</p><p>「ふむ。4 人に個別に電話をかける捜査本部だね」ロックさんはそう言って、少しだけ楽しそうに見えた。楽しそうに見えたのは外側からの印象で、内心は読めなかった。「各サービスの部屋を直接叩いて回る。一人が引っ越せば、住所録を更新しなければならない」</p><p>「そのとおりです。3ヶ月で 6 回、あのスプレッドシートを更新しました」</p><p>「——今は動いているんです」僕はそこで付け足した。「修正コストを許容するしかないのでは、と正直思っています」</p><p>ロックさんは少し間を置いた。</p><p>「今は動いている、ね。だがここ 3 ヶ月でスプレッドシートに何行追加した？」</p><p>「6 行です」</p><p>「バグは一点で燃える。結合はじわじわ燃える。今日は動いているが、次の変更が来るたびに君はまたあのファイルを開く。それが事件だよ、ワトソン君」</p><p>「……ロックさんは、設計の問題だと言うんですか」</p><p>「私が言うのではない。そのスプレッドシートが言っている」</p><p>ロックさんはコードを指した。「容疑者は 4 本の電話線そのものだ。正確には——<strong>クライアントがバックエンドの内部構造をすべて知っていること</strong>だよ。サービスの数だけ結合が増え、変更のたびにクライアントが巻き込まれる。窓口のない捜査本部の事件だ」</p><hr><h2 id=受付を一人立てろ>受付を一人立てろ</h2><p>「解決策を見せましょう」</p><p>ロックさんは新しいファイルを開いた。</p><h3 id=まず受付を設計する>まず受付を設計する</h3><p>「最初に <code>ApiGateway</code> を立てる。クライアントはこの受付にしか会わなくていい」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>ApiGateway</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(Object HashRef)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>aggregator</span>   <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Object</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>_route_table</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>HashRef</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=p>{}</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>register</span> <span class=p>($self, $path, $handler) {</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>_route_table</span><span class=o>-&gt;</span><span class=p>{</span><span class=nv>$path</span><span class=p>}</span> <span class=o>=</span> <span class=nv>$handler</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>handle</span> <span class=p>($self, $token, $path, @args) {</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_authenticate</span><span class=p>(</span><span class=nv>$token</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$handler</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>_route_table</span><span class=o>-&gt;</span><span class=p>{</span><span class=nv>$path</span><span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=ow>or</span> <span class=nb>die</span> <span class=s>&#34;Not Found: $path\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$handler</span><span class=o>-&gt;</span><span class=p>(</span><span class=nv>@args</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>_authenticate</span> <span class=p>($self, $token) {</span>
+</span></span><span class=line><span class=cl>    <span class=nb>die</span> <span class=s>&#34;Unauthorized\n&#34;</span> <span class=k>unless</span> <span class=nb>defined</span><span class=p>(</span><span class=nv>$token</span><span class=p>)</span> <span class=o>&amp;&amp;</span> <span class=nv>$token</span> <span class=ow>ne</span> <span class=s>&#39;&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「ルーティングテーブルに登録するんですか」</p><p>「そうだ。どのパスをどのハンドラへ回すかを、この表一枚で管理する。バックエンドが変わっても、クライアントは <code>handle('/checkout', ...)</code> を呼ぶだけでいい。Order サービスのベースパスが変わっても、クライアントのコードは変わらない」</p><p>「認証を Gateway に集めると……」</p><p>「肥大化する、と言いたいんだね」ロックさんは先回りした。「そのリスクは本物だ。単一の Gateway がすべての責務を抱え込めば、それは新しいモノリスになる。だから窓口は薄く保つ。認証確認と転送だけを窓口の仕事にする」</p><h3 id=集約の仕事を専門室へ>集約の仕事を専門室へ</h3><p>「複数サービスへの呼び出しは、別の担当に任せる」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Gateway::CheckoutAggregator</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(Object)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>user_service</span>    <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Object</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>product_service</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Object</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>order_service</span>   <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Object</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>payment_service</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Object</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>aggregate</span> <span class=p>($self, $user_id, $product_id, $amount) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$user</span>    <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>user_service</span><span class=o>-&gt;</span><span class=n>get_user</span><span class=p>(</span><span class=nv>$user_id</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$product</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>product_service</span><span class=o>-&gt;</span><span class=n>get_product</span><span class=p>(</span><span class=nv>$product_id</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$stock</span>   <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>product_service</span><span class=o>-&gt;</span><span class=n>check_stock</span><span class=p>(</span><span class=nv>$product_id</span><span class=p>,</span> <span class=nv>$amount</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=nb>die</span> <span class=s>&#34;Out of stock\n&#34;</span> <span class=k>unless</span> <span class=nv>$stock</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>available</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$order</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>order_service</span><span class=o>-&gt;</span><span class=n>create_order</span><span class=p>({</span>
+</span></span><span class=line><span class=cl>        <span class=n>user_id</span>    <span class=o>=&gt;</span> <span class=nv>$user_id</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>product_id</span> <span class=o>=&gt;</span> <span class=nv>$product_id</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>amount</span>     <span class=o>=&gt;</span> <span class=nv>$amount</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>});</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$payment</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>payment_service</span><span class=o>-&gt;</span><span class=n>charge</span><span class=p>({</span>
+</span></span><span class=line><span class=cl>        <span class=n>user_id</span>  <span class=o>=&gt;</span> <span class=nv>$user_id</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>order_id</span> <span class=o>=&gt;</span> <span class=nv>$order</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>id</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>        <span class=n>total</span>    <span class=o>=&gt;</span> <span class=nv>$product</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>price</span><span class=p>}</span> <span class=o>*</span> <span class=nv>$amount</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>{</span> <span class=n>order</span> <span class=o>=&gt;</span> <span class=nv>$order</span><span class=p>,</span> <span class=n>payment</span> <span class=o>=&gt;</span> <span class=nv>$payment</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「窓口は薄く。集約は専門室へ」ロックさんが言った。「窓口が自分で 4 部屋を走り回れば、それはすぐに肥大化した Gateway になる。仕事を振れば、窓口は薄いまま保てる」</p><p>「受付が案内係で、<code>Gateway::CheckoutAggregator</code> が連絡係、ということですか」</p><p>「結構。受付が走り回れば神になる。仕事を振れば薄いまま保てる」</p><h3 id=クライアントの変化>クライアントの変化</h3><p>「最後に、チェックアウトのコードだ」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>CheckoutController</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(Object)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>gateway</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Object</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>checkout</span> <span class=p>($self, $token, $user_id, $product_id, $amount) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>gateway</span><span class=o>-&gt;</span><span class=n>handle</span><span class=p>(</span><span class=nv>$token</span><span class=p>,</span> <span class=s>&#39;/checkout&#39;</span><span class=p>,</span> <span class=nv>$user_id</span><span class=p>,</span> <span class=nv>$product_id</span><span class=p>,</span> <span class=nv>$amount</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>has</code> の行が 1 本になっていた。<code>user_service</code> も <code>product_service</code> も <code>order_service</code> も <code>payment_service</code> も消えていた。</p><p>「<code>gateway</code> しかいない」</p><p>「そうだよ、ワトソン君。チェックアウトは <code>/checkout</code> への経路だけを知っている。バックエンドが分割されようと統合されようと、ルーティングテーブルを直すだけだ」</p><p>「……Gateway を一枚置いても、内部サービスの分割は変わらないんでしょう？」</p><p>「そうだよ。変わらない」ロックさんはそこで一度止まった。「変わるのは変更の被害半径だ。今は 4 サービスの変更が全部クライアントへ届く。Gateway を挟めば、変更はルーティングテーブルで止まる。クライアントに火が回らない」</p><p>（Gateway は魔法ではない。依存が消えるわけではない。だが変更がどこで止まるかが変わる——そういうことか）</p><p>「あの」と僕は続けた。「先週の設計会議で『ACL』という話が出ていました。外部の語彙を内部に持ち込まないための境界だと。Gateway と何が違うんですか」</p><p>「ACL は翻訳係だ。借り物の言葉を自分たちの言葉に直す係」ロックさんは手で境界線を引くような動作をした。「Gateway は受付係だ。訪問者を適切な部屋へ案内する係。翻訳係がいても、受付がいなければ訪問者は全部の部屋を叩いて回る。役割が違う」</p><p>「では、Gateway の内部で ACL を使うこともありますか」</p><p>「よくある。Gateway が案内し、各サービスとの接続点で ACL が翻訳する。競合ではなく、役割の分担だよ」</p><hr><h2 id=構造の変化>構造の変化</h2><p>Before と After の依存関係を図にすると、変化が明確になります。</p><h3 id=before-クライアントが-4-サービスを直接知っている>Before: クライアントが 4 サービスを直接知っている</h3><pre class=mermaid>
+	classDiagram
+    class CheckoutController {
+        +user_service
+        +product_service
+        +order_service
+        +payment_service
+        +checkout(user_id, product_id, amount)
+    }
+    CheckoutController --&gt; UserService
+    CheckoutController --&gt; ProductService
+    CheckoutController --&gt; OrderService
+    CheckoutController --&gt; PaymentService
+</pre><h3 id=after-gateway-が窓口を一本化する>After: Gateway が窓口を一本化する</h3><pre class=mermaid>
+	classDiagram
+    class CheckoutController {
+        +gateway
+        +checkout(token, user_id, product_id, amount)
+    }
+    class ApiGateway {
+        +aggregator
+        -_route_table
+        +register(path, handler)
+        +handle(token, path, args)
+        -_authenticate(token)
+    }
+    class CheckoutAggregator {
+        +user_service
+        +product_service
+        +order_service
+        +payment_service
+        +aggregate(user_id, product_id, amount)
+    }
+    CheckoutController --&gt; ApiGateway
+    ApiGateway --&gt; CheckoutAggregator
+    CheckoutAggregator --&gt; UserService
+    CheckoutAggregator --&gt; ProductService
+    CheckoutAggregator --&gt; OrderService
+    CheckoutAggregator --&gt; PaymentService
+</pre><p><code>CheckoutController</code> が知るのは <code>ApiGateway</code> だけです。バックエンドのサービスが再編されても、クライアントのコードには届きません。</p><hr><h2 id=電話線が-1-本になる>電話線が 1 本になる</h2><p>テストで確認した。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># After: CheckoutController が gateway だけを知っている</span>
+</span></span><span class=line><span class=cl><span class=n>ok</span><span class=p>(</span><span class=nn>CheckoutController</span><span class=o>-&gt;</span><span class=n>can</span><span class=p>(</span><span class=s>&#39;gateway&#39;</span><span class=p>),</span>          <span class=s>&#39;gateway への依存がある&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>ok</span><span class=p>(</span><span class=o>!</span><span class=nn>CheckoutController</span><span class=o>-&gt;</span><span class=n>can</span><span class=p>(</span><span class=s>&#39;user_service&#39;</span><span class=p>),</span>    <span class=s>&#39;user_service への直接依存がない&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>ok</span><span class=p>(</span><span class=o>!</span><span class=nn>CheckoutController</span><span class=o>-&gt;</span><span class=n>can</span><span class=p>(</span><span class=s>&#39;product_service&#39;</span><span class=p>),</span> <span class=s>&#39;product_service への直接依存がない&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>ok</span><span class=p>(</span><span class=o>!</span><span class=nn>CheckoutController</span><span class=o>-&gt;</span><span class=n>can</span><span class=p>(</span><span class=s>&#39;order_service&#39;</span><span class=p>),</span>   <span class=s>&#39;order_service への直接依存がない&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>ok</span><span class=p>(</span><span class=o>!</span><span class=nn>CheckoutController</span><span class=o>-&gt;</span><span class=n>can</span><span class=p>(</span><span class=s>&#39;payment_service&#39;</span><span class=p>),</span> <span class=s>&#39;payment_service への直接依存がない&#39;</span><span class=p>);</span>
+</span></span></code></pre></td></tr></table></div></div><p>全部 <code>ok</code> だった。</p><p>「仕様変更の修正箇所が……ルーティングテーブルで止まります。今まで <code>src/api/</code> を全部開いていたのに」</p><p>「これでようやく、チェックアウトはチェックアウトの仕事だけをすればよくなった」</p><p>バックエンドが新しいサービス群に切り替わっても、<code>CheckoutController</code> は変更不要なことをテストでも確認できる。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># Aggregator を差し替えても CheckoutController は無改修で動く</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$new_agg</span> <span class=o>=</span> <span class=nn>NewAggregator</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=o>...</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$gateway</span> <span class=o>=</span> <span class=nn>ApiGateway</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>aggregator</span> <span class=o>=&gt;</span> <span class=nv>$new_agg</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$gateway</span><span class=o>-&gt;</span><span class=n>register</span><span class=p>(</span><span class=s>&#39;/checkout&#39;</span><span class=p>,</span> <span class=k>sub</span> <span class=p>($user_id, $product_id, $amount) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$new_agg</span><span class=o>-&gt;</span><span class=n>aggregate</span><span class=p>(</span><span class=nv>$user_id</span><span class=p>,</span> <span class=nv>$product_id</span><span class=p>,</span> <span class=nv>$amount</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$ctrl</span>   <span class=o>=</span> <span class=nn>CheckoutController</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>gateway</span> <span class=o>=&gt;</span> <span class=nv>$gateway</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$result</span> <span class=o>=</span> <span class=nv>$ctrl</span><span class=o>-&gt;</span><span class=n>checkout</span><span class=p>(</span><span class=s>&#39;valid-token&#39;</span><span class=p>,</span> <span class=mi>1</span><span class=p>,</span> <span class=mi>1</span><span class=p>,</span> <span class=mi>3</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>ok</span><span class=p>(</span><span class=nv>$result</span><span class=p>,</span> <span class=s>&#39;バックエンドを切り替えても CheckoutController は変更なしで動く&#39;</span><span class=p>);</span>
+</span></span></code></pre></td></tr></table></div></div><p>「スプレッドシートが……要らなくなります」</p><p>気づくと Excel が開いたままだった。閉じた。シートが 6 枚あった。</p><p>「ロックさん。今日の費用は」</p><p>「6 枚のシートだったね」ロックさんは立ち上がりながら言った。「では 6 冊、廃盤になった技術書を要求する。どれかは指定しない。見つけてきたまえ」</p><p>「廃盤の本は自分で探すしかないのでは」</p><p>「それが醍醐味だよ。——次にバックエンドが変わったとき、そのルーティングテーブルだけを直したまえ、ワトソン君」</p><hr><h2 id=探偵の調査報告書>探偵の調査報告書</h2><div class=table-wrapper><table><thead><tr><th>容疑（アンチパターン）</th><th>真実（パターン）</th><th>証拠（効果）</th></tr></thead><tbody><tr><td>Direct Client-to-Microservice Communication</td><td>API Gateway パターン</td><td>クライアントが <code>gateway</code> だけを知り、バックエンドの変更が届かない</td></tr><tr><td>4 サービスへの直接依存</td><td><code>ApiGateway</code> による窓口の一本化</td><td>ルーティングテーブルで変更を吸収し、クライアントの修正が不要になる</td></tr><tr><td>認証のクロスカッティング重複</td><td>Gateway への認証集約</td><td>各サービスが個別に認証実装しなくてよくなる</td></tr><tr><td>クライアント側の API 一覧管理</td><td><code>_route_table</code> によるルーティング管理</td><td>エンドポイント変更の被害半径がルーティングテーブルで止まる</td></tr></tbody></table></div><h3 id=推理のステップ>推理のステップ</h3><ol><li>クライアントが直接知っているサービスの数を数える（<code>has</code> の行を数えるだけでよい）</li><li>認証・ロギング等のクロスカッティング処理がどのサービスに重複しているかを確認する</li><li><code>ApiGateway</code> を立て、ルーティングテーブルと認証集約を担わせる</li><li>複数サービスへの呼び出しを <code>Gateway::CheckoutAggregator</code>（または類似の集約オブジェクト）に委譲する</li><li>クライアントを <code>gateway</code> だけに依存させ、内部サービスの存在を知らなくする</li><li>バックエンドの変更（メソッド名・エンドポイント・サービス分割）がクライアントに届かないことをテストで確認する</li></ol><p>Gateway が肥大化する（God Gateway になる）リスクには注意が必要です。認証確認と転送だけを Gateway の責務とし、複数サービスへの集約は専用のアグリゲーターへ委譲することで、Gateway を薄く保つことができます。</p><p>ACL（Anti-Corruption Layer）との使い分けも重要です。Gateway は「誰をどの部屋へ案内するか」を担い、ACL は「部屋の中で何をどの言葉に翻訳するか」を担います。役割が異なるため、競合せず組み合わせて使うことができます。</p><h3 id=ロックより>ロックより</h3><p>「窓口のない建物に、訪問者を通してはいけない。全部の部屋の住所を渡された者は、やがて住所の管理で疲弊する。受付を一人立てれば、変更は受付の机の上で止まる。クライアントは経路だけを知り、部屋の数を知らなくていい。スプレッドシートを閉じたまえ、ワトソン君」</p></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/perl/>Perl</a>
+<a href=/tags/moo/>Moo</a>
+<a href=/tags/api-gateway/>Api-Gateway</a>
+<a href=/tags/direct-client-to-microservice/>Direct-Client-to-Microservice</a>
+<a href=/tags/gateway-aggregation/>Gateway-Aggregation</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-detective/>Code-Detective</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/05/15/070705/><div class=article-image><img src=/public_images/2026/code-detective-bff/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-bff/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Backends for Frontends】最後の依頼〜一つの答えが全員を不満にする夜〜</h2></div></a></article><article class=has-image><a href=/2026/05/13/070705/><div class=article-image><img src=/public_images/2026/code-detective-strangler-fig/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-strangler-fig/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Strangler Fig】外壁に伸びる蔓〜全面更改が新旧を窒息させる夜〜</h2></div></a></article><article class=has-image><a href=/2026/05/12/070705/><div class=article-image><img src=/public_images/2026/code-detective-anti-corruption-layer/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-anti-corruption-layer/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Anti-Corruption Layer】越境伝票の怪〜外様の略語が捜査本部を汚す夜〜</h2></div></a></article><article class=has-image><a href=/2026/05/11/070705/><div class=article-image><img src=/public_images/2026/code-detective-competing-consumers/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-competing-consumers/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Competing Consumers】重なる受領印〜増員だけでは消えない二重処理〜</h2></div></a></article><article class=has-image><a href=/2026/05/10/070705/><div class=article-image><img src=/public_images/2026/code-detective-dlq/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-dlq/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Dead Letter Queue】差し戻し地獄〜リトライの檻に囚われたメッセージ〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

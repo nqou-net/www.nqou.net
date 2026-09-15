@@ -1,0 +1,621 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="共通関数に抽出しても、引数に http.ResponseWriter を握っている限りHTTPの外からは呼べない。物件登録のロジックを Execute(ctx) error だけで話すCommandに切り出し、HTTPハンドラーからもフィード取り込みワーカーからも、同じ部品を組み立てて実行できるようにした整備記録。"><title>コードメカニック【Command】一日見積もりが、底なしだった〜ハンドラーに作り付けた仕事を、一個の命令に切り出す〜</title><link rel=canonical href=https://www.nqou.net/2026/07/01/070705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コードメカニック【Command】一日見積もりが、底なしだった〜ハンドラーに作り付けた仕事を、一個の命令に切り出す〜"><meta property='og:description' content="共通関数に抽出しても、引数に http.ResponseWriter を握っている限りHTTPの外からは呼べない。物件登録のロジックを Execute(ctx) error だけで話すCommandに切り出し、HTTPハンドラーからもフィード取り込みワーカーからも、同じ部品を組み立てて実行できるようにした整備記録。"><meta property='og:url' content='https://www.nqou.net/2026/07/01/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='go'><meta property='article:tag' content='command'><meta property='article:tag' content='fat-handler'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-mechanic'><meta property='article:published_time' content='2026-07-01T07:07:05+09:00'><meta property='article:modified_time' content='2026-07-01T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-mechanic-fat-handler-command/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コードメカニック【Command】一日見積もりが、底なしだった〜ハンドラーに作り付けた仕事を、一個の命令に切り出す〜"><meta name=twitter:description content="共通関数に抽出しても、引数に http.ResponseWriter を握っている限りHTTPの外からは呼べない。物件登録のロジックを Execute(ctx) error だけで話すCommandに切り出し、HTTPハンドラーからもフィード取り込みワーカーからも、同じ部品を組み立てて実行できるようにした整備記録。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-mechanic-fat-handler-command/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-07-01T07:07:05+09:00","datePublished":"2026-07-01T07:07:05+09:00","description":"共通関数に抽出しても、引数に http.ResponseWriter を握っている限りHTTPの外からは呼べない。物件登録のロジックを Execute(ctx) error だけで話すCommandに切り出し、HTTPハンドラーからもフィード取り込みワーカーからも、同じ部品を組み立てて実行できるようにした整備記録。","headline":"コードメカニック【Command】一日見積もりが、底なしだった〜ハンドラーに作り付けた仕事を、一個の命令に切り出す〜","image":"https://www.nqou.net/public_images/2026/code-mechanic-fat-handler-command/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/07/01/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#一日見積もりの底>一日見積もりの底</a></li><li><a href=#ケーブルが一本抜けない>ケーブルが一本、抜けない</a></li><li><a href=#作り付けの登録処理>作り付けの登録処理</a></li><li><a href=#ctx-と-error-だけで話す部品>ctx と error だけで話す部品</a></li><li><a href=#載せ替えの効く部品>載せ替えの効く部品</a></li><li><a href=#整備記録簿>整備記録簿</a><ol><li><a href=#症状と整備の対応表>症状と整備の対応表</a></li><li><a href=#整備手順>整備手順</a></li><li><a href=#親方より>親方より</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/07/01/070705/><img src=/public_images/2026/code-mechanic-fat-handler-command/header.webp loading=lazy alt="Featured image of post コードメカニック【Command】一日見積もりが、底なしだった〜ハンドラーに作り付けた仕事を、一個の命令に切り出す〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/07/01/070705/>コードメカニック【Command】一日見積もりが、底なしだった〜ハンドラーに作り付けた仕事を、一個の命令に切り出す〜</a></h2><h3 class=article-subtitle>共通関数に抽出しても、引数に http.ResponseWriter を握っている限りHTTPの外からは呼べない。物件登録のロジックを Execute(ctx) error だけで話すCommandに切り出し、HTTPハンドラーからもフィード取り込みワーカーからも、同じ部品を組み立てて実行できるようにした整備記録。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>01, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 18分</time></div></footer></div></header><section class=article-content><h2 id=一日見積もりの底>一日見積もりの底</h2><p>夕方六時を回って、フロアの照明が半分落ちた。残っているのは私を入れて三人。鳴っている電話もないし、警告灯が点いたわけでもない。緊急なんて、どこにもない。どこにもないのに、私は自分の席で、たった一つの関数の前から動けなくなっていた。</p><p>今朝のスタンドアップで、私はこう言った。「提携先フィードの一括取り込み、既存の登録処理を呼ぶだけなので、一日で出せます」。</p><p>見積もり、一日。……一日? 既存の登録処理を実際に開いた今、その「呼ぶだけ」の底が、思っていたよりずっと深いことに気づきはじめていた。</p><p>私は、自社で運営している不動産ポータルのバックエンドを書いている。前職はSIerで、テストを書く文化と、コピペを蛇蝎のごとく嫌う先輩たちの中で育った。だからこれは、ささやかな自慢でもある。この物件登録のAPIは、機能追加のたびに肥えてきたけれど、登録のロジックそのものは、ずっと前に <code>registerProperty</code> という一つの関数へ抜き出してある。同じコードをあちこちに貼ったりしていない。一箇所にまとめてある。几帳面にやってきたつもりだ。</p><p>問題の登録ハンドラーは、こうなっている。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span><span class=lnt>51
+</span><span class=lnt>52
+</span><span class=lnt>53
+</span><span class=lnt>54
+</span><span class=lnt>55
+</span><span class=lnt>56
+</span><span class=lnt>57
+</span><span class=lnt>58
+</span><span class=lnt>59
+</span><span class=lnt>60
+</span><span class=lnt>61
+</span><span class=lnt>62
+</span><span class=lnt>63
+</span><span class=lnt>64
+</span><span class=lnt>65
+</span><span class=lnt>66
+</span><span class=lnt>67
+</span><span class=lnt>68
+</span><span class=lnt>69
+</span><span class=lnt>70
+</span><span class=lnt>71
+</span><span class=lnt>72
+</span><span class=lnt>73
+</span><span class=lnt>74
+</span><span class=lnt>75
+</span><span class=lnt>76
+</span><span class=lnt>77
+</span><span class=lnt>78
+</span><span class=lnt>79
+</span><span class=lnt>80
+</span><span class=lnt>81
+</span><span class=lnt>82
+</span><span class=lnt>83
+</span><span class=lnt>84
+</span><span class=lnt>85
+</span><span class=lnt>86
+</span><span class=lnt>87
+</span><span class=lnt>88
+</span><span class=lnt>89
+</span><span class=lnt>90
+</span><span class=lnt>91
+</span><span class=lnt>92
+</span><span class=lnt>93
+</span><span class=lnt>94
+</span><span class=lnt>95
+</span><span class=lnt>96
+</span><span class=lnt>97
+</span><span class=lnt>98
+</span><span class=lnt>99
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=c1>// agents/code-mechanic/tests/fat-handler-command/before/handler.go</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kn>package</span><span class=w> </span><span class=nx>before</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kn>import</span><span class=w> </span><span class=p>(</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=s>&#34;encoding/json&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=s>&#34;fmt&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=s>&#34;net/http&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=c1>// Geocodeなどのメソッドを持つ型なら入る接続規格。本物のAPIでもテスト用モックでも同じ口で差せる</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>type</span><span class=w> </span><span class=nx>Geocoder</span><span class=w> </span><span class=kd>interface</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nf>Geocode</span><span class=p>(</span><span class=nx>address</span><span class=w> </span><span class=kt>string</span><span class=p>)</span><span class=w> </span><span class=p>(</span><span class=kt>float64</span><span class=p>,</span><span class=w> </span><span class=kt>float64</span><span class=p>,</span><span class=w> </span><span class=kt>error</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>type</span><span class=w> </span><span class=nx>DB</span><span class=w> </span><span class=kd>interface</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nf>Save</span><span class=p>(</span><span class=nx>name</span><span class=p>,</span><span class=w> </span><span class=nx>address</span><span class=w> </span><span class=kt>string</span><span class=p>,</span><span class=w> </span><span class=nx>price</span><span class=w> </span><span class=kt>int</span><span class=p>,</span><span class=w> </span><span class=nx>area</span><span class=p>,</span><span class=w> </span><span class=nx>lat</span><span class=p>,</span><span class=w> </span><span class=nx>lng</span><span class=w> </span><span class=kt>float64</span><span class=p>)</span><span class=w> </span><span class=kt>error</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>type</span><span class=w> </span><span class=nx>SearchIndex</span><span class=w> </span><span class=kd>interface</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nf>Update</span><span class=p>(</span><span class=nx>name</span><span class=p>,</span><span class=w> </span><span class=nx>address</span><span class=w> </span><span class=kt>string</span><span class=p>)</span><span class=w> </span><span class=kt>error</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=c1>// json:&#34;name&#34; などの構造体タグ: JSONキー名とフィールド名のマッピングをコンパイラに伝える注釈</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>type</span><span class=w> </span><span class=nx>PropertyRequest</span><span class=w> </span><span class=kd>struct</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>Name</span><span class=w>    </span><span class=kt>string</span><span class=w>  </span><span class=s>`json:&#34;name&#34;`</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>Address</span><span class=w> </span><span class=kt>string</span><span class=w>  </span><span class=s>`json:&#34;address&#34;`</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>Price</span><span class=w>   </span><span class=kt>int</span><span class=w>     </span><span class=s>`json:&#34;price&#34;`</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>Area</span><span class=w>    </span><span class=kt>float64</span><span class=w> </span><span class=s>`json:&#34;area&#34;`</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>type</span><span class=w> </span><span class=nx>App</span><span class=w> </span><span class=kd>struct</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>Geocoder</span><span class=w> </span><span class=nx>Geocoder</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>DB</span><span class=w>       </span><span class=nx>DB</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>Index</span><span class=w>    </span><span class=nx>SearchIndex</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=nf>NewApp</span><span class=p>(</span><span class=nx>g</span><span class=w> </span><span class=nx>Geocoder</span><span class=p>,</span><span class=w> </span><span class=nx>db</span><span class=w> </span><span class=nx>DB</span><span class=p>,</span><span class=w> </span><span class=nx>idx</span><span class=w> </span><span class=nx>SearchIndex</span><span class=p>)</span><span class=w> </span><span class=o>*</span><span class=nx>App</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>return</span><span class=w> </span><span class=o>&amp;</span><span class=nx>App</span><span class=p>{</span><span class=nx>Geocoder</span><span class=p>:</span><span class=w> </span><span class=nx>g</span><span class=p>,</span><span class=w> </span><span class=nx>DB</span><span class=p>:</span><span class=w> </span><span class=nx>db</span><span class=p>,</span><span class=w> </span><span class=nx>Index</span><span class=p>:</span><span class=w> </span><span class=nx>idx</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=c1>// (a *App) ポインタレシーバ: a はApp本体へのポインタ。メソッド内でフィールドを読み書きできる</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=p>(</span><span class=nx>a</span><span class=w> </span><span class=o>*</span><span class=nx>App</span><span class=p>)</span><span class=w> </span><span class=nf>HandlePostProperty</span><span class=p>(</span><span class=nx>w</span><span class=w> </span><span class=nx>http</span><span class=p>.</span><span class=nx>ResponseWriter</span><span class=p>,</span><span class=w> </span><span class=nx>r</span><span class=w> </span><span class=o>*</span><span class=nx>http</span><span class=p>.</span><span class=nx>Request</span><span class=p>)</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>r</span><span class=p>.</span><span class=nx>Method</span><span class=w> </span><span class=o>!=</span><span class=w> </span><span class=nx>http</span><span class=p>.</span><span class=nx>MethodPost</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nx>http</span><span class=p>.</span><span class=nf>Error</span><span class=p>(</span><span class=nx>w</span><span class=p>,</span><span class=w> </span><span class=s>&#34;method not allowed&#34;</span><span class=p>,</span><span class=w> </span><span class=nx>http</span><span class=p>.</span><span class=nx>StatusMethodNotAllowed</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=k>return</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=kd>var</span><span class=w> </span><span class=nx>req</span><span class=w> </span><span class=nx>PropertyRequest</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>json</span><span class=p>.</span><span class=nf>NewDecoder</span><span class=p>(</span><span class=nx>r</span><span class=p>.</span><span class=nx>Body</span><span class=p>).</span><span class=nf>Decode</span><span class=p>(</span><span class=o>&amp;</span><span class=nx>req</span><span class=p>);</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>!=</span><span class=w> </span><span class=kc>nil</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nx>http</span><span class=p>.</span><span class=nf>Error</span><span class=p>(</span><span class=nx>w</span><span class=p>,</span><span class=w> </span><span class=s>&#34;bad request&#34;</span><span class=p>,</span><span class=w> </span><span class=nx>http</span><span class=p>.</span><span class=nx>StatusBadRequest</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=k>return</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>a</span><span class=p>.</span><span class=nf>registerProperty</span><span class=p>(</span><span class=nx>w</span><span class=p>,</span><span class=w> </span><span class=nx>req</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=p>(</span><span class=nx>a</span><span class=w> </span><span class=o>*</span><span class=nx>App</span><span class=p>)</span><span class=w> </span><span class=nf>registerProperty</span><span class=p>(</span><span class=nx>w</span><span class=w> </span><span class=nx>http</span><span class=p>.</span><span class=nx>ResponseWriter</span><span class=p>,</span><span class=w> </span><span class=nx>req</span><span class=w> </span><span class=nx>PropertyRequest</span><span class=p>)</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>req</span><span class=p>.</span><span class=nx>Name</span><span class=w> </span><span class=o>==</span><span class=w> </span><span class=s>&#34;&#34;</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nx>http</span><span class=p>.</span><span class=nf>Error</span><span class=p>(</span><span class=nx>w</span><span class=p>,</span><span class=w> </span><span class=s>&#34;name is required&#34;</span><span class=p>,</span><span class=w> </span><span class=nx>http</span><span class=p>.</span><span class=nx>StatusBadRequest</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=k>return</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>req</span><span class=p>.</span><span class=nx>Address</span><span class=w> </span><span class=o>==</span><span class=w> </span><span class=s>&#34;&#34;</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nx>http</span><span class=p>.</span><span class=nf>Error</span><span class=p>(</span><span class=nx>w</span><span class=p>,</span><span class=w> </span><span class=s>&#34;address is required&#34;</span><span class=p>,</span><span class=w> </span><span class=nx>http</span><span class=p>.</span><span class=nx>StatusBadRequest</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=k>return</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>req</span><span class=p>.</span><span class=nx>Price</span><span class=w> </span><span class=o>&lt;=</span><span class=w> </span><span class=mi>0</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nx>http</span><span class=p>.</span><span class=nf>Error</span><span class=p>(</span><span class=nx>w</span><span class=p>,</span><span class=w> </span><span class=s>&#34;price must be positive&#34;</span><span class=p>,</span><span class=w> </span><span class=nx>http</span><span class=p>.</span><span class=nx>StatusBadRequest</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=k>return</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>req</span><span class=p>.</span><span class=nx>Area</span><span class=w> </span><span class=o>&lt;=</span><span class=w> </span><span class=mi>0</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nx>http</span><span class=p>.</span><span class=nf>Error</span><span class=p>(</span><span class=nx>w</span><span class=p>,</span><span class=w> </span><span class=s>&#34;area must be positive&#34;</span><span class=p>,</span><span class=w> </span><span class=nx>http</span><span class=p>.</span><span class=nx>StatusBadRequest</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=k>return</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=c1>// ジオコーディングは外部API。混雑で失敗することがあるので最大3回まで試す</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=kd>var</span><span class=w> </span><span class=nx>lat</span><span class=p>,</span><span class=w> </span><span class=nx>lng</span><span class=w> </span><span class=kt>float64</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=kd>var</span><span class=w> </span><span class=nx>geoErr</span><span class=w> </span><span class=kt>error</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>for</span><span class=w> </span><span class=nx>attempt</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=mi>1</span><span class=p>;</span><span class=w> </span><span class=nx>attempt</span><span class=w> </span><span class=o>&lt;=</span><span class=w> </span><span class=mi>3</span><span class=p>;</span><span class=w> </span><span class=nx>attempt</span><span class=o>++</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nx>lat</span><span class=p>,</span><span class=w> </span><span class=nx>lng</span><span class=p>,</span><span class=w> </span><span class=nx>geoErr</span><span class=w> </span><span class=p>=</span><span class=w> </span><span class=nx>a</span><span class=p>.</span><span class=nx>Geocoder</span><span class=p>.</span><span class=nf>Geocode</span><span class=p>(</span><span class=nx>req</span><span class=p>.</span><span class=nx>Address</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=k>if</span><span class=w> </span><span class=nx>geoErr</span><span class=w> </span><span class=o>==</span><span class=w> </span><span class=kc>nil</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>			</span><span class=k>break</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>geoErr</span><span class=w> </span><span class=o>!=</span><span class=w> </span><span class=kc>nil</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nx>http</span><span class=p>.</span><span class=nf>Error</span><span class=p>(</span><span class=nx>w</span><span class=p>,</span><span class=w> </span><span class=nx>fmt</span><span class=p>.</span><span class=nf>Sprintf</span><span class=p>(</span><span class=s>&#34;geocoding failed: %v&#34;</span><span class=p>,</span><span class=w> </span><span class=nx>geoErr</span><span class=p>),</span><span class=w> </span><span class=nx>http</span><span class=p>.</span><span class=nx>StatusInternalServerError</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=k>return</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>a</span><span class=p>.</span><span class=nx>DB</span><span class=p>.</span><span class=nf>Save</span><span class=p>(</span><span class=nx>req</span><span class=p>.</span><span class=nx>Name</span><span class=p>,</span><span class=w> </span><span class=nx>req</span><span class=p>.</span><span class=nx>Address</span><span class=p>,</span><span class=w> </span><span class=nx>req</span><span class=p>.</span><span class=nx>Price</span><span class=p>,</span><span class=w> </span><span class=nx>req</span><span class=p>.</span><span class=nx>Area</span><span class=p>,</span><span class=w> </span><span class=nx>lat</span><span class=p>,</span><span class=w> </span><span class=nx>lng</span><span class=p>);</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>!=</span><span class=w> </span><span class=kc>nil</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nx>http</span><span class=p>.</span><span class=nf>Error</span><span class=p>(</span><span class=nx>w</span><span class=p>,</span><span class=w> </span><span class=nx>fmt</span><span class=p>.</span><span class=nf>Sprintf</span><span class=p>(</span><span class=s>&#34;db error: %v&#34;</span><span class=p>,</span><span class=w> </span><span class=nx>err</span><span class=p>),</span><span class=w> </span><span class=nx>http</span><span class=p>.</span><span class=nx>StatusInternalServerError</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=k>return</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>a</span><span class=p>.</span><span class=nx>Index</span><span class=p>.</span><span class=nf>Update</span><span class=p>(</span><span class=nx>req</span><span class=p>.</span><span class=nx>Name</span><span class=p>,</span><span class=w> </span><span class=nx>req</span><span class=p>.</span><span class=nx>Address</span><span class=p>);</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>!=</span><span class=w> </span><span class=kc>nil</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nx>http</span><span class=p>.</span><span class=nf>Error</span><span class=p>(</span><span class=nx>w</span><span class=p>,</span><span class=w> </span><span class=nx>fmt</span><span class=p>.</span><span class=nf>Sprintf</span><span class=p>(</span><span class=s>&#34;index error: %v&#34;</span><span class=p>,</span><span class=w> </span><span class=nx>err</span><span class=p>),</span><span class=w> </span><span class=nx>http</span><span class=p>.</span><span class=nx>StatusInternalServerError</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=k>return</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>w</span><span class=p>.</span><span class=nf>WriteHeader</span><span class=p>(</span><span class=nx>http</span><span class=p>.</span><span class=nx>StatusCreated</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>fmt</span><span class=p>.</span><span class=nf>Fprintf</span><span class=p>(</span><span class=nx>w</span><span class=p>,</span><span class=w> </span><span class=s>`{&#34;status&#34;:&#34;ok&#34;}`</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p>我ながら、悪くない。依存しているデータベースも、住所から緯度経度を引くジオコーディングAPIも、検索インデックスも、ぜんぶ <code>interface</code>——「この形のメソッドを持つ型なら差し込める」という接続規格——で受けている。本物でもテスト用でも、同じ口に差せるようにしてある。登録の中身は <code>registerProperty</code> に一本化されていて、<code>HandlePostProperty</code> はそれを呼ぶだけだ。</p><p>なのに、フィードの取り込み処理から <code>registerProperty</code> を呼ぼうとすると、手が止まる。あの関数は、第一引数に <code>w http.ResponseWriter</code>——HTTPの返事を書き込む相手——を要求してくる。取り込み処理はバッチだ。HTTPの返事を書く相手なんて、どこにもいない。</p><p>「共通化はしてある。なのに、なぜ呼べない」。声に出してみても、答えは出なかった。</p><p>藁にもすがる、というほど切羽詰まってはいなかった。ただ、前に同業の知人が言っていたのを思い出した。コードが本番で動かなくなって誰にも分からなくなったら、出張整備の「親方」と呼ばれる人がいる、と。今日のこれは、動かないわけじゃない。動いているのに、動かせない。半信半疑で、私は連絡を入れた。</p><p>親方は、思っていたより早く、静かにフロアへ入ってきた。作業着の上に、革の防護エプロン。金属のツールボックスを提げている。名乗りもしないし、世間話もない。私が「コードを見てもらえますか」と言うより先に、親方はモニタを少しだけ自分のほうへ傾けた。</p><p>そして、<code>registerProperty</code> の一行目——引数の <code>w http.ResponseWriter</code>——を、手にした細いドライバーの先で示した。</p><p>「この登録、HTTPの外から呼んだことは」。問いというより、確認のようだった。</p><hr><h2 id=ケーブルが一本抜けない>ケーブルが一本、抜けない</h2><p>「これから呼ぶんです」と私は答えた。「フィードの一括取り込みから。やり方は、もう書きました」。</p><p>正直、私はまだ困っていなかった。困りごとは解決済みだと思っていた。<code>registerProperty</code> は共通化してある。あとは呼ぶだけ。<code>w</code> を要求してくるのが少し邪魔だけれど、テスト用に偽のレスポンス記録係を渡せばいい。Goの標準ライブラリには、そういう道具がある。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=c1>// agents/code-mechanic/tests/fat-handler-command/before/worker.go</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kn>package</span><span class=w> </span><span class=nx>before</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kn>import</span><span class=w> </span><span class=p>(</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=s>&#34;fmt&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=s>&#34;net/http/httptest&#34;</span><span class=w> </span><span class=c1>// wを埋めるためだけの偽のレスポンス記録係。本物のHTTPサーバなしにhttp.ResponseWriterを用意するテスト用の道具</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=nf>RunFeedImport</span><span class=p>(</span><span class=nx>app</span><span class=w> </span><span class=o>*</span><span class=nx>App</span><span class=p>,</span><span class=w> </span><span class=nx>rows</span><span class=w> </span><span class=p>[]</span><span class=nx>PropertyRequest</span><span class=p>)</span><span class=w> </span><span class=kt>error</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>for</span><span class=w> </span><span class=nx>i</span><span class=p>,</span><span class=w> </span><span class=nx>row</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=k>range</span><span class=w> </span><span class=nx>rows</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nx>rec</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>httptest</span><span class=p>.</span><span class=nf>NewRecorder</span><span class=p>()</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nx>app</span><span class=p>.</span><span class=nf>registerProperty</span><span class=p>(</span><span class=nx>rec</span><span class=p>,</span><span class=w> </span><span class=nx>row</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=k>if</span><span class=w> </span><span class=nx>rec</span><span class=p>.</span><span class=nx>Code</span><span class=w> </span><span class=o>!=</span><span class=w> </span><span class=mi>201</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>			</span><span class=k>return</span><span class=w> </span><span class=nx>fmt</span><span class=p>.</span><span class=nf>Errorf</span><span class=p>(</span><span class=s>&#34;行 %d (%s): 取り込み失敗: %s&#34;</span><span class=p>,</span><span class=w> </span><span class=nx>i</span><span class=p>,</span><span class=w> </span><span class=nx>row</span><span class=p>.</span><span class=nx>Name</span><span class=p>,</span><span class=w> </span><span class=nx>rec</span><span class=p>.</span><span class=nx>Body</span><span class=p>.</span><span class=nf>String</span><span class=p>())</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>return</span><span class=w> </span><span class=kc>nil</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p><code>httptest.NewRecorder()</code> は、本物のHTTPサーバを立てなくても <code>http.ResponseWriter</code> の役を務めてくれる、テスト用の記録係だ。それを <code>w</code> の穴に差し込んで、<code>registerProperty</code> を呼ぶ。返事の代わりに、記録係が受け取ったステータスコード（<code>rec.Code</code>）を見て、<code>201</code>（作成成功）でなければ取り込み失敗とみなす。</p><p>テストを走らせた。緑。通った。</p><p>「ほら、動きます」。私は少しほっとして言った。「これで、フィードも取り込めます」。</p><p>——けれど、自分で口にした言葉が、耳に残って引っかかった。動いた。確かに動いた。でも、私がいま書いたのは「取り込み処理」だろうか。よく見ると、これは取り込み処理に、HTTPのフリをさせている処理だ。バッチなのに、偽のリクエストの記録係を毎行ぶら下げて、返ってきたHTTPの番号を読んで成否を判断している。</p><p>親方は、緑になった画面を一瞥しただけだった。そして、さっきと同じ場所——<code>registerProperty</code> の引数 <code>w</code> ——を、もう一度ドライバーの先で示した。</p><p>「走る。だが、これは取り込みじゃない」。親方の声は、責める調子ではなかった。ただ事実を置くように言った。「運転席ごと偽物を組んで、その中で仕事をさせているだけだ」。</p><p>私は黙った。</p><p>「共通化したのは、仕事の置き場所だ」。親方は続けた。「仕事が喋る言葉は、まだHTTPのままだ。だから、HTTPの外に出すたびに、偽の運転席が要る」。</p><p>言われて、思わず次の手が口をついた。「……いっそ、ワーカー専用に、<code>w</code> を取らない版の <code>registerProperty</code> をもう一個——」。そこまで言って、自分で止まった。それはコピペだ。登録のロジックを二箇所に増やして、片方を直し忘れる未来を、自分の手で作る。私が、いちばん避けたかったやつだ。</p><p>口の中が乾いた。共通化したつもりだった関数は、共通化しきれていなかった。</p><hr><h2 id=作り付けの登録処理>作り付けの登録処理</h2><p>「共通関数に抜き出したのは」と親方は言った。「半分は正しい。だが、半分だ」。</p><p>「半分……?」。私はその言い方に、虚を突かれた。全部やったつもりだった。</p><p>親方はドライバーの先を、<code>registerProperty</code> の中へ滑らせていった。バリデーションが失敗したときの <code>http.Error(w, ...)</code>。最後の <code>w.WriteHeader(http.StatusCreated)</code>。一つずつ、指していく。</p><p>「中で、HTTPのステータスを決めている。HTTPの記録係に書いている。物件を登録するという仕事の中身と、HTTPへの返事の仕方が、溶けて一体になっている」。</p><p>これが、その状態の名前だった。</p><blockquote><p><strong>Fat Handler（肥大化ハンドラー）</strong>: Webの受付口（HTTPハンドラー）に、入力検証・業務ロジック・外部通信・レスポンス整形といった異なる関心事がすべて作り込まれ、HTTPの外から再利用したりテストしたりできなくなった状態。</p></blockquote><p>「関数に切り出したから、てっきり……」と私は言いかけた。</p><p>「箱の形には、くり抜いた」。親方はうなずいた。「だが、箱はまだ壁から外れていない。<code>w</code> という釘で、運転席に打ち付けてある。釘が刺さったままの箱は、持ち出せない」。</p><p>親方がドライバーの先で示した箇所を見つめているうちに、私の脳裏には、今のいびつな配線図が浮かび上がってきた。</p><p><img src=/public_images/2026/code-mechanic-fat-handler-command/infographic_1.webp loading=lazy alt="Architecture diagram showing Fat Handler coupling problem with http.ResponseWriter"></p><p>確かにそうだ。<code>registerProperty</code> という箱は、一見独立した共通の部品に見える。だけど、その裏側からは <code>http.ResponseWriter</code> という太い配線が伸びていて、HTTPという運転席の壁板にガッチリとハンダ付けされていた。</p><p>それをバッチワーカーという別の台車に載せようとしたから、わざわざバッチワーカーの側に偽物の運転席（<code>httptest.NewRecorder</code>）をこしらえて、配線の先をそこに繋ぎ込むしかなかったのだ。</p><p>「共通化したつもりで、私はHTTPの運転席ごと引きずり回していたわけですね」</p><p>私の言葉に、親方は無言で、だが深く頷いた。</p><p>私は、自分がどこで楽をしたのかを、ようやく思い出していた。「最初は、APIからしか呼ばないと思っていたんです。だから、入力を受けて、登録して、返事を返すところまで、一息に書きました。それで十分だと……」。</p><p>「走る場所を決める仕事と、走る仕事の中身は、別だ」。親方はドライバーを置いた。「HTTPに返事をするのは、走る場所の都合。物件を登録するのは、仕事の中身。いまは一つの関数が、両方を握っている」。</p><p>そこまで聞いて、私の中でようやく像が結んだ。「分かってきました。<code>registerProperty</code> は、置き場所こそ独立したけど、呼ばれ方がHTTPに縛られたままだった。<code>w</code> を渡せ、と要求してくる。だから、HTTPの外から呼ぶには、偽のHTTPを用意するしかなかった」。</p><p>「そうだ」。親方は短く言った。</p><hr><h2 id=ctx-と-error-だけで話す部品>ctx と error だけで話す部品</h2><p>「外に持ち出す仕事は」と親方は言った。「運転席の言葉を、やめさせる。受け取るのは <code>ctx</code> だけ。返すのは <code>error</code> だけ。それなら、どの台車にも載る」。</p><p>「どの台車にも載る、共通の規格か……」</p><p>親方の言葉に引っ張られるように、私の頭の中で、新しい接続図が組み上がっていった。</p><p><img src=/public_images/2026/code-mechanic-fat-handler-command/infographic_2.webp loading=lazy alt="Architecture diagram showing Command Pattern decoupling HTTP Handler and Batch Worker via Command Interface"></p><p>そうか。HTTPのことは外側のハンドラーに任せてしまえばいい。登録処理自身は、ただ与えられたデータと道具を使って仕事を片付け、成否（<code>error</code>）を返すだけの「持ち運び可能な部品」になる。</p><p>接続規格が <code>Execute(ctx) error</code> という極限まで単純なものになれば、HTTPハンドラーからも、バッチワーカーからも、同じように差し込める。</p><p>「仕事を一個の『命令（Command）』という独立したユニットにして、接続口を統一する。だから、どちらからも同じように組み立てて実行できるんですね」</p><p>「そうだ。余計なケーブルは一切ない。差して、動かす。それだけだ」</p><p>親方はそう言って、キーボードを引き寄せた。</p><p>その「どの台車にも載る」やり方には、名前がついていた。</p><blockquote><p><strong>Command（コマンド）</strong>: 「実行する一単位の仕事」を、必要なデータと手順ごと一つの独立した値（オブジェクト）にまとめ、呼び出し側から「組み立てて実行するだけ」で扱えるようにする設計パターン。</p></blockquote><p>親方はまず、着脱の規格そのものを定義した。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=c1>// agents/code-mechanic/tests/fat-handler-command/after/command.go</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kn>package</span><span class=w> </span><span class=nx>after</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kn>import</span><span class=w> </span><span class=s>&#34;context&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=c1>// context.Context: タイムアウト/キャンセルの合図を関数から関数へ運ぶGoの標準型</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=c1>// Execute(ctx) error だけを持つ型は自動でこの規格を満たす（implementsと書く必要はない）</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>type</span><span class=w> </span><span class=nx>Command</span><span class=w> </span><span class=kd>interface</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nf>Execute</span><span class=p>(</span><span class=nx>ctx</span><span class=w> </span><span class=nx>context</span><span class=p>.</span><span class=nx>Context</span><span class=p>)</span><span class=w> </span><span class=kt>error</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p><code>context.Context</code>——ここで初めて出てくる——は、タイムアウトやキャンセルの合図を関数から関数へ運ぶ、Goの標準の型だ。呼び出しの起点が何であれ、必ず一つ用意できる。</p><p>「これが、着脱の口（クイックヒッチ）です」と私は確認した。「<code>Execute</code> を持つものなら、何でもここに差さる、と。でも、待ってください。Javaなら <code>implements Command</code> と書いて『この規格を満たします』と宣言しますよね。Goは、どこで宣言するんですか」。</p><p>「書かない」。親方は答えた。「<code>Execute(ctx context.Context) error</code> というメソッドを持っていれば、それだけで、この規格を満たしたと見なされる。宣言は要らない。それがGoのインターフェースだ」。</p><p>そして親方は、登録という仕事を、その規格に沿った一個の部品へ移した。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span><span class=lnt>51
+</span><span class=lnt>52
+</span><span class=lnt>53
+</span><span class=lnt>54
+</span><span class=lnt>55
+</span><span class=lnt>56
+</span><span class=lnt>57
+</span><span class=lnt>58
+</span><span class=lnt>59
+</span><span class=lnt>60
+</span><span class=lnt>61
+</span><span class=lnt>62
+</span><span class=lnt>63
+</span><span class=lnt>64
+</span><span class=lnt>65
+</span><span class=lnt>66
+</span><span class=lnt>67
+</span><span class=lnt>68
+</span><span class=lnt>69
+</span><span class=lnt>70
+</span><span class=lnt>71
+</span><span class=lnt>72
+</span><span class=lnt>73
+</span><span class=lnt>74
+</span><span class=lnt>75
+</span><span class=lnt>76
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=c1>// agents/code-mechanic/tests/fat-handler-command/after/property_command.go</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kn>package</span><span class=w> </span><span class=nx>after</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kn>import</span><span class=w> </span><span class=p>(</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=s>&#34;context&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=s>&#34;errors&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=s>&#34;fmt&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>type</span><span class=w> </span><span class=nx>Geocoder</span><span class=w> </span><span class=kd>interface</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nf>Geocode</span><span class=p>(</span><span class=nx>address</span><span class=w> </span><span class=kt>string</span><span class=p>)</span><span class=w> </span><span class=p>(</span><span class=kt>float64</span><span class=p>,</span><span class=w> </span><span class=kt>float64</span><span class=p>,</span><span class=w> </span><span class=kt>error</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>type</span><span class=w> </span><span class=nx>DB</span><span class=w> </span><span class=kd>interface</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nf>Save</span><span class=p>(</span><span class=nx>name</span><span class=p>,</span><span class=w> </span><span class=nx>address</span><span class=w> </span><span class=kt>string</span><span class=p>,</span><span class=w> </span><span class=nx>price</span><span class=w> </span><span class=kt>int</span><span class=p>,</span><span class=w> </span><span class=nx>area</span><span class=p>,</span><span class=w> </span><span class=nx>lat</span><span class=p>,</span><span class=w> </span><span class=nx>lng</span><span class=w> </span><span class=kt>float64</span><span class=p>)</span><span class=w> </span><span class=kt>error</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>type</span><span class=w> </span><span class=nx>SearchIndex</span><span class=w> </span><span class=kd>interface</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nf>Update</span><span class=p>(</span><span class=nx>name</span><span class=p>,</span><span class=w> </span><span class=nx>address</span><span class=w> </span><span class=kt>string</span><span class=p>)</span><span class=w> </span><span class=kt>error</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=c1>// あとでハンドラーが「入力不正か」を見分けるための目印エラー</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>var</span><span class=w> </span><span class=nx>ErrInvalid</span><span class=w> </span><span class=p>=</span><span class=w> </span><span class=nx>errors</span><span class=p>.</span><span class=nf>New</span><span class=p>(</span><span class=s>&#34;invalid property&#34;</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>type</span><span class=w> </span><span class=nx>PostPropertyCommand</span><span class=w> </span><span class=kd>struct</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>Name</span><span class=w>     </span><span class=kt>string</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>Address</span><span class=w>  </span><span class=kt>string</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>Price</span><span class=w>    </span><span class=kt>int</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>Area</span><span class=w>     </span><span class=kt>float64</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>Geocoder</span><span class=w> </span><span class=nx>Geocoder</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>DB</span><span class=w>       </span><span class=nx>DB</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>Index</span><span class=w>    </span><span class=nx>SearchIndex</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=p>(</span><span class=nx>c</span><span class=w> </span><span class=o>*</span><span class=nx>PostPropertyCommand</span><span class=p>)</span><span class=w> </span><span class=nf>Execute</span><span class=p>(</span><span class=nx>ctx</span><span class=w> </span><span class=nx>context</span><span class=p>.</span><span class=nx>Context</span><span class=p>)</span><span class=w> </span><span class=kt>error</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=c1>// 呼び出し元がもう処理を打ち切っていたら、何もせず即座に抜ける入口チェック</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>ctx</span><span class=p>.</span><span class=nf>Err</span><span class=p>();</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>!=</span><span class=w> </span><span class=kc>nil</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=k>return</span><span class=w> </span><span class=nx>err</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>c</span><span class=p>.</span><span class=nx>Name</span><span class=w> </span><span class=o>==</span><span class=w> </span><span class=s>&#34;&#34;</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=k>return</span><span class=w> </span><span class=nx>fmt</span><span class=p>.</span><span class=nf>Errorf</span><span class=p>(</span><span class=s>&#34;%w: name is required&#34;</span><span class=p>,</span><span class=w> </span><span class=nx>ErrInvalid</span><span class=p>)</span><span class=w> </span><span class=c1>// %w: エラーをラップしerrors.Isで原因を取り出せる</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>c</span><span class=p>.</span><span class=nx>Address</span><span class=w> </span><span class=o>==</span><span class=w> </span><span class=s>&#34;&#34;</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=k>return</span><span class=w> </span><span class=nx>fmt</span><span class=p>.</span><span class=nf>Errorf</span><span class=p>(</span><span class=s>&#34;%w: address is required&#34;</span><span class=p>,</span><span class=w> </span><span class=nx>ErrInvalid</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>c</span><span class=p>.</span><span class=nx>Price</span><span class=w> </span><span class=o>&lt;=</span><span class=w> </span><span class=mi>0</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=k>return</span><span class=w> </span><span class=nx>fmt</span><span class=p>.</span><span class=nf>Errorf</span><span class=p>(</span><span class=s>&#34;%w: price must be positive&#34;</span><span class=p>,</span><span class=w> </span><span class=nx>ErrInvalid</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>c</span><span class=p>.</span><span class=nx>Area</span><span class=w> </span><span class=o>&lt;=</span><span class=w> </span><span class=mi>0</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=k>return</span><span class=w> </span><span class=nx>fmt</span><span class=p>.</span><span class=nf>Errorf</span><span class=p>(</span><span class=s>&#34;%w: area must be positive&#34;</span><span class=p>,</span><span class=w> </span><span class=nx>ErrInvalid</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=c1>// ジオコーディングは外部API。混雑で失敗することがあるので最大3回まで試す（Beforeと同一）</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=kd>var</span><span class=w> </span><span class=nx>lat</span><span class=p>,</span><span class=w> </span><span class=nx>lng</span><span class=w> </span><span class=kt>float64</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=kd>var</span><span class=w> </span><span class=nx>geoErr</span><span class=w> </span><span class=kt>error</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>for</span><span class=w> </span><span class=nx>attempt</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=mi>1</span><span class=p>;</span><span class=w> </span><span class=nx>attempt</span><span class=w> </span><span class=o>&lt;=</span><span class=w> </span><span class=mi>3</span><span class=p>;</span><span class=w> </span><span class=nx>attempt</span><span class=o>++</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nx>lat</span><span class=p>,</span><span class=w> </span><span class=nx>lng</span><span class=p>,</span><span class=w> </span><span class=nx>geoErr</span><span class=w> </span><span class=p>=</span><span class=w> </span><span class=nx>c</span><span class=p>.</span><span class=nx>Geocoder</span><span class=p>.</span><span class=nf>Geocode</span><span class=p>(</span><span class=nx>c</span><span class=p>.</span><span class=nx>Address</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=k>if</span><span class=w> </span><span class=nx>geoErr</span><span class=w> </span><span class=o>==</span><span class=w> </span><span class=kc>nil</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>			</span><span class=k>break</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>geoErr</span><span class=w> </span><span class=o>!=</span><span class=w> </span><span class=kc>nil</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=k>return</span><span class=w> </span><span class=nx>fmt</span><span class=p>.</span><span class=nf>Errorf</span><span class=p>(</span><span class=s>&#34;geocoding failed: %w&#34;</span><span class=p>,</span><span class=w> </span><span class=nx>geoErr</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>c</span><span class=p>.</span><span class=nx>DB</span><span class=p>.</span><span class=nf>Save</span><span class=p>(</span><span class=nx>c</span><span class=p>.</span><span class=nx>Name</span><span class=p>,</span><span class=w> </span><span class=nx>c</span><span class=p>.</span><span class=nx>Address</span><span class=p>,</span><span class=w> </span><span class=nx>c</span><span class=p>.</span><span class=nx>Price</span><span class=p>,</span><span class=w> </span><span class=nx>c</span><span class=p>.</span><span class=nx>Area</span><span class=p>,</span><span class=w> </span><span class=nx>lat</span><span class=p>,</span><span class=w> </span><span class=nx>lng</span><span class=p>);</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>!=</span><span class=w> </span><span class=kc>nil</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=k>return</span><span class=w> </span><span class=nx>fmt</span><span class=p>.</span><span class=nf>Errorf</span><span class=p>(</span><span class=s>&#34;db error: %w&#34;</span><span class=p>,</span><span class=w> </span><span class=nx>err</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>c</span><span class=p>.</span><span class=nx>Index</span><span class=p>.</span><span class=nf>Update</span><span class=p>(</span><span class=nx>c</span><span class=p>.</span><span class=nx>Name</span><span class=p>,</span><span class=w> </span><span class=nx>c</span><span class=p>.</span><span class=nx>Address</span><span class=p>);</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>!=</span><span class=w> </span><span class=kc>nil</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=k>return</span><span class=w> </span><span class=nx>fmt</span><span class=p>.</span><span class=nf>Errorf</span><span class=p>(</span><span class=s>&#34;index error: %w&#34;</span><span class=p>,</span><span class=w> </span><span class=nx>err</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>return</span><span class=w> </span><span class=kc>nil</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p>見比べて、私は思わず声が出た。中身は、さっきの <code>registerProperty</code> とほとんどそっくりだ。頭に一行、<code>ctx.Err()</code> でキャンセルの確認——呼び出し元がもう処理を打ち切っていたら、何もせず即座に抜ける入口——が増えているが、それを除けば、バリデーションの四つ、ジオコーディングの三回リトライ、保存、インデックス更新。順番も、回数も同じ。登録のロジックそのものは、何も変えていない。</p><p>変わったのは、外側だけだった。<code>w http.ResponseWriter</code> が消えている。失敗したときは <code>http.Error(w, ...)</code> で番号を書く代わりに、<code>error</code> を返すだけ。成功すれば <code>nil</code> を返すだけ。登録に必要なデータ（物件名や住所）と、道具（ジオコーダーやDB）は、命令自身がフィールドとして抱えている。</p><p>エラーの返し方には、<code>fmt.Errorf("%w: ...", ErrInvalid)</code> という書き方が使われていた。<code>%w</code> は、エラーを別のエラーで包む（ラップする）ための書式で、こうしておくと、受け取った側が後で「これは入力の不正だったのか」を判定して取り出せる。これが、次のハンドラーで効いてくる。</p><p>親方は、肥大化していたハンドラーを組み直した。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span><span class=lnt>51
+</span><span class=lnt>52
+</span><span class=lnt>53
+</span><span class=lnt>54
+</span><span class=lnt>55
+</span><span class=lnt>56
+</span><span class=lnt>57
+</span><span class=lnt>58
+</span><span class=lnt>59
+</span><span class=lnt>60
+</span><span class=lnt>61
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=c1>// agents/code-mechanic/tests/fat-handler-command/after/handler.go</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kn>package</span><span class=w> </span><span class=nx>after</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kn>import</span><span class=w> </span><span class=p>(</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=s>&#34;encoding/json&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=s>&#34;errors&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=s>&#34;fmt&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=s>&#34;net/http&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>type</span><span class=w> </span><span class=nx>PropertyRequest</span><span class=w> </span><span class=kd>struct</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>Name</span><span class=w>    </span><span class=kt>string</span><span class=w>  </span><span class=s>`json:&#34;name&#34;`</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>Address</span><span class=w> </span><span class=kt>string</span><span class=w>  </span><span class=s>`json:&#34;address&#34;`</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>Price</span><span class=w>   </span><span class=kt>int</span><span class=w>     </span><span class=s>`json:&#34;price&#34;`</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>Area</span><span class=w>    </span><span class=kt>float64</span><span class=w> </span><span class=s>`json:&#34;area&#34;`</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>type</span><span class=w> </span><span class=nx>App</span><span class=w> </span><span class=kd>struct</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>Geocoder</span><span class=w> </span><span class=nx>Geocoder</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>DB</span><span class=w>       </span><span class=nx>DB</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>Index</span><span class=w>    </span><span class=nx>SearchIndex</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=nf>NewApp</span><span class=p>(</span><span class=nx>g</span><span class=w> </span><span class=nx>Geocoder</span><span class=p>,</span><span class=w> </span><span class=nx>db</span><span class=w> </span><span class=nx>DB</span><span class=p>,</span><span class=w> </span><span class=nx>idx</span><span class=w> </span><span class=nx>SearchIndex</span><span class=p>)</span><span class=w> </span><span class=o>*</span><span class=nx>App</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>return</span><span class=w> </span><span class=o>&amp;</span><span class=nx>App</span><span class=p>{</span><span class=nx>Geocoder</span><span class=p>:</span><span class=w> </span><span class=nx>g</span><span class=p>,</span><span class=w> </span><span class=nx>DB</span><span class=p>:</span><span class=w> </span><span class=nx>db</span><span class=p>,</span><span class=w> </span><span class=nx>Index</span><span class=p>:</span><span class=w> </span><span class=nx>idx</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=p>(</span><span class=nx>a</span><span class=w> </span><span class=o>*</span><span class=nx>App</span><span class=p>)</span><span class=w> </span><span class=nf>HandlePostProperty</span><span class=p>(</span><span class=nx>w</span><span class=w> </span><span class=nx>http</span><span class=p>.</span><span class=nx>ResponseWriter</span><span class=p>,</span><span class=w> </span><span class=nx>r</span><span class=w> </span><span class=o>*</span><span class=nx>http</span><span class=p>.</span><span class=nx>Request</span><span class=p>)</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>r</span><span class=p>.</span><span class=nx>Method</span><span class=w> </span><span class=o>!=</span><span class=w> </span><span class=nx>http</span><span class=p>.</span><span class=nx>MethodPost</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nx>http</span><span class=p>.</span><span class=nf>Error</span><span class=p>(</span><span class=nx>w</span><span class=p>,</span><span class=w> </span><span class=s>&#34;method not allowed&#34;</span><span class=p>,</span><span class=w> </span><span class=nx>http</span><span class=p>.</span><span class=nx>StatusMethodNotAllowed</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=k>return</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=kd>var</span><span class=w> </span><span class=nx>req</span><span class=w> </span><span class=nx>PropertyRequest</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>json</span><span class=p>.</span><span class=nf>NewDecoder</span><span class=p>(</span><span class=nx>r</span><span class=p>.</span><span class=nx>Body</span><span class=p>).</span><span class=nf>Decode</span><span class=p>(</span><span class=o>&amp;</span><span class=nx>req</span><span class=p>);</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>!=</span><span class=w> </span><span class=kc>nil</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nx>http</span><span class=p>.</span><span class=nf>Error</span><span class=p>(</span><span class=nx>w</span><span class=p>,</span><span class=w> </span><span class=s>&#34;bad request&#34;</span><span class=p>,</span><span class=w> </span><span class=nx>http</span><span class=p>.</span><span class=nx>StatusBadRequest</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=k>return</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>cmd</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=o>&amp;</span><span class=nx>PostPropertyCommand</span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nx>Name</span><span class=p>:</span><span class=w>     </span><span class=nx>req</span><span class=p>.</span><span class=nx>Name</span><span class=p>,</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nx>Address</span><span class=p>:</span><span class=w>  </span><span class=nx>req</span><span class=p>.</span><span class=nx>Address</span><span class=p>,</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nx>Price</span><span class=p>:</span><span class=w>    </span><span class=nx>req</span><span class=p>.</span><span class=nx>Price</span><span class=p>,</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nx>Area</span><span class=p>:</span><span class=w>     </span><span class=nx>req</span><span class=p>.</span><span class=nx>Area</span><span class=p>,</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nx>Geocoder</span><span class=p>:</span><span class=w> </span><span class=nx>a</span><span class=p>.</span><span class=nx>Geocoder</span><span class=p>,</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nx>DB</span><span class=p>:</span><span class=w>       </span><span class=nx>a</span><span class=p>.</span><span class=nx>DB</span><span class=p>,</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nx>Index</span><span class=p>:</span><span class=w>    </span><span class=nx>a</span><span class=p>.</span><span class=nx>Index</span><span class=p>,</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=c1>// r.Context(): リクエストが持つcontext（クライアント切断などの合図）を渡す</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>cmd</span><span class=p>.</span><span class=nf>Execute</span><span class=p>(</span><span class=nx>r</span><span class=p>.</span><span class=nf>Context</span><span class=p>());</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>!=</span><span class=w> </span><span class=kc>nil</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=k>if</span><span class=w> </span><span class=nx>errors</span><span class=p>.</span><span class=nf>Is</span><span class=p>(</span><span class=nx>err</span><span class=p>,</span><span class=w> </span><span class=nx>ErrInvalid</span><span class=p>)</span><span class=w> </span><span class=p>{</span><span class=w> </span><span class=c1>// errors.Is: ラップされたエラーに指定のエラーが含まれるか判定</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>			</span><span class=nx>http</span><span class=p>.</span><span class=nf>Error</span><span class=p>(</span><span class=nx>w</span><span class=p>,</span><span class=w> </span><span class=nx>err</span><span class=p>.</span><span class=nf>Error</span><span class=p>(),</span><span class=w> </span><span class=nx>http</span><span class=p>.</span><span class=nx>StatusBadRequest</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=p>}</span><span class=w> </span><span class=k>else</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>			</span><span class=nx>http</span><span class=p>.</span><span class=nf>Error</span><span class=p>(</span><span class=nx>w</span><span class=p>,</span><span class=w> </span><span class=nx>err</span><span class=p>.</span><span class=nf>Error</span><span class=p>(),</span><span class=w> </span><span class=nx>http</span><span class=p>.</span><span class=nx>StatusInternalServerError</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=k>return</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>w</span><span class=p>.</span><span class=nf>WriteHeader</span><span class=p>(</span><span class=nx>http</span><span class=p>.</span><span class=nx>StatusCreated</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>fmt</span><span class=p>.</span><span class=nf>Fprintf</span><span class=p>(</span><span class=nx>w</span><span class=p>,</span><span class=w> </span><span class=s>`{&#34;status&#34;:&#34;ok&#34;}`</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p>ハンドラーは、見違えるほど痩せた。やることは三つだけだ。リクエストをパースして、命令（<code>PostPropertyCommand</code>）を組み立て、<code>Execute</code> を呼ぶ。返ってきた <code>error</code> を見て、HTTPのステータスへ翻訳する。さっき <code>%w</code> で包んでおいたおかげで、<code>errors.Is(err, ErrInvalid)</code> で「入力の不正」だけを <code>400</code>、それ以外を <code>500</code> に振り分けられる。<code>errors.Is</code> は、ラップされたエラーの中に目的のエラーが入っているかを判定してくれる関数だ。</p><p>「HTTPの返事をどう返すかは、運転席の仕事だ」と親方は言った。「だから、それはハンドラーに残す。仕事の中身は、命令へ出した」。</p><p>最後に、私がつまずいていたフィードの取り込み処理を、親方は差し替えた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=c1>// agents/code-mechanic/tests/fat-handler-command/after/worker.go</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kn>package</span><span class=w> </span><span class=nx>after</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kn>import</span><span class=w> </span><span class=p>(</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=s>&#34;context&#34;</span><span class=w> </span><span class=c1>// キャンセルもタイムアウトも持たない空のctx。ワーカーの起点はcontext.Background()</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=s>&#34;fmt&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=nf>RunFeedImport</span><span class=p>(</span><span class=nx>app</span><span class=w> </span><span class=o>*</span><span class=nx>App</span><span class=p>,</span><span class=w> </span><span class=nx>rows</span><span class=w> </span><span class=p>[]</span><span class=nx>PropertyRequest</span><span class=p>)</span><span class=w> </span><span class=kt>error</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>for</span><span class=w> </span><span class=nx>i</span><span class=p>,</span><span class=w> </span><span class=nx>row</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=k>range</span><span class=w> </span><span class=nx>rows</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nx>cmd</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=o>&amp;</span><span class=nx>PostPropertyCommand</span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>			</span><span class=nx>Name</span><span class=p>:</span><span class=w>     </span><span class=nx>row</span><span class=p>.</span><span class=nx>Name</span><span class=p>,</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>			</span><span class=nx>Address</span><span class=p>:</span><span class=w>  </span><span class=nx>row</span><span class=p>.</span><span class=nx>Address</span><span class=p>,</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>			</span><span class=nx>Price</span><span class=p>:</span><span class=w>    </span><span class=nx>row</span><span class=p>.</span><span class=nx>Price</span><span class=p>,</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>			</span><span class=nx>Area</span><span class=p>:</span><span class=w>     </span><span class=nx>row</span><span class=p>.</span><span class=nx>Area</span><span class=p>,</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>			</span><span class=nx>Geocoder</span><span class=p>:</span><span class=w> </span><span class=nx>app</span><span class=p>.</span><span class=nx>Geocoder</span><span class=p>,</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>			</span><span class=nx>DB</span><span class=p>:</span><span class=w>       </span><span class=nx>app</span><span class=p>.</span><span class=nx>DB</span><span class=p>,</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>			</span><span class=nx>Index</span><span class=p>:</span><span class=w>    </span><span class=nx>app</span><span class=p>.</span><span class=nx>Index</span><span class=p>,</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=k>if</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>cmd</span><span class=p>.</span><span class=nf>Execute</span><span class=p>(</span><span class=nx>context</span><span class=p>.</span><span class=nf>Background</span><span class=p>());</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>!=</span><span class=w> </span><span class=kc>nil</span><span class=w> </span><span class=p>{</span><span class=w> </span><span class=c1>// context.Background(): キャンセルもタイムアウトも持たない空のctx。ワーカーの起点</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>			</span><span class=k>return</span><span class=w> </span><span class=nx>fmt</span><span class=p>.</span><span class=nf>Errorf</span><span class=p>(</span><span class=s>&#34;行 %d (%s): %w&#34;</span><span class=p>,</span><span class=w> </span><span class=nx>i</span><span class=p>,</span><span class=w> </span><span class=nx>row</span><span class=p>.</span><span class=nx>Name</span><span class=p>,</span><span class=w> </span><span class=nx>err</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>return</span><span class=w> </span><span class=kc>nil</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p><code>httptest</code> が、消えていた。偽のレスポンス記録係も、HTTPの番号を読んで成否を判断するくだりも、まるごと無くなっている。取り込み処理は、命令を組み立てて、<code>Execute</code> を呼ぶだけになった。<code>context.Background()</code> は、キャンセルもタイムアウトも持たない空の <code>ctx</code> で、バッチやワーカーの起点として使う、いわば「白紙の合図」だ。</p><p>私は、自分の言葉で確かめたくなった。「そうか……外に出す部品が、<code>ctx</code> と <code>error</code> だけで話すなら、HTTPサーバーからでも、ワーカーからでも、テストからでも、同じように組み立てて <code>Execute</code> を呼べる。呼ばれ方を規格に合わせたから、置き場所を選ばなくなったんだ」。</p><p>「それが、部品にするということだ」。親方は言った。</p><p>ひとつだけ、気になっていたことを聞いた。「これ、前に勉強した Strategy と、似ているような……」。</p><p>「狙いが別だ」。親方は即答した。「Strategy は、やり方を後から差し替える技法。同じ仕事の手順を、付け替える。Command は、仕事そのものを、持ち運べる一個の値にする。差し替えたいのか、持ち出したいのか。要るものが違う」。</p><hr><h2 id=載せ替えの効く部品>載せ替えの効く部品</h2><p>親方は、テストを順に流した。ハンドラー経由の登録、命令を単体で実行する登録、そしてワーカー経由の取り込み。三つとも、緑のランプを点けた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>=== RUN   TestHandlePostProperty
+</span></span><span class=line><span class=cl>--- PASS: TestHandlePostProperty (0.00s)
+</span></span><span class=line><span class=cl>=== RUN   TestPostPropertyCommand_Execute
+</span></span><span class=line><span class=cl>--- PASS: TestPostPropertyCommand_Execute (0.00s)
+</span></span><span class=line><span class=cl>=== RUN   TestRunFeedImport
+</span></span><span class=line><span class=cl>--- PASS: TestRunFeedImport (0.00s)
+</span></span><span class=line><span class=cl>PASS
+</span></span><span class=line><span class=cl>ok  	code-mechanic/fat-handler-command/after	0.358s
+</span></span></code></pre></td></tr></table></div></div><p>真ん中の <code>TestPostPropertyCommand_Execute</code> を、私はしばらく見ていた。これは、HTTPの偽装を一切せずに、登録の仕事だけを直接呼んで検証している。<code>httptest</code> も、偽のリクエストもない。命令を組み立てて、<code>Execute</code> を呼んで、保存されたかを確かめるだけ。業務のロジックが、HTTPから完全に離れたから、こんなに素直なテストになった。</p><p>「載せ替えが効く」。親方は、それだけ言った。「これが、部品だ」。</p><p>「ワーカーのテストから、<code>httptest</code> が丸ごと消えました」。私は言った。「登録の仕事が、HTTPから独立したからですね。……一日見積もりは、嘘にならずに済みそうです」。</p><p>親方はツールボックスの蓋を閉じた。金属の重い音がした。そして、報酬の代わりに、と言った。</p><p>「礼はいい。代わりに、約束を一つ」。親方はまっすぐ私を見た。「一度クイックヒッチにした仕事を、二度と運転席に作り付けるな。次に同じ登録を別の場所で使うときも、ハンドラーの中に書き戻すな。命令を組み立てて、差せ。それだけだ」。</p><p>「はい」。私はうなずいた。「着脱の口は、錆びさせません」。</p><p>親方は、それ以上は何も言わなかった。私の画面で、ワーカーのテストがもう一度緑を出すのを確かめると、ツールボックスを提げて、来たときと同じ静けさでフロアを出ていった。</p><p>私は、<code>httptest</code> の消えたワーカーのコードを、もう一度上から下まで読み直した。短かった。短いのに、どこからでも呼べる。明日のスタンドアップで、私はもう一度「一日で出せます」と言える気がした。今度は、底のある一日だ。</p><hr><h2 id=整備記録簿>整備記録簿</h2><h3 id=症状と整備の対応表>症状と整備の対応表</h3><div class=table-wrapper><table><thead><tr><th style=text-align:left>こんな異音・症状が出たら</th><th style=text-align:left>入れるべき整備（パターン）</th><th style=text-align:left>まだ様子見でいい</th></tr></thead><tbody><tr><td style=text-align:left>共通関数に抽出したのに、別の場所から呼ぶと <code>httptest</code> で偽のリクエストを組む羽目になる</td><td style=text-align:left><code>✓</code> 仕事を <code>Execute(ctx) error</code> の Command に切り出し、<code>w</code>/<code>r</code> を境界から追い出す</td><td style=text-align:left></td></tr><tr><td style=text-align:left>同じ業務ロジックを、HTTPハンドラーとワーカー（バッチ）の両方から呼びたい</td><td style=text-align:left><code>✓</code> Command として実行単位を共通化し、両方から組み立てて実行する</td><td style=text-align:left></td></tr><tr><td style=text-align:left>業務ロジックを、HTTPの偽装なしにそのままユニットテストしたい</td><td style=text-align:left><code>✓</code> Command の <code>Execute</code> を直接呼ぶ純粋なテストにする</td><td style=text-align:left></td></tr><tr><td style=text-align:left>仕事の「手順（アルゴリズム）」を後から差し替えたいだけ</td><td style=text-align:left></td><td style=text-align:left><code>✓</code> それは Strategy の領分。Command ではない</td></tr></tbody></table></div><h3 id=整備手順>整備手順</h3><ol><li><code>type Command interface { Execute(ctx context.Context) error }</code> のように、実行できる仕事の接続規格（インターフェース）を定義する。</li><li>HTTPハンドラー（あるいは <code>w</code> を引きずった共通関数）に作り込まれた業務ロジックと、その依存（DB・外部API）を、Command を満たす構造体に移す。依存は具体型でなくインターフェースで受け、本物とテスト用を同じ口で差せるようにする。</li><li><code>Execute</code> は <code>context.Context</code> だけを受け取り、結果は <code>error</code> で返す。<code>http.ResponseWriter</code>・<code>*http.Request</code> を引数から消す——これが「HTTPの外から呼べる」ことの条件。</li><li>HTTPハンドラーは、リクエストをパースして Command を組み立て、<code>Execute</code> を呼び、返ってきた <code>error</code> をHTTPステータスへ翻訳するだけの薄い受付口にする。HTTPステータスを決める責務は、ハンドラー側に残す。</li><li>ワーカー（バッチ）は、同じ Command を組み立てて <code>Execute</code> を呼ぶだけにする。<code>httptest</code> でリクエストを偽装する必要は、もう無い。</li></ol><h3 id=親方より>親方より</h3><p>共通関数に抜き出したことを、再利用できる証だと思い込むな。置き場所を変えても、その仕事が <code>w</code> を握っている限り、呼べる場所はHTTPの中だけだ。外に出す仕事は、<code>ctx</code> と <code>error</code> だけで話させろ。そうすれば、ハンドラーにもワーカーにも、テストにも、同じ部品が一個で差さる。クイックヒッチにした口は、そのまま保て。同じ登録を三つ目の場所から呼ぶ日が来ても、命令を一個、組み立てれば済む。</p></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/go/>Go</a>
+<a href=/tags/command/>Command</a>
+<a href=/tags/fat-handler/>Fat-Handler</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-mechanic/>Code-Mechanic</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/07/01/170705/><div class=article-image><img src=/public_images/2026/code-mechanic-mediator/header.webp loading=lazy data-key data-hash=/public_images/2026/code-mechanic-mediator/header.webp></div><div class=article-details><h2 class=article-title>コードメカニック【Mediator】部品は全部直したのに、最後に全部が絡んでいた〜直結をやめ、仲介役にすべてを捌かせる〜</h2></div></a></article><article class=has-image><a href=/2026/07/01/120705/><div class=article-image><img src=/public_images/2026/code-mechanic-middleware/header.webp loading=lazy data-key data-hash=/public_images/2026/code-mechanic-middleware/header.webp></div><div class=article-details><h2 class=article-title>コードメカニック【Middleware】一行変えるのに、三十回ボンネットを開けた〜各車に貼った同じ点検を、通り抜ける一本のラインへ〜</h2></div></a></article><article class=has-image><a href=/2026/06/30/170705/><div class=article-image><img src=/public_images/2026/code-mechanic-template-method/header.webp loading=lazy data-key data-hash=/public_images/2026/code-mechanic-template-method/header.webp></div><div class=article-details><h2 class=article-title>コードメカニック【Template Method】同じ直しが、三本目にだけ当たらなかった〜丸写しの骨格を、一本の手順書に組み直す〜</h2></div></a></article><article class=has-image><a href=/2026/06/30/120705/><div class=article-image><img src=/public_images/2026/code-mechanic-decorator/header.webp loading=lazy data-key data-hash=/public_images/2026/code-mechanic-decorator/header.webp></div><div class=article-details><h2 class=article-title>コードメカニック【Decorator】1年眠った証跡が、監査の朝に開かなかった〜専用型の掛け算を、積み重ねの一枚に解く〜</h2></div></a></article><article class=has-image><a href=/2026/06/30/070705/><div class=article-image><img src=/public_images/2026/code-mechanic-observer/header.webp loading=lazy data-key data-hash=/public_images/2026/code-mechanic-observer/header.webp></div><div class=article-details><h2 class=article-title>コードメカニック【Observer】通知を一本足しただけで、ポイントが付かなくなった〜「起きた」と知らせるだけの配線へ〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>
