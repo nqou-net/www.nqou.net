@@ -1,0 +1,335 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="積荷の保冷・防振・保険という3オプションを組み合わせごとのサブクラスで表現し、クラス数が指数的に増殖した旧設計を、Decoratorパターンで独立したラッパークラスの重ね掛けに引き直します。Rubyの継承と合成（is-a/has-a）の使い分けを解説します。"><title>コードナビゲーター【Decorator】保冷・防振・保険、掛け算で増えた積荷台帳〜一枚ずつ包んで重ねる航法術〜</title><link rel=canonical href=https://www.nqou.net/2026/08/04/070705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コードナビゲーター【Decorator】保冷・防振・保険、掛け算で増えた積荷台帳〜一枚ずつ包んで重ねる航法術〜"><meta property='og:description' content="積荷の保冷・防振・保険という3オプションを組み合わせごとのサブクラスで表現し、クラス数が指数的に増殖した旧設計を、Decoratorパターンで独立したラッパークラスの重ね掛けに引き直します。Rubyの継承と合成（is-a/has-a）の使い分けを解説します。"><meta property='og:url' content='https://www.nqou.net/2026/08/04/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='ruby'><meta property='article:tag' content='decorator'><meta property='article:tag' content='combinatorial-explosion'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-navigator'><meta property='article:published_time' content='2026-08-04T07:07:05+09:00'><meta property='article:modified_time' content='2026-08-04T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-navigator-decorator-cargo-options/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コードナビゲーター【Decorator】保冷・防振・保険、掛け算で増えた積荷台帳〜一枚ずつ包んで重ねる航法術〜"><meta name=twitter:description content="積荷の保冷・防振・保険という3オプションを組み合わせごとのサブクラスで表現し、クラス数が指数的に増殖した旧設計を、Decoratorパターンで独立したラッパークラスの重ね掛けに引き直します。Rubyの継承と合成（is-a/has-a）の使い分けを解説します。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-navigator-decorator-cargo-options/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-08-04T07:07:05+09:00","datePublished":"2026-08-04T07:07:05+09:00","description":"積荷の保冷・防振・保険という3オプションを組み合わせごとのサブクラスで表現し、クラス数が指数的に増殖した旧設計を、Decoratorパターンで独立したラッパークラスの重ね掛けに引き直します。Rubyの継承と合成（is-a/has-a）の使い分けを解説します。","headline":"コードナビゲーター【Decorator】保冷・防振・保険、掛け算で増えた積荷台帳〜一枚ずつ包んで重ねる航法術〜","image":"https://www.nqou.net/public_images/2026/code-navigator-decorator-cargo-options/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/08/04/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#第1幕-異変届いてしまった後の話>第1幕 異変——届いてしまった後の話</a></li><li><a href=#第2幕-解析似すぎた7つの名前と掛け算の正体>第2幕 解析——似すぎた7つの名前と、掛け算の正体</a></li><li><a href=#第3幕-引き直し一枚ずつ包んで重ねる>第3幕 引き直し——一枚ずつ包んで、重ねる</a></li><li><a href=#第4幕-模擬航走静かに違う数字と軸1本ぶんの追加>第4幕 模擬航走——静かに違う数字と、軸1本ぶんの追加</a><ol><li><a href=#-オリオール号-航海日誌navigators-log>🚀 オリオール号 航海日誌（Navigator&rsquo;s Log）</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/08/04/070705/><img src=/public_images/2026/code-navigator-decorator-cargo-options/header.webp loading=lazy alt="Featured image of post コードナビゲーター【Decorator】保冷・防振・保険、掛け算で増えた積荷台帳〜一枚ずつ包んで重ねる航法術〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/08/04/070705/>コードナビゲーター【Decorator】保冷・防振・保険、掛け算で増えた積荷台帳〜一枚ずつ包んで重ねる航法術〜</a></h2><h3 class=article-subtitle>積荷の保冷・防振・保険という3オプションを組み合わせごとのサブクラスで表現し、クラス数が指数的に増殖した旧設計を、Decoratorパターンで独立したラッパークラスの重ね掛けに引き直します。Rubyの継承と合成（is-a/has-a）の使い分けを解説します。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>04, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 20分</time></div></footer></div></header><section class=article-content><h2 id=第1幕-異変届いてしまった後の話>第1幕 異変——届いてしまった後の話</h2><p>貨物区画は、機関室ほどではないが俺の持ち場のうちだ。温度管理槽の巡回点検、緩衝材の在庫確認、荷締めベルトの張力チェック——航海中の手空きは、たいていこの区画のどこかで潰している。区画は棚ごとに温度が違う。保冷棚の前を通ると空気がひやりと変わり、常温棚に戻るとまた元の生ぬるさに戻る。その境目を跨ぎながら歩くのが、この持ち場の癖みたいなものだ。</p><p>今日もそんな日だった。次の寄港地まではまだ日がある巡航中で、俺は積み込んだばかりの空コンテナを一つずつ点検していた。船が静かに巡航しているときの貨物区画は、機関室よりよっぽど静かだ。聞こえるのは換気扇の低い唸りと、たまに棚がわずかに軋む音くらい。</p><p>星図室にいるはずの航法士が、貨物区画にいた。</p><p>ミラだ。うちの船の航路を一手に引いている変わり者で、いる場所はだいたい決まっている——星図室の床。それが今日は積み荷台帳の投影を睨みながら、次の寄港地の積み荷配分を確認しに来ているのだという。用件はそれだけ聞けば普通のものだ。</p><p>気になったのは、その傍らでミラがやっていることのほうだった。</p><p>手近にあった工具箱を、荷造り用の布で几帳面に包んでいる。梱包の必要なんてどこにもない、ただの工具箱だ。布の端を折り込み、角を合わせ、余った分を裏へ回して留める——手つきだけ見れば、丁寧な仕事にしか見えない。しかもこの人、よく見ればこういうことをしょっちゅうやっている。私物の端末、乾パンの缶、椅子の背もたれ——手が空くと何かに布を巻きたがる癖が、うちの航法士にはある。今更のことでもない。俺は「いつものことだ」と流して、コンテナの点検に戻った。</p><p>そこへ、通信端末が鳴った。</p><p>前回寄港したリゲル外郭ステーション経由、コロナ光学からの通信だった。コロナ光学は精密観測機器のメーカーで、うちとは今航海から取引が始まったばかりの上得意先だ。荷主が増えるのは喜ばしい話のはずが、通信の中身は喜ばしくなかった。</p><p>発注した光学センサーユニット一式が、目的地で破損して届いたという。荷を開けたら、レンズ系が振動でやられていた。発注時の指定は「保冷・防振・保険」の3点セット。にもかかわらず届いた荷は、防振の扱いを受けていない状態だったらしい。</p><p>始まったばかりの取引先だ。最初の一件でこれをやらかすと、次の発注が来るかどうかも怪しくなる。通信を読み終えて、そのことがまず胃の底に落ちた。</p><p>俺とミラは、その場で一緒に通信を聞いた。</p><p>「発送のとき、誰かが名前を見間違えたんだろう」</p><p>俺は端末を睨みながら、そう言った。荷札に書く発送クラスの名前を、担当者が打ち間違えた——それ以外に考えつく理由がなかった。忙しい港ならいくらでもある話だ。</p><p>ミラは肯定も否定もせず、「もう少し見せて」とだけ言って、船内の発送台帳を呼び出した。台帳というのは、その荷物の発送時にどのクラスが使われたかを記録している、コードの実行ログのようなものだ。</p><p>該当の記録を開く。使われていたクラスの名前は <code>CooledInsuredCargo</code>。</p><p>保冷（Cooled）と保険（Insured）——防振の字がどこにもない。</p><p>もう一つ、気になる数字があった。請求額が、見積もりと158クレジット合わなかったのだ。ミラが「これも見ておこうか」と請求ログを並べる。金額の差は、使われたクラスが違えば運賃の計算式も違う、というだけの話だろう。物理的な破損の原因はそれだけでは分からないが、少なくとも「どのクラスが実際に使われたか」の裏付けにはなる。</p><p>「誰が発送を担当したかまでは、記録に残ってない」俺は続けた。「まあ、忙しい港だったんだろう」</p><p>一次仮説は、まだ生きているつもりだった。ミラは何も言わず、台帳の全体——このシステムに登録されているクラスの一覧を呼び出した。</p><h2 id=第2幕-解析似すぎた7つの名前と掛け算の正体>第2幕 解析——似すぎた7つの名前と、掛け算の正体</h2><p>投影に並んだのは、こういう一覧だった。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>CooledCargo
+</span></span><span class=line><span class=cl>ShockproofCargo
+</span></span><span class=line><span class=cl>InsuredCargo
+</span></span><span class=line><span class=cl>CooledShockproofCargo
+</span></span><span class=line><span class=cl>CooledInsuredCargo          ← 実際に使われた
+</span></span><span class=line><span class=cl>ShockproofInsuredCargo
+</span></span><span class=line><span class=cl>CooledShockproofInsuredCargo ← 本来使うべきだった
+</span></span></code></pre></td></tr></table></div></div><p>7行。並べて見ると、<code>CooledInsuredCargo</code> と <code>CooledShockproofInsuredCargo</code> は、名前の途中に &ldquo;Shockproof&rdquo; が丸ごと埋もれているだけの違いしかない。忙しい港で、長い名前のリストからこの2つを見分けろというほうが無理な話に思えてきた。</p><p>「これ、見間違えても仕方ないよ」ミラが言った。「人間が悪いんじゃなくて、見分けさせようとしてない名前が7つ並んでるのが悪いの」</p><p>一瞬、面食らった。誰かの不注意だろうという俺の見立てが、その誰かを守る方向に訂正されたからだ。ミラの口調に責める色はなかった。担当者の名前は記録にも残っていない。姿の見えない誰かを、これ以上追及する気はミラにもないらしかった。</p><p>投影に上がっているコードを見せてもらう。7クラスとも、積荷の基本形を継いでいた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=c1># 積荷の基本形</span>
+</span></span><span class=line><span class=cl><span class=k>class</span> <span class=nc>Cargo</span>
+</span></span><span class=line><span class=cl>  <span class=kp>attr_reader</span> <span class=ss>:label</span><span class=p>,</span> <span class=ss>:base_cost</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>initialize</span><span class=p>(</span><span class=n>label</span><span class=p>,</span> <span class=n>base_cost</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=k>raise</span> <span class=no>ArgumentError</span><span class=p>,</span> <span class=s2>&#34;base_cost must be positive&#34;</span> <span class=k>unless</span> <span class=n>base_cost</span><span class=o>.</span><span class=n>positive?</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=vi>@label</span> <span class=o>=</span> <span class=n>label</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@base_cost</span> <span class=o>=</span> <span class=n>base_cost</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>cost</span>
+</span></span><span class=line><span class=cl>    <span class=n>base_cost</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>manifest</span>
+</span></span><span class=line><span class=cl>    <span class=n>label</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>attr_reader</code> は持ち物の読み出し口を開ける書き方、<code>raise ArgumentError</code> はおかしな値をその場で弾く門番——このへんは前の引き直しで馴染んだ型のままだ。<code>label</code> は品目名、<code>base_cost</code> は基本運賃。<code>cost</code> は運賃を、<code>manifest</code> は積み荷目録の文字列を返す、それだけの素の積荷だ。</p><p>このクラスを継いで、オプションつきの積荷が作られている。実際に使われた <code>CooledInsuredCargo</code> と、本来使うべきだった <code>CooledShockproofInsuredCargo</code> を並べてもらった。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=c1># 保冷+保険（実際に誤って発送に使われたクラス。防振の行が「無い」）</span>
+</span></span><span class=line><span class=cl><span class=k>class</span> <span class=nc>CooledInsuredCargo</span> <span class=o>&lt;</span> <span class=no>Cargo</span>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>cost</span>
+</span></span><span class=line><span class=cl>    <span class=p>((</span><span class=n>base_cost</span> <span class=o>+</span> <span class=mi>300</span><span class=p>)</span> <span class=o>*</span> <span class=mi>1</span><span class=o>.</span><span class=mo>05</span><span class=p>)</span><span class=o>.</span><span class=n>round</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>manifest</span>
+</span></span><span class=line><span class=cl>    <span class=s2>&#34;</span><span class=si>#{</span><span class=n>label</span><span class=si>}</span><span class=s2> + 保冷 + 保険&#34;</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 保冷+防振+保険（本来発送されるべきだったクラス）</span>
+</span></span><span class=line><span class=cl><span class=k>class</span> <span class=nc>CooledShockproofInsuredCargo</span> <span class=o>&lt;</span> <span class=no>Cargo</span>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>cost</span>
+</span></span><span class=line><span class=cl>    <span class=p>((</span><span class=n>base_cost</span> <span class=o>+</span> <span class=mi>300</span> <span class=o>+</span> <span class=mi>150</span><span class=p>)</span> <span class=o>*</span> <span class=mi>1</span><span class=o>.</span><span class=mo>05</span><span class=p>)</span><span class=o>.</span><span class=n>round</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>manifest</span>
+</span></span><span class=line><span class=cl>    <span class=s2>&#34;</span><span class=si>#{</span><span class=n>label</span><span class=si>}</span><span class=s2> + 保冷 + 防振 + 保険&#34;</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>round</code> は四捨五入して整数に丸めるメソッドだ。保険料は運賃に5%を掛けるので、端数が出る。それをそのまま残さず、ここで整数に丸めている。</p><p>二つを見比べると、<code>base_cost + 300</code> の部分が一字一句同じで、下のクラスにだけ <code>+ 150</code> が挟まっているだけだと分かる。保冷の <code>+300</code> のロジックも、単独のクラス（<code>CooledCargo</code>）で一度書いたはずのものが、組み合わせのクラスにもう一度そのまま書き写されている。</p><p>「なんでコピーしてあるんだ。継げばいいだろう、<code>CooledCargo</code> と <code>InsuredCargo</code> の両方を」</p><p>「Rubyは、親を1人しか選べないの」</p><p>継承——クラスが親の実装を受け継ぐ仕組みは、前にも何度か出てきた。だが親が2人になれるとは、考えたこともなかった。<code>CooledInsuredCargo</code> は <code>CooledCargo</code> の性質も <code>InsuredCargo</code> の性質も欲しいが、<code>class CooledInsuredCargo &lt; CooledCargo</code> と書いた瞬間、<code>InsuredCargo</code> の側は継げなくなる。書き写す以外に、手がなかったわけだ。</p><p>「じゃあ、最初からこんな作り方をしたのが悪かったのか」</p><p>「一つ一つは、悪くない」ミラは3つのクラスの生まれを順に辿った。保冷は数年前、生鮮貨物寄りの受注が増えたときに1クラスとして追加された。防振はその後、精密機器輸送の引き合いが増えて追加。保険は保険会社との契約更新のときに追加された。どれも、追加されたその時点では単体で足りていた。「1つずつは、そのとき正しい判断だった。誰も、3つ同時に欲しいと言われる日を計算に入れていなかっただけ」</p><p>Beforeを嘲笑う気は、俺にもミラにもない。旧航路図には、当時の重力場なりの理由がある。今日もそうだった。</p><p>だが、その「一つずつは正しい」判断が積み重なった結果を、ミラは丸を三つ描いて見せた。保冷、防振、保険。それぞれ単体で選ぶかどうかを決められる、独立した3つの丸。</p><p>「1個だけ選ぶ組み合わせが3通り。2個の組み合わせも3通り。3個全部で1通り。足すと7」</p><p>7という数字は、さっき見た一覧の行数と一致する。ミラはこの、独立して選べる丸のことを、軸とも呼んだ。</p><p>「オプションが1個増えるたびに、クラスは1個増えるんじゃないの。今ある組み合わせぜんぶに、新しい丸を足すか足さないかの2択が掛かるから、今までの倍近く増えるの」</p><p>試しに、危険物割増という4個目のオプションが来たらどうなるか、その場で数えさせられた。答えは15。8増えるどころか、今ある7を軽く上回る数のクラスが要る計算になる。</p><p>ミラが指で示した先を、目で追い直した。丸が3つ、線の先に7つの名前がぶら下がっている。線をたどると、<code>CooledInsuredCargo</code> と <code>CooledShockproofInsuredCargo</code> は隣り合う枝の先で、名前の途中がまるごと重なっていた。数える前から、もう紛らわしさが目に見えていた。</p><p><img src=/public_images/2026/code-navigator-decorator-cargo-options/infographic_1.webp loading=lazy alt=保冷・防振・保険という独立した3つの軸から、付ける／付けないの掛け算で7つのクラス名が生まれる構造を示した星図風の図。実際に発送に使われたCooledInsuredCargoと、本来使うべきだったCooledShockproofInsuredCargoが、名前の途中のShockproofという文字列だけ埋没するほど酷似していることを点線で結んで強調している></p><p>「プローブの新型追加と同じだろう」俺は口を挟んだ。「1個増えりゃ1個作ればいい。前にそうやって片付けたはずだ」</p><p>新型の探査プローブが来るたび案件が増えていた、あの管制システムの引き直しが頭にあった。あれも「増えるたびに手が要る」話だったはずだ。</p><p>「あっちは1本の軸」ミラは首を振った。「プローブの種類が増えるだけだった。1種類増えたら1クラス増える、それで済んだ。こっちは軸が3本あって、それぞれが独立に選べる。軸が増えるのは、1個増えるんじゃなくて、今ある組み合わせが全部倍になるってこと」</p><p>1本の軸が増えるのと、軸そのものが増えるのとでは、増え方の質が違う——そう言われて、ようやく腑に落ちた。プローブの一件は縦に足し算だった。これは横に掛け算だ。</p><p>「もう一つ、見ておいてほしいことがある」</p><p>ミラが投影を切り替えた。もし発送担当が、名前を間違えたのではなく順序を間違えていたら——という仮の計算だった。細かい話はあとで見せる、と前置きされて、この時点では「エラーにもならず、金額だけ違う場合がある」という一言だけ聞かされた。詳しい中身は、まだ見せてもらえない。</p><p>ミラの手が止まった。巻きかけていた布を持ったまま、動きが雑さから急に精密なものに変わる。長い付き合いで、この切り替わりが何を意味するかは知っている。</p><p>「じゃあ、直そう。今度は、7個じゃなくて、3個でいいようにする」</p><h2 id=第3幕-引き直し一枚ずつ包んで重ねる>第3幕 引き直し——一枚ずつ包んで、重ねる</h2><p>投影に上がったのは、小さなクラスの骨格だった。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=c1># 装飾の土台。積荷を1つ抱え、同じ名前のメソッドへそのまま橋渡しする</span>
+</span></span><span class=line><span class=cl><span class=k>class</span> <span class=nc>CargoOption</span>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>initialize</span><span class=p>(</span><span class=n>cargo</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@cargo</span> <span class=o>=</span> <span class=n>cargo</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>cost</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@cargo</span><span class=o>.</span><span class=n>cost</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>manifest</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@cargo</span><span class=o>.</span><span class=n>manifest</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<code>CooledCargo</code> は <code>Cargo</code> の子分だったろう」俺は訊いた。「これは何を継いでるんだ」</p><p>見た限り、どこも継いでいない。<code>class CargoOption</code> で終わっていて、<code>&lt;</code> の記号がどこにもなかった。</p><p>「継いでない。持ってるの」</p><p><code>initialize</code> で受け取った <code>cargo</code> を、<code>@cargo</code> という持ち物として抱えているだけだ。<code>cost</code> は自分では何も足さず、抱えている <code>@cargo</code> に <code>cost</code> を聞いて、そのまま返す。<code>manifest</code> も同じ。</p><p>「である、の関係は、親を1人しか選べない」ミラが続けた。「持つ、の関係は、何個でも抱えられる」</p><p>継承——「である」の関係は is-a と呼ばれる。今日出てきた「持つ」の関係は has-a。単一継承の壁は、is-a の側にしかない。has-a なら、抱える相手を何個でも重ねられる。</p><p><code>CargoOption</code> を親に、3つのオプションが並んだ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=c1># 保冷オプション</span>
+</span></span><span class=line><span class=cl><span class=k>class</span> <span class=nc>ColdStorage</span> <span class=o>&lt;</span> <span class=no>CargoOption</span>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>cost</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@cargo</span><span class=o>.</span><span class=n>cost</span> <span class=o>+</span> <span class=mi>300</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>manifest</span>
+</span></span><span class=line><span class=cl>    <span class=s2>&#34;</span><span class=si>#{</span><span class=vi>@cargo</span><span class=o>.</span><span class=n>manifest</span><span class=si>}</span><span class=s2> + 保冷&#34;</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 防振オプション</span>
+</span></span><span class=line><span class=cl><span class=k>class</span> <span class=nc>Shockproofing</span> <span class=o>&lt;</span> <span class=no>CargoOption</span>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>cost</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@cargo</span><span class=o>.</span><span class=n>cost</span> <span class=o>+</span> <span class=mi>150</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>manifest</span>
+</span></span><span class=line><span class=cl>    <span class=s2>&#34;</span><span class=si>#{</span><span class=vi>@cargo</span><span class=o>.</span><span class=n>manifest</span><span class=si>}</span><span class=s2> + 防振&#34;</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 保険オプション（それまでの累計コストの5%を上乗せ）</span>
+</span></span><span class=line><span class=cl><span class=k>class</span> <span class=nc>Insurance</span> <span class=o>&lt;</span> <span class=no>CargoOption</span>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>cost</span>
+</span></span><span class=line><span class=cl>    <span class=p>(</span><span class=vi>@cargo</span><span class=o>.</span><span class=n>cost</span> <span class=o>*</span> <span class=mi>1</span><span class=o>.</span><span class=mo>05</span><span class=p>)</span><span class=o>.</span><span class=n>round</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>manifest</span>
+</span></span><span class=line><span class=cl>    <span class=s2>&#34;</span><span class=si>#{</span><span class=vi>@cargo</span><span class=o>.</span><span class=n>manifest</span><span class=si>}</span><span class=s2> + 保険&#34;</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p>型はどれも同じだ。抱えている相手の <code>cost</code> に、自分の分だけ足す。保冷なら300、防振なら150。保険だけ少し違って、抱えている相手の <code>cost</code>——つまりそれまでの累計——に5%を掛けて、<code>round</code> で丸める。</p><p>「待て、これ」俺はコードを二度見した。「港の通訳のときと同じ形だろう。<code>initialize</code> で相手を抱えて、委譲する」</p><p>港ごとに違う交信規格を翻訳していた、あのアダプタの一件を思い出していた。相手を1個抱えて、呼ばれたら相手に頼み、結果を返す——「抱えて頼む」形は、まったく同じに見える。</p><p>ミラが手を止めて、こっちを向いた。</p><p>「形は同じ。仕事が違う」</p><p>「……同じに見えるんだが」</p><p>「通訳は、<code>hail</code> を <code>request_docking</code> に変えてた。呼び名を変えるのが仕事だったの」ミラは投影を指した。「今日のは <code>cost</code> は <code>cost</code> のまま、<code>manifest</code> は <code>manifest</code> のまま。呼び名を保ったまま、中身だけ足す」</p><p>言われて見返すと、確かにそうだった。<code>CooledCargo</code> も <code>ColdStorage</code> も、外から見れば <code>Cargo</code> と同じ顔をしている。呼び方は変わらない。変わるのは中身の答えだけだ。</p><p>「もう一つ違いがある。通訳は1回訳したら終わり。今日のは——」</p><p>ミラが一行書いた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=no>Insurance</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=no>Shockproofing</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=no>ColdStorage</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=n>cargo</span><span class=p>)))</span>
+</span></span></code></pre></td></tr></table></div></div><p>「何層でも重ねられる。通訳を通訳で包む、なんてことはしないでしょ。今日のは、包んだものをまた包める」</p><p>インタフェースを変えるのがAdapter、保ったまま重ねるのがDecorator——同じ「抱えて頼む」の形をした2つの航法術が、そこで初めてはっきり線を引かれた。</p><p>「航路計算のときの部品差し替えと、何が違う」俺はもう一つ、ずっと引っかかっていたことを訊いた。運航方針を1つ選んで差し替える、あの一件とも形が似て見えたからだ。</p><p>「あっちは1つ選ぶ。こっちは何個でも重ねる」ミラは即答した。「保冷だけ、保冷と保険、全部——好きなだけ着せられる。選ぶ服と、重ね着、くらい違う」</p><p>Adapterとの線引き、Strategyとの線引き。両方済んだところで、ミラが自分から言った。</p><p>「同じ形のまま包んで、重ねる。Decorator——航法術としては、そのまま。装飾、って意味ね」</p><p>Decorator。オブジェクトを同じインタフェースのまま包み、機能を動的に積み重ねる構造パターン——これが素の定義だ、とミラは付け足した。</p><p>「一枚一枚は、自分の内側しか知らなくていいの」</p><p>金言だった。<code>Insurance</code> は、自分が <code>Shockproofing</code> を包んでいることも <code>ColdStorage</code> を包んでいることも知らない。ただ <code>@cargo.cost</code> と聞くだけで、内側が何層あっても答えが返ってくる。1枚は、1枚より内側の1つしか見ていない。</p><p>名前を聞いて、ようやく訊けた。</p><p>「なんでそんなに包むのが好きなんだ」</p><p>ミラは答えなかった。代わりに、手近にあった小さな積み荷箱をこちらへ寄越した。</p><p>受け取って、しばらく箱を眺めた。それから、さっきミラがやっていたのを見よう見まねで、布で包んでみた。端を折り込み、角を合わせる。不器用な手つきで、ミラの仕上がりほど綺麗にはいかなかったが、一枚は巻けた。その上から、もう一枚。重ねるたびに、下の布の柄が見えなくなっていく。箱の形自体は、最初から一度も変わっていない。</p><p>「一枚は一枚のままだ」つぶやいていた。「重ねても、下の一枚は変わってない」</p><p>新しい発見をしたつもりはなかった。ただ、たった今聞いた名前を、自分の手で確かめ直しただけだ。ミラは何も言わず、黙ってそれを見ていた。正解も不正解も、口にしなかった。もう答えは出ている後だったからだろう。二重に巻いた布の感触を確かめながら、俺はようやく合点がいった。この人が手が空くたびに何かを包んでいたのは、たぶん暇つぶしですらなかった。</p><p>もう一つ、確認しておきたいことがあった。</p><p>「装飾したやつは、元の <code>Cargo</code> として扱えるのか」</p><p>「<code>is_a?</code> で聞いたら <code>false</code> が返る」ミラが答えた。<code>is_a?</code> はオブジェクトが指定したクラスの一種かどうかを尋ねるメソッドだ。「<code>ColdStorage</code> はどのクラスも継いでない。でも <code>cost</code> は呼べる。型で聞かず、呼べるかどうかで判断する——港の通訳のときと同じ流儀」</p><p>ダックタイピング、同じ名前の呼びかけに応えられれば型は問わない、という前に教わった流儀。型で弾こうとするコードを書くと、装飾済みの積荷はことごとく撥ねられる。呼べるかどうかだけを見ればいい。</p><h2 id=第4幕-模擬航走静かに違う数字と軸1本ぶんの追加>第4幕 模擬航走——静かに違う数字と、軸1本ぶんの追加</h2><p>模擬航走の先頭は、いつもどおり約束の確認だった。Beforeの各クラスと、Afterの対応する組み合わせを並べて、<code>cost</code> と <code>manifest</code> が完全に一致することを照合する。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=k>def</span> <span class=nf>test_cooled_shockproof_insured_identical</span>
+</span></span><span class=line><span class=cl>  <span class=n>before</span> <span class=o>=</span> <span class=no>Before</span><span class=o>::</span><span class=no>CooledShockproofInsuredCargo</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=no>LABEL</span><span class=p>,</span> <span class=no>BASE_COST</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=n>after</span> <span class=o>=</span> <span class=no>After</span><span class=o>::</span><span class=no>Insurance</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=no>After</span><span class=o>::</span><span class=no>Shockproofing</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=no>After</span><span class=o>::</span><span class=no>ColdStorage</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=vi>@cargo</span><span class=p>)))</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span> <span class=n>before</span><span class=o>.</span><span class=n>cost</span><span class=p>,</span> <span class=n>after</span><span class=o>.</span><span class=n>cost</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span> <span class=n>before</span><span class=o>.</span><span class=n>manifest</span><span class=p>,</span> <span class=n>after</span><span class=o>.</span><span class=n>manifest</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p>保冷のみ、保険のみ、保冷+保険、保冷+防振+保険——4組とも緑。構造は変わった、挙動は変わっていない。それをまず数字で示してから、次に進む。</p><p>次が、今日の主役だ。Act2で予告されていた「順序を間違えたら」の中身を、ここでようやく見せてもらった。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=c1># 順序依存の主役（正順）: 保険を最外層（最後）に包むのが正しい順。</span>
+</span></span><span class=line><span class=cl><span class=k>def</span> <span class=nf>test_insurance_outermost_is_the_correct_order</span>
+</span></span><span class=line><span class=cl>  <span class=n>shipment</span> <span class=o>=</span> <span class=no>After</span><span class=o>::</span><span class=no>Insurance</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=no>After</span><span class=o>::</span><span class=no>Shockproofing</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=no>After</span><span class=o>::</span><span class=no>ColdStorage</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=vi>@cargo</span><span class=p>)))</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span> <span class=mi>13_073</span><span class=p>,</span> <span class=n>shipment</span><span class=o>.</span><span class=n>cost</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 順序依存の主役（逆順）: 保険を最内層（最初）に包むと数字が変わる。</span>
+</span></span><span class=line><span class=cl><span class=k>def</span> <span class=nf>test_insurance_innermost_is_the_wrong_order</span>
+</span></span><span class=line><span class=cl>  <span class=n>shipment</span> <span class=o>=</span> <span class=no>After</span><span class=o>::</span><span class=no>ColdStorage</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=no>After</span><span class=o>::</span><span class=no>Shockproofing</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=no>After</span><span class=o>::</span><span class=no>Insurance</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=vi>@cargo</span><span class=p>)))</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span> <span class=mi>13_050</span><span class=p>,</span> <span class=n>shipment</span><span class=o>.</span><span class=n>cost</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p>保険は「それまでの累計コスト」に5%を掛ける。だから、どの順で包むかで答えが変わる。保険を最外層——一番最後に包む正しい順なら13073。保険を最内層——一番最初に包んでしまうと、素の運賃12000に5%を掛けただけの額に、あとから保冷と防振の定額を足すことになり、13050。</p><p>結果盤の数字だけを目で追っても、どこで額が分かれたのかはすぐには掴めない。同じ3枚を、重ねる順だけ変えて並べた図をミラが見せてくれた。内側から積み上がる数字をたどると、保険がどの段に座るかで、最後の一段がまるごと変わっていた。</p><p><img src=/public_images/2026/code-navigator-decorator-cargo-options/infographic_2.webp loading=lazy alt=同じ3つのラッパー（保冷ColdStorage・防振Shockproofing・保険Insurance）を逆の順序で重ねると最終金額が変わることを示した星図風の図。保険を最外層に包む正しい順では素の積荷12000から保冷+300・防振+150と積み上がり保険の5%が掛かって13073に、保険を最内層に包む誤った順では12000に先に保険の5%が掛かって12600に丸められたあと防振+150・保冷+300が積み上がり13050になり、どちらも例外を出さずに数字だけが違う結果になることを対比している></p><p>「……前に、実行時にしか鳴らないって言ってたな」俺は結果盤を見ながら言った。「今度のは、鳴りもしないのか」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span><span class=lnt>9
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=c1># 両方ともエラーにはならず、ただ数字だけが違う——エラーより静かな壊れ方。</span>
+</span></span><span class=line><span class=cl><span class=k>def</span> <span class=nf>test_order_changes_the_result_without_raising_any_error</span>
+</span></span><span class=line><span class=cl>  <span class=n>correct</span> <span class=o>=</span> <span class=no>After</span><span class=o>::</span><span class=no>Insurance</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=no>After</span><span class=o>::</span><span class=no>Shockproofing</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=no>After</span><span class=o>::</span><span class=no>ColdStorage</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=vi>@cargo</span><span class=p>)))</span>
+</span></span><span class=line><span class=cl>  <span class=n>wrong</span> <span class=o>=</span> <span class=no>After</span><span class=o>::</span><span class=no>ColdStorage</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=no>After</span><span class=o>::</span><span class=no>Shockproofing</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=no>After</span><span class=o>::</span><span class=no>Insurance</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=vi>@cargo</span><span class=p>)))</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=n>assert_kind_of</span> <span class=nb>Integer</span><span class=p>,</span> <span class=n>correct</span><span class=o>.</span><span class=n>cost</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_kind_of</span> <span class=nb>Integer</span><span class=p>,</span> <span class=n>wrong</span><span class=o>.</span><span class=n>cost</span>
+</span></span><span class=line><span class=cl>  <span class=n>refute_equal</span> <span class=n>correct</span><span class=o>.</span><span class=n>cost</span><span class=p>,</span> <span class=n>wrong</span><span class=o>.</span><span class=n>cost</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>assert_kind_of</code> は指定した型かどうかを確認する照合、<code>refute_equal</code> は「等しくないはずだ」という照合——<code>assert_equal</code> の逆側だ。両方とも「例外は起きない」ことと「答えは違う」ことを、セットで確かめている。</p><p>「鳴らない」ミラは静かに答えた。「ただ、数字が違うだけ。エラーより静かな壊れ方」</p><p>Rubyの間違いは航行中にしか鳴らない——動的型付けの言語では、書き間違いは実行するまで黙っている。それはこれまでも繰り返し出てきた話だ。だが順序の間違いは、実行してすら鳴らない。13073と13050、どちらも例外の一つも投げずに、正常に答えを返す。違うのは数字そのものだけだ。だからこそ、順序そのものを模擬航走で固定して確認しておく必要がある、という規律に繋がる。</p><p><code>is_a?</code> の罠も、1本の模擬航走で確認した。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=k>def</span> <span class=nf>test_decorated_cargo_is_not_a_cargo_by_class_but_still_responds</span>
+</span></span><span class=line><span class=cl>  <span class=n>shipment</span> <span class=o>=</span> <span class=no>After</span><span class=o>::</span><span class=no>Insurance</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=no>After</span><span class=o>::</span><span class=no>Shockproofing</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=no>After</span><span class=o>::</span><span class=no>ColdStorage</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=vi>@cargo</span><span class=p>)))</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=n>refute</span> <span class=n>shipment</span><span class=o>.</span><span class=n>is_a?</span><span class=p>(</span><span class=no>Cargo</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert</span> <span class=n>shipment</span><span class=o>.</span><span class=n>respond_to?</span><span class=p>(</span><span class=ss>:cost</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span> <span class=mi>13_073</span><span class=p>,</span> <span class=n>shipment</span><span class=o>.</span><span class=n>cost</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>respond_to?</code> は、指定したメソッドを呼び出せるかどうかを尋ねるメソッドだ。型では弾かれるが、呼び出しは通る。この2つをセットで確認しておくのが、ダックタイピング前提のコードの作法だ。</p><p>任意の部分組み合わせも、数本の模擬航走で確かめた。保冷だけ、防振と保険だけ（保冷なしの組み合わせ——Beforeなら <code>ShockproofInsuredCargo</code> という別クラスの定義が要った組み合わせだ）。どれも新規クラスを1つも足さずに、<code>.new</code> の入れ子を組み替えるだけで作れる。</p><p>「増えても崩れない、が半分」ミラが結果盤を眺めながら言った。「もう半分は——オプションが増える速さが、掛け算から足し算に変わったの。7が15になる未来はもう来ない。15が31になる未来も」</p><p>保証できないことも、いつもどおり確かめておいた。</p><p>「三つある」ミラは指を折った。「一つ。順序に意味を持たせた場合、順序を間違えても構造は止めてくれない。今日みたいに、模擬航走で順序ごと固定して確認しておくのが運用の仕事。二つ。デコレータを積みすぎると、今何が乗っているか読みにくくなる。今回みたいに3つか4つなら実害は出ないけど、無制限に増やしていい保証じゃない。三つ。オプションが増えない、自由に組み合わさらない場面には過剰。1軸しかないなら、Beforeの素直な分岐で足りることもある」</p><p>守っていないものを守っていると言わない——このへんの正直さは、いつもの流儀だ。</p><p>締めに近いところで、新しい依頼が実際に届いた。危険物割増オプションを追加してほしいという通信だ。ミラが1クラスだけ書いた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=c1># 危険物割増オプション（新規追加）。既存の CargoOption / ColdStorage /</span>
+</span></span><span class=line><span class=cl><span class=c1># Shockproofing / Insurance はどれも無改変のまま、この1クラスだけで足りる。</span>
+</span></span><span class=line><span class=cl><span class=k>class</span> <span class=nc>HazardousMaterial</span> <span class=o>&lt;</span> <span class=no>CargoOption</span>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>cost</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@cargo</span><span class=o>.</span><span class=n>cost</span> <span class=o>+</span> <span class=mi>500</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>manifest</span>
+</span></span><span class=line><span class=cl>    <span class=s2>&#34;</span><span class=si>#{</span><span class=vi>@cargo</span><span class=o>.</span><span class=n>manifest</span><span class=si>}</span><span class=s2> + 危険物割増&#34;</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p>既存の <code>CargoOption</code>・<code>ColdStorage</code>・<code>Shockproofing</code>・<code>Insurance</code> はどれも触っていない。模擬航走を流す。通る。既存の3オプションの組み合わせも、そのまま緑のままだった。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=c1># 既存3クラスは新オプション追加後も無改変のまま動く。</span>
+</span></span><span class=line><span class=cl><span class=k>def</span> <span class=nf>test_existing_options_still_work_unmodified</span>
+</span></span><span class=line><span class=cl>  <span class=n>shipment</span> <span class=o>=</span> <span class=no>After</span><span class=o>::</span><span class=no>Insurance</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=no>After</span><span class=o>::</span><span class=no>Shockproofing</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=no>After</span><span class=o>::</span><span class=no>ColdStorage</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=vi>@cargo</span><span class=p>)))</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span> <span class=mi>13_073</span><span class=p>,</span> <span class=n>shipment</span><span class=o>.</span><span class=n>cost</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span> <span class=s2>&#34;</span><span class=si>#{</span><span class=no>LABEL</span><span class=si>}</span><span class=s2> + 保冷 + 防振 + 保険&#34;</span><span class=p>,</span> <span class=n>shipment</span><span class=o>.</span><span class=n>manifest</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p>「前なら、これで台帳が15行に増えるところだったな」</p><p>「そう。今日からは、1行」</p><p>検分は全部で27本、47項目のアサーション。赤は一つも出なかった。ミラは全部の緑を確かめてから、発送システムを引き直した版に載せ替えた。</p><p>コロナ光学への詫びと代替発送の手配は、事務的に短く済ませた。最後にもう一度、正しい組み合わせを実行してもらう。保冷、防振、保険。今度こそ正しい順で。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span><span class=lnt>9
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=k>def</span> <span class=nf>test_the_original_order_now_ships_with_the_correct_receipt</span>
+</span></span><span class=line><span class=cl>  <span class=n>corona_optics_cargo</span> <span class=o>=</span> <span class=no>Cargo</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=s2>&#34;光学センサーユニット&#34;</span><span class=p>,</span> <span class=mi>12_000</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=n>shipment</span> <span class=o>=</span> <span class=no>After</span><span class=o>::</span><span class=no>Insurance</span><span class=o>.</span><span class=n>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=no>After</span><span class=o>::</span><span class=no>Shockproofing</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=no>After</span><span class=o>::</span><span class=no>ColdStorage</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=n>corona_optics_cargo</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>  <span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span> <span class=mi>13_073</span><span class=p>,</span> <span class=n>shipment</span><span class=o>.</span><span class=n>cost</span>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span> <span class=s2>&#34;光学センサーユニット + 保冷 + 防振 + 保険&#34;</span><span class=p>,</span> <span class=n>shipment</span><span class=o>.</span><span class=n>manifest</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p>13073。今度こそ、これが発送される数字だ。</p><p>ミラは包みかけの工具箱を仕上げながら、一言だけ言った。</p><p>「一枚ずつなら、迷わない」</p><p>俺は手元に残っていた布の余りを畳みながら、次に来る軸が何であれ、増えるのはクラス表の1行だけだろうと考えていた。貨物区画の換気扇は、さっきと変わらない低い唸りを立てている。保冷棚の冷気の境目を跨いで、点検の続きに戻る。積み荷は、包む数が増えても中身は増えない。台帳も、同じだ。</p><hr><h3 id=-オリオール号-航海日誌navigators-log>🚀 オリオール号 航海日誌（Navigator&rsquo;s Log）</h3><ul><li><strong>航法術（パターン名）</strong>: Decorator（オブジェクトを同じインタフェースのまま包み、機能を動的に積み重ねる構造パターン。継承でなく、相手を持ち物として抱える合成ベースの実装）</li><li><strong>発生事象（症状）</strong>: 前回寄港地の客先（コロナ光学）から貨物破損クレーム。保冷+防振+保険の3点発注が、防振抜けの <code>CooledInsuredCargo</code> で発送されていたと台帳から判明。7つの近似したクラス名が並ぶ台帳が、選択ミスを誘発していた</li><li><strong>原因（旧航路の問題）</strong>: 独立した3つのオプション軸を組み合わせごとのサブクラスで表現し、Rubyの単一継承では2軸以上を同時に継げないため、組み合わせクラスは既存ロジックを書き写すしかなかった。軸が増えるとクラス数は足し算でなく掛け算で膨らむ（3軸で7クラス、4軸なら15クラス）</li><li><strong>処置（引き直しの要点）</strong>: オプションごとに独立したDecoratorクラス（ColdStorage/Shockproofing/Insurance）を用意し、<code>CargoOption</code> を土台に委譲で積み重ねる設計に変更。継承(is-a)でなく合成(has-a)を使うことで、何個でも自由に重ねられるようにした。新オプションの追加はDecorator1クラスの追加で完結し、既存クラスは無改変</li><li><strong>保証外事項</strong>: 順序に意味を持たせた場合、順序を間違えても構造は止めてくれない（エラーにすらならず数字だけ違う。模擬航走で順序を固定する運用が必要）／デコレータを積みすぎると全体像が読みにくくなる（濫用のリスクは残る）／オプションが増えない・自由に組み合わさらない場面には過剰</li><li><strong>模擬航走結果</strong>: 全27テスト・47アサーション、全灯緑（Before=After同値・順序依存の実演・is_a?の罠・任意の部分組み合わせ・新オプションの無改変追加・事故の正しい再現）</li><li><strong>次の針路</strong>: 危険物オプションの依頼が実際に届き、Decorator1クラスの追加だけで解決。次に増える軸も、増えるのは台帳の1行だけ</li></ul></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/ruby/>Ruby</a>
+<a href=/tags/decorator/>Decorator</a>
+<a href=/tags/combinatorial-explosion/>Combinatorial-Explosion</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-navigator/>Code-Navigator</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/08/12/070705/><div class=article-image><img src=/public_images/2026/code-gardener-graft-decorator/header.webp loading=lazy data-key data-hash=/public_images/2026/code-gardener-graft-decorator/header.webp></div><div class=article-details><h2 class=article-title>コードガーデナー【Decorator】品種と機能、掛け算で増えていくクラスの数〜台木は一本、必要な性質だけを接ぐ〜</h2></div></a></article><article class=has-image><a href=/2026/08/10/070705/><div class=article-image><img src=/public_images/2026/code-navigator-composite-cargo-hold/header.webp loading=lazy data-key data-hash=/public_images/2026/code-navigator-composite-cargo-hold/header.webp></div><div class=article-details><h2 class=article-title>コードナビゲーター【Composite】船倉、箱の中の箱〜重さを尋ねる相手は、1つでいいの〜</h2></div></a></article><article class=has-image><a href=/2026/08/09/070705/><div class=article-image><img src=/public_images/2026/code-navigator-value-object-coordinates/header.webp loading=lazy data-key data-hash=/public_images/2026/code-navigator-value-object-coordinates/header.webp></div><div class=article-details><h2 class=article-title>コードナビゲーター【Value Object】航路計算室、混ざる数字たち〜数字は、単位を着てないと、混ざるの〜</h2></div></a></article><article class=has-image><a href=/2026/08/08/070705/><div class=article-image><img src=/public_images/2026/code-navigator-null-object-missing-sensor/header.webp loading=lazy data-key data-hash=/public_images/2026/code-navigator-null-object-missing-sensor/header.webp></div><div class=article-details><h2 class=article-title>コードナビゲーター【Null Object】欠測センサーの見張り所〜"ない"を、"何もしない"で置くの〜</h2></div></a></article><article class=has-image><a href=/2026/08/07/070705/><div class=article-image><img src=/public_images/2026/code-navigator-facade-preflight-check/header.webp loading=lazy data-key data-hash=/public_images/2026/code-navigator-facade-preflight-check/header.webp></div><div class=article-details><h2 class=article-title>コードナビゲーター【Facade】出航前点検、ブリッジに漏れた四系統の作法〜入口は一つでも、部屋は四つ残る〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

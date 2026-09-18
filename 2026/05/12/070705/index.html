@@ -1,0 +1,373 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="外部倉庫 API の略語と状態コードが内部ドメインを汚染する問題を、ACL と Translator で隔離する Perl/Moo 実装です"><title>コード探偵ロックの事件簿【Anti-Corruption Layer】越境伝票の怪〜外様の略語が捜査本部を汚す夜〜</title><link rel=canonical href=https://www.nqou.net/2026/05/12/070705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コード探偵ロックの事件簿【Anti-Corruption Layer】越境伝票の怪〜外様の略語が捜査本部を汚す夜〜"><meta property='og:description' content="外部倉庫 API の略語と状態コードが内部ドメインを汚染する問題を、ACL と Translator で隔離する Perl/Moo 実装です"><meta property='og:url' content='https://www.nqou.net/2026/05/12/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='perl'><meta property='article:tag' content='moo'><meta property='article:tag' content='anti-corruption-layer'><meta property='article:tag' content='domain-pollution'><meta property='article:tag' content='facade'><meta property='article:tag' content='adapter'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-detective'><meta property='article:published_time' content='2026-05-12T07:07:05+09:00'><meta property='article:modified_time' content='2026-05-12T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-detective-anti-corruption-layer/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コード探偵ロックの事件簿【Anti-Corruption Layer】越境伝票の怪〜外様の略語が捜査本部を汚す夜〜"><meta name=twitter:description content="外部倉庫 API の略語と状態コードが内部ドメインを汚染する問題を、ACL と Translator で隔離する Perl/Moo 実装です"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-detective-anti-corruption-layer/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-05-12T07:07:05+09:00","datePublished":"2026-05-12T07:07:05+09:00","description":"外部倉庫 API の略語と状態コードが内部ドメインを汚染する問題を、ACL と Translator で隔離する Perl/Moo 実装です","headline":"コード探偵ロックの事件簿【Anti-Corruption Layer】越境伝票の怪〜外様の略語が捜査本部を汚す夜〜","image":"https://www.nqou.net/public_images/2026/code-detective-anti-corruption-layer/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/05/12/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#共同結合試験室の青い付箋>共同結合試験室の青い付箋</a></li><li><a href=#現場検証---借り物の略語が内部で通用している>現場検証 - 借り物の略語が内部で通用している</a><ol><li><a href=#beforeコード-orderservice-が外部-payload-を直に読む>Beforeコード: <code>OrderService</code> が外部 payload を直に読む</a></li><li><a href=#facade-を一枚足しただけでは足りない理由>Facade を一枚足しただけでは足りない理由</a></li></ol></li><li><a href=#推理披露---関所を置き借り物の言葉を一室で止める>推理披露 - 関所を置き、借り物の言葉を一室で止める</a><ol><li><a href=#内部モデルを先に定義する>内部モデルを先に定義する</a></li><li><a href=#translator-role-に-inbound--outbound-を閉じ込める>Translator role に inbound / outbound を閉じ込める</a></li><li><a href=#facade-と-adapter-を-acl-の意図で束ねる>Facade と Adapter を ACL の意図で束ねる</a></li><li><a href=#複雑さは消えないただし広がらなくなる>複雑さは消えない。ただし、広がらなくなる</a></li></ol></li><li><a href=#解決---テストで被害半径を測る>解決 - テストで被害半径を測る</a><ol><li><a href=#beforeテスト-外部-schema-変更が-application-service-まで漏れる>Beforeテスト: 外部 schema 変更が application service まで漏れる</a></li><li><a href=#afterテスト-translator-差し替えで内部契約は維持できる>Afterテスト: translator 差し替えで内部契約は維持できる</a></li><li><a href=#何が解決したのか>何が「解決した」のか</a></li></ol></li><li><a href=#ホワイトボードに残った社内語>ホワイトボードに残った社内語</a></li><li><a href=#探偵の調査報告書>探偵の調査報告書</a><ol><li><a href=#推理のステップ>推理のステップ</a></li><li><a href=#ロックより>ロックより</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/05/12/070705/><img src=/public_images/2026/code-detective-anti-corruption-layer/header.webp loading=lazy alt="Featured image of post コード探偵ロックの事件簿【Anti-Corruption Layer】越境伝票の怪〜外様の略語が捜査本部を汚す夜〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/05/12/070705/>コード探偵ロックの事件簿【Anti-Corruption Layer】越境伝票の怪〜外様の略語が捜査本部を汚す夜〜</a></h2><h3 class=article-subtitle>外部倉庫 API の略語と状態コードが内部ドメインを汚染する問題を、ACL と Translator で隔離する Perl/Moo 実装です</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>12, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 10分</time></div></footer></div></header><section class=article-content><h2 id=共同結合試験室の青い付箋>共同結合試験室の青い付箋</h2><p>「小さな仕様変更です。<code>sts</code> の値が一つ増えるだけですので」</p><p>ベンダー担当のその説明を、私は今週だけで三度聞きました。小さい変更で済むなら、社内の pull request が七本同時に立つはずがありません。受注確認、在庫引当、結合試験の fixture、障害通知文面。どこを見ても <code>sts</code> という三文字が出てきました。</p><p>それが問題だと、最初は言葉にできませんでした。壊れているのは API でも、Perl のコードでもなく、もっと曖昧な何かに見えたからです。</p><p>共同結合試験室に入ったとき、ロックさんはホワイトボードの前に立っていました。壁には外部倉庫 API の仕様書、項目対応表、社内の設計資料が並んでいます。その仕様書の略語の上へ、半透明の付箋が何枚も貼られていました。</p><p><code>qty_avlbl</code> の上には <code>quantity</code>。</p><p><code>lst_upd</code> の上には <code>updated_at</code>。</p><p><code>sts</code> の上には <code>status</code>。</p><p>「ワトソン君。借り物の名前を、そのまま本庁の台帳へ貼ったね」</p><p>「その呼び名まで付いてくるんですね」</p><p>私は一度だけ眉を上げてから、壁の資料へ視線を戻しました。</p><p>「ですが、言いたいことは分かります。いま社内のコードレビューで、誰もがベンダーの略語を前提に話しています」</p><p>ロックさんは付箋を一枚ずつまっすぐに貼り直してから、ようやくこちらを見ました。</p><p>「結構。今日はバグを一つ捕まえるのではない。捜査本部に紛れ込んだ外様の言葉を追い出す」</p><p>その時点で、今日の相談が単なる修正依頼ではないことだけは分かりました。</p><h2 id=現場検証---借り物の略語が内部で通用している>現場検証 - 借り物の略語が内部で通用している</h2><p>最初に見せたのは、いま本番系に近い検証環境で動いている在庫確認のコードでした。</p><h3 id=beforeコード-orderservice-が外部-payload-を直に読む>Beforeコード: <code>OrderService</code> が外部 payload を直に読む</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>WarehouseApi</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(HashRef)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>_stock_data</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>HashRef</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=p>{}</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>get_stock</span> <span class=p>($self, $product_id) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>_stock_data</span><span class=o>-&gt;</span><span class=p>{</span><span class=nv>$product_id</span><span class=p>}</span> <span class=sr>//</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>qty_avlbl</span> <span class=o>=&gt;</span> <span class=mi>0</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>lst_upd</span>   <span class=o>=&gt;</span> <span class=s>&#39;20261501&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>sts</span>       <span class=o>=&gt;</span> <span class=mi>0</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>reduce_stock</span> <span class=p>($self, $params) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>{</span> <span class=n>result</span> <span class=o>=&gt;</span> <span class=s>&#39;ok&#39;</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>OrderService</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(Object)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>warehouse_api</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Object</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>check_availability</span> <span class=p>($self, $product_id) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$raw</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>warehouse_api</span><span class=o>-&gt;</span><span class=n>get_stock</span><span class=p>(</span><span class=nv>$product_id</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$quantity</span>  <span class=o>=</span> <span class=nv>$raw</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>qty_avlbl</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$raw_date</span>  <span class=o>=</span> <span class=nv>$raw</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>lst_upd</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$available</span> <span class=o>=</span> <span class=nv>$raw</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>sts</span><span class=p>}</span> <span class=o>==</span> <span class=mi>1</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$year</span><span class=p>,</span> <span class=nv>$day</span><span class=p>,</span> <span class=nv>$month</span><span class=p>)</span> <span class=o>=</span> <span class=nv>$raw_date</span> <span class=o>=~</span><span class=sr> /^(\d{4})(\d{2})(\d{2})$/</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>quantity</span>   <span class=o>=&gt;</span> <span class=nv>$quantity</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>available</span>  <span class=o>=&gt;</span> <span class=nv>$available</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>updated_at</span> <span class=o>=&gt;</span> <span class=s>&#34;$year-$month-$day&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>place_order</span> <span class=p>($self, $product_id, $amount) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$stock</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>check_availability</span><span class=p>(</span><span class=nv>$product_id</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nb>die</span> <span class=s>&#39;Out of stock&#39;</span> <span class=k>unless</span> <span class=nv>$stock</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>available</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=nb>die</span> <span class=s>&#39;Insufficient stock&#39;</span> <span class=k>unless</span> <span class=nv>$stock</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>quantity</span><span class=p>}</span> <span class=o>&gt;=</span> <span class=nv>$amount</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>warehouse_api</span><span class=o>-&gt;</span><span class=n>reduce_stock</span><span class=p>({</span>
+</span></span><span class=line><span class=cl>        <span class=n>prd_id</span>  <span class=o>=&gt;</span> <span class=nv>$product_id</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>qty_rdc</span> <span class=o>=&gt;</span> <span class=nv>$amount</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>sts</span>     <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>このコードは一見すると、ちゃんと内部形式へ変換しているように見えます。<code>quantity</code> という名前へ変えていますし、日付も <code>YYYY-MM-DD</code> に直しています。</p><p>けれども、変換の責任を持っている場所が <code>OrderService</code> そのものです。つまり、受注を扱うアプリケーションサービスが、外部倉庫 API の略語と日付ルールと状態コードを理解してしまっているわけです。</p><p>私はホワイトボードの前で腕を組んだまま、先に反論を出しました。</p><p>「最初は integration の近道でした。Translator を作る時間が惜しかったんです。ですが今は、ベンダー側の minor version 変更で order も inventory も test も全部が揺れています」</p><p>ロックさんは、<code>sts</code> に貼った付箋を指で軽く叩きました。</p><p>「minor version が犯人ではない。犯人は、外様の書式をそのまま本庁へ通したことだよ」</p><p>「境界がない、と」</p><p>「そうだ。借り物の伝票を、借り物の名前のまま台帳へ綴じた。だから伝票の書式が変わるたび、本庁の各部署まで巻き添えになる」</p><p>ここで大事なのは、field 名だけの話ではありません。<code>sts</code> が 1 なら在庫あり、0 なら在庫なし、という外部都合の意味まで、内部コードが前提にしています。これでは <code>sts=2</code> が追加された瞬間、社内の判断ロジックまで一斉に揺れます。</p><h3 id=facade-を一枚足しただけでは足りない理由>Facade を一枚足しただけでは足りない理由</h3><p>私はそこで、もう一つ疑問を口にしました。</p><p>「メソッド名を <code>fetch_stock</code> にして、窓口を一つにすれば済む話ではないですか」</p><p>ロックさんは首を横に振りました。</p><p>「窓口を一つにしても、その窓口から <code>qty_avlbl</code> が出てくるなら汚染は残る。Facade は入り口を整える。だが、何をどの名前で本庁へ通すかは別問題だ」</p><p>これが Anti-Corruption Layer を Adapter や Facade と言い切れない理由です。Adapter は接続の形を合わせます。Facade は複雑な subsystem への窓口を一つにします。ACL はその窓口で、外部の意味を内部の言葉へ翻訳してから通すという設計意図そのものです。</p><h2 id=推理披露---関所を置き借り物の言葉を一室で止める>推理披露 - 関所を置き、借り物の言葉を一室で止める</h2><p>ロックさんはホワイトボードの中央に一本、太い縦線を引きました。</p><p>「こちらが外。こちらが本庁だ。まず、本庁が使う台帳を先に決める」</p><h3 id=内部モデルを先に定義する>内部モデルを先に定義する</h3><p>After では、外部 API の略語から考え始めません。内部で何を扱いたいかを先に決めます。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Stock</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(Enum Int Str)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>product_id</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Int</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>quantity</span>   <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Int</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>status</span>     <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Enum</span><span class=p>[</span><span class=sx>qw(in_stock out_of_stock hold)</span><span class=p>],</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>updated_at</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>available</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>status</span> <span class=ow>eq</span> <span class=s>&#39;in_stock&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>Stock</code> は <code>qty_avlbl</code> も <code>sts</code> も知りません。あるのは <code>quantity</code>、<code>status</code>、<code>updated_at</code> だけです。</p><p>私はそこでまた止まりました。</p><p>「<code>sts</code> をただの数値で持ち回さないのは、意味ごと翻訳し直すためですか」</p><p>「その通り。名前だけ隠しても、意味が foreign code のままなら次も同じ場所が燃える」</p><p>この返答が、今回いちばん重要でした。ACL は field 名の付け替えではありません。意味論の翻訳です。</p><h3 id=translator-role-に-inbound--outbound-を閉じ込める>Translator role に inbound / outbound を閉じ込める</h3><p>次に、翻訳責務を一室へ集めます。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Role::WarehouseTranslation</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo::Role</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>requires</span> <span class=sx>qw(to_domain_stock to_external_reduce_request)</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>WarehouseTranslator</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>with</span> <span class=s>&#39;Role::WarehouseTranslation&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>to_domain_stock</span> <span class=p>($self, $product_id, $raw) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$year</span><span class=p>,</span> <span class=nv>$day</span><span class=p>,</span> <span class=nv>$month</span><span class=p>)</span> <span class=o>=</span> <span class=nv>$raw</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>lst_upd</span><span class=p>}</span> <span class=o>=~</span><span class=sr> /^(\d{4})(\d{2})(\d{2})$/</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>%status_map</span> <span class=o>=</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=mi>1</span> <span class=o>=&gt;</span> <span class=s>&#39;in_stock&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=mi>0</span> <span class=o>=&gt;</span> <span class=s>&#39;out_of_stock&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=mi>2</span> <span class=o>=&gt;</span> <span class=s>&#39;hold&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nn>Stock</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>product_id</span> <span class=o>=&gt;</span> <span class=nv>$product_id</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>quantity</span>   <span class=o>=&gt;</span> <span class=nv>$raw</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>qty_avlbl</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>        <span class=n>status</span>     <span class=o>=&gt;</span> <span class=nv>$status_map</span><span class=p>{</span><span class=nv>$raw</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>sts</span><span class=p>}}</span> <span class=sr>//</span> <span class=nb>die</span><span class=p>(</span><span class=s>&#39;Unknown status&#39;</span><span class=p>),</span>
+</span></span><span class=line><span class=cl>        <span class=n>updated_at</span> <span class=o>=&gt;</span> <span class=s>&#34;$year-$month-$day&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>to_external_reduce_request</span> <span class=p>($self, $product_id, $amount) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>prd_id</span>  <span class=o>=&gt;</span> <span class=nv>$product_id</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>qty_rdc</span> <span class=o>=&gt;</span> <span class=nv>$amount</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>sts</span>     <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>to_domain_stock</code> が inbound translation、<code>to_external_reduce_request</code> が outbound translation です。外部から入ってくるときだけではなく、外へ出すときの payload も同じ境界で管理します。</p><p>私はまだ完全には納得していませんでした。</p><p>「Translator を置いても、依存が一段ずれるだけではないですか」</p><p>ロックさんは、さっき引いた縦線の上に小さな四角を描きました。</p><p>「その通りだ。依存は消えない。だが、今は庁舎全体が外国語で揺れている。Translator 一室だけが揺れるなら、事件の規模は変わる」</p><p>これは ACL の説明で見落としやすい点です。ACL は依存をゼロにする魔法ではありません。依存の存在を否認せず、その影響範囲を局所化します。問題が消えるのではなく、問題の性質が「庁舎全体の汚染」から「関所一室の修理」へ変わります。</p><h3 id=facade-と-adapter-を-acl-の意図で束ねる>Facade と Adapter を ACL の意図で束ねる</h3><p>Translator だけでは、まだ外部との窓口が散らばる可能性があります。そこで <code>WarehouseAcl</code> を置きます。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>WarehouseAcl</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(ConsumerOf Object)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>api</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Object</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>translator</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>ConsumerOf</span><span class=p>[</span><span class=s>&#39;Role::WarehouseTranslation&#39;</span><span class=p>],</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>fetch_stock</span> <span class=p>($self, $product_id) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$raw</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>api</span><span class=o>-&gt;</span><span class=n>get_stock</span><span class=p>(</span><span class=nv>$product_id</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>translator</span><span class=o>-&gt;</span><span class=n>to_domain_stock</span><span class=p>(</span><span class=nv>$product_id</span><span class=p>,</span> <span class=nv>$raw</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>reduce_stock</span> <span class=p>($self, $product_id, $amount) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$payload</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>translator</span><span class=o>-&gt;</span><span class=n>to_external_reduce_request</span><span class=p>(</span><span class=nv>$product_id</span><span class=p>,</span> <span class=nv>$amount</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>api</span><span class=o>-&gt;</span><span class=n>reduce_stock</span><span class=p>(</span><span class=nv>$payload</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>OrderService</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(Object)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>warehouse</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Object</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>check_availability</span> <span class=p>($self, $product_id) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>warehouse</span><span class=o>-&gt;</span><span class=n>fetch_stock</span><span class=p>(</span><span class=nv>$product_id</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>place_order</span> <span class=p>($self, $product_id, $amount) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$stock</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>check_availability</span><span class=p>(</span><span class=nv>$product_id</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=nb>die</span> <span class=s>&#39;Stock on hold&#39;</span> <span class=k>if</span> <span class=nv>$stock</span><span class=o>-&gt;</span><span class=n>status</span> <span class=ow>eq</span> <span class=s>&#39;hold&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nb>die</span> <span class=s>&#39;Out of stock&#39;</span> <span class=k>unless</span> <span class=nv>$stock</span><span class=o>-&gt;</span><span class=n>available</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nb>die</span> <span class=s>&#39;Insufficient stock&#39;</span> <span class=k>unless</span> <span class=nv>$stock</span><span class=o>-&gt;</span><span class=n>quantity</span> <span class=o>&gt;=</span> <span class=nv>$amount</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>warehouse</span><span class=o>-&gt;</span><span class=n>reduce_stock</span><span class=p>(</span><span class=nv>$product_id</span><span class=p>,</span> <span class=nv>$amount</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>この時点で <code>OrderService</code> は外部略語を一つも知りません。知っているのは <code>Stock</code> と <code>WarehouseAcl</code> だけです。</p><pre class=mermaid>
+	flowchart LR
+    API[External Warehouse API\nqty_avlbl / lst_upd / sts] --&gt; TR[WarehouseTranslator\ninbound / outbound]
+    TR --&gt; ACL[WarehouseAcl\ninternal facade]
+    ACL --&gt; APP[OrderService\nquantity / status / updated_at]
+</pre><p>私はようやく、Facade と Adapter と ACL の関係を言い換えられるようになりました。</p><p>「Facade は窓口、Adapter は接続具、ACL はその窓口で何をどう翻訳して通すかという設計意図なんですね」</p><p>「結構。ようやく事件簿の題名が見えてきた」</p><h3 id=複雑さは消えないただし広がらなくなる>複雑さは消えない。ただし、広がらなくなる</h3><p>それでも、まだ一つ引っかかりが残りました。</p><p>「双方向マッピングを増やすと、複雑になるだけではありませんか」</p><p>ロックさんは付箋を剥がして、同じ位置にもう一枚だけ重ねました。</p><p>「複雑さは増えるのではない。今もあるものを、見える場所へ集めるのだ。広がった複雑さは追跡できない。隔離された複雑さは監査できる」</p><p>この一言で、私の中の抵抗がかなり減りました。たしかに、いまの実装にも複雑さはあります。ただ、それが <code>OrderService</code>、テスト、運用手順、レビュー会話へ薄く広がっていて、どこが境界なのか誰にも見えていませんでした。</p><p>ACL は複雑さをなかったことにしません。複雑さを honest に局所化します。だから契約テストも書けますし、仕様変更時に「直すべき部屋」が特定できます。</p><h2 id=解決---テストで被害半径を測る>解決 - テストで被害半径を測る</h2><p>今回のコード例では、before と after をそれぞれテストしています。ポイントは、ACL を入れた後に「コードが動く」だけでなく、「どこまでが揺れて、どこから先は揺れないか」を確認することです。</p><h3 id=beforeテスト-外部-schema-変更が-application-service-まで漏れる>Beforeテスト: 外部 schema 変更が application service まで漏れる</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;Before: 外部スキーマ変更が application service まで漏れる&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>package</span> <span class=nn>WarehouseApiV2</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=n>extends</span> <span class=s>&#39;WarehouseApi&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=k>sub</span> <span class=nf>get_stock</span> <span class=p>($self, $product_id) {</span>
+</span></span><span class=line><span class=cl>            <span class=k>my</span> <span class=nv>$raw</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>SUPER::</span><span class=n>get_stock</span><span class=p>(</span><span class=nv>$product_id</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>            <span class=k>return</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>                <span class=n>quantity_available</span> <span class=o>=&gt;</span> <span class=nv>$raw</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>qty_avlbl</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>                <span class=n>last_updated</span>       <span class=o>=&gt;</span> <span class=nv>$raw</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>lst_upd</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>                <span class=n>status_code</span>        <span class=o>=&gt;</span> <span class=nv>$raw</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>sts</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>            <span class=p>};</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$service</span> <span class=o>=</span> <span class=nn>OrderService</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>warehouse_api</span> <span class=o>=&gt;</span> <span class=nn>WarehouseApiV2</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$stock</span>   <span class=o>=</span> <span class=nv>$service</span><span class=o>-&gt;</span><span class=n>check_availability</span><span class=p>(</span><span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>ok</span><span class=p>(</span><span class=o>!</span><span class=nb>defined</span> <span class=nv>$stock</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>quantity</span><span class=p>},</span> <span class=s>&#39;quantity が取得できない&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span></code></pre></td></tr></table></div></div><p>このテストが示しているのは、before の実装が外部 field 名そのものへ依存していることです。<code>qty_avlbl</code> が <code>quantity_available</code> に変わった瞬間、壊れるのは translator ではなく <code>OrderService</code> です。つまり、影響範囲が application service まで漏れています。</p><p>ここでは説明を絞るために field rename を例にしていますが、<code>sts=2</code> の追加で起きていたことも本質は同じです。外部側の意味差分を application service が直接背負っているため、変更の種類を問わず内部まで揺れます。</p><h3 id=afterテスト-translator-差し替えで内部契約は維持できる>Afterテスト: translator 差し替えで内部契約は維持できる</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;After: translator 差し替えで外部 schema 変更を吸収できる&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$acl</span> <span class=o>=</span> <span class=nn>WarehouseAcl</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>api</span>        <span class=o>=&gt;</span> <span class=nv>$api</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>translator</span> <span class=o>=&gt;</span> <span class=nn>WarehouseTranslatorV2</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$service</span> <span class=o>=</span> <span class=nn>OrderService</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>warehouse</span> <span class=o>=&gt;</span> <span class=nv>$acl</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$stock</span>   <span class=o>=</span> <span class=nv>$service</span><span class=o>-&gt;</span><span class=n>check_availability</span><span class=p>(</span><span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$result</span>  <span class=o>=</span> <span class=nv>$service</span><span class=o>-&gt;</span><span class=n>place_order</span><span class=p>(</span><span class=mi>1</span><span class=p>,</span> <span class=mi>2</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>is</span><span class=p>(</span><span class=nv>$stock</span><span class=o>-&gt;</span><span class=n>quantity</span><span class=p>,</span> <span class=mi>20</span><span class=p>,</span> <span class=s>&#39;internal quantity を維持する&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span><span class=p>(</span><span class=nv>$stock</span><span class=o>-&gt;</span><span class=n>status</span><span class=p>,</span> <span class=s>&#39;in_stock&#39;</span><span class=p>,</span> <span class=s>&#39;internal status を維持する&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span><span class=p>(</span><span class=nv>$result</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>echoed</span><span class=p>}{</span><span class=n>product_identifier</span><span class=p>},</span> <span class=mi>1</span><span class=p>,</span> <span class=s>&#39;outbound も translator が差し替える&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span></code></pre></td></tr></table></div></div><p>ここでは外部 API 側の schema を変えていますが、<code>OrderService</code> は無改修です。差し替えたのは translator だけで、inbound だけでなく outbound の payload も translator 側で吸収しています。</p><p>これが ACL の効き目です。依存そのものは残っています。しかし、その依存は translator の部屋で止まります。<code>OrderService</code> まで foreign vocabulary が漏れないから、内部の判断軸は変わりません。</p><h3 id=何が解決したのか>何が「解決した」のか</h3><p>私は最初、ACL を「変換コードが増える設計」として見ていました。今はそうは見えません。</p><p>解決したのは field 名ではありません。</p><p>解決したのは、外部都合が内部の会話を支配していた状態です。</p><p><code>qty_avlbl</code> がどこで <code>quantity</code> になるのか。</p><p><code>sts</code> がどこで <code>in_stock</code> や <code>hold</code> になるのか。</p><p>その責任の所在が、ようやく一室へ定まりました。だから、次に仕様変更が来ても、被害半径を測れます。</p><h2 id=ホワイトボードに残った社内語>ホワイトボードに残った社内語</h2><p>話が終わったあと、私は試験室の壁ではなく、自分の設計資料を開きました。</p><p><code>Warehouse Sync Helper</code></p><p>その見出しを、<code>WarehouseAcl</code> に書き換えました。次に、チケットを一枚切ります。</p><p>「外部略語の除去。order / inventory / tests / docs から順に」</p><p>ロックさんは、もうこちらを見ていませんでした。ホワイトボードの外側、つまり外部 API 側の欄だけを残して、本庁側の欄をきれいにしていました。</p><p>「それで、どこまで直せばいいですか」</p><p>「本庁が借り物の言葉を使わなくなるところまでだよ、ワトソン君」</p><p>それは珍しく、標語というより実務指示に聞こえました。</p><p>私は壁の仕様書をそのまま残して、社内用の欄だけを写真に撮りました。必要なのは相手の仕様書を捨てることではありません。必要なのは、社内の会話まで借り物である必要はないと認めることでした。</p><hr><h2 id=探偵の調査報告書>探偵の調査報告書</h2><div class=table-wrapper><table><thead><tr><th>容疑（アンチパターン）</th><th>真実（パターン）</th><th>証拠（効果）</th></tr></thead><tbody><tr><td>外部 DTO の直流し</td><td>Anti-Corruption Layer</td><td>外部 schema 変更の被害半径が translator に閉じる</td></tr><tr><td>field 名だけを application service 側で変換する設計</td><td>Translator role + internal model</td><td>外部語彙と意味論が domain に漏れなくなる</td></tr><tr><td>inbound だけ整えて outbound を放置する実装</td><td><code>WarehouseAcl</code> による双方向 translation</td><td>入出力の境界責務が一箇所に集まる</td></tr><tr><td>Facade だけで十分だと思い込むこと</td><td>Facade + Adapter を ACL の意図で束ねる</td><td>窓口の統一と semantic protection を両立できる</td></tr></tbody></table></div><h3 id=推理のステップ>推理のステップ</h3><ol><li>外部 payload のどの語彙が内部へ漏れているかを洗い出す</li><li>内部で使いたいモデルと語彙を先に定義する</li><li>inbound / outbound の翻訳責務を translator に集約する</li><li>外部接続の窓口を ACL facade にまとめる</li><li>status、date、ID、request payload を境界で翻訳する</li><li>translator 差し替えで内部契約が壊れないことをテストで確認する</li></ol><h3 id=ロックより>ロックより</h3><p>借り物の帳票を持ち込むなとは言わない。だが、そのまま本庁の台帳へ綴じてはならない。名前を確かめ、意味を確かめ、自分たちの言葉へ直してから中へ入れたまえ。</p><p>境界とは壁ではない。言葉を検査する関所だ。関所があるからこそ、次の仕様変更は庁舎全体ではなく、一室だけを揺らす事件になる。ワトソン君、事件の規模を縮めることも、立派な推理なのだよ。</p></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/perl/>Perl</a>
+<a href=/tags/moo/>Moo</a>
+<a href=/tags/anti-corruption-layer/>Anti-Corruption-Layer</a>
+<a href=/tags/domain-pollution/>Domain-Pollution</a>
+<a href=/tags/facade/>Facade</a>
+<a href=/tags/adapter/>Adapter</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-detective/>Code-Detective</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/05/13/070705/><div class=article-image><img src=/public_images/2026/code-detective-strangler-fig/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-strangler-fig/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Strangler Fig】外壁に伸びる蔓〜全面更改が新旧を窒息させる夜〜</h2></div></a></article><article class=has-image><a href=/2026/03/14/070705/><div class=article-image><img src=/public_images/2026/code-detective-facade-god-class/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-facade-god-class/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Facade】崩壊寸前のワンマン体制〜絡みつくサブシステムの森〜</h2></div></a></article><article class=has-image><a href=/2026/06/22/070705/><div class=article-image><img src=/public_images/2026/code-archaeologist-adapter-pattern/header.webp loading=lazy data-key data-hash=/public_images/2026/code-archaeologist-adapter-pattern/header.webp></div><div class=article-details><h2 class=article-title>【Perl/Moo】コード考古学者ハリスの冒険【Adapter】異端なる接続口〜委譲と変換による規格の超克〜</h2></div></a></article><article class=has-image><a href=/2026/06/12/070705/><div class=article-image><img src=/public_images/2026/code-chef-facade/header.webp loading=lazy data-key data-hash=/public_images/2026/code-chef-facade/header.webp></div><div class=article-details><h2 class=article-title>コードシェフの仕込み帳【Facade】注文は一言で十分だ〜注文ハンドラが厨房の段取りを全部知っているコードを、窓口クラス一枚で整理する〜</h2></div></a></article><article class=has-image><a href=/2026/06/10/190705/><div class=article-image><img src=/public_images/2026/code-chef-adapter/header.webp loading=lazy data-key data-hash=/public_images/2026/code-chef-adapter/header.webp></div><div class=article-details><h2 class=article-title>コードシェフの仕込み帳【Adapter】変換役を一か所に〜外部仕様への依存が散在するコードを、仲立ちクラス一枚で整理する〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

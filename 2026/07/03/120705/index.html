@@ -1,0 +1,433 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="二つの自動錬金釜は、単体ではどちらも完璧だった。なのに同時に動かすと、片方が水の鍵を握って火の鍵を待ち、もう片方が火の鍵を握って水の鍵を待ち——互いの一手を見つめ合ったまま石になる。データは壊れない。ただ、永久に止まる。JSはシングルスレッドでもデッドロックは無縁ではない。鍵を拾う順を全アプリで一つに揃え、循環の待ち合いを構造から断つLock Orderingと、復旧策のTimeoutの代償を、永久ハングを決定的に可視化した模擬戦で確かめるTypeScriptの契約の物語。"><title>コードテイマー【Deadlock】二つの釜が、互いの鍵を見つめ合って石になる〜鍵を拾う順を一つに定め、にらみ合いを解く〜</title><link rel=canonical href=https://www.nqou.net/2026/07/03/120705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コードテイマー【Deadlock】二つの釜が、互いの鍵を見つめ合って石になる〜鍵を拾う順を一つに定め、にらみ合いを解く〜"><meta property='og:description' content="二つの自動錬金釜は、単体ではどちらも完璧だった。なのに同時に動かすと、片方が水の鍵を握って火の鍵を待ち、もう片方が火の鍵を握って水の鍵を待ち——互いの一手を見つめ合ったまま石になる。データは壊れない。ただ、永久に止まる。JSはシングルスレッドでもデッドロックは無縁ではない。鍵を拾う順を全アプリで一つに揃え、循環の待ち合いを構造から断つLock Orderingと、復旧策のTimeoutの代償を、永久ハングを決定的に可視化した模擬戦で確かめるTypeScriptの契約の物語。"><meta property='og:url' content='https://www.nqou.net/2026/07/03/120705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='typescript'><meta property='article:tag' content='deadlock'><meta property='article:tag' content='lock-ordering'><meta property='article:tag' content='mutex'><meta property='article:tag' content='livelock'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-tamer'><meta property='article:published_time' content='2026-07-03T12:07:05+09:00'><meta property='article:modified_time' content='2026-07-03T12:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-tamer-deadlock/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コードテイマー【Deadlock】二つの釜が、互いの鍵を見つめ合って石になる〜鍵を拾う順を一つに定め、にらみ合いを解く〜"><meta name=twitter:description content="二つの自動錬金釜は、単体ではどちらも完璧だった。なのに同時に動かすと、片方が水の鍵を握って火の鍵を待ち、もう片方が火の鍵を握って水の鍵を待ち——互いの一手を見つめ合ったまま石になる。データは壊れない。ただ、永久に止まる。JSはシングルスレッドでもデッドロックは無縁ではない。鍵を拾う順を全アプリで一つに揃え、循環の待ち合いを構造から断つLock Orderingと、復旧策のTimeoutの代償を、永久ハングを決定的に可視化した模擬戦で確かめるTypeScriptの契約の物語。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-tamer-deadlock/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-07-03T12:07:05+09:00","datePublished":"2026-07-03T12:07:05+09:00","description":"二つの自動錬金釜は、単体ではどちらも完璧だった。なのに同時に動かすと、片方が水の鍵を握って火の鍵を待ち、もう片方が火の鍵を握って水の鍵を待ち——互いの一手を見つめ合ったまま石になる。データは壊れない。ただ、永久に止まる。JSはシングルスレッドでもデッドロックは無縁ではない。鍵を拾う順を全アプリで一つに揃え、循環の待ち合いを構造から断つLock Orderingと、復旧策のTimeoutの代償を、永久ハングを決定的に可視化した模擬戦で確かめるTypeScriptの契約の物語。","headline":"コードテイマー【Deadlock】二つの釜が、互いの鍵を見つめ合って石になる〜鍵を拾う順を一つに定め、にらみ合いを解く〜","image":"https://www.nqou.net/public_images/2026/code-tamer-deadlock/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/07/03/120705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#石になった二つの釜>石になった二つの釜</a><ol><li><a href=#シングルスレッドにデッドロックはないはずだった>シングルスレッドに、デッドロックはない——はずだった</a></li><li><a href=#素直な術式>素直な術式</a></li></ol></li><li><a href=#にらみ合いを檻の中で起こす>にらみ合いを、檻の中で起こす</a><ol><li><a href=#最悪の一瞬を手で作る>最悪の一瞬を、手で作る</a></li><li><a href=#どちらも間違えていない>どちらも、間違えていない</a></li><li><a href=#刻限を設ければいい>刻限を、設ければいい</a></li><li><a href=#諦めた鍵は誰が返す>諦めた鍵は、誰が返す</a></li></ol></li><li><a href=#鍵を拾う順を一つに定める>鍵を拾う順を、一つに定める</a><ol><li><a href=#逆向きの組を作れなくする>逆向きの組を、作れなくする</a></li><li><a href=#順は型に書けない>順は、型に書けない</a></li><li><a href=#この序列が防げないもの>この序列が、防げないもの</a></li></ol></li><li><a href=#試運転>試運転</a><ol><li><a href=#順をギルドの掟にする>順を、ギルドの掟にする</a></li><li><a href=#-カイナの魔獣契約録tamers-registry>📜 カイナの魔獣契約録（Tamer&rsquo;s Registry）</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/07/03/120705/><img src=/public_images/2026/code-tamer-deadlock/header.webp loading=lazy alt="Featured image of post コードテイマー【Deadlock】二つの釜が、互いの鍵を見つめ合って石になる〜鍵を拾う順を一つに定め、にらみ合いを解く〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/07/03/120705/>コードテイマー【Deadlock】二つの釜が、互いの鍵を見つめ合って石になる〜鍵を拾う順を一つに定め、にらみ合いを解く〜</a></h2><h3 class=article-subtitle>二つの自動錬金釜は、単体ではどちらも完璧だった。なのに同時に動かすと、片方が水の鍵を握って火の鍵を待ち、もう片方が火の鍵を握って水の鍵を待ち——互いの一手を見つめ合ったまま石になる。データは壊れない。ただ、永久に止まる。JSはシングルスレッドでもデッドロックは無縁ではない。鍵を拾う順を全アプリで一つに揃え、循環の待ち合いを構造から断つLock Orderingと、復旧策のTimeoutの代償を、永久ハングを決定的に可視化した模擬戦で確かめるTypeScriptの契約の物語。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>03, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 23分</time></div></footer></div></header><section class=article-content><h2 id=石になった二つの釜>石になった二つの釜</h2><p>その魔物使いを呼んだのは、私の自負が、現実に裏切られたからだった。</p><p>私は、錬金術ギルドの釜方を預かっている。自動錬金釜——仕込みを入れれば、水を満たし、火を熾し、頃合いを計って触媒を錬り上げる、手のかからない釜だ。私はそれを二基、自分の手で組み上げた。一基ずつなら、何百回回しても、寸分の狂いもない。それが、私の自慢だった。</p><p>なのに、二基を同時に回すと、ときどき——両方が、止まる。</p><p>その日も、そうだった。工房に下りると、二つの釜が、稼働の途中で固まっていた。片方は炉に火を熾したまま、もう片方は槽に水を満たしたまま、どちらも次の一手へ進まない。煙は立っている。熱もある。なのに、動かない。叩いても、待っても、動かない。仕込んだ触媒は、止まれば腐る。その朝の納品は、落ちた。</p><p>カイナの名は、ギルドの獣譜——過去に暴れた術式を鎮めた記録を綴じた、分厚い台帳——の片隅で見つけた。別のギルドの釜を鎮めた一件に、見慣れない契約印が押してあった。署名は、カイナ。他に手立ても無く、私はその印の主を辿った。</p><p>来た魔物使いは、挨拶よりも先に、固まった二釜の手元——それぞれが握っている鍵を、順に見た。</p><p>「片方は、水の鍵を握って、火を待っている」と彼女は言った。「もう片方は、火の鍵を握って、水を待っている」</p><h3 id=シングルスレッドにデッドロックはないはずだった>シングルスレッドに、デッドロックはない——はずだった</h3><p>「だが、おかしいでしょう」私は、自分でも整理しきれない苛立ちを、理屈にぶつけた。「この術式（JavaScript／TypeScript）は、一度に一つのことしかしない。テイマーは一人、巡回路は一本だ。二つの釜が、同じ刻に、物理で同じ鍵を奪い合う——スレッドのデッドロックなんて、起きようがない。なのに、なぜ固まる」</p><p>カイナは、すぐには答えなかった。固まった釜の鍵を、もう一度見てから、低く言った。</p><p>「お前の言う通り、巡回路は一本だ。二つの釜が、同じ刻に同じ鍵を物理で奪い合うことはない。——だが、デッドロックは、そこじゃない」</p><p>意味が掴めなかった。</p><p>「鍵が空くのを待つ、という約束がある。<code>Promise</code> だ。その約束は『鍵が解放されたら叶う』。だが、鍵を解放する出来事のほうが、別の——決して叶わない約束を待っているなら、どうなる。二つの待ちは、永久にほどけない。巡回路は回り続ける。CPU は、何も食わない。なのに、この二釜の処理だけが、永久に止まる。スレッドの石化じゃない。お前が、約束の上に組み上げた、論理の石化だ」</p><p>シングルスレッドと、永久ハング。相容れないと思い込んでいた二つが、初めて、頭の中で両立しかけた。</p><h3 id=素直な術式>素直な術式</h3><p>私は、二釜の術式（コード）を見せた。隠すことは何もない。素直な術式だ。</p><p>まず、鍵。鍵は一つずつしか握れない。誰かが握れば、他は待つ。それだけのものだ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=kr>type</span> <span class=nx>Brew</span> <span class=o>=</span> <span class=p>()</span> <span class=o>=&gt;</span> <span class=nx>Promise</span><span class=p>&lt;</span><span class=nt>void</span><span class=p>&gt;;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// 鍵（共有リソース）。容量1の門番——前に立てた「N体まで通す門番」の、N=1 版だ。
+</span></span></span><span class=line><span class=cl><span class=c1>// acquire は「解放する関数」を返す約束。握れたら即返し、握れなければ行列で待つ。
+</span></span></span><span class=line><span class=cl><span class=kr>class</span> <span class=nx>Mutex</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=kr>private</span> <span class=nx>locked</span> <span class=o>=</span> <span class=kc>false</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=kr>private</span> <span class=kr>readonly</span> <span class=nx>waiters</span>: <span class=kt>Array</span><span class=o>&lt;</span><span class=p>(</span><span class=nx>release</span><span class=o>:</span> <span class=p>()</span> <span class=o>=&gt;</span> <span class=k>void</span><span class=p>)</span> <span class=o>=&gt;</span> <span class=k>void</span><span class=o>&gt;</span> <span class=o>=</span> <span class=p>[];</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=nx>acquire</span><span class=p>()</span><span class=o>:</span> <span class=nx>Promise</span><span class=o>&lt;</span><span class=p>()</span> <span class=o>=&gt;</span> <span class=k>void</span><span class=o>&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=o>!</span><span class=k>this</span><span class=p>.</span><span class=nx>locked</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=k>this</span><span class=p>.</span><span class=nx>locked</span> <span class=o>=</span> <span class=kc>true</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>      <span class=k>return</span> <span class=nx>Promise</span><span class=p>.</span><span class=nx>resolve</span><span class=p>(</span><span class=k>this</span><span class=p>.</span><span class=nx>makeRelease</span><span class=p>());</span> <span class=c1>// 空いていた：即握れる
+</span></span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=k>new</span> <span class=nx>Promise</span><span class=o>&lt;</span><span class=p>()</span> <span class=o>=&gt;</span> <span class=k>void</span><span class=o>&gt;</span><span class=p>((</span><span class=nx>resolve</span><span class=p>)</span> <span class=o>=&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=k>this</span><span class=p>.</span><span class=nx>waiters</span><span class=p>.</span><span class=nx>push</span><span class=p>(</span><span class=nx>resolve</span><span class=p>);</span>                  <span class=c1>// 埋まっている：行列で待つ
+</span></span></span><span class=line><span class=cl>    <span class=p>});</span>
+</span></span><span class=line><span class=cl>  <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=kr>private</span> <span class=nx>makeRelease</span><span class=p>()</span><span class=o>:</span> <span class=p>()</span> <span class=o>=&gt;</span> <span class=k>void</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=kd>let</span> <span class=nx>released</span> <span class=o>=</span> <span class=kc>false</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>()</span> <span class=o>=&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=k>if</span> <span class=p>(</span><span class=nx>released</span><span class=p>)</span> <span class=k>return</span><span class=p>;</span>          <span class=c1>// 二重解放は無視（冪等）
+</span></span></span><span class=line><span class=cl>      <span class=nx>released</span> <span class=o>=</span> <span class=kc>true</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>      <span class=kr>const</span> <span class=nx>next</span> <span class=o>=</span> <span class=k>this</span><span class=p>.</span><span class=nx>waiters</span><span class=p>.</span><span class=nx>shift</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>      <span class=k>if</span> <span class=p>(</span><span class=nx>next</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=nx>next</span><span class=p>(</span><span class=k>this</span><span class=p>.</span><span class=nx>makeRelease</span><span class=p>());</span>    <span class=c1>// 行列の先頭へ、握ったまま引き継ぐ
+</span></span></span><span class=line><span class=cl>      <span class=p>}</span> <span class=k>else</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>this</span><span class=p>.</span><span class=nx>locked</span> <span class=o>=</span> <span class=kc>false</span><span class=p>;</span>         <span class=c1>// 待ち手なし：解錠
+</span></span></span><span class=line><span class=cl>      <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=p>};</span>
+</span></span><span class=line><span class=cl>  <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「鍵は、容量1の門番だ」とカイナ。「前に、一度にN体まで通す門番を立てた話をしたな。あれの、N=1 版だ。一度に、一つしか通さない」。握れたら解放する関数が返り、握れなければ行列で待つ。返すときは、待ち手がいればその先頭へ握ったまま引き継ぎ、いなければ錠を開ける。前の門番と、同じ作法だった。</p><p>その鍵を、釜はこう使う。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=c1>// Before: 二つの鍵を「自分の都合の順」で取る。釜ごとに順が違う。
+</span></span></span><span class=line><span class=cl><span class=kr>async</span> <span class=kd>function</span> <span class=nx>brewBad</span><span class=p>(</span><span class=nx>first</span>: <span class=kt>Mutex</span><span class=p>,</span> <span class=nx>second</span>: <span class=kt>Mutex</span><span class=p>,</span> <span class=nx>brew</span>: <span class=kt>Brew</span><span class=p>)</span><span class=o>:</span> <span class=nx>Promise</span><span class=p>&lt;</span><span class=nt>void</span><span class=p>&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>releaseFirst</span> <span class=o>=</span> <span class=k>await</span> <span class=nx>first</span><span class=p>.</span><span class=nx>acquire</span><span class=p>();</span>      <span class=c1>// 一本目
+</span></span></span><span class=line><span class=cl>  <span class=k>try</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=kr>const</span> <span class=nx>releaseSecond</span> <span class=o>=</span> <span class=k>await</span> <span class=nx>second</span><span class=p>.</span><span class=nx>acquire</span><span class=p>();</span>  <span class=c1>// 二本目（相手が握っていれば、ここで待つ）
+</span></span></span><span class=line><span class=cl>    <span class=k>try</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=k>await</span> <span class=nx>brew</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span> <span class=k>finally</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=nx>releaseSecond</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>  <span class=p>}</span> <span class=k>finally</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=nx>releaseFirst</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>  <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// 釜A は 水→火、釜B は 火→水。順番が、逆。
+</span></span></span><span class=line><span class=cl><span class=c1>// const runA = () =&gt; brewBad(water, fire, brewA);
+</span></span></span><span class=line><span class=cl><span class=c1>// const runB = () =&gt; brewBad(fire, water, brewB);
+</span></span></span></code></pre></td></tr></table></div></div><p>釜A は、水を満たしてから火を熾す。だから 水の鍵→火の鍵 の順に取る。釜B は、火を熾してから水を足す。だから 火の鍵→水の鍵 の順に取る。それぞれの段取りに、嘘はない。</p><p>カイナは <code>brewBad</code> を端まで追って、低く言った。</p><p>「術式そのものに、間違いはない。鍵を取る、仕事をする、鍵を返す。一点の曇りもない。——だが、二つを向き合わせると、見落としが立ち上がる。取る順番が、逆だ」</p><h2 id=にらみ合いを檻の中で起こす>にらみ合いを、檻の中で起こす</h2><h3 id=最悪の一瞬を手で作る>最悪の一瞬を、手で作る</h3><p>カイナが組みはじめたのは、その石化を、檻の中で起こす模擬戦だった。</p><p>だが、ただ二釜を走らせるだけでは、固まらない。運が良ければ、片方が水も火も取り切って、すり抜けてしまう。「ときどき」しか起きない。だから彼女は、固まる最悪の一瞬を、手で作ることにした。釜A に水の鍵を、釜B に火の鍵を、先に握らせてしまう。その上で、両者に二本目を要求させる。</p><p>ここは、正直に書いておく。これは再現の檻だ。本番では、二つの釜が運悪く同じ刻にこの形へ達したときに、初めて起きる。檻は、その最悪の一瞬を狙って固定しただけで、本番の取得手順そのものではない。——もっと正確に言えば、この檻は、<code>brewBad(water, fire)</code> が一本目の水を取り、二本目の火で止まった状態（＝釜A）と、<code>brewBad(fire, water)</code> が一本目の火を取り、二本目の水で止まった状態（＝釜B）を、こちらの手で並べたものだ。本番なら運任せのその瞬間を、狙って捕まえる。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=c1>// flush は保留を確定させるまでマイクロタスクを数段進める道具（setTimeout は使わない）。
+</span></span></span><span class=line><span class=cl><span class=kr>const</span> <span class=nx>flush</span> <span class=o>=</span> <span class=kr>async</span> <span class=p>()</span><span class=o>:</span> <span class=nx>Promise</span><span class=p>&lt;</span><span class=nt>void</span><span class=p>&gt;</span> <span class=o>=&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=k>for</span> <span class=p>(</span><span class=kd>let</span> <span class=nx>i</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=nx>i</span> <span class=o>&lt;</span> <span class=mi>4</span><span class=p>;</span> <span class=nx>i</span><span class=o>++</span><span class=p>)</span> <span class=k>await</span> <span class=nx>Promise</span><span class=p>.</span><span class=nx>resolve</span><span class=p>();</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>flush</code> は、保留中の約束を確定させるまで、手番を数段だけ進める小道具だ。実時間を待つわけではない。手番を、進めるだけ。<code>acquire().then(...)</code> の鎖は一段か二段で確定するが、四段回しているのは、保留が残らないことを確かめるための安全側の余裕で、多めに回しても害はない（前の門番の回と同じく、<code>setTimeout</code> は使わない。掃くのは手番だけだ）。</p><h3 id=どちらも間違えていない>どちらも、間違えていない</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=nx>it</span><span class=p>(</span><span class=s2>&#34;逆順に二本取ると、互いに片方を握って相手を待ち、永久に固まる（循環待機の再現）&#34;</span><span class=p>,</span> <span class=kr>async</span> <span class=p>()</span> <span class=o>=&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>water</span> <span class=o>=</span> <span class=k>new</span> <span class=nx>Mutex</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>fire</span> <span class=o>=</span> <span class=k>new</span> <span class=nx>Mutex</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=c1>// 再現の檻：A に水を、B に火を先に握らせ、「保持と待機」を決定的に作る
+</span></span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>aHoldsWater</span> <span class=o>=</span> <span class=k>await</span> <span class=nx>water</span><span class=p>.</span><span class=nx>acquire</span><span class=p>();</span> <span class=c1>// 釜A が水の鍵を保持
+</span></span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>bHoldsFire</span> <span class=o>=</span> <span class=k>await</span> <span class=nx>fire</span><span class=p>.</span><span class=nx>acquire</span><span class=p>();</span>   <span class=c1>// 釜B が火の鍵を保持
+</span></span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=c1>// ここから A は火を、B は水を要求する。どちらも相手が保持＝決して取れない。
+</span></span></span><span class=line><span class=cl>  <span class=kd>let</span> <span class=nx>aGotFire</span> <span class=o>=</span> <span class=kc>false</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=kd>let</span> <span class=nx>bGotWater</span> <span class=o>=</span> <span class=kc>false</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>aWaitsFire</span> <span class=o>=</span> <span class=nx>fire</span><span class=p>.</span><span class=nx>acquire</span><span class=p>().</span><span class=nx>then</span><span class=p>((</span><span class=nx>r</span><span class=p>)</span> <span class=o>=&gt;</span> <span class=p>{</span> <span class=nx>aGotFire</span> <span class=o>=</span> <span class=kc>true</span><span class=p>;</span> <span class=k>return</span> <span class=nx>r</span><span class=p>;</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>bWaitsWater</span> <span class=o>=</span> <span class=nx>water</span><span class=p>.</span><span class=nx>acquire</span><span class=p>().</span><span class=nx>then</span><span class=p>((</span><span class=nx>r</span><span class=p>)</span> <span class=o>=&gt;</span> <span class=p>{</span> <span class=nx>bGotWater</span> <span class=o>=</span> <span class=kc>true</span><span class=p>;</span> <span class=k>return</span> <span class=nx>r</span><span class=p>;</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>  <span class=nx>aWaitsFire</span><span class=p>.</span><span class=k>catch</span><span class=p>(()</span> <span class=o>=&gt;</span> <span class=p>{});</span>  <span class=c1>// 未解決のまま放置＝石化の証明。await しない
+</span></span></span><span class=line><span class=cl>  <span class=nx>bWaitsWater</span><span class=p>.</span><span class=k>catch</span><span class=p>(()</span> <span class=o>=&gt;</span> <span class=p>{});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>await</span> <span class=nx>flush</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=nx>assert</span><span class=p>.</span><span class=nx>equal</span><span class=p>(</span><span class=nx>aGotFire</span><span class=p>,</span> <span class=kc>false</span><span class=p>);</span>   <span class=c1>// A は火を取れない（B が保持）
+</span></span></span><span class=line><span class=cl>  <span class=nx>assert</span><span class=p>.</span><span class=nx>equal</span><span class=p>(</span><span class=nx>bGotWater</span><span class=p>,</span> <span class=kc>false</span><span class=p>);</span>  <span class=c1>// B は水を取れない（A が保持）
+</span></span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>void</span> <span class=nx>aHoldsWater</span><span class=p>;</span> <span class=k>void</span> <span class=nx>bHoldsFire</span><span class=p>;</span> <span class=c1>// 解放すれば解けるが、ここでは解かない（固まりの証明）
+</span></span></span><span class=line><span class=cl><span class=p>});</span>
+</span></span></code></pre></td></tr></table></div></div><p>カイナが檻を回すと、<code>aGotFire</code> も <code>bGotWater</code> も、<code>false</code> のままだった。釜A は火に届かない。釜B は水に届かない。どちらも二本目を取れず、錬成にすら入れない。</p><p>ここで肝心なのは、なぜこれが永久に続くか、だ。釜A が水を返すのは、火を取って、錬成を終えた後だ。だがその火は、釜B が握っている。釜B が火を返すのは、水を取って、錬成を終えた後だ。だがその水は、釜A が握っている。A の解放は B 待ち、B の解放は A 待ち。二つの解放が、互いの解放を待つ輪を作って、閉じている。だから、どちらの解放も、永久に来ない。マイクロタスクを何段進めようが、来ないものは来ない。輪が閉じている限り、針は動かない。</p><p>だから、テストはこの二つの約束を <code>await</code> しない。待てば、テスト自身が永久に止まる。待たずに、<code>flush</code> で手番を進めて「両方とも二本目を取れていない」とだけ確かめ、未解決の約束は <code>.catch</code> を添えて放っておく。固まりの瞬間を捉えて、そっと閉じる。</p><p>私は、計器の前で立ち尽くした。</p><p>「待ってくれ」と私は言った。「これは……どちらの釜も、間違ったことを、一つもしていない。鍵を取って、待って、それだけだ。なのに、止まる」</p><p>「そうだ」とカイナは言った。「型も、この石化を見張れん。<code>brewBad</code> の戻りは <code>Promise&lt;void></code>。どちらの釜の術式も、単体では型も中身も完璧だ。固まるのは、二つを向き合わせたときの『取る順』——型のどこにも書かれない、走らせて初めて立ち上がる関係だ」</p><p>そして、彼女は古い話を持ち出した。</p><p>「前に、双頭の犬が、荷を二度送った話をした。連打で、同じ荷が二つ走った。あれは、動いて、間違える獣だ。荷が、壊れる。——こいつは、逆だ。何も間違えない。ただ、動かなくなる。壊れた触媒は、一つも出ない。出ないんじゃない。何も、出ないんだ」</p><p>何も間違えないのに、止まる。私はその不条理を、ようやく論理として飲み込んだ。シングルスレッドだから安全、ではなかった。一本の巡回路の上でも、約束が約束を待つ輪を作れば、処理は永久に止まる。二つの術式がどう向き合い、どうやって見つめ合うのかを、カイナは一本の糸の絡まりに例えて示した。それは、互いが相手の懐にある鍵を求め合う、閉じた約束の輪だった。</p><p><img src=/public_images/2026/code-tamer-deadlock/infographic_1.webp loading=lazy alt="Infographic sequence diagram showing double-submission deadlock condition where two kettles wait for each other’s keys eternally"></p><p>二つの釜が、相手の返した約束を自らの解放の糧としようとする。だがその約束は、自分が握ったままのもう一つの鍵が解放されなければ叶わない。この無限 of 待ち合いこそが、シングルスレッドに現れた「論理の石化」の正体だった。</p><h3 id=刻限を設ければいい>刻限を、設ければいい</h3><p>不条理が論理になると、私の頭は勝手に直し方を探しはじめた。</p><p>「なら、こうすればいい」と私は、自分から踏み込んだ。「鍵を待つのに、刻限を設ける。一定の刻、待っても取れなければ、諦める。そうすれば、少なくとも——永久には、固まらないだろう」</p><p>カイナは、私の案を頭ごなしには否定しなかった。「やってみろ」とだけ言って、刻限つきの鍵取りを組んだ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=kr>type</span> <span class=nx>Sleep</span> <span class=o>=</span> <span class=p>(</span><span class=nx>ms</span>: <span class=kt>number</span><span class=p>)</span> <span class=o>=&gt;</span> <span class=nx>Promise</span><span class=p>&lt;</span><span class=nt>void</span><span class=p>&gt;;</span> <span class=c1>// 待ち（DI）。模擬戦では即解決＝即タイムアウト
+</span></span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// タイムアウト付き獲得：acquire とタイマーを競わせる。
+</span></span></span><span class=line><span class=cl><span class=kr>async</span> <span class=kd>function</span> <span class=nx>acquireWithTimeout</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>  <span class=nx>mutex</span>: <span class=kt>Mutex</span><span class=p>,</span> <span class=nx>sleep</span>: <span class=kt>Sleep</span><span class=p>,</span> <span class=nx>ms</span>: <span class=kt>number</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>)</span><span class=o>:</span> <span class=nx>Promise</span><span class=o>&lt;</span><span class=p>(()</span> <span class=o>=&gt;</span> <span class=k>void</span><span class=p>)</span> <span class=o>|</span> <span class=kc>null</span><span class=o>&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>acq</span> <span class=o>=</span> <span class=nx>mutex</span><span class=p>.</span><span class=nx>acquire</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>timedOut</span> <span class=o>=</span> <span class=nx>sleep</span><span class=p>(</span><span class=nx>ms</span><span class=p>).</span><span class=nx>then</span><span class=p>(()</span> <span class=o>=&gt;</span> <span class=s2>&#34;timeout&#34;</span> <span class=kr>as</span> <span class=kr>const</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>winner</span> <span class=o>=</span> <span class=k>await</span> <span class=nx>Promise</span><span class=p>.</span><span class=nx>race</span><span class=p>([</span><span class=nx>acq</span><span class=p>.</span><span class=nx>then</span><span class=p>((</span><span class=nx>release</span><span class=p>)</span> <span class=o>=&gt;</span> <span class=p>({</span> <span class=nx>release</span> <span class=p>})),</span> <span class=nx>timedOut</span><span class=p>]);</span>
+</span></span><span class=line><span class=cl>  <span class=k>if</span> <span class=p>(</span><span class=nx>winner</span> <span class=o>===</span> <span class=s2>&#34;timeout&#34;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=c1>// ★負けた acquire は止まらない。後から取れたら、その場で手放す（握りっぱなしを防ぐ）
+</span></span></span><span class=line><span class=cl>    <span class=nx>acq</span><span class=p>.</span><span class=nx>then</span><span class=p>((</span><span class=nx>release</span><span class=p>)</span> <span class=o>=&gt;</span> <span class=nx>release</span><span class=p>()).</span><span class=k>catch</span><span class=p>(()</span> <span class=o>=&gt;</span> <span class=p>{});</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=kc>null</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=p>}</span>
+</span></span><span class=line><span class=cl>  <span class=k>return</span> <span class=nx>winner</span><span class=p>.</span><span class=nx>release</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「だが、一つ、罠がある」とカイナは、<code>Promise.race</code> の一行を指した。「刻限に勝たせても、負けた鍵取りは、止まらない。裏で、まだ鍵を取りにいったままだ。後から取れてしまったら、誰も使わない鍵を握って、また別の誰かを待たせる。だから——後から取れたら、その場で手放す一行が要る」。<code>Promise.race</code> は、勝ち負けを決めるだけで、負けたほうを断ち切ってはくれない。その後始末は、自分で書く。——断っておくと、この「後から取れたら手放す」一行（★）が実際に火を握って手放すのは、刻限を過ぎた後で、火を握っていた誰かが鍵を返したときだ。この後に見せる模擬戦では、火はずっと握られたままにする。だからそこで効くのは、この★ではなく、もう一つの後始末——握った一本目を確実に返すほうだ。二つの後始末は、効く局面が違う。</p><h3 id=諦めた鍵は誰が返す>諦めた鍵は、誰が返す</h3><p>「凍結は、これで解ける」とカイナは言った。「だが、刻限で諦めるのは、もう一段、面倒を呼ぶ」。</p><p>彼女は、こんな模擬戦を見せた。水を握ったまま、火の鍵取りが刻限で諦めた——そのとき、握っていた水を、誰が返すのか。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=nx>it</span><span class=p>(</span><span class=s2>&#34;二本目がタイムアウトしたとき一本目を解放しないと、鍵が残る（解放漏れ＝別の障害）&#34;</span><span class=p>,</span> <span class=kr>async</span> <span class=p>()</span> <span class=o>=&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>water</span> <span class=o>=</span> <span class=k>new</span> <span class=nx>Mutex</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>fire</span> <span class=o>=</span> <span class=k>new</span> <span class=nx>Mutex</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>holdFire</span> <span class=o>=</span> <span class=k>await</span> <span class=nx>fire</span><span class=p>.</span><span class=nx>acquire</span><span class=p>();</span>          <span class=c1>// 別フローが火を握って離さない＝必ずタイムアウト
+</span></span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>sleep</span>: <span class=kt>Sleep</span> <span class=o>=</span> <span class=p>()</span> <span class=o>=&gt;</span> <span class=nx>Promise</span><span class=p>.</span><span class=nx>resolve</span><span class=p>();</span>   <span class=c1>// 即タイムアウト（DI、setTimeout不使用）
+</span></span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=c1>// 誤実装：水を握り、火がタイムアウト→でも水を解放せずに諦める
+</span></span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>releaseWater</span> <span class=o>=</span> <span class=k>await</span> <span class=nx>water</span><span class=p>.</span><span class=nx>acquire</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>second</span> <span class=o>=</span> <span class=k>await</span> <span class=nx>acquireWithTimeout</span><span class=p>(</span><span class=nx>fire</span><span class=p>,</span> <span class=nx>sleep</span><span class=p>,</span> <span class=mi>0</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>  <span class=nx>assert</span><span class=p>.</span><span class=nx>equal</span><span class=p>(</span><span class=nx>second</span><span class=p>,</span> <span class=kc>null</span><span class=p>);</span>                     <span class=c1>// 火は取れなかった
+</span></span></span><span class=line><span class=cl>  <span class=c1>// ★ここで releaseWater() を呼ばずに諦めている（解放漏れ）
+</span></span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=kd>let</span> <span class=nx>gotWater</span> <span class=o>=</span> <span class=kc>false</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=nx>water</span><span class=p>.</span><span class=nx>acquire</span><span class=p>().</span><span class=nx>then</span><span class=p>((</span><span class=nx>r</span><span class=p>)</span> <span class=o>=&gt;</span> <span class=p>{</span> <span class=nx>gotWater</span> <span class=o>=</span> <span class=kc>true</span><span class=p>;</span> <span class=k>return</span> <span class=nx>r</span><span class=p>;</span> <span class=p>}).</span><span class=k>catch</span><span class=p>(()</span> <span class=o>=&gt;</span> <span class=p>{});</span>
+</span></span><span class=line><span class=cl>  <span class=k>await</span> <span class=nx>flush</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>  <span class=nx>assert</span><span class=p>.</span><span class=nx>equal</span><span class=p>(</span><span class=nx>gotWater</span><span class=p>,</span> <span class=kc>false</span><span class=p>);</span>                  <span class=c1>// 水が握られたまま＝次のフローが取れない（リーク）
+</span></span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>void</span> <span class=nx>holdFire</span><span class=p>;</span> <span class=k>void</span> <span class=nx>releaseWater</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>});</span>
+</span></span></code></pre></td></tr></table></div></div><p>火を諦めても、水を返さなければ、水の鍵はロックされたまま残る。次に水を欲しがる誰かが、永久に待つ。石化は防いだが、今度は鍵が残るという別の障害——リークに化けた。直すには、刻限で諦めるときも、握った鍵を <code>finally</code> で確実に返す。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=nx>it</span><span class=p>(</span><span class=s2>&#34;一本目を finally で確実に解放すれば、タイムアウトしても鍵は残らない&#34;</span><span class=p>,</span> <span class=kr>async</span> <span class=p>()</span> <span class=o>=&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>water</span> <span class=o>=</span> <span class=k>new</span> <span class=nx>Mutex</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>fire</span> <span class=o>=</span> <span class=k>new</span> <span class=nx>Mutex</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>holdFire</span> <span class=o>=</span> <span class=k>await</span> <span class=nx>fire</span><span class=p>.</span><span class=nx>acquire</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>sleep</span>: <span class=kt>Sleep</span> <span class=o>=</span> <span class=p>()</span> <span class=o>=&gt;</span> <span class=nx>Promise</span><span class=p>.</span><span class=nx>resolve</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=c1>// 正しい実装：finally で一本目を必ず解放
+</span></span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>releaseWater</span> <span class=o>=</span> <span class=k>await</span> <span class=nx>water</span><span class=p>.</span><span class=nx>acquire</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>  <span class=k>try</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=kr>const</span> <span class=nx>second</span> <span class=o>=</span> <span class=k>await</span> <span class=nx>acquireWithTimeout</span><span class=p>(</span><span class=nx>fire</span><span class=p>,</span> <span class=nx>sleep</span><span class=p>,</span> <span class=mi>0</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nx>assert</span><span class=p>.</span><span class=nx>equal</span><span class=p>(</span><span class=nx>second</span><span class=p>,</span> <span class=kc>null</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>  <span class=p>}</span> <span class=k>finally</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=nx>releaseWater</span><span class=p>();</span>                               <span class=c1>// ★タイムアウトでも水は必ず返す
+</span></span></span><span class=line><span class=cl>  <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=kd>let</span> <span class=nx>gotWater</span> <span class=o>=</span> <span class=kc>false</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=nx>water</span><span class=p>.</span><span class=nx>acquire</span><span class=p>().</span><span class=nx>then</span><span class=p>((</span><span class=nx>r</span><span class=p>)</span> <span class=o>=&gt;</span> <span class=p>{</span> <span class=nx>gotWater</span> <span class=o>=</span> <span class=kc>true</span><span class=p>;</span> <span class=k>return</span> <span class=nx>r</span><span class=p>;</span> <span class=p>}).</span><span class=k>catch</span><span class=p>(()</span> <span class=o>=&gt;</span> <span class=p>{});</span>
+</span></span><span class=line><span class=cl>  <span class=k>await</span> <span class=nx>flush</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>  <span class=nx>assert</span><span class=p>.</span><span class=nx>equal</span><span class=p>(</span><span class=nx>gotWater</span><span class=p>,</span> <span class=kc>true</span><span class=p>);</span>                   <span class=c1>// 水が解放された＝次が取れる
+</span></span></span><span class=line><span class=cl><span class=p>});</span>
+</span></span></code></pre></td></tr></table></div></div><p>「データベースでも、同じ罠がある」とカイナは言い添えた。「デッドロックを検出したときは、掴んだものを全部巻き戻す。だが、待ちの刻限が切れただけのときは、設定次第で巻き戻さん。掴んだ分が、残る。同じ『諦める』でも、後始末まで、自分で書かねばならん」。</p><p>「それと、もう一つ」と彼女は続けた。これは、コードにせずに話した。「二つの釜が、同じ刻限で、揃って諦めて、揃って取り直したら——また同じ形でぶつかる。諦めて、ぶつかって、また諦めて。固まりはしない。だが、誰も前に進まない。石になる代わりに、堂々巡りだ。これをライブロック——止まってはいないのに、進まない状態、という」。</p><p>私は、別の獣の話を思い出した。前に彼女は、嵐の中で雷鳥が揃って飛び立って、立ち直りかけた塔をまた潰した話をしていた。</p><p>「そうだ」とカイナは頷いた。「あのとき効いたのが、待つ刻に揺らぎを混ぜること——ゼロから上限までの幅で、待ちを一頭ずつ運任せに散らす、Full Jitter だった。ここも同じだ。諦める刻を、一頭ずつ散らせば、揃って取り直す対称が崩れて、どちらかが先に通る」。</p><p>このライブロックだけは、檻の中で決定的には見せられなかった。にらみ合いも、解放漏れも、「必ずこうなる一瞬」を狙い撃って固定できた。だがライブロックがほどけるかどうかは、揺らぎという確率の話だ。デッドロックのように針を止めて捕まえる、というわけにいかない。だからカイナは、これだけは檻に載せず、口で語った。決定的に見せられる暴走と、確率でしか語れない暴走の、境目だった。</p><p>そして、彼女は刻限つきの鍵取りを、脇へ置いた。</p><p>「タイムアウトは、悪い手じゃない。鍵を取る相手を、全部、自分の術式で握れない——別のギルドや、遠くの誰かが、こちらの決めた順を守らずに鍵を取る——そういう場には、これしかない。検知して、諦めて、揺らぎを入れて取り直す。だが、これは『凍結を検知して、復旧する』手だ。にらみ合いそのものは、まだ残っている。お前の二釜は、どちらもお前が書いた。なら——もっと根本から、断てる」</p><h2 id=鍵を拾う順を一つに定める>鍵を拾う順を、一つに定める</h2><h3 id=逆向きの組を作れなくする>逆向きの組を、作れなくする</h3><p>カイナの本命は、鍵の取り方を組み替えることでも、一行を足すことでもなかった。</p><p>「鍵に、序列をつける」と彼女は言った。「どの釜も、どの職人も、鍵を取るときは必ず——番号の小さい鍵から、大きい鍵へ。たった一つの順でしか、取らせない」。</p><p>なぜそれで石化が消えるのか。私が問う前に、彼女は続けた。</p><p>「石化が起きるには、片方が水→火、もう片方が火→水、という逆向きの組が要る。だが、全員が同じ順——たとえば火が先、水が後——でしか取らなければ、その逆向きの組が、そもそも生まれない。にらみ合いの輪を、組もうとしても、閉じない」。</p><p>ここで言う「順」は、鍵に一意な名前（<code>id</code>）を振って、その大小で決める。名前は何でもいい——文字列を辞書順に並べてもいいし、数値の通し番号でも、UUID でもいい。肝心なのは二つ。鍵ごとに一意であること（同じ名前が二つあると、どちらが先か決まらない）。そして、全員が同じ物差しで並べること。誰か一人が違う比較規則を使えば——たとえば片方が数値として、もう片方が文字列の辞書順として並べれば（<code>"10"</code> と <code>"2"</code> の前後が食い違うように）——そこから逆向きの組が忍び込む。順序は、全員で一つに揃えて、初めて効く。</p><p><code>brewBad</code> の「自分の都合の順」を、必ず id 昇順で取る <code>acquireInOrder</code> に差し替える。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=kr>type</span> <span class=nx>IdLock</span> <span class=o>=</span> <span class=p>{</span> <span class=nx>id</span>: <span class=kt>string</span><span class=p>;</span> <span class=nx>mutex</span>: <span class=kt>Mutex</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// 複数の鍵を「id の昇順」で取得する。全員がこれを通れば、逆順の組が生まれない。
+</span></span></span><span class=line><span class=cl><span class=kr>async</span> <span class=kd>function</span> <span class=nx>acquireInOrder</span><span class=p>(</span><span class=nx>locks</span>: <span class=kt>IdLock</span><span class=p>[])</span><span class=o>:</span> <span class=nx>Promise</span><span class=o>&lt;</span><span class=p>()</span> <span class=o>=&gt;</span> <span class=k>void</span><span class=o>&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>sorted</span> <span class=o>=</span> <span class=p>[...</span><span class=nx>locks</span><span class=p>].</span><span class=nx>sort</span><span class=p>((</span><span class=nx>a</span><span class=p>,</span> <span class=nx>b</span><span class=p>)</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=nx>a</span><span class=p>.</span><span class=nx>id</span> <span class=o>&lt;</span> <span class=nx>b</span><span class=p>.</span><span class=nx>id</span> <span class=o>?</span> <span class=o>-</span><span class=nx>1</span> : <span class=kt>a.id</span> <span class=o>&gt;</span> <span class=nx>b</span><span class=p>.</span><span class=nx>id</span> <span class=o>?</span> <span class=nx>1</span> : <span class=kt>0</span><span class=p>));</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>releases</span>: <span class=kt>Array</span><span class=o>&lt;</span><span class=p>()</span> <span class=o>=&gt;</span> <span class=k>void</span><span class=o>&gt;</span> <span class=o>=</span> <span class=p>[];</span>
+</span></span><span class=line><span class=cl>  <span class=k>try</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=p>(</span><span class=kr>const</span> <span class=nx>lock</span> <span class=k>of</span> <span class=nx>sorted</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=nx>releases</span><span class=p>.</span><span class=nx>push</span><span class=p>(</span><span class=k>await</span> <span class=nx>lock</span><span class=p>.</span><span class=nx>mutex</span><span class=p>.</span><span class=nx>acquire</span><span class=p>());</span>   <span class=c1>// 昇順に、一本ずつ
+</span></span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>()</span> <span class=o>=&gt;</span> <span class=p>{</span> <span class=k>for</span> <span class=p>(</span><span class=kr>const</span> <span class=nx>r</span> <span class=k>of</span> <span class=p>[...</span><span class=nx>releases</span><span class=p>].</span><span class=nx>reverse</span><span class=p>())</span> <span class=nx>r</span><span class=p>();</span> <span class=p>};</span> <span class=c1>// まとめて逆順に解放
+</span></span></span><span class=line><span class=cl>  <span class=p>}</span> <span class=k>catch</span> <span class=p>(</span><span class=nx>err</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=p>(</span><span class=kr>const</span> <span class=nx>r</span> <span class=k>of</span> <span class=p>[...</span><span class=nx>releases</span><span class=p>].</span><span class=nx>reverse</span><span class=p>())</span> <span class=nx>r</span><span class=p>();</span>  <span class=c1>// 途中で失敗したら、取った分はロールバック解放
+</span></span></span><span class=line><span class=cl>    <span class=k>throw</span> <span class=nx>err</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// After: 渡す順がどうであれ、acquireInOrder が必ず id 昇順に揃える。
+</span></span></span><span class=line><span class=cl><span class=kr>async</span> <span class=kd>function</span> <span class=nx>brewOrdered</span><span class=p>(</span><span class=nx>locks</span>: <span class=kt>IdLock</span><span class=p>[],</span> <span class=nx>brew</span>: <span class=kt>Brew</span><span class=p>)</span><span class=o>:</span> <span class=nx>Promise</span><span class=p>&lt;</span><span class=nt>void</span><span class=p>&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>release</span> <span class=o>=</span> <span class=k>await</span> <span class=nx>acquireInOrder</span><span class=p>(</span><span class=nx>locks</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>  <span class=k>try</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>await</span> <span class=nx>brew</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>  <span class=p>}</span> <span class=k>finally</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=nx>release</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>  <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// 釜A も釜B も、同じ二鍵を渡す順は違っても、取得は必ず id 昇順（fire &lt; water）。
+</span></span></span><span class=line><span class=cl><span class=c1>// const runA = () =&gt; brewOrdered([water, fire], brewA);
+</span></span></span><span class=line><span class=cl><span class=c1>// const runB = () =&gt; brewOrdered([fire, water], brewB);
+</span></span></span></code></pre></td></tr></table></div></div><p>末尾の <code>catch</code>——途中まで取った鍵を、まとめて返すロールバック——について、カイナは一言付け加えた。「この素の鍵取りは、決して失敗しない。だから、この <code>catch</code> は、順調なときは走らん。効いてくるのは、さっきの刻限つきの鍵取りと組んだときだ。二本目を諦めたときに、一本目を取りこぼさず確実に返す。掴みかけて失敗したぶんの、後始末だ。今は、保険として置いておく」。</p><p>同じ二鍵で、今度は <code>brewOrdered</code> を回す。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=nx>it</span><span class=p>(</span><span class=s2>&#34;取得順を id 昇順に揃えれば、両フローとも完遂する（循環が生まれない）&#34;</span><span class=p>,</span> <span class=kr>async</span> <span class=p>()</span> <span class=o>=&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>water</span>: <span class=kt>IdLock</span> <span class=o>=</span> <span class=p>{</span> <span class=nx>id</span><span class=o>:</span> <span class=s2>&#34;water&#34;</span><span class=p>,</span> <span class=nx>mutex</span>: <span class=kt>new</span> <span class=nx>Mutex</span><span class=p>()</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>fire</span>: <span class=kt>IdLock</span> <span class=o>=</span> <span class=p>{</span> <span class=nx>id</span><span class=o>:</span> <span class=s2>&#34;fire&#34;</span><span class=p>,</span> <span class=nx>mutex</span>: <span class=kt>new</span> <span class=nx>Mutex</span><span class=p>()</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>done</span>: <span class=kt>string</span><span class=p>[]</span> <span class=o>=</span> <span class=p>[];</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=c1>// A は [water, fire]、B は [fire, water] と渡す順はバラバラ。だが取得は両方 fire→water に揃う。
+</span></span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>a</span> <span class=o>=</span> <span class=nx>brewOrdered</span><span class=p>([</span><span class=nx>water</span><span class=p>,</span> <span class=nx>fire</span><span class=p>],</span> <span class=kr>async</span> <span class=p>()</span> <span class=o>=&gt;</span> <span class=p>{</span> <span class=nx>done</span><span class=p>.</span><span class=nx>push</span><span class=p>(</span><span class=s2>&#34;A&#34;</span><span class=p>);</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>b</span> <span class=o>=</span> <span class=nx>brewOrdered</span><span class=p>([</span><span class=nx>fire</span><span class=p>,</span> <span class=nx>water</span><span class=p>],</span> <span class=kr>async</span> <span class=p>()</span> <span class=o>=&gt;</span> <span class=p>{</span> <span class=nx>done</span><span class=p>.</span><span class=nx>push</span><span class=p>(</span><span class=s2>&#34;B&#34;</span><span class=p>);</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>await</span> <span class=nx>Promise</span><span class=p>.</span><span class=nx>all</span><span class=p>([</span><span class=nx>a</span><span class=p>,</span> <span class=nx>b</span><span class=p>]);</span>          <span class=c1>// ハングしない＝両方とも完遂
+</span></span></span><span class=line><span class=cl>  <span class=nx>assert</span><span class=p>.</span><span class=nx>deepEqual</span><span class=p>([...</span><span class=nx>done</span><span class=p>].</span><span class=nx>sort</span><span class=p>(),</span> <span class=p>[</span><span class=s2>&#34;A&#34;</span><span class=p>,</span> <span class=s2>&#34;B&#34;</span><span class=p>]);</span> <span class=c1>// 取りこぼし0
+</span></span></span><span class=line><span class=cl><span class=p>});</span>
+</span></span></code></pre></td></tr></table></div></div><p>今度は、両方とも通った。<code>Promise.all</code> は、固まらずに帰ってきた。</p><p>なぜ通ったのかを、運に帰してはいけない。釜A も釜B も、<code>acquireInOrder</code> を通る以上、まず必ず火（id の小さいほう）を取りにいく。先に取れた釜が火を握り、もう一方は火の行列で待つ。先の釜は続けて水を取り、錬成し、火と水を返す。返った火を、待っていた釜が取り、続けて水を取り、錬成する。——ここが核心だ。全員が火を先に取るのだから、「片方が水を握って火を待ち、もう片方が火を握って水を待つ」という逆向きの組が、原理的に作れない。にらみ合いの輪は、組もうとしても閉じない。だから両者は、必ず完遂する。これは、たまたまではない。取得順を一つに揃えたことで、循環待機——にらみ合いの最後の一本——を、構造から外した帰結だ。カイナは、水と火の鍵を卓に並べ直し、今度はそれらを同じ順序で手にとる二つの釜の挙動を指でなぞった。規律がもたらす秩序は、にらみ合いそのものが成立する余地を最初から奪い去っていた。</p><p><img src=/public_images/2026/code-tamer-deadlock/infographic_2.webp loading=lazy alt="Infographic sequence diagram showing Lock Ordering preventing deadlock by securing keys in ID order"></p><p>火を握った者が仕事を終えてそれを手放すまで、もう一方は次の鍵に決して手を触れない。この一本道の規律こそが、循環の輪を断ち切り、二つの釜を迷いなく稼働させるための絶対の鍵だった。</p><h3 id=順は型に書けない>順は、型に書けない</h3><p>「揃えた、と言うだけでは足りん」とカイナは言った。「本当に、渡す順がどうであれ、取る順が一つに揃うのか。確かめる」。</p><p>彼女は、鍵取り（<code>acquire</code>）をテスト用の記録ラッパで包んで、どの鍵をどの順に取りにいったかを控えた。本番の鍵を書き換えるのではない。模擬戦で、取得順を覗くための仕掛けだ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=nx>it</span><span class=p>(</span><span class=s2>&#34;acquireInOrder：渡す順がどうであれ、必ず id 昇順で取得する（全順序の徹底）&#34;</span><span class=p>,</span> <span class=kr>async</span> <span class=p>()</span> <span class=o>=&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>acquired</span>: <span class=kt>string</span><span class=p>[]</span> <span class=o>=</span> <span class=p>[];</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>makeLock</span> <span class=o>=</span> <span class=p>(</span><span class=nx>id</span>: <span class=kt>string</span><span class=p>)</span><span class=o>:</span> <span class=nx>IdLock</span> <span class=o>=&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=kr>const</span> <span class=nx>mutex</span> <span class=o>=</span> <span class=k>new</span> <span class=nx>Mutex</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>    <span class=kr>const</span> <span class=nx>origAcquire</span> <span class=o>=</span> <span class=nx>mutex</span><span class=p>.</span><span class=nx>acquire</span><span class=p>.</span><span class=nx>bind</span><span class=p>(</span><span class=nx>mutex</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nx>mutex</span><span class=p>.</span><span class=nx>acquire</span> <span class=o>=</span> <span class=kr>async</span> <span class=p>()</span> <span class=o>=&gt;</span> <span class=p>{</span> <span class=nx>acquired</span><span class=p>.</span><span class=nx>push</span><span class=p>(</span><span class=nx>id</span><span class=p>);</span> <span class=k>return</span> <span class=nx>origAcquire</span><span class=p>();</span> <span class=p>};</span> <span class=c1>// 取得を記録
+</span></span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>{</span> <span class=nx>id</span><span class=p>,</span> <span class=nx>mutex</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>  <span class=p>};</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>water</span> <span class=o>=</span> <span class=nx>makeLock</span><span class=p>(</span><span class=s2>&#34;water&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>fire</span> <span class=o>=</span> <span class=nx>makeLock</span><span class=p>(</span><span class=s2>&#34;fire&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>r1</span> <span class=o>=</span> <span class=k>await</span> <span class=nx>acquireInOrder</span><span class=p>([</span><span class=nx>water</span><span class=p>,</span> <span class=nx>fire</span><span class=p>]);</span> <span class=nx>r1</span><span class=p>();</span> <span class=c1>// 渡す順：water, fire
+</span></span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>r2</span> <span class=o>=</span> <span class=k>await</span> <span class=nx>acquireInOrder</span><span class=p>([</span><span class=nx>fire</span><span class=p>,</span> <span class=nx>water</span><span class=p>]);</span> <span class=nx>r2</span><span class=p>();</span> <span class=c1>// 渡す順：逆
+</span></span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=nx>assert</span><span class=p>.</span><span class=nx>deepEqual</span><span class=p>(</span><span class=nx>acquired</span><span class=p>,</span> <span class=p>[</span><span class=s2>&#34;fire&#34;</span><span class=p>,</span> <span class=s2>&#34;water&#34;</span><span class=p>,</span> <span class=s2>&#34;fire&#34;</span><span class=p>,</span> <span class=s2>&#34;water&#34;</span><span class=p>]);</span> <span class=c1>// どちらも fire→water
+</span></span></span><span class=line><span class=cl><span class=p>});</span>
+</span></span></code></pre></td></tr></table></div></div><p>渡す順を逆にしても、取りにいくのは、いつも火、水の順だった。「序列さえ全員が守れば、誰がどんな順で頼んでも、取るのは一つの順だ」とカイナ。「逆向きの組は、現れようがない」。</p><p>そして、彼女は術式と向き合ったまま、淡々と続けた。</p><p>「面白いのは、この順序の規律を、型は強制してくれないことだ。<code>brewBad</code> も <code>brewOrdered</code> も、型の上では、どちらも通る。『全員が同じ順で取る』という約束は、型に書けない。書けるのは、取り方の作法と、それを全員に守らせる規律だけだ。——だから、お前が直すのは、一つの釜じゃない。釜を動かす、全員の鍵の取り方だ」</p><h3 id=この序列が防げないもの>この序列が、防げないもの</h3><p>「これで、もう二度と、石にはならないと——言い切れるのか」私は、最後にそれを確かめたかった。職人の性で、保証の範囲を知りたかった。</p><p>カイナは即答せず、鍵を一つ、卓に置いた。</p><p>「この序列が縛るのは、お前のギルドの中だけだ。全部の釜、全部の職人が、同じ順で鍵を取る限り、逆向きの組は生まれん。にらみ合いは、構造から消える。それは、確かにやった」。彼女は指を折った。</p><p>「だが、その前提が崩れたら——別のギルドや、遠くの誰かが、こちらの順を知らずに鍵を取るなら、順序は強制できん。そういう場では、さっきの刻限と揺らぎ（復旧）に頼るしかない。予防が使えない場所のための、二番目の手だ。——勘違いするな。予防と復旧は、優劣じゃない。手が届く範囲の差だ。鍵を取る全員を自分で握れるなら、順を揃えて根を断つ。握れないなら、検知して諦めて、賢く取り直す」。</p><p>「それから、一つ気をつけろ」と彼女は付け足した。「同じ鍵を、一つの釜が、二度握ろうとするな。自分で自分の解放を待って、自分だけで固まる。輪が、一つの結び目に縮んだ形だ。これは、順序づけでは防げん。同じ鍵に、前も後もないからな」。</p><p>最後に、彼女は炉のほうへ目をやった。</p><p>「それと——その水の鍵。水は、この工房だけのものじゃないな。街の、共同の水源から引いている。皆が一気に汲み上げれば、源が干上がる。それは、鍵を取る順の話じゃない。一定の刻ごとに、滴をためる別の器が要る。——それは、また別の話だ」</p><p>防げるものと、防げないもの。その境目がはっきりして、私は今日刻んだ序列が、どこまで効くのかを、ようやく飲み込めた。順序は、万能の手ではない。だが、私のギルドの釜は、もう、向き合って固まらない。</p><h2 id=試運転>試運転</h2><p>カイナは、逆順で取る古い術式と、順を揃えた術式の、両方の模擬戦を、まとめて走らせた。固まる側には「永久ハング」を、手懐けた側には「両方とも完遂する」ことを、それぞれ記録として残してある。刻限つきの鍵取りには、後始末を怠ったときの「鍵が残る」と、正しく返したときの「残らない」を、並べて。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-console data-lang=console><span class=line><span class=cl><span class=gp>$</span> node --test
+</span></span><span class=line><span class=cl><span class=go>▶ After: Lock Ordering（acquireInOrder＝取得順の全順序化）
+</span></span></span><span class=line><span class=cl><span class=go>  ✔ 取得順を id 昇順に揃えれば、両フローとも完遂する（循環が生まれない）
+</span></span></span><span class=line><span class=cl><span class=go>  ✔ acquireInOrder：渡す順がどうであれ、必ず id 昇順で取得する（全順序の徹底）
+</span></span></span><span class=line><span class=cl><span class=go>▶ Timeout: 検知と復旧（acquireWithTimeout）
+</span></span></span><span class=line><span class=cl><span class=go>  ✔ 二本目がタイムアウトしたとき一本目を解放しないと、鍵が残る（解放漏れ＝別の障害）
+</span></span></span><span class=line><span class=cl><span class=go>  ✔ 一本目を finally で確実に解放すれば、タイムアウトしても鍵は残らない
+</span></span></span><span class=line><span class=cl><span class=go>▶ Before: brewBad（逆順取得・循環待機）
+</span></span></span><span class=line><span class=cl><span class=go>  ✔ 逆順に二本取ると、互いに片方を握って相手を待ち、永久に固まる（循環待機の再現）
+</span></span></span><span class=line><span class=cl><span class=go>ℹ tests 5
+</span></span></span><span class=line><span class=cl><span class=go>ℹ pass 5
+</span></span></span><span class=line><span class=cl><span class=go>ℹ fail 0
+</span></span></span></code></pre></td></tr></table></div></div><p>試運転、合格。にらみ合いの再現も、その封じも、これからはこの模擬戦が見張り続ける。次に誰かが——あるいは私自身が、新しい釜を組んで、つい自分の都合の順で鍵を取らせれば、逆順の組が、檻の中で先に捕まる。</p><h3 id=順をギルドの掟にする>順を、ギルドの掟にする</h3><p>私は、一つの釜の術式を直すだけでは足りないと気づいていた。カイナが、それを促した。</p><p>「一つの釜を直しても、隣の釜が逆の順で取れば、また石になる。順番は、全部の釜で一つに揃えて、初めて効く」</p><p>だから私は、鍵の序列——火が先、水が後——を、自分の二釜だけでなく、工房の壁に刻んだ。ギルドの掟として。これから誰が、どんな釜を組もうと、鍵を取るときは、この一つの順に従う。個別の手当てを、皆の規律に変えた。</p><p>カイナは、私が壁に刻むのを、振り返りもしなかった。卓に残った鍵を一本ずつ箱へ戻しながら、言った。</p><p>「術式の正しさは、一つの釜で測れる。だが、にらみ合いの正しさは、釜の数だけ掛け合わせて、初めて出る。お前が今、壁に刻んだのは——その掛け算の、答えだ」</p><p>私は、刻んだ掟の前に立った。二つの釜は、もう向き合って固まらずに、それぞれの順で火を取り、水を取り、静かに回りはじめていた。煙が、まっすぐ上っていく。止まっていた朝が、ようやく動き出した。</p><hr><h3 id=-カイナの魔獣契約録tamers-registry>📜 カイナの魔獣契約録（Tamer&rsquo;s Registry）</h3><ul><li><strong>魔獣名（クラス/パターン名）</strong>: ガルゴイル（対峙の石像鬼）／ デッドロック・循環待機（Lock Ordering＝取得順の全順序化で予防／Timeout＝検知と復旧）</li><li><strong>危険度（難易度/バグの影響度）</strong>: ★★★★☆（単体の釜は完璧で無害。二つ以上が逆向きの順で複数の鍵を取り合った刻にだけ、互いの解放を待って永久に固まる。データは壊れない＝liveness 障害）</li><li><strong>主な生態（アンチパターンの特徴）</strong>:<ul><li>JS はシングルスレッドゆえ OS スレッドのデッドロックは起きないが、<code>Promise</code> ベースの非同期ロック上で「決して resolve されない約束を互いに待つ」論理的デッドロックが起きる。イベントループは回り続け、CPU 0% のまま処理だけ永久停止する（検出しづらい）</li><li>フローA が lock1→lock2、フローB が lock2→lock1 の逆順で取り、A が lock1・B が lock2 を保持した刻に循環待機が成立（Coffman の4条件：相互排他・保持と待機・横取り不可・循環待機が揃う）</li><li>単体の術式・型はどちらも完璧。固まるのは「二つを動かしたときの取得順」という、型に書かれない実行時の関係</li></ul></li><li><strong>契約のポイント（設計の要点）</strong>:<ul><li>Lock Ordering（予防・本命）: 全リソースに一意な順序（id の昇順）を課し、<code>acquireInOrder</code> で必ずその順に取得する。逆向きの組が構造的に生まれず、循環待機（4条件の1つ）を破る＝デッドロックを原理的に不可能にする。途中失敗は reverse でロールバック解放</li><li>ミューテックス＝容量1のセマフォ（前回の N=1 門番）。鍵＝一つずつ握る門番。直すのは一つの釜でなく「釜を動かす全員の鍵の取り方」。順序の規律は型では強制できず、全員が守って初めて効く</li></ul></li><li><strong>契約外事項（保証しないこと）</strong>:<ul><li>Timeout（検知/復旧・代替）: 全獲得者を自分で握れない（第三者・分散で順序を強制できない）場合の二番目の手。<code>Promise.race</code> で刻限と競わせるが、(1) 負けた acquire は裏で走り続ける→後から取れたら即解放、(2) 保持中の鍵は <code>finally</code> で確実に解放しないとリーク、(3) 揃って諦め揃って取り直すとライブロック→揺らぎ（Full Jitter）で対称を破る。予防ではなく復旧で、優劣でなく適用条件の差</li><li>自己デッドロック（同じ鍵を二度取る＝1ノードの循環）は順序づけでは防げない。再入設計か、二度取らない規律が要る</li><li>共有水源の枯渇（一気に汲み上げる過負荷）は順序でなく流量の話＝別の器（Token Bucket）の領分</li></ul></li><li><strong>現在のステータス</strong>: 🟢 取得順を全順序化して循環待機を構造から排除（予防が効く＝全獲得者を自分で握れる限り）／順序を強制できない場では Timeout＋揺らぎで復旧・共有水源の流量は別の獣として後日</li></ul></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/typescript/>Typescript</a>
+<a href=/tags/deadlock/>Deadlock</a>
+<a href=/tags/lock-ordering/>Lock-Ordering</a>
+<a href=/tags/mutex/>Mutex</a>
+<a href=/tags/livelock/>Livelock</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-tamer/>Code-Tamer</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/07/05/170705/><div class=article-image><img src=/public_images/2026/code-tamer-graceful-shutdown-abyss-null/header.webp loading=lazy data-key data-hash=/public_images/2026/code-tamer-graceful-shutdown-abyss-null/header.webp></div><div class=article-details><h2 class=article-title>コードテイマー【Graceful Shutdown】終いを急ぐ獣が、還らぬ客と開いた鍵を闇に残す〜受け入れを閉ざし、皆を還してから己を閉じる〜</h2></div></a></article><article class=has-image><a href=/2026/07/05/120705/><div class=article-image><img src=/public_images/2026/code-tamer-bulkhead/header.webp loading=lazy data-key data-hash=/public_images/2026/code-tamer-bulkhead/header.webp></div><div class=article-details><h2 class=article-title>コードテイマー【Bulkhead】汲み上げの大食らいが船中の魔力を飲み干し、守りの防壁が飢えて落ちる〜魔力槽を機能ごとに隔て、守りの取り分を絶やさない〜</h2></div></a></article><article class=has-image><a href=/2026/07/05/070705/><div class=article-image><img src=/public_images/2026/code-tamer-circuit-breaker/header.webp loading=lazy data-key data-hash=/public_images/2026/code-tamer-circuit-breaker/header.webp></div><div class=article-details><h2 class=article-title>コードテイマー【Circuit Breaker】倒れた一匹を見捨てられず、群れごと魔力が枯れ果てる〜倒れた相手への鎖を断ち、頃合いを見て繋ぎ直す〜</h2></div></a></article><article class=has-image><a href=/2026/07/04/170705/><div class=article-image><img src=/public_images/2026/code-tamer-eventual-consistency/header.webp loading=lazy data-key data-hash=/public_images/2026/code-tamer-eventual-consistency/header.webp></div><div class=article-details><h2 class=article-title>コードテイマー【Eventual Consistency】取りこぼした叫びのあと、その階層だけが古いまま黙り込む〜叫びと巡回の二本を版で束ね、遅れても必ず追いつかせる〜</h2></div></a></article><article class=has-image><a href=/2026/07/04/120705/><div class=article-image><img src=/public_images/2026/code-tamer-optimistic-locking/header.webp loading=lazy data-key data-hash=/public_images/2026/code-tamer-optimistic-locking/header.webp></div><div class=article-details><h2 class=article-title>コードテイマー【Optimistic Locking】二人の手が同じ数を書き、一方の更新が静かに消える〜帳に版を刻み、後から来た手にやり直させる〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

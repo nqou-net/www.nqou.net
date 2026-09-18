@@ -1,0 +1,424 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="Object PoolのcheckoutとcheckinプロトコルでDB接続を安全に再利用し、Object Cesspoolによるトランザクション漏れを構造的に防止する"><title>コード探偵ロックの事件簿【Object Pool】使い捨ての代償〜借りて返す資源管理術〜</title><link rel=canonical href=https://www.nqou.net/2026/05/07/070705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コード探偵ロックの事件簿【Object Pool】使い捨ての代償〜借りて返す資源管理術〜"><meta property='og:description' content="Object PoolのcheckoutとcheckinプロトコルでDB接続を安全に再利用し、Object Cesspoolによるトランザクション漏れを構造的に防止する"><meta property='og:url' content='https://www.nqou.net/2026/05/07/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='perl'><meta property='article:tag' content='moo'><meta property='article:tag' content='object-pool'><meta property='article:tag' content='object-cesspool'><meta property='article:tag' content='resilience'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-detective'><meta property='article:published_time' content='2026-05-07T07:07:05+09:00'><meta property='article:modified_time' content='2026-05-07T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-detective-object-pool/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コード探偵ロックの事件簿【Object Pool】使い捨ての代償〜借りて返す資源管理術〜"><meta name=twitter:description content="Object PoolのcheckoutとcheckinプロトコルでDB接続を安全に再利用し、Object Cesspoolによるトランザクション漏れを構造的に防止する"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-detective-object-pool/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-05-07T07:07:05+09:00","datePublished":"2026-05-07T07:07:05+09:00","description":"Object PoolのcheckoutとcheckinプロトコルでDB接続を安全に再利用し、Object Cesspoolによるトランザクション漏れを構造的に防止する","headline":"コード探偵ロックの事件簿【Object Pool】使い捨ての代償〜借りて返す資源管理術〜","image":"https://www.nqou.net/public_images/2026/code-detective-object-pool/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/05/07/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#現場検証--隔壁の中の異変>現場検証 — 隔壁の中の異変</a></li><li><a href=#汚染された接続--object-cesspool-の発見>汚染された接続 — Object Cesspool の発見</a><ol><li><a href=#autocommit-の罠>AutoCommit の罠</a></li></ol></li><li><a href=#checkout-と-checkin--借りて返す作法>checkout と checkin — 借りて返す作法</a><ol><li><a href=#checkout--検証付きの貸し出し>checkout — 検証付きの貸し出し</a></li><li><a href=#checkin--リセット付きの返却>checkin — リセット付きの返却</a></li><li><a href=#with_connection--スコープベースの自動返却>with_connection — スコープベースの自動返却</a></li></ol></li><li><a href=#隔壁の中の水流--プールの設計>隔壁の中の水流 — プールの設計</a><ol><li><a href=#リファクタリング後の注文処理>リファクタリング後の注文処理</a></li></ol></li><li><a href=#壁の中の作法>壁の中の作法</a></li><li><a href=#探偵の調査報告書>探偵の調査報告書</a><ol><li><a href=#推理のステップ>推理のステップ</a></li><li><a href=#ロックより>ロックより</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/05/07/070705/><img src=/public_images/2026/code-detective-object-pool/header.webp loading=lazy alt="Featured image of post コード探偵ロックの事件簿【Object Pool】使い捨ての代償〜借りて返す資源管理術〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/05/07/070705/>コード探偵ロックの事件簿【Object Pool】使い捨ての代償〜借りて返す資源管理術〜</a></h2><h3 class=article-subtitle>Object PoolのcheckoutとcheckinプロトコルでDB接続を安全に再利用し、Object Cesspoolによるトランザクション漏れを構造的に防止する</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>07, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 17分</time></div></footer></div></header><section class=article-content><h2 id=現場検証--隔壁の中の異変>現場検証 — 隔壁の中の異変</h2><p>木曜の午前10時。わたしのオフィスは普段通りの空気だった。</p><p>チームの4人中3人が出社していて、隣のデスクの小川くんはイヤホンをしてコードを書いている。わたしはGrafanaのダッシュボードを開いて、注文APIのp99レスポンスタイムのグラフを見ていた。8時台のピークに350msの山が立っている。通常は80ms前後。3週間前にBulkheadを導入してから、月末バッチの暴走による全館停電は完全に止まった。それは成果だ。でも、代わりに別の異変が始まっていた。</p><p>メールアプリを開く。3日前にロックさんへ送ったメールの返信が来ていた。</p><blockquote><p>木曜の午前、現場検証に向かう。住所を送りたまえ。</p></blockquote><p>……現場検証って、うちの会社に来るということだろうか。</p><p>10時ちょうど。オフィスの入口から、ツイードジャケットに蝶ネクタイの男が入ってきた。片手に木製の帆船模型を抱え、もう片手にビニール袋を下げている。受付で一瞬だけ立ち止まったが、すぐにわたしたちのエリアに向かって歩いてくる。迷いのない足取り。</p><p>小川くんがイヤホンを外してこちらを見た。わたしは小さく首を振った。</p><p>「ワトソン君。現場検証は現場で行うものだ」</p><p>ロックさんはわたしの前に立つと、帆船模型をデスクの端に置いた。前回LCIの事務所で組み立てていた模型だ。帆が張られ、甲板にミニチュアの舵輪が付いている。完成している。</p><p>「……ロックさん。受付は通りましたか」</p><p>ロックさんは空いている椅子を引き寄せて座った。ビニール袋からエナジードリンクを2本出し、1本をわたしのデスクに置く。もう1本を自分で開けた。</p><p>「通行証は不要だった。入口の人間に"外部セキュリティ監査"と伝えたら通してくれた」</p><p>セキュリティ監査。嘘ではないけど、正確でもない。</p><p>小川くんが小声で聞いてきた。「……あの人、誰？」</p><p>「外部のコンサルタントです」</p><p>小川くんは帆船模型を見て首を傾げたが、それ以上は聞かなかった。</p><p>わたしはモニタの方を向き直った。</p><p>「Bulkheadの件、うまくいきました。月末のバッチ暴走、完全に止まっています。……ただ」</p><p>ロックさんは帆船模型の甲板を指先で軽くなぞっていた。関心は帆ではなく船体にあるようだった。</p><p>「ただ？」</p><p>Grafanaのグラフを指した。</p><p>「注文APIのp99が350msに跳ねるピークが出始めました。ピーク帯の秒間30リクエストのときだけ。調べたら、リクエストごとに<code>DBI->connect</code>して<code>$dbh->disconnect</code>していました。接続確立のコストが積もっています」</p><p>ロックさんはモニタを見ていた。p99のグラフではなく、その下のDB接続数の推移グラフに目を止めている。</p><p>「……接続数が波を打っている。リクエストのたびに上がり、すぐ下がる。——ワトソン君、この接続は使い捨てか」</p><p>「はい。1リクエストに1接続。使ったら捨てています」</p><p>ロックさんがデスクの端の帆船模型を軽く叩いた。</p><p>「隔壁は立てた。部屋は分かれた。だが部屋の中で、バケツの水を毎回汲んでは捨てている。……水道管を引く方が合理的だとは思わなかったか」</p><p>「思いました。だから、直しました」</p><p>わたしはそこで一拍置いた。</p><p>「……そこで問題が起きたんです」</p><h2 id=汚染された接続--object-cesspool-の発見>汚染された接続 — Object Cesspool の発見</h2><p>エディタを開いた。自分が書いたコードのファイル。指がキーボードの上で一瞬止まった——それからファイルを開く。</p><p>「接続をキャッシュするようにしました。同じプール名なら前の接続を返す。……1週間は動きました。2週目に在庫データが壊れ始めました」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>BulkheadPool</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(HashRef Str)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>dsn</span>  <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>user</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>pass</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>_cache</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>HashRef</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=p>{}</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>get_connection</span> <span class=p>($self, $pool_name) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$cache</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_cache</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=c1># キャッシュにあれば再利用</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=nb>exists</span> <span class=nv>$cache</span><span class=o>-&gt;</span><span class=p>{</span><span class=nv>$pool_name</span><span class=p>}</span> <span class=o>&amp;&amp;</span> <span class=nv>$cache</span><span class=o>-&gt;</span><span class=p>{</span><span class=nv>$pool_name</span><span class=p>}</span><span class=o>-&gt;</span><span class=n>ping</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$cache</span><span class=o>-&gt;</span><span class=p>{</span><span class=nv>$pool_name</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=c1># なければ新規作成してキャッシュ</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$dbh</span> <span class=o>=</span> <span class=nn>DBI</span><span class=o>-&gt;</span><span class=nb>connect</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>dsn</span><span class=p>,</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>user</span><span class=p>,</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>pass</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>{</span> <span class=n>RaiseError</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span> <span class=n>AutoCommit</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$cache</span><span class=o>-&gt;</span><span class=p>{</span><span class=nv>$pool_name</span><span class=p>}</span> <span class=o>=</span> <span class=nv>$dbh</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$dbh</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<code>ping</code>で接続の生存確認はしています。切れていたら新しく作る。……問題はここじゃなくて」</p><p>ロックさんはコードを読んでいた。人差し指でモニタの<code>return $cache->{$pool_name}</code>の行を指す。</p><p>「返すときに、何をしている？」</p><p>「……何も」</p><p>「何もしていない。——ワトソン君、この接続が前のリクエストで<code>BEGIN</code>したまま<code>COMMIT</code>していなかったら？」</p><p>3秒、コードに目を戻した。</p><p>「……次のリクエストが、前のトランザクションの中で動く」</p><p>「そうだ。前の事件の証拠が、次の事件の現場に持ち込まれている。——<strong>これはObject Cesspool（汚染されたプール）だ</strong>」</p><h3 id=autocommit-の罠>AutoCommit の罠</h3><p>「AutoCommitは1にしてあるのに……なぜトランザクション状態が残るんですか？」</p><p>コードの<code>AutoCommit => 1</code>を指した。設定してある。にもかかわらずトランザクション漏れが起きた。</p><p>「AutoCommitはコネクション作成時の設定だ。だが、アプリケーションコードの中で明示的に<code>$dbh->begin_work</code>を呼んだらどうなる？」</p><p>「……AutoCommitが一時的にオフになる。<code>commit</code>か<code>rollback</code>を呼ぶまで」</p><p>「では、<code>begin_work</code>の後に例外が発生して、<code>commit</code>も<code>rollback</code>も呼ばれなかったら？」</p><p>注文処理のコードを思い出した。<code>begin_work</code>を使っている。在庫確保と注文レコード挿入をアトミックにするために。</p><p>「注文処理の中で<code>begin_work</code>を使っています。例外が起きたら<code>eval</code>で捕まえて<code>rollback</code>しているはずですが」</p><p>「&ldquo;はず&rdquo;。——コードを見せたまえ」</p><p>注文処理のファイルを開いた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>sub</span> <span class=nf>process_order</span> <span class=p>($self, $order) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$dbh</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>pool</span><span class=o>-&gt;</span><span class=n>get_connection</span><span class=p>(</span><span class=s>&#39;order_api&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=nv>$dbh</span><span class=o>-&gt;</span><span class=n>begin_work</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$stock</span> <span class=o>=</span> <span class=nv>$dbh</span><span class=o>-&gt;</span><span class=n>selectrow_hashref</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=s>&#34;SELECT quantity FROM inventory WHERE product_id = ?&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=nb>undef</span><span class=p>,</span> <span class=nv>$order</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>product_id</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=c1># ★ 早期リターン: rollback を通らない</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>{</span> <span class=n>error</span> <span class=o>=&gt;</span> <span class=s>&#39;out_of_stock&#39;</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=nv>$stock</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>quantity</span><span class=p>}</span> <span class=o>&lt;</span> <span class=nv>$order</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>quantity</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=nv>$dbh</span><span class=o>-&gt;</span><span class=k>do</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=s>&#34;UPDATE inventory SET reserved = reserved + ? WHERE product_id = ?&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=nb>undef</span><span class=p>,</span> <span class=nv>$order</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>quantity</span><span class=p>},</span> <span class=nv>$order</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>product_id</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$dbh</span><span class=o>-&gt;</span><span class=k>do</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=s>&#34;INSERT INTO orders (product_id, quantity, status) VALUES (?, ?, &#39;pending&#39;)&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=nb>undef</span><span class=p>,</span> <span class=nv>$order</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>product_id</span><span class=p>},</span> <span class=nv>$order</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>quantity</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=nv>$dbh</span><span class=o>-&gt;</span><span class=n>commit</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>{</span> <span class=n>success</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>コードを追った。<code>begin_work</code>。在庫チェック。在庫不足なら——。</p><p>「……<code>return</code>している。<code>die</code>じゃなくて<code>return</code>。<code>rollback</code>を通らない」</p><p>「そうだ。この接続がキャッシュに戻り、次のリクエストに渡される。トランザクションは開いたままだ。——使った道具を洗わずに棚に戻した。次に使う人は、汚れた道具を受け取る」</p><p>ロックさんはホワイトボードの前に立った。わたしが3週間前に描いたBulkheadの構成図——注文API：8本、検索API：8本、バッチ：4本の隔壁図がまだ残っている。その横に赤ペンで図を描き始めた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>[get_connection] → [begin_work] → [在庫チェック]
+</span></span><span class=line><span class=cl>                                      ↓ (在庫切れ)
+</span></span><span class=line><span class=cl>                                   [return ← ここで接続がキャッシュに戻る]
+</span></span><span class=line><span class=cl>                                   [トランザクションは BEGIN のまま]
+</span></span><span class=line><span class=cl>                                      ↓ (次のリクエスト)
+</span></span><span class=line><span class=cl>                                   [get_connection → 同じ接続を取得]
+</span></span><span class=line><span class=cl>                                   [前のBEGINがまだ生きている]
+</span></span></code></pre></td></tr></table></div></div><p>「……<code>return</code>で関数を抜けても、接続は閉じない。キャッシュに残ったまま」</p><p>「そうだ。次にこの接続を受け取ったリクエストは、開いたトランザクションの中で動作する。前の事件の証拠品が、次の事件の現場に混入した——鑑識が汚染された証拠で容疑者を特定したら、冤罪になる」</p><p>わたしの描いたBulkheadの構成図の横に、ロックさんの赤い字が並んでいる。自分の空間にロックさんの痕跡が侵入してくるのは、前回のLCI事務所を訪ねたときとは違う感覚だった。</p><h2 id=checkout-と-checkin--借りて返す作法>checkout と checkin — 借りて返す作法</h2><p>ノートを開いた。前回のように「図にしていいですか？」とは聞かなかった。描き始めた。</p><p><code>get_connection → use → ???</code></p><p><code>???</code>の部分が空白だ。</p><p>「わたしの実装には<code>get</code>しかない。返す概念がない。……つまり、返すときにリセットする仕組みが要る」</p><p>ロックさんがノートの<code>???</code>を指で叩いた。</p><p>「そうだ。Object Poolの核は2つの動作だ。<strong>checkout</strong>——有効性を確認してから貸し出す。<strong>checkin</strong>——状態をリセットしてからプールに戻す。君のコードにはcheckoutの半分——<code>ping</code>——はあったが、checkinが完全に欠けていた」</p><p>ノートに描き足した。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>checkout: validate → return obj
+</span></span><span class=line><span class=cl>checkin:  reset → push to pool
+</span></span></code></pre></td></tr></table></div></div><p>「そして重要なのは——<strong>リセットの責任はプール側にある</strong>。使う側がリセットを忘れても、プールがcheckin時に必ずリセットを実行する。さっきの<code>begin_work</code>の抜け穴は、リセットをアプリケーションコード側に委ねていたから起きた」</p><p>「……プール側でやれば、使う側のコードパスに抜けがあっても安全。構造で保証する」</p><p>「そうだ。これはBulkheadと同じ原則だ——<strong>個々のコードの正しさに依存しない。構造で安全を保証する</strong>」</p><p>3週間前にLCIの事務所で聞いた言葉と重なった。壁を立てるのは、個々のリクエストの行儀を信用しないため。プールのリセットも同じだ。個々の使い手の後始末を信用しない。</p><p>ロックさんはホワイトボードに戻り、赤ペンでConnectionPoolクラスの設計を描き始めた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>ConnectionPool</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(Int CodeRef ArrayRef Num)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Carp</span> <span class=sx>qw(croak)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Time::HiRes</span> <span class=sx>qw(time)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>max_size</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Int</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=mi>10</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>min_size</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Int</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=mi>2</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>factory</span>  <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>CodeRef</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># checkout 時の検証関数</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>validator</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>      <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>isa</span>     <span class=o>=&gt;</span> <span class=n>CodeRef</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=k>sub</span> <span class=p>($obj) {</span> <span class=mi>1</span> <span class=p>}</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># checkin 時のリセット関数（プール側の責務）</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>resetter</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>      <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>isa</span>     <span class=o>=&gt;</span> <span class=n>CodeRef</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=k>sub</span> <span class=p>($obj) {</span> <span class=p>}</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>checkout_timeout</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Num</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=mf>3.0</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>_available</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>ArrayRef</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=o>[]</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>_total</span>     <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rwp&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Int</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=mi>0</span><span class=p>);</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=checkout--検証付きの貸し出し>checkout — 検証付きの貸し出し</h3><p>「checkoutの中を見たまえ」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>sub</span> <span class=nf>checkout</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$deadline</span> <span class=o>=</span> <span class=nb>time</span><span class=p>()</span> <span class=o>+</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>checkout_timeout</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>while</span> <span class=p>(</span><span class=mi>1</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=c1># 1. プールから取り出して検証</span>
+</span></span><span class=line><span class=cl>        <span class=k>while</span> <span class=p>(</span><span class=k>my</span> <span class=nv>$obj</span> <span class=o>=</span> <span class=nb>pop</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>_available</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=k>if</span> <span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>validator</span><span class=o>-&gt;</span><span class=p>(</span><span class=nv>$obj</span><span class=p>))</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>                <span class=k>return</span> <span class=nv>$obj</span><span class=p>;</span>  <span class=c1># 有効ならそのまま返す</span>
+</span></span><span class=line><span class=cl>            <span class=p>}</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_set__total</span><span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_total</span> <span class=o>-</span> <span class=mi>1</span><span class=p>);</span>  <span class=c1># 無効なら破棄</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=c1># 2. 上限未満なら新規生成</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_total</span> <span class=o>&lt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>max_size</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=k>my</span> <span class=nv>$obj</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>factory</span><span class=o>-&gt;</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_set__total</span><span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_total</span> <span class=o>+</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>            <span class=k>return</span> <span class=nv>$obj</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=c1># 3. プール枯渇 → タイムアウトチェック</span>
+</span></span><span class=line><span class=cl>        <span class=n>croak</span> <span class=s>&#34;ConnectionPool: checkout timeout&#34;</span>
+</span></span><span class=line><span class=cl>            <span class=k>if</span> <span class=nb>time</span><span class=p>()</span> <span class=o>&gt;=</span> <span class=nv>$deadline</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=nb>select</span><span class=p>(</span><span class=nb>undef</span><span class=p>,</span> <span class=nb>undef</span><span class=p>,</span> <span class=nb>undef</span><span class=p>,</span> <span class=mf>0.05</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「checkoutのとき、接続が切れていたらどうするんですか？ <code>ping</code>するだけで十分ですか？」</p><p>「<code>ping</code>は最低限の確認だ。&ldquo;接続が生きているか&rdquo;。だが、生きていても使えない場合がある」</p><p>「たとえば？」</p><p>「接続のアイドル時間が長すぎて、サーバー側でセッションが切れている場合。ファイアウォールが長時間アイドル接続を静かに切断する場合。<code>ping</code>はTCPレベルの応答を見るが、サーバー側のセッション状態は検証しない」</p><p>ノートに描きながら聞いた。</p><p>「じゃあ、checkoutで<code>ping</code>して、ダメなら破棄して新しく作る。……作れなかったら？」</p><p>「プールの上限に達していなければfactory（生成関数）で新しく作る。上限に達していれば——」</p><p>「待つか、断るか」</p><p>「速やかに断る方がいい。Bulkhead回で話したことを覚えているか？」</p><p>「……&ldquo;隔壁の原則は速やかな失敗&rdquo;。空きがなければ即座に断る」</p><p>「同じだ。プールが空なら、タイムアウト付きで短く待ち、それでも取れなければ即座にエラーを返す。待ち続ければ、リクエストがプールの手前で渋滞する——Bulkheadで防いだはずの問題が、プールの入口で再発する」</p><p>……2回目だとこの呼び方にも慣れるものだな。ワトソン君。ロックさんの発話パターンの一部として処理できるようになっていた。</p><h3 id=checkin--リセット付きの返却>checkin — リセット付きの返却</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>sub</span> <span class=nf>checkin</span> <span class=p>($self, $obj) {</span>
+</span></span><span class=line><span class=cl>    <span class=c1># ★ リセットはプール側の責務</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$ok</span> <span class=o>=</span> <span class=nb>eval</span> <span class=p>{</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>resetter</span><span class=o>-&gt;</span><span class=p>(</span><span class=nv>$obj</span><span class=p>);</span> <span class=mi>1</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=o>!</span><span class=nv>$ok</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=c1># リセット失敗 → 接続を破棄</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_set__total</span><span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_total</span> <span class=o>-</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=nb>scalar</span><span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>_available</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>)</span> <span class=o>&lt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>max_size</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=nb>push</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>_available</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>,</span> <span class=nv>$obj</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span> <span class=k>else</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_set__total</span><span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_total</span> <span class=o>-</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=with_connection--スコープベースの自動返却>with_connection — スコープベースの自動返却</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span><span class=lnt>9
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># スコープベースの自動返却（リーク防止）</span>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>with_connection</span> <span class=p>($self, $callback) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$obj</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>checkout</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$result</span> <span class=o>=</span> <span class=nb>eval</span> <span class=p>{</span> <span class=nv>$callback</span><span class=o>-&gt;</span><span class=p>(</span><span class=nv>$obj</span><span class=p>)</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$err</span> <span class=o>=</span> <span class=vg>$@</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>checkin</span><span class=p>(</span><span class=nv>$obj</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nb>die</span> <span class=nv>$err</span> <span class=k>if</span> <span class=nv>$err</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$result</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>ロックさんの設計と自分のコードの差分を確認した。</p><p>「わたしの実装との違い……3つあります」</p><p>「言ってみたまえ」</p><p>ノートに差分を書き出した。</p><p>「1つ目。<code>checkin</code>メソッドがある。返却時に<code>resetter</code>でリセットする。わたしの実装には返却の概念がなかった」</p><p>ロックさんがうなずいた。</p><p>「2つ目。<code>with_connection</code>。ブロックで囲って自動返却する。<code>eval</code>で例外を捕まえてから<code>checkin</code>を呼ぶから、例外が起きてもリークしない。わたしの<code>process_order</code>の早期<code>return</code>問題は、これで構造的に防げる」</p><p>「そうだ。使い手がリセットを忘れても、返却を忘れても、プールが保証する」</p><p>「3つ目。<code>resetter</code>の失敗時。<code>eval</code>で囲って、リセット自体が失敗した接続は破棄する。壊れた道具は棚に戻さない」</p><p>ロックさんの口角がわずかに上がった。前回の事務所で、わたしが即時拒否の問題を自分で指摘したときと同じ系統の、小さな反応。</p><p>「……3つ目に気づいたか。resetterの失敗処理は、見落とされやすい」</p><p>checkout/checkin の全体の流れを図にした。</p><pre class=mermaid>
+	flowchart LR
+    A[checkout] --&gt; B{プールに空きあり?}
+    B --&gt;|Yes| C{validator 検証}
+    C --&gt;|有効| D[オブジェクトを返す]
+    C --&gt;|無効| E[破棄して再試行]
+    B --&gt;|No| F{上限未満?}
+    F --&gt;|Yes| G[factory で新規生成]
+    G --&gt; D
+    F --&gt;|No| H{タイムアウト?}
+    H --&gt;|Yes| I[例外を投げる]
+    H --&gt;|No| J[短い待機 → 再試行]
+    J --&gt; B
+
+    K[checkin] --&gt; L[resetter でリセット]
+    L --&gt;|成功| M[プールに戻す]
+    L --&gt;|失敗| N[破棄]
+</pre><h2 id=隔壁の中の水流--プールの設計>隔壁の中の水流 — プールの設計</h2><p>「プールのサイズはBulkheadの割り当てと同じにすべきですか？ 注文APIの隔壁が8接続なら、プールも8ですか？」</p><p>実装を週明けにチームに持ち帰ることを考えると、パラメータは具体的に詰めておきたかった。</p><p>「8は上限——同時に存在できる最大数だ。だが常に8本が必要か？」</p><p>「……通常時は秒間10リクエスト程度。接続は1リクエストあたり数ミリ秒で返ってくる。同時に4本もあれば十分です」</p><p>「ならば<code>min_size</code>を2〜3、<code>max_size</code>を8にする。需要に応じて2から8の間でプールが伸縮する。——しかし、もう1つ重要なパラメータがある」</p><p>「アイドルタイムアウト？」</p><p>ロックさんが薄く目を見開いた。前回と同じ反応。</p><p>「そうだ。使われていない接続はいつまでもプールに居座るべきではない。サーバー側にも接続リソースのコストがある。<code>idle_timeout</code>を設定し、一定時間使われなかった接続は静かに閉じる。<code>min_size</code>分だけは残す」</p><p>ホワイトボードの前に立った。ロックさんが赤ペンで描いた図の横に、自分のペンで追記した。Bulkheadの「8接続」枠の中に、プールのパラメータを書き込む。</p><p>「Bulkheadが壁。プールが壁の中の水位管理。……壁が"同時にいくつまで"で、プールが"どう回すか"」</p><p>「正しい。Bulkheadは<strong>量の隔離</strong>。Object Poolは<strong>質の管理</strong>。壁を立てるだけでは、中が腐る」</p><h3 id=リファクタリング後の注文処理>リファクタリング後の注文処理</h3><p>DB接続プールの構築。アプリケーション初期化時に一度だけ行う。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>my</span> <span class=nv>$order_pool</span> <span class=o>=</span> <span class=nn>ConnectionPool</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>max_size</span>         <span class=o>=&gt;</span> <span class=mi>8</span><span class=p>,</span>   <span class=c1># Bulkhead の注文API割り当てと一致</span>
+</span></span><span class=line><span class=cl>    <span class=n>min_size</span>         <span class=o>=&gt;</span> <span class=mi>2</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>checkout_timeout</span> <span class=o>=&gt;</span> <span class=mf>3.0</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>factory</span>          <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=nn>DBI</span><span class=o>-&gt;</span><span class=nb>connect</span><span class=p>(</span><span class=nv>$dsn</span><span class=p>,</span> <span class=nv>$user</span><span class=p>,</span> <span class=nv>$pass</span><span class=p>,</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=n>RaiseError</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>AutoCommit</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>});</span>
+</span></span><span class=line><span class=cl>    <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=n>validator</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>($dbh) {</span>
+</span></span><span class=line><span class=cl>        <span class=nb>eval</span> <span class=p>{</span> <span class=nv>$dbh</span><span class=o>-&gt;</span><span class=n>ping</span> <span class=p>}</span> <span class=p>?</span> <span class=mi>1</span> <span class=p>:</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=n>resetter</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>($dbh) {</span>
+</span></span><span class=line><span class=cl>        <span class=c1># ★ チェックイン時のリセット（プール側の責務）</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$dbh</span><span class=o>-&gt;</span><span class=n>rollback</span> <span class=k>unless</span> <span class=nv>$dbh</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>AutoCommit</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$dbh</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>AutoCommit</span><span class=p>}</span> <span class=o>=</span> <span class=mi>1</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>},</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span></code></pre></td></tr></table></div></div><p>注文処理のリファクタリング後。<code>with_connection</code>で自動checkout/checkin。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>sub</span> <span class=nf>process_order</span> <span class=p>($self, $order) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>pool</span><span class=o>-&gt;</span><span class=n>with_connection</span><span class=p>(</span><span class=k>sub</span> <span class=p>($dbh) {</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$dbh</span><span class=o>-&gt;</span><span class=n>begin_work</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$stock</span> <span class=o>=</span> <span class=nv>$dbh</span><span class=o>-&gt;</span><span class=n>selectrow_hashref</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=s>&#34;SELECT quantity FROM inventory WHERE product_id = ?&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=nb>undef</span><span class=p>,</span> <span class=nv>$order</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>product_id</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>        <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=nv>$stock</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>quantity</span><span class=p>}</span> <span class=o>&lt;</span> <span class=nv>$order</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>quantity</span><span class=p>})</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$dbh</span><span class=o>-&gt;</span><span class=n>rollback</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>            <span class=k>return</span> <span class=p>{</span> <span class=n>error</span> <span class=o>=&gt;</span> <span class=s>&#39;out_of_stock&#39;</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=nv>$dbh</span><span class=o>-&gt;</span><span class=k>do</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=s>&#34;UPDATE inventory SET reserved = reserved + ? WHERE product_id = ?&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=nb>undef</span><span class=p>,</span> <span class=nv>$order</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>quantity</span><span class=p>},</span> <span class=nv>$order</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>product_id</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>        <span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$dbh</span><span class=o>-&gt;</span><span class=k>do</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=s>&#34;INSERT INTO orders (product_id, quantity, status) VALUES (?, ?, ?)&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=nb>undef</span><span class=p>,</span> <span class=nv>$order</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>product_id</span><span class=p>},</span> <span class=nv>$order</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>quantity</span><span class=p>},</span> <span class=s>&#39;pending&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=nv>$dbh</span><span class=o>-&gt;</span><span class=n>commit</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=p>{</span> <span class=n>success</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=p>});</span>
+</span></span><span class=line><span class=cl>    <span class=c1># ← ブロックを抜けると自動的に checkin</span>
+</span></span><span class=line><span class=cl>    <span class=c1># ← 例外が起きても checkin → resetter が rollback を保証</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>ノートにBeforeとAfterを並べた。</p><p>「<code>with_connection</code>のブロックの中でも<code>rollback</code>を書いていますが……ブロックを出た後の<code>checkin</code>でも<code>resetter</code>が<code>rollback</code>する。二重ですか？」</p><p>「二重だ。——しかし、<code>rollback</code>は冪等だ。開いたトランザクションがなければ何もしない。ブロック内の<code>rollback</code>は"作法として正しいコード"。resetterの<code>rollback</code>は"仕組みとしての安全網"。作法と仕組み、両方あって初めて安全だ」</p><p>「……ベルトとサスペンダー」</p><p>ロックさんが小さく笑った。</p><p>「そうだ。コードの世界にも冗長性は必要だ」</p><h2 id=壁の中の作法>壁の中の作法</h2><p>ロックさんが立ち上がった。ツイードジャケットの埃を払い、ホワイトボードの前で一瞬止まる。</p><p>わたしが3週間前に描いたBulkhead構成図——注文API：8本、検索API：8本、バッチ：4本の隔壁図がまだ残っている。ロックさんは赤ペンを取り、注文APIの隔壁の中に小さく描き足した。</p><p><code>checkout → use → checkin</code></p><p>「……壁の中に、もう1つ仕組みが要ったんですね」</p><p>ロックさんは赤ペンを置いた。帆船模型に目をやった——が、取り上げない。そのままわたしのデスクに残した。</p><p>「壁が守るのは"隣の部屋"だ。部屋の中を守るのは、別の仕事だ。——また異変があれば連絡したまえ、ワトソン君」</p><p>ロックさんがオフィスを出ていった。小川くんが「帰った？」と小声で聞いてきた。うなずいた。</p><p>ホワイトボードの前に立った。Bulkheadの構成図の中に、ロックさんの赤い字。<code>checkout → use → checkin</code>。その横に、自分のペンで<code>(validate)</code>と<code>(reset)</code>を書き足した。</p><p>目が帆船模型に移った。完成した模型。帆を張り、甲板があり、内部に隔壁がある。ロックさんが忘れていったのか、置いていったのか。</p><p>……全部のコネクションを最初から作っておく必要あるのかな。必要になったときに作れば、起動時のコストは——。</p><p>思考を途中で止めた。それは今日の問題ではない。</p><p>帆船模型を片付けずに、そのまま置いておいた。</p><hr><h2 id=探偵の調査報告書>探偵の調査報告書</h2><div class=table-wrapper><table><thead><tr><th>容疑（アンチパターン）</th><th>真実（パターン）</th><th>証拠（効果）</th></tr></thead><tbody><tr><td>高コストオブジェクトの毎回生成・破棄</td><td>Object Pool（プールによる再利用）</td><td>p99レスポンス 350ms → 90ms</td></tr><tr><td>Object Cesspool（返却時リセット漏れ）</td><td>checkin 時のリセットプロトコル</td><td>在庫データ不整合ゼロ</td></tr><tr><td>リーク（例外時の返却忘れ）</td><td>with_connection（スコープベース自動返却）</td><td>接続リーク検出ゼロ</td></tr></tbody></table></div><h3 id=推理のステップ>推理のステップ</h3><ol><li>Bulkheadでプールを分離した後、各プール内部でDB接続を毎回connect/disconnectしていた（使い捨て）</li><li>接続確立コスト（TCPハンドシェイク＋認証 ≒ 15ms/回）がピーク時に積み重なり、p99レスポンスが80ms→350msに劣化</li><li>応急策として接続をキャッシュ（<code>_cache</code>ハッシュ）したが、返却時のリセット処理が欠けていた</li><li><code>begin_work</code>後の早期<code>return</code>で未コミットのトランザクション状態が次のリクエストに漏れた（Object Cesspool）</li><li>Object Poolの<code>checkout</code>/<code>checkin</code>プロトコルで「検証付き貸出」と「リセット付き返却」を構造化</li><li><code>with_connection</code>パターンで例外時のリーク（返却忘れ）を構造的に防止</li><li>プールサイズ（<code>min_size</code>/<code>max_size</code>）でBulkheadの割り当てと整合させ、<code>idle_timeout</code>で不要な接続を回収</li></ol><h3 id=ロックより>ロックより</h3><p>壁を立てただけでは足りない。中のものを腐らせるなら壁を立てた意味がない。隔壁は隣室への延焼を止める。だがプールの中身——接続の状態、トランザクションの残骸、前の使用者の痕跡——を清掃する仕事は、隔壁の管轄外だ。</p><p>借りて、使って、返す。返すときに前の痕跡を消す。checkoutで検証し、checkinでリセットし、with_connectionでスコープを閉じる。この循環をプール側が保証する限り、個々の使い手の後始末に依存しなくて済む。鑑識の基本と同じだよ、ワトソン君——<strong>現場に入ったら、出るときに自分の痕跡を残すな</strong>。</p></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/perl/>Perl</a>
+<a href=/tags/moo/>Moo</a>
+<a href=/tags/object-pool/>Object-Pool</a>
+<a href=/tags/object-cesspool/>Object-Cesspool</a>
+<a href=/tags/resilience/>Resilience</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-detective/>Code-Detective</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/05/06/070705/><div class=article-image><img src=/public_images/2026/code-detective-bulkhead/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-bulkhead/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Bulkhead】全館停電の共犯者〜沈まない船の設計図〜</h2></div></a></article><article class=has-image><a href=/2026/05/05/070705/><div class=article-image><img src=/public_images/2026/code-detective-rate-limiting/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-rate-limiting/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Rate Limiting】行列のない受付〜防波堤なきAPIの崩壊〜</h2></div></a></article><article class=has-image><a href=/2026/05/04/070705/><div class=article-image><img src=/public_images/2026/code-detective-fallback/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-fallback/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Fallback Pattern】最後の砦〜優雅に壊れる技術〜</h2></div></a></article><article class=has-image><a href=/2026/05/03/070705/><div class=article-image><img src=/public_images/2026/code-detective-timeout/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-timeout/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Timeout】永遠の待ち人〜待たない勇気という防衛線〜</h2></div></a></article><article class=has-image><a href=/2026/05/02/070705/><div class=article-image><img src=/public_images/2026/code-detective-retry/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-retry/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Retry Pattern】嵐を呼ぶリトライ〜指数バックオフという礼儀作法〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

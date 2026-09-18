@@ -1,0 +1,311 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="タイムアウト未設定の外部API呼び出しがスレッドを無限占有しCBもRetryも機能しなくなるメカニズムを解剖し、接続/読み取りタイムアウトの分離設定とフォールバック戦略をPerl/Mooで解説。"><title>コード探偵ロックの事件簿【Timeout】永遠の待ち人〜待たない勇気という防衛線〜</title><link rel=canonical href=https://www.nqou.net/2026/05/03/070705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コード探偵ロックの事件簿【Timeout】永遠の待ち人〜待たない勇気という防衛線〜"><meta property='og:description' content="タイムアウト未設定の外部API呼び出しがスレッドを無限占有しCBもRetryも機能しなくなるメカニズムを解剖し、接続/読み取りタイムアウトの分離設定とフォールバック戦略をPerl/Mooで解説。"><meta property='og:url' content='https://www.nqou.net/2026/05/03/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='perl'><meta property='article:tag' content='moo'><meta property='article:tag' content='timeout-pattern'><meta property='article:tag' content='no-timeout'><meta property='article:tag' content='resilience'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-detective'><meta property='article:published_time' content='2026-05-03T07:07:05+09:00'><meta property='article:modified_time' content='2026-05-03T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-detective-timeout/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コード探偵ロックの事件簿【Timeout】永遠の待ち人〜待たない勇気という防衛線〜"><meta name=twitter:description content="タイムアウト未設定の外部API呼び出しがスレッドを無限占有しCBもRetryも機能しなくなるメカニズムを解剖し、接続/読み取りタイムアウトの分離設定とフォールバック戦略をPerl/Mooで解説。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-detective-timeout/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-05-03T07:07:05+09:00","datePublished":"2026-05-03T07:07:05+09:00","description":"タイムアウト未設定の外部API呼び出しがスレッドを無限占有しCBもRetryも機能しなくなるメカニズムを解剖し、接続/読み取りタイムアウトの分離設定とフォールバック戦略をPerl/Mooで解説。","headline":"コード探偵ロックの事件簿【Timeout】永遠の待ち人〜待たない勇気という防衛線〜","image":"https://www.nqou.net/public_images/2026/code-detective-timeout/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/05/03/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#事件の発端--凍りついた注文>事件の発端 — 凍りついた注文</a></li><li><a href=#現場検証--タイムアウトの指紋>現場検証 — タイムアウトの指紋</a></li><li><a href=#推理披露--待たない勇気の設計>推理披露 — 待たない勇気の設計</a><ol><li><a href=#timeoutwrapper--全体を包む制限時間>TimeoutWrapper — 全体を包む制限時間</a></li><li><a href=#perl-での実装--alarm--eval>Perl での実装 — alarm + eval</a></li><li><a href=#fallbackstrategy--タイムアウト後の選択>FallbackStrategy — タイムアウト後の選択</a></li><li><a href=#after-コード--timeoutwrapper-の統合>After コード — TimeoutWrapper の統合</a></li><li><a href=#cb--retry--timeout--3層の防衛線>CB + Retry + Timeout — 3層の防衛線</a></li></ol></li><li><a href=#解決--平和なビルド>解決 — 平和なビルド</a></li><li><a href=#事件の余韻--共有する防衛線>事件の余韻 — 共有する防衛線</a></li><li><a href=#探偵の調査報告書>探偵の調査報告書</a><ol><li><a href=#推理のステップ>推理のステップ</a></li><li><a href=#ロックより>ロックより</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/05/03/070705/><img src=/public_images/2026/code-detective-timeout/header.webp loading=lazy alt="Featured image of post コード探偵ロックの事件簿【Timeout】永遠の待ち人〜待たない勇気という防衛線〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/05/03/070705/>コード探偵ロックの事件簿【Timeout】永遠の待ち人〜待たない勇気という防衛線〜</a></h2><h3 class=article-subtitle>タイムアウト未設定の外部API呼び出しがスレッドを無限占有しCBもRetryも機能しなくなるメカニズムを解剖し、接続/読み取りタイムアウトの分離設定とフォールバック戦略をPerl/Mooで解説。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>03, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 17分</time></div></footer></div></header><section class=article-content><h2 id=事件の発端--凍りついた注文>事件の発端 — 凍りついた注文</h2><p>木曜の夕方17時。自分のオフィスの小会議室を予約していた。</p><p>ホワイトボードには、前回と前々回のセッションで描いたCircuit BreakerとRetryの構成図がうっすら残っている。消し忘れたのではなく、あえて消さなかった。今日の相談で使うかもしれないと思ったからだ。</p><p>ノートPCを開き、Grafanaのダッシュボードを映しておく。水曜日の在庫照会APIのレスポンスタイムのグラフ。80ms前後で安定していたラインが、14:30を境に55秒に張り付いている。同じ時刻に、注文処理のスループットがゼロに落ちている。</p><p>3回目の相談だ。最初は深夜にアポなしで来た。2回目は土曜にLCIの事務所を訪ねた。3回目は——普通に会議室を予約して呼んだ。「レガシー・コード・インベスティゲーション」に会議室を予約する日が来るとは。</p><p>時間通りにドアが開いた。ロックさんだ。いつものツイードのジャケット。片手にペットボトル——前回はエナジードリンクだったが、今回はただの水だ。</p><p>ロックさんは椅子に座らず、まず窓に近づいた。夕暮れの空を見ている。</p><p>「いい色だ。東京の夕焼けは、工場の煤のせいでロンドンに似ている」</p><p>「……ロックさん、ロンドンに住んだことあるんですか」</p><p>「ない」</p><p>一瞬、呆れかけた。でも笑ってしまった。以前なら「何を言っているんだこの人は」と思っただろう。今は「ああ、この人だ」と思える。</p><p>ロックさんが椅子に座り、ノートPCの画面を見た。</p><p>「で、今度は何が燃えた」</p><p>「燃えたというか——<strong>凍った</strong>、が正確です」</p><p>Grafanaのダッシュボードを示した。水曜14:30からの在庫照会APIのレスポンスタイムグラフ。</p><p>「在庫照会APIが水曜の午後に遅延しました。応答に55秒かかる状態が30分間続いて、その間、注文処理が完全に止まりました」</p><p>「決済APIは？」</p><p>「正常です。CBもRetryも期待通りに動いています」</p><p>ロックさんが静かにグラフを見ている。決済APIのレスポンスタイムのグラフも確認する。そちらは安定している。</p><p>「CBもRetryも正常で、注文処理が止まった」</p><p>「はい。在庫照会APIは——CBの対象にしていませんでした。社内の別チームが運用しているAPIなので、まさか遅延するとは……」</p><p>ロックさんが私を見た。前回のような鋭い視線ではなく、どこか穏やかな目だった。</p><p>「ワトソン君。決済API以外の外部呼び出しを全て挙げてくれ」</p><p>「在庫照会API、配送料計算API、ポイント残高API。いずれも社内の別チームが運用しています」</p><p>「それぞれのタイムアウト設定は？」</p><p>ノートPCでコードを確認する。少し間が空いた。自分でも顔が曇るのがわかった。</p><p>「……在庫照会は、HTTP::Tinyのデフォルト60秒です。配送料計算も60秒。ポイント残高は30秒——先月、ポイントチームから『30秒以内に返らなければ障害と見なして』と指示があって設定しました」</p><p>「在庫照会と配送料計算は、デフォルトのまま。<strong>意図的に設定したのではなく、設定しなかった。</strong>——それが60秒になっている」</p><p>「……はい」</p><p>「60秒のタイムアウトで、在庫照会APIが55秒かかっている。<strong>タイムアウトしない。ギリギリで返ってくる。</strong>——CBから見れば"成功"だ。遅いだけで、エラーではない」</p><p>「……だからCBがOpen遷移しなかった。55秒で返ってきているから、失敗として検知されない」</p><p>「そして10スレッドのワーカープールが、全て55秒の在庫照会を<strong>待っている</strong>。新しい注文が来ても、スレッドが空いていない」</p><p>CBを入れた。Retryを直した。2回直したのに、3回目に止まった。しかも今回は、CBもRetryも正常に動いている。問題はその外にあった。</p><p>「……在庫照会にもCBを追加すればいいんじゃないかと思ったんですが」</p><p>「CBを追加する。いい。——だが、在庫照会APIが55秒間応答を返さない状態で、CBはいつOpenに遷移する？」</p><p>「失敗閾値5回で……60秒のタイムアウトが5回……300秒」</p><p>「300秒。5分。<strong>その間、10スレッドは全て埋まっている。CBがOpenになる前に、システムが止まる</strong>」</p><p>間が空いた。</p><p>「ワトソン君。**CBは"呼び出しが返ってくること"を前提にしている。**返ってこなければ——あるいは返ってくるのが遅すぎれば——失敗のカウントすら始まらない。CBの速度は、タイムアウトの速度で決まる」</p><p>窓の外を見た。夕焼けが少し暗くなっている。</p><p>「……最初にCBを入れた。次にRetryを直した。でも一番内側の——タイムアウトが設定されていなかった」</p><p>「基礎を最後に学ぶのは珍しいことではない。**問題は外側から見えるからだ。**カスケード障害はCBで防げる。リトライストームはRetryで防げる。しかし"待ちすぎ"は外からは見えない。スレッドが静かに待っているだけだから」</p><p>ロックさんが言葉を切った。</p><p>「<strong>沈黙の障害は、最も発見が遅い</strong>」</p><h2 id=現場検証--タイムアウトの指紋>現場検証 — タイムアウトの指紋</h2><p>ノートPCで在庫照会の呼び出しコードを開いた。二人で画面を見る。</p><p>「これが在庫照会の呼び出し部分です」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>InventoryClient</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(Object)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>http_client</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Object</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>check</span> <span class=p>($self, $product_id) {</span>
+</span></span><span class=line><span class=cl>    <span class=c1># タイムアウト未設定 — HTTP::Tiny のデフォルト 60 秒がそのまま使われる</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$res</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>http_client</span><span class=o>-&gt;</span><span class=n>get</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=s>&#34;http://inventory-api.internal/stock/$product_id&#34;</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=nv>$res</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>success</span><span class=p>})</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$res</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>content</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=nb>die</span> <span class=s>&#34;Inventory API error: $res-&gt;{status} $res-&gt;{reason}&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>ロックさんがコードを読む。指が <code>HTTP::Tiny</code> の呼び出し行で止まった。</p><p>「<code>http_client</code> にタイムアウトを渡していない。——デフォルトは何秒だ」</p><p>「HTTP::Tinyのデフォルトは60秒です」</p><p>「60秒。1つのリクエストが在庫照会に60秒間接続を保持する。ワーカープールは10スレッド。全スレッドが同時に在庫照会を呼んでいたら？」</p><p>「10スレッド × 60秒……全員が60秒間占有されて、その間は新しいリクエストを処理できない」</p><p>「そしてHTTP::Tinyの <code>timeout</code> は1つの値だ。<strong>接続の確立にも、レスポンスの読み取りにも、同じ秒数が適用される。</strong>——ワトソン君、TCP接続の確立と、サーバーの処理は同じものか？」</p><p>「……違います。接続はネットワーク経路の問題で、処理はサーバーの負荷の問題です」</p><p>「**接続に1秒以上かかるなら、サーバーに到達できていない。**ネットワーク障害か、サーバーが停止している。この場合、60秒待っても意味がない。0.5秒で切るべきだ」</p><p>「接続タイムアウトを短くする——」</p><p>「一方、接続は0.01秒で成功したが、レスポンスが5秒かかる。これはサーバーが処理中だ。このとき0.5秒で切ったら？」</p><p>「正常なリクエストまで殺してしまう」</p><p>「<strong>接続と読み取りでは、&ldquo;待っている対象"が違う。対象が違えば、適切な待機時間も違う。</strong>——接続タイムアウトは短く設定して到達不能をすぐに検知する。読み取りタイムアウトは下流サービスのパーセンタイルに基づいて設定する——正常な処理を殺さない範囲で」</p><p>「読み取りタイムアウトはどうやって値を決めるんですか？ 在庫照会APIのレスポンスタイムは日によってバラバラで……」</p><p>ロックさんがホワイトボードの前に立った。CB/Retryの消えかけた図の横に、横軸がレスポンスタイム、縦軸がリクエスト数のヒストグラム概念図を描く。左端に大きな山、右裾が長く伸びる分布。</p><p>「ワトソン君のチームは、在庫照会APIの<strong>偽タイムアウト</strong>——正常なリクエストをタイムアウトで殺すこと——をどの程度許容できる？」</p><p>「……0.1%未満なら許容範囲です」</p><p>「ではp99.9を見たまえ。**タイムアウト値は、下流サービスのレイテンシの許容パーセンタイルで決める。**p99.9が1.5秒なら、タイムアウトは1.5秒に設定する。99.9%のリクエストは正常に返り、0.1%だけがタイムアウトになる」</p><p>「水曜のように55秒かかっている状態は、p99.9の外——つまりタイムアウトで切られる」</p><p>「そうだ。55秒待つ必要がなくなる。1.5秒でタイムアウト。CBの失敗カウントが即座に進む。5回連続タイムアウト——7.5秒でOpen遷移」</p><p>計算して目を丸くした。</p><p>「……300秒から7.5秒。40倍速い」</p><p>「<strong>タイムアウト値が適切であれば、CBは設計通りの速度で動く。CBが遅かったのではない。タイムアウトが遅かったのだ</strong>」</p><h2 id=推理披露--待たない勇気の設計>推理披露 — 待たない勇気の設計</h2><h3 id=timeoutwrapper--全体を包む制限時間>TimeoutWrapper — 全体を包む制限時間</h3><p>ロックさんがホワイトボードに構造を描く。</p><p>「HTTPクライアントのタイムアウトだけでは足りない場合がある。DNS解決やTLSハンドシェイクがタイムアウトに含まれない実装もある。——全体を包む <strong>TimeoutWrapper</strong> を作る」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>TimeoutWrapper
+</span></span><span class=line><span class=cl>├── connect_timeout: 0.5秒（TCP接続確立の制限）
+</span></span><span class=line><span class=cl>├── read_timeout: 1.5秒（レスポンス待ちの制限）
+</span></span><span class=line><span class=cl>├── overall_timeout: 3秒（全体のデッドライン）
+</span></span><span class=line><span class=cl>└── fallback: FallbackStrategy（タイムアウト時の代替処理）
+</span></span></code></pre></td></tr></table></div></div><p>「3つのタイムアウトを設定する。接続タイムアウト、読み取りタイムアウト、そして<strong>全体タイムアウト</strong>——DNS解決、TLS、接続、読み取りの合計がこの値を超えたら強制終了する」</p><p>「全体のデッドラインがある……Retryの回数制限に似ていますね。個々のリトライ間隔とは別に、全体の試行時間に上限を設ける」</p><p>ロックさんが少し目を細めた。前回の知識を自発的に接続したことに気づいたようだ。</p><p>「その通りだ」</p><h3 id=perl-での実装--alarm--eval>Perl での実装 — alarm + eval</h3><p>「Perlでのタイムアウトの基本形は <code>alarm</code> と <code>eval</code> の組み合わせだ」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>TimeoutWrapper</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(Num Maybe CodeRef)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Time::HiRes</span> <span class=sx>qw(alarm)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Carp</span> <span class=sx>qw(croak)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>connect_timeout</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Num</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>read_timeout</span>    <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Num</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>overall_timeout</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Num</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>fallback</span>        <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Maybe</span><span class=p>[</span><span class=n>CodeRef</span><span class=p>],</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=nb>undef</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>execute</span> <span class=p>($self, $action) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$result</span> <span class=o>=</span> <span class=nb>eval</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=nb>local</span> <span class=nv>$SIG</span><span class=p>{</span><span class=n>ALRM</span><span class=p>}</span> <span class=o>=</span> <span class=k>sub</span> <span class=p>{</span> <span class=nb>die</span> <span class=s>&#34;TIMEOUT\n&#34;</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>        <span class=nb>alarm</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>overall_timeout</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$ret</span> <span class=o>=</span> <span class=nv>$action</span><span class=o>-&gt;</span><span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>connect_timeout</span><span class=p>,</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>read_timeout</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=nb>alarm</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$ret</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$err</span> <span class=o>=</span> <span class=vg>$@</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nb>alarm</span> <span class=mi>0</span><span class=p>;</span>    <span class=c1># 例外発生時もタイマーをクリア</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=nv>$err</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=nv>$err</span> <span class=ow>eq</span> <span class=s>&#34;TIMEOUT\n&#34;</span> <span class=o>&amp;&amp;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>fallback</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>fallback</span><span class=o>-&gt;</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=nb>die</span> <span class=nv>$err</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$result</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<code>alarm</code> は <code>SIGALRM</code> をプロセスに送る。<code>eval</code> の中で <code>die</code> をキャッチする。——シンプルだが、注意点がある」</p><p>「<code>alarm 0</code> が2箇所あるのは？」</p><p>「<code>eval</code> の中の <code>alarm 0</code> は正常終了時にタイマーを止める。外の <code>alarm 0</code> は<strong>例外が起きた場合</strong>にタイマーを止める。——タイマーが残ったまま別の処理に入ると、<strong>無関係の処理がタイムアウトで死ぬ</strong>。必ず後始末をする」</p><p>「<code>$SIG{ALRM}</code> を <code>local</code> にしているのは、元のハンドラを壊さないため？」</p><p>「そうだ。<code>local</code> は <code>eval</code> を抜けた時点で元に戻る。<strong><code>alarm</code> はプロセスグローバルだ</strong>——1つしかタイマーを持てない。もし別のライブラリが <code>alarm</code> を使っていたら、上書きしてしまう。これが <code>alarm</code> の最大の弱点だ」</p><h3 id=fallbackstrategy--タイムアウト後の選択>FallbackStrategy — タイムアウト後の選択</h3><p>「タイムアウト後にどうするか——フォールバック戦略を、タイムアウト制御とは分離する」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>FallbackStrategy::CachedValue</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(Num Any)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Time::HiRes</span> <span class=sx>qw(time)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>max_age</span>       <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Num</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=mi>300</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>_cached_value</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=nb>undef</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>_cached_at</span>    <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=mi>0</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>get</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=nb>defined</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_cached_value</span>
+</span></span><span class=line><span class=cl>        <span class=o>&amp;&amp;</span> <span class=p>(</span><span class=nb>time</span><span class=p>()</span> <span class=o>-</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_cached_at</span><span class=p>)</span> <span class=o>&lt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>max_age</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_cached_value</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nb>undef</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>update</span> <span class=p>($self, $value) {</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_cached_value</span><span class=p>(</span><span class=nv>$value</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_cached_at</span><span class=p>(</span><span class=nb>time</span><span class=p>());</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>FallbackStrategy::DefaultValue</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(Any)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>default_value</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Any</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>get</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>default_value</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>update</span> <span class=p>($self, $value) {</span>
+</span></span><span class=line><span class=cl>    <span class=c1># DefaultValue は更新しない</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<strong>CachedValue</strong> は正常時にレスポンスを保存し、タイムアウト時に古い値を返す。<strong>DefaultValue</strong> は常に同じデフォルト値を返す。——どちらを使うかはサービスごとに決める」</p><p>「フォールバックは安全なんですか？ 古いキャッシュで在庫ありと返したのに、実際は欠品だったら……」</p><p>「正しい懸念だ。AWSの設計者が言っている——<strong>フォールバックは避けるべきだ</strong>、と。フォールバック経路はめったにトリガーされないから、テストが不十分になりやすい。本番で初めて動いたときにバグがある」</p><p>「じゃあ、タイムアウト時はエラーを返すべき？」</p><p>「**理想はそうだ。**しかし現実には——在庫照会がタイムアウトしたときにユーザーに"注文できません"を返すのか、&ldquo;在庫情報を確認中です、注文を仮受付します"と返すのか。——**ビジネス判断だ。**技術者が一人で決めることではない」</p><p>「……チームで決める必要がある」</p><p>「そうだ。<strong>フォールバック戦略はコードの問題ではない。サービスレベルの設計判断だ。</strong>——ただし、もしフォールバックを使うなら、3つのルールを守れ。(1) フォールバック経路を定期的にテストする。(2) 主経路より単純にする。(3) <strong>主経路と同じリソースに依存しない</strong>」</p><p>「……在庫照会のフォールバックとして、在庫DBに直接クエリを投げるのは？」</p><p>「在庫照会APIが遅延している原因が<strong>DB負荷</strong>だったら？ フォールバックが主経路と同じ障害源を叩くことになる。——<strong>フォールバックが障害を増幅する</strong>」</p><p>ペンを取り、メモを書き始めた。フォールバックの3つのルール。主経路と同じリソースに依存しない。</p><h3 id=after-コード--timeoutwrapper-の統合>After コード — TimeoutWrapper の統合</h3><p>「TimeoutWrapperとフォールバックを在庫照会に適用すると——」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>InventoryClient</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(InstanceOf Object)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>timeout_wrapper</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>InstanceOf</span><span class=p>[</span><span class=s>&#39;TimeoutWrapper&#39;</span><span class=p>],</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>fallback_cache</span>  <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Object</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>http_client</span>     <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Object</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>check</span> <span class=p>($self, $product_id) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$result</span> <span class=o>=</span> <span class=nb>eval</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>timeout_wrapper</span><span class=o>-&gt;</span><span class=n>execute</span><span class=p>(</span><span class=k>sub</span> <span class=p>($connect_to, $read_to) {</span>
+</span></span><span class=line><span class=cl>            <span class=k>my</span> <span class=nv>$res</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>http_client</span><span class=o>-&gt;</span><span class=n>get</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>                <span class=s>&#34;http://inventory-api.internal/stock/$product_id&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>                <span class=p>{</span> <span class=n>timeout</span> <span class=o>=&gt;</span> <span class=nv>$read_to</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>            <span class=p>);</span>
+</span></span><span class=line><span class=cl>            <span class=nb>die</span> <span class=s>&#34;Inventory API error: $res-&gt;{status}&#34;</span> <span class=k>unless</span> <span class=nv>$res</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>success</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>            <span class=k>return</span> <span class=nv>$res</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>content</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>        <span class=p>});</span>
+</span></span><span class=line><span class=cl>    <span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$err</span> <span class=o>=</span> <span class=vg>$@</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=nv>$err</span> <span class=o>&amp;&amp;</span> <span class=nv>$err</span> <span class=ow>eq</span> <span class=s>&#34;TIMEOUT\n&#34;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=c1># タイムアウト時: キャッシュされた値を返す</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$cached</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>fallback_cache</span><span class=o>-&gt;</span><span class=n>get</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$cached</span> <span class=k>if</span> <span class=nb>defined</span> <span class=nv>$cached</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=nb>die</span> <span class=s>&#34;Inventory API timeout and no cached data available&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=nb>die</span> <span class=nv>$err</span> <span class=k>if</span> <span class=nv>$err</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=c1># 正常時: キャッシュを更新して返す</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>fallback_cache</span><span class=o>-&gt;</span><span class=n>update</span><span class=p>(</span><span class=nv>$result</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$result</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「正常時はレスポンスをキャッシュに保存する。タイムアウト時はキャッシュを確認する。キャッシュもなければ——潔くエラーを返す」</p><p>「<code>{ timeout => $read_to }</code> ——HTTP::Tinyのタイムアウトと、<code>alarm</code> の全体タイムアウト、二重に設定しているわけですね」</p><p>「そうだ。HTTP::Tinyは接続と読み取りを分離できない。**全体タイムアウト（alarm）が外側のガードになる。**接続の確立に異常に時間がかかる場合は、全体タイムアウトが先に発火する。——完璧ではないが、&ldquo;タイムアウトなし"からは天と地ほど違う」</p><h3 id=cb--retry--timeout--3層の防衛線>CB + Retry + Timeout — 3層の防衛線</h3><p>「CBとRetryとTimeout、3つを全部組み合わせると、呼び出しの順序はどうなるんですか？」</p><p>ロックさんがホワイトボードの前に立ち、大きく図を描いた。</p><pre class=mermaid>
+	graph LR
+    A[リクエスト] --&gt; B[Retry]
+    B --&gt;|should_retry? → yes| B
+    B --&gt; C[Circuit Breaker]
+    C --&gt;|Open? → 即エラー| X[エラー返却]
+    C --&gt; D[Timeout]
+    D --&gt;|接続TO + 読み取りTO + 全体TO| E[外部API]
+</pre><p>「外側から内側に向かって——Retryが最も外側。CBがその内側。Timeoutが最も内側。<strong>Timeoutが"呼び出しが返ってくるまでの時間"を制限する。CBがTimeoutの結果を見て状態遷移する。Retryが"もう一度やるか"を判断する</strong>」</p><p>「Timeoutが最も内側——基盤ということですか」</p><p>「<strong>Timeoutがなければ、CBは"呼び出しが返ってくるまで"待つ。Retryは"CBが判断するまで"待つ。——全てが遅くなる。Timeoutは"待つ限界"を定義する。限界がなければ、全てのパターンは無限を相手にする</strong>」</p><p>ホワイトボードの図を見つめた。CB、Retry、Timeout。3層が重なっている。</p><p>「……最初にCBを入れた。次にRetryを直した。でも一番内側のTimeoutが未設定だった。——基礎が抜けていた」</p><p>「基礎を最後に学ぶのは珍しいことではない。**問題は外側から見えるからだ。**カスケード障害はCBで防げる。リトライストームはRetryで防げる。しかし"待ちすぎ"は外からは見えない。スレッドが静かに待っているだけだから。——<strong>沈黙の障害は、最も発見が遅い</strong>」</p><h2 id=解決--平和なビルド>解決 — 平和なビルド</h2><p>テストを回した。</p><p>タイムアウトなし（Before）——在庫照会APIの遅延時にスレッドが60秒間ブロック。新規リクエストは全てキュー待ち。CBは成功と判定。システム停止。</p><p>タイムアウトあり（After）——在庫照会APIの遅延時に1.5秒でタイムアウト。CBの失敗カウントが即座に進む。7.5秒でOpen遷移。フォールバックがキャッシュされた在庫情報を返す。新規リクエストは正常処理。</p><p>「……300秒が7.5秒。注文処理は止まらない」</p><p>「在庫照会の結果は古いキャッシュだが——注文は受け付けている。全面停止か、在庫情報の多少の遅れか。どちらがましだ」</p><p>「全面停止よりは——はるかにまし、です」</p><p>ロックさんが立ち上がった。</p><p>「**これで3枚目の防衛線だ。**CB、Retry、Timeout。——もうこれで終わりですか、と聞きたい顔をしているな」</p><p>苦笑が漏れた。</p><p>「……聞きたかったです、正直」</p><p>ロックさんが窓の外を見た。夕焼けが暗くなっている。何か言いかけて、一瞬口を閉じた。それから——</p><p>「終わらない。<strong>防衛線は一度に完成しない。</strong>——だが、ワトソン君。今日の1枚は、昨日より確実に厚い」</p><p>「……全部にタイムアウトを入れれば完璧ですか」</p><p>「**完璧にはならない。**新しいサービスが追加されれば、新しいタイムアウトが必要になる。タイムアウト値は下流サービスのレイテンシが変われば更新しなければならない。フォールバック戦略はビジネス要件の変化で見直しが要る。——<strong>防衛線は生き物だ。建てたら終わりではない。メンテナンスが要る</strong>」</p><p>黙って頷いた。疲弊は消えていない。だが、諦めの色ではなくなっている。</p><h2 id=事件の余韻--共有する防衛線>事件の余韻 — 共有する防衛線</h2><p>ロックさんが帰った後、会議室に一人残った。</p><p>ホワイトボードには、今日描いた図が残っている。CB、Retry、Timeoutの3層構成図。前回と前々回に残っていた薄い図の上に、今日の図が重なっていた。</p><p>スマートフォンでホワイトボードの写真を撮った。Slackの自チームチャンネルを開く。</p><p>「明日のスプリントレビューで共有したい図があります。在庫照会の件の対策案です」</p><p>送信ボタンを押した。</p><p>CBを入れたときは、「これで守れる」と思った。Retryを直したときも、「これで大丈夫だ」と思った。3回目でようやくわかった。防衛線は完成しない。完成しないものを、1枚ずつ積んでいくしかない。</p><p>でも、1枚ずつ積むやり方は——もう知っている。</p><p>私が学んだことは、私だけのものじゃない。</p><p>会議室の電気を消した。窓の外はもう暗い。</p><hr><h2 id=探偵の調査報告書>探偵の調査報告書</h2><div class=table-wrapper><table><thead><tr><th style=text-align:left>容疑（アンチパターン）</th><th style=text-align:left>真実（パターン）</th><th style=text-align:left>証拠（効果）</th></tr></thead><tbody><tr><td style=text-align:left>タイムアウト未設定（HTTP::Tinyデフォルト60秒の放置）</td><td style=text-align:left>接続/読み取りタイムアウトの分離設定</td><td style=text-align:left>障害検知が300秒→7.5秒に短縮</td></tr><tr><td style=text-align:left>全外部呼び出し共通の単一タイムアウト</td><td style=text-align:left>パーセンタイルベースの個別タイムアウト値設定</td><td style=text-align:left>偽タイムアウト率0.1%以下を維持しつつ障害を高速検知</td></tr><tr><td style=text-align:left>タイムアウト時の即死（エラーのみ）</td><td style=text-align:left>FallbackStrategy による段階的対応</td><td style=text-align:left>全面停止を部分縮退に変換</td></tr></tbody></table></div><h3 id=推理のステップ>推理のステップ</h3><ol><li><strong>タイムアウト設定の棚卸し</strong>: 全ての外部呼び出しのタイムアウト設定を確認し、デフォルト値のまま放置されていないかを洗い出す</li><li><strong>接続タイムアウトの短縮</strong>: TCP接続確立の制限を短く設定する（0.5秒程度）。到達不能な場合を高速に検知するため</li><li><strong>読み取りタイムアウトのパーセンタイル設定</strong>: 下流サービスのレイテンシのp99.9に基づいて読み取りタイムアウトを設定する。正常なリクエストを殺さない範囲を見極める</li><li><strong>全体タイムアウトの設定</strong>: <code>alarm</code> + <code>eval</code> で全体のデッドラインを制御する。個々のタイムアウトの合計とは別に、1リクエストに費やせる絶対的な上限を設ける</li><li><strong>フォールバック戦略の決定</strong>: タイムアウト発生時の対応をサービスごとに決定する。フォールバック経路が主経路と同じリソースに依存していないことを確認する</li><li><strong>Timeout → CB → Retry の統合</strong>: Timeoutを最も内側に配置し、CBがTimeoutの結果を基に状態遷移し、Retryが最も外側でリトライ判断を行う3層構成を組む</li></ol><h3 id=ロックより>ロックより</h3><p>待つことは美徳ではない、ワトソン君。<strong>待つべきとき</strong>に待ち、<strong>待つべきでないとき</strong>に断つ——それが防衛線の思想だ。</p><p>君のシステムには今日、3枚目の防衛線が加わった。CBが障害を遮断し、Retryが再挑戦の作法を整え、Timeoutがその全てに"待つ限界"を与える。基礎は地味だ。しかし、基礎が抜けたビルは、どれほど美しい外壁を持っていても倒れる。</p><p>今日のことを、チームに伝えたまえ。防衛線は1人で守るものではない。</p></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/perl/>Perl</a>
+<a href=/tags/moo/>Moo</a>
+<a href=/tags/timeout-pattern/>Timeout-Pattern</a>
+<a href=/tags/no-timeout/>No-Timeout</a>
+<a href=/tags/resilience/>Resilience</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-detective/>Code-Detective</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/05/07/070705/><div class=article-image><img src=/public_images/2026/code-detective-object-pool/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-object-pool/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Object Pool】使い捨ての代償〜借りて返す資源管理術〜</h2></div></a></article><article class=has-image><a href=/2026/05/06/070705/><div class=article-image><img src=/public_images/2026/code-detective-bulkhead/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-bulkhead/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Bulkhead】全館停電の共犯者〜沈まない船の設計図〜</h2></div></a></article><article class=has-image><a href=/2026/05/05/070705/><div class=article-image><img src=/public_images/2026/code-detective-rate-limiting/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-rate-limiting/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Rate Limiting】行列のない受付〜防波堤なきAPIの崩壊〜</h2></div></a></article><article class=has-image><a href=/2026/05/04/070705/><div class=article-image><img src=/public_images/2026/code-detective-fallback/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-fallback/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Fallback Pattern】最後の砦〜優雅に壊れる技術〜</h2></div></a></article><article class=has-image><a href=/2026/05/02/070705/><div class=article-image><img src=/public_images/2026/code-detective-retry/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-retry/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Retry Pattern】嵐を呼ぶリトライ〜指数バックオフという礼儀作法〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

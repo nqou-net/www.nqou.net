@@ -1,0 +1,433 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="「もう十分」の一言が来ないまま描き直す肖像人形。自然文のキーワード一致が終了判定として機能しない理由と、CriticVerdict(Pydantic)の型判定とmax_iterationsで自己評価ループに終止符を打つ設計を追う。"><title>コードパペッティア【Reflection Loop】まだ足りないと繰り返す肖像人形〜逃げ水の完成と、閉じられる採点表〜</title><link rel=canonical href=https://www.nqou.net/2026/07/28/070705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コードパペッティア【Reflection Loop】まだ足りないと繰り返す肖像人形〜逃げ水の完成と、閉じられる採点表〜"><meta property='og:description' content="「もう十分」の一言が来ないまま描き直す肖像人形。自然文のキーワード一致が終了判定として機能しない理由と、CriticVerdict(Pydantic)の型判定とmax_iterationsで自己評価ループに終止符を打つ設計を追う。"><meta property='og:url' content='https://www.nqou.net/2026/07/28/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='python'><meta property='article:tag' content='agent-self-reflection'><meta property='article:tag' content='code-puppeteer'><meta property='article:published_time' content='2026-07-28T07:07:05+09:00'><meta property='article:modified_time' content='2026-07-28T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-puppeteer-agent-self-reflection/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コードパペッティア【Reflection Loop】まだ足りないと繰り返す肖像人形〜逃げ水の完成と、閉じられる採点表〜"><meta name=twitter:description content="「もう十分」の一言が来ないまま描き直す肖像人形。自然文のキーワード一致が終了判定として機能しない理由と、CriticVerdict(Pydantic)の型判定とmax_iterationsで自己評価ループに終止符を打つ設計を追う。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-puppeteer-agent-self-reflection/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-07-28T07:07:05+09:00","datePublished":"2026-07-28T07:07:05+09:00","description":"「もう十分」の一言が来ないまま描き直す肖像人形。自然文のキーワード一致が終了判定として機能しない理由と、CriticVerdict(Pydantic)の型判定とmax_iterationsで自己評価ループに終止符を打つ設計を追う。","headline":"コードパペッティア【Reflection Loop】まだ足りないと繰り返す肖像人形〜逃げ水の完成と、閉じられる採点表〜","image":"https://www.nqou.net/public_images/2026/code-puppeteer-agent-self-reflection/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/07/28/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#第1幕-予兆と調律--終わりの見えない検分>第1幕: 予兆と調律 ── 終わりの見えない検分</a></li><li><a href=#第2幕-絡糸と破綻--たった一言に賭けてしまう>第2幕: 絡糸と破綻 ── たった一言に、賭けてしまう</a></li><li><a href=#第3幕-示唆と編み直し--言葉でなく型を見る>第3幕: 示唆と編み直し ── 言葉でなく、型を見る</a></li><li><a href=#第4幕-開演と調和--筆が自ら置かれる>第4幕: 開演と調和 ── 筆が、自ら置かれる</a><ol><li><a href=#-操り人形師の覚書colettes-puppeteer-log>🎭 操り人形師の覚書（Colette&rsquo;s Puppeteer Log）</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/07/28/070705/><img src=/public_images/2026/code-puppeteer-agent-self-reflection/header.webp loading=lazy alt="Featured image of post コードパペッティア【Reflection Loop】まだ足りないと繰り返す肖像人形〜逃げ水の完成と、閉じられる採点表〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/07/28/070705/>コードパペッティア【Reflection Loop】まだ足りないと繰り返す肖像人形〜逃げ水の完成と、閉じられる採点表〜</a></h2><h3 class=article-subtitle>「もう十分」の一言が来ないまま描き直す肖像人形。自然文のキーワード一致が終了判定として機能しない理由と、CriticVerdict(Pydantic)の型判定とmax_iterationsで自己評価ループに終止符を打つ設計を追う。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>28, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 24分</time></div></footer></div></header><section class=article-content><p>工房の奥、これまでこの手で調整してきた肖像画がいくつも額装されて並ぶ一角で、私は道具箱の中身を整理していました。手はそちらに向いているのに、視線はつい、飾られた絵の一枚一枚に吸い寄せられます。この絵は、どの一筆で「もう仕上がった」と決まったのだろう——特に理由もなく、そんなことを考えている静かな午後でした。</p><p>けれどその日はまだ知りませんでした。「もう十分」というたった一言が、これほど遠いものになるとは。</p><h2 id=第1幕-予兆と調律--終わりの見えない検分>第1幕: 予兆と調律 ── 終わりの見えない検分</h2><p>工房の入り口で人影が一度立ち止まり、それから小走りに近づいてきました。両腕に、大きな画布と、真鍮の腕を持つ人形を大事そうに抱えています。声を張るタイプではないようで、その代わりに、画布の角を握りしめた指先の白さが、抱えている焦りをそのまま物語っていました。息を切らしているのに、歩みだけは崩さないよう気をつけている——そんな不釣り合いな慎重さが、かえって余裕のなさを浮き立たせていました。</p><p>「あの……コレットさん、で合っていますか。噂を聞いて、藁にもすがる思いで参りました」</p><p>見習いの肖像画家だと名乗った彼女は、リゼットと言いました。私と同じくらいの年頃で、控えめな物腰の中に、職人らしい張り詰めた気配があります。椅子を勧めても、画布を抱えたまま座ろうとしません。手短に、けれど言葉を選びながら事情を話してくれました。師匠のもとを長く継いで、正式に工房を任されるための卒業制作として、目利きの後援者から肖像画を託されていること。仕上げの検分は人形に手伝わせなさいと、師匠が貸してくれたのがこの人形だということ。そして——</p><p>「この子、いつまで経っても、描き終わらないんです」</p><p>抱えていた人形をそっと作業台に下ろしながら、リゼットは画布に目を落とします。真鍮の細い腕に貂の筆を握った機構が、静かに佇んでいました。もう片方には、片眼に嵌める真鍮の隻眼鏡が下がっています。</p><p>「もう長いこと、こうなんです。直したはずの箇所を、また直して……」</p><p>私は人形に、目の前でもう一度検分をさせてみることにしました。片眼に嵌まった真鍮の隻眼鏡が、小さな歯車の音を立てながらすっと下り、画布を覗き込みます。しばらく考え込むような間があって、それから流れるような講評を口にしました。好意的とも辛口ともつかない、微妙な言い回しです。言い終わるが早いか、細い真鍮の腕が貂の筆を持ち上げ、また同じ箇所に細かく筆を入れ直します。指の動きだけを見れば、迷いのかけらもない、確かな手つきでした。</p><p>「これが、ずっと続いているんです。私にはもう、何が正しいのか分からなくなってしまって……」</p><p>その一言に、私はふと引っかかりを覚えました。「分からなくなった、というのは?」</p><p>「師匠なら、講評を一つ聞いただけで『もういい、そこで置け』って言えるんです。私には、まだその勘が……」リゼットは声を落とします。膝の上で組んだ両手に、また力がこもるのが見えました。「師匠は今、長患いで臥せっていて。判断を仰げる人が、今はいないんです。この一枚に、私一人の判断で……本当にいいのか、分からないまま」</p><p>なるほど、と私は思いました。この人形には、そもそも自分で「終わり」を決める仕組みが備わっていなかったのです。いつもは師匠が講評を耳で聞いて、頃合いを見て手を止めさせていた——人形の側は、ただ描いて、ただ検分するだけの役目しか担っていませんでした。</p><p>検分の様子をもっと近くで見ようと、私は画布の縁にそっと指を這わせます。指先に、わずかな引っかかりを感じました。依頼主の襟元に描かれた飾り石のあたりだけ、絵の具が幾重にも重なって、ほんの少し盛り上がっています。数えきれないほどの描き直しの跡が、そこに積もっているのでした。</p><p>「厚塗りの……」</p><p>思わず声が漏れました。以来、私はこの人形をそう呼ぶことにしています。</p><p>工房の隅では、マエストロがいつも通り道具の手入れをしています。今日は特に近づいてくることもなく、手を止めることもなく、ちらとこちらへ視線をやっただけでした。いつもと変わらない、静かな見守りです。</p><h2 id=第2幕-絡糸と破綻--たった一言に賭けてしまう>第2幕: 絡糸と破綻 ── たった一言に、賭けてしまう</h2><p>「師匠の勘を、人形自身にやらせればいいのね」</p><p>思いついたことは、そう難しいことのようには思えませんでした。隻眼鏡の講評の中に「もう十分」という一言が含まれていたら、そこで筆を置かせればいい。人間の判断を機械に肩代わりさせるだけの、力任せの指示でも複雑な条件分岐でもない、筋の通った思いつきのつもりでした。人形一体一体の判断は、コードとして書き起こせます。私はさっそく手を動かしました。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span><span class=lnt>51
+</span><span class=lnt>52
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=c1># file: agents/code-puppeteer/tests/agent-self-reflection/before.py</span>
+</span></span><span class=line><span class=cl><span class=s2>&#34;&#34;&#34;肖像人形の自己評価ループ(Before): 自然文のキーワード一致による終了判定。
+</span></span></span><span class=line><span class=cl><span class=s2>
+</span></span></span><span class=line><span class=cl><span class=s2>隻眼鏡(critique)は毎回異なる言い回しで講評を返す自然言語出力であり、
+</span></span></span><span class=line><span class=cl><span class=s2>&#34;もう十分&#34;という厳密な文字列が一致しない限りrefine_until_satisfiedは
+</span></span></span><span class=line><span class=cl><span class=s2>終了しない(核心公理=合否判定を自然文の表層に賭けると、内容が実質的に
+</span></span></span><span class=line><span class=cl><span class=s2>合格でも機械的にはそれを認識できない)。
+</span></span></span><span class=line><span class=cl><span class=s2>&#34;&#34;&#34;</span>
+</span></span><span class=line><span class=cl><span class=kn>import</span> <span class=nn>sys</span>
+</span></span><span class=line><span class=cl><span class=kn>import</span> <span class=nn>os</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>current_dir</span> <span class=o>=</span> <span class=n>os</span><span class=o>.</span><span class=n>path</span><span class=o>.</span><span class=n>dirname</span><span class=p>(</span><span class=n>os</span><span class=o>.</span><span class=n>path</span><span class=o>.</span><span class=n>abspath</span><span class=p>(</span><span class=vm>__file__</span><span class=p>))</span>
+</span></span><span class=line><span class=cl><span class=n>code_puppeteer_dir</span> <span class=o>=</span> <span class=n>os</span><span class=o>.</span><span class=n>path</span><span class=o>.</span><span class=n>abspath</span><span class=p>(</span><span class=n>os</span><span class=o>.</span><span class=n>path</span><span class=o>.</span><span class=n>join</span><span class=p>(</span><span class=n>current_dir</span><span class=p>,</span> <span class=s2>&#34;../..&#34;</span><span class=p>))</span>
+</span></span><span class=line><span class=cl><span class=k>if</span> <span class=n>code_puppeteer_dir</span> <span class=ow>not</span> <span class=ow>in</span> <span class=n>sys</span><span class=o>.</span><span class=n>path</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>    <span class=n>sys</span><span class=o>.</span><span class=n>path</span><span class=o>.</span><span class=n>append</span><span class=p>(</span><span class=n>code_puppeteer_dir</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kn>from</span> <span class=nn>base</span> <span class=kn>import</span> <span class=n>BaseAgent</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>class</span> <span class=nc>PortraitPuppet</span><span class=p>(</span><span class=n>BaseAgent</span><span class=p>):</span>
+</span></span><span class=line><span class=cl>    <span class=s2>&#34;&#34;&#34;肖像画を描く、筆の腕(Actor)と検分の隻眼鏡(Critic)を持つからくり人形&#34;&#34;&#34;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>def</span> <span class=fm>__init__</span><span class=p>(</span><span class=bp>self</span><span class=p>)</span> <span class=o>-&gt;</span> <span class=kc>None</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>        <span class=nb>super</span><span class=p>()</span><span class=o>.</span><span class=fm>__init__</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=n>name</span><span class=o>=</span><span class=s2>&#34;厚塗りの肖像人形&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>system_prompt</span><span class=o>=</span><span class=s2>&#34;依頼された肖像画を、指示と講評に従って描き込みなさい。&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>def</span> <span class=nf>paint</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span> <span class=n>prompt</span><span class=p>:</span> <span class=nb>str</span><span class=p>)</span> <span class=o>-&gt;</span> <span class=nb>str</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>        <span class=s2>&#34;&#34;&#34;筆の腕(Actor): 現在の指示に基づき、肖像画の状態を文で描写する&#34;&#34;&#34;</span>
+</span></span><span class=line><span class=cl>        <span class=n>response</span> <span class=o>=</span> <span class=bp>self</span><span class=o>.</span><span class=n>client</span><span class=o>.</span><span class=n>chat</span><span class=o>.</span><span class=n>completions</span><span class=o>.</span><span class=n>create</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=n>model</span><span class=o>=</span><span class=bp>self</span><span class=o>.</span><span class=n>model</span><span class=p>,</span> <span class=n>messages</span><span class=o>=</span><span class=p>[{</span><span class=s2>&#34;role&#34;</span><span class=p>:</span> <span class=s2>&#34;user&#34;</span><span class=p>,</span> <span class=s2>&#34;content&#34;</span><span class=p>:</span> <span class=n>prompt</span><span class=p>}]</span>
+</span></span><span class=line><span class=cl>        <span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=n>response</span><span class=o>.</span><span class=n>choices</span><span class=p>[</span><span class=mi>0</span><span class=p>]</span><span class=o>.</span><span class=n>message</span><span class=o>.</span><span class=n>content</span> <span class=ow>or</span> <span class=s2>&#34;&#34;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>def</span> <span class=nf>critique</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span> <span class=n>artifact</span><span class=p>:</span> <span class=nb>str</span><span class=p>)</span> <span class=o>-&gt;</span> <span class=nb>str</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>        <span class=s2>&#34;&#34;&#34;検分の隻眼鏡(Critic): 出来栄えを検分し、自然文で講評を返す&#34;&#34;&#34;</span>
+</span></span><span class=line><span class=cl>        <span class=n>response</span> <span class=o>=</span> <span class=bp>self</span><span class=o>.</span><span class=n>client</span><span class=o>.</span><span class=n>chat</span><span class=o>.</span><span class=n>completions</span><span class=o>.</span><span class=n>create</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=n>model</span><span class=o>=</span><span class=bp>self</span><span class=o>.</span><span class=n>model</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>messages</span><span class=o>=</span><span class=p>[{</span><span class=s2>&#34;role&#34;</span><span class=p>:</span> <span class=s2>&#34;user&#34;</span><span class=p>,</span> <span class=s2>&#34;content&#34;</span><span class=p>:</span> <span class=sa>f</span><span class=s2>&#34;この肖像画を検分してください:</span><span class=se>\n</span><span class=si>{</span><span class=n>artifact</span><span class=si>}</span><span class=s2>&#34;</span><span class=p>}],</span>
+</span></span><span class=line><span class=cl>        <span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=n>response</span><span class=o>.</span><span class=n>choices</span><span class=p>[</span><span class=mi>0</span><span class=p>]</span><span class=o>.</span><span class=n>message</span><span class=o>.</span><span class=n>content</span> <span class=ow>or</span> <span class=s2>&#34;&#34;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>def</span> <span class=nf>refine_until_satisfied</span><span class=p>(</span><span class=n>puppet</span><span class=p>:</span> <span class=n>PortraitPuppet</span><span class=p>,</span> <span class=n>prompt</span><span class=p>:</span> <span class=nb>str</span><span class=p>)</span> <span class=o>-&gt;</span> <span class=nb>str</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>    <span class=s2>&#34;&#34;&#34;検分の隻眼鏡が「もう十分」と言うまで、筆の腕に描き直させ続ける&#34;&#34;&#34;</span>
+</span></span><span class=line><span class=cl>    <span class=n>artifact</span> <span class=o>=</span> <span class=n>puppet</span><span class=o>.</span><span class=n>paint</span><span class=p>(</span><span class=n>prompt</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=k>while</span> <span class=kc>True</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>        <span class=n>feedback</span> <span class=o>=</span> <span class=n>puppet</span><span class=o>.</span><span class=n>critique</span><span class=p>(</span><span class=n>artifact</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=s2>&#34;もう十分&#34;</span> <span class=ow>in</span> <span class=n>feedback</span><span class=p>:</span>  <span class=c1># 自然文のキーワード一致に頼った合否判定</span>
+</span></span><span class=line><span class=cl>            <span class=k>return</span> <span class=n>artifact</span>
+</span></span><span class=line><span class=cl>        <span class=n>artifact</span> <span class=o>=</span> <span class=n>puppet</span><span class=o>.</span><span class=n>paint</span><span class=p>(</span><span class=sa>f</span><span class=s2>&#34;</span><span class=si>{</span><span class=n>prompt</span><span class=si>}</span><span class=se>\n\n</span><span class=s2>講評: </span><span class=si>{</span><span class=n>feedback</span><span class=si>}</span><span class=se>\n</span><span class=s2>この指摘を踏まえて描き直しなさい。&#34;</span><span class=p>)</span>
+</span></span></code></pre></td></tr></table></div></div><p>試しに一度動かしてみると、思いのほかあっさりと止まりました。「動いてる……」——いつもの口癖が、口をついて出かけます。</p><p>けれど、言い終わる前でした。画布の縁に触れていた指先が、さっきよりもはっきりとした段差を感じ取ります。見ると、あの盛り上がりが、目に見えて大きくなっていました。たった一度の首尾よい結果に浮かれかけていた自分に気づいて、私は言葉を飲み込み、黙って画布を見つめます。</p><p>「その箇所、さっきより……」</p><p>リゼットも気づいたようでした。私たちは顔を見合わせます。今のはたまたま「もう十分」という言葉がそのまま出てきただけかもしれない——そんな不安が、胸の奥をかすめました。</p><p>それでも、私はまだ楽観していました。本番同様、後援者に見せる前の最後の通し検分をやってみることにします。隻眼鏡が下り、講評を口にするたび、筆の腕がまたあの一点へ戻っていきます。「大変よく描けています」「これで結構だと思います」「申し分のない出来です」——どの言い回しも、内容としては明らかに好意的でした。けれど、どれ一つとして「もう十分」という一言そのものとは一致しません。筆の腕は律儀に、何度も何度も同じ場所へ筆を重ねていきます。</p><p>五度、六度と検分が繰り返されるうち、リゼットの顔から少しずつ表情が消えていくのが分かりました。私は自分のノートに書き足した判定の一行を、何度も目でなぞります。まさか、と思う気持ちと、まだ大丈夫、と思う気持ちが、交互に押し寄せてきました。工房の隅で、マエストロが手を止めることなく、けれど心なしかこちらへ体を向けているのが視界の端に映ります。それでも、私は自分から声をかけには行きませんでした。</p><p>不意に、乾いた小さな音がしました。</p><p>重なりすぎた絵の具の層が、筆先の重みに耐えかね、薄く欠け落ちたのです。覗いた下地の色に、リゼットの顔から血の気が引きます。</p><p>「これ……もう、直せない……」</p><p>声にならない声でそう呟き、リゼットは両手で口元を覆いました。私は筆の腕を止めようと手を伸ばしますが、触れた瞬間に伝わってくる硬い抵抗に、無理に動かせば人形自体を壊しかねないと悟り、すぐに手を離します。何をどうすればいいのか分からず、私たちは画布の前で立ち尽くすことしかできませんでした。</p><h2 id=第3幕-示唆と編み直し--言葉でなく型を見る>第3幕: 示唆と編み直し ── 言葉でなく、型を見る</h2><p>通りかかったアンが、傷ついた画布と、私の手元のノートを一瞥しました。</p><p>「あなた、その子が"同じ一言"を言ってくれるのを、ただ待ち続けるつもり？言葉を足しても引いても、当てが外れるのは変わらないわ。決めるべきは"何と言うか"じゃない、&ldquo;何を満たしたら終わりか"のはずでしょう」</p><p>言い返せませんでした。反射的に、いつものようにマエストロの方を見てしまいます。彼は工房の隅で、布を持つ手を止めていませんでした。助けを求めそうになった自分にふと気づいて、私は視線を戻します——今回は、アンの言葉だけを頼りに、自分の考えを組み立て直そうと思いました。</p><p>マエストロは道具を磨く手を止めないまま、こちらを見ずに一言だけこぼします。</p><p>「……型、か」</p><p>それだけでした。すぐにまた、手元の作業に戻っていきます。答えを示すわけでも、詳しく説明してくれるわけでもありません。いつもならここで「動いてる」の一言が口をつくところですが、今回は何も出てきませんでした。ノートを見つめたまま、私はしばらく黙り込みます。静かな時間の中で、考えが少しずつ形になっていきました。</p><p>隻眼鏡の言葉そのものを当てにいくのは、もうやめよう。言葉を増やすのでも、待つのでもなく、隻眼鏡自身に「合格かどうか」を、型で答えさせればいい。</p><p><strong>Structured Reflection</strong>——評価結果を、定性的な自然文でなく、型として構造化する設計を、こう呼びます。そして、ループを終了させる、機械的に検証可能な条件のことを、**停止条件（Stopping Condition）**と呼びます。私が組み直すべきだったのは、講評の言い回しを追いかけることではなく、この二つでした。</p><p>Pydanticを使えば、隻眼鏡の答えを「型」として縛ることができます。<code>response_format</code>にその型を渡すと、思考のゼンマイ（LLM API）は出力そのものをその形に沿うよう制約されます。返ってきた結果を、今度はPydanticがもう一度検証する——型を求める指示と、型を確かめる検証との二段構えだからこそ、講評の言い回しがどれほど揺れても、プログラムが受け取る値の「形」だけは崩れません。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=c1># file: agents/code-puppeteer/tests/agent-self-reflection/after.py</span>
+</span></span><span class=line><span class=cl><span class=s2>&#34;&#34;&#34;肖像人形の自己評価ループ(After): 型で保証された合否判定と反復上限。
+</span></span></span><span class=line><span class=cl><span class=s2>
+</span></span></span><span class=line><span class=cl><span class=s2>隻眼鏡(critique)の講評をCriticVerdict(Pydantic)という型で受け取ることで、
+</span></span></span><span class=line><span class=cl><span class=s2>&#34;passed&#34;というブール値と&#34;score&#34;という数値が、機械的に比較できる値として
+</span></span></span><span class=line><span class=cl><span class=s2>保証される。加えてmax_iterationsという安全弁を設けることで、ルーブリック
+</span></span></span><span class=line><span class=cl><span class=s2>の設計に不備があっても、無限に描き直し続けることだけは型システムの外側
+</span></span></span><span class=line><span class=cl><span class=s2>からでも防ぐ。Beforeと変えないのは「筆の腕が描く」「隻眼鏡が検分する」
+</span></span></span><span class=line><span class=cl><span class=s2>という行為そのもの、変えるのは検分結果の型と終了判定の方法だけ(単一差分)。
+</span></span></span><span class=line><span class=cl><span class=s2>&#34;&#34;&#34;</span>
+</span></span><span class=line><span class=cl><span class=kn>import</span> <span class=nn>sys</span>
+</span></span><span class=line><span class=cl><span class=kn>import</span> <span class=nn>os</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kn>from</span> <span class=nn>pydantic</span> <span class=kn>import</span> <span class=n>BaseModel</span><span class=p>,</span> <span class=n>Field</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>current_dir</span> <span class=o>=</span> <span class=n>os</span><span class=o>.</span><span class=n>path</span><span class=o>.</span><span class=n>dirname</span><span class=p>(</span><span class=n>os</span><span class=o>.</span><span class=n>path</span><span class=o>.</span><span class=n>abspath</span><span class=p>(</span><span class=vm>__file__</span><span class=p>))</span>
+</span></span><span class=line><span class=cl><span class=n>code_puppeteer_dir</span> <span class=o>=</span> <span class=n>os</span><span class=o>.</span><span class=n>path</span><span class=o>.</span><span class=n>abspath</span><span class=p>(</span><span class=n>os</span><span class=o>.</span><span class=n>path</span><span class=o>.</span><span class=n>join</span><span class=p>(</span><span class=n>current_dir</span><span class=p>,</span> <span class=s2>&#34;../..&#34;</span><span class=p>))</span>
+</span></span><span class=line><span class=cl><span class=k>if</span> <span class=n>code_puppeteer_dir</span> <span class=ow>not</span> <span class=ow>in</span> <span class=n>sys</span><span class=o>.</span><span class=n>path</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>    <span class=n>sys</span><span class=o>.</span><span class=n>path</span><span class=o>.</span><span class=n>append</span><span class=p>(</span><span class=n>code_puppeteer_dir</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kn>from</span> <span class=nn>base</span> <span class=kn>import</span> <span class=n>BaseAgent</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>class</span> <span class=nc>CriticVerdict</span><span class=p>(</span><span class=n>BaseModel</span><span class=p>):</span>
+</span></span><span class=line><span class=cl>    <span class=s2>&#34;&#34;&#34;隻眼鏡(Critic)の検分結果。スコアと合格真偽値を型で保証する&#34;&#34;&#34;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>score</span><span class=p>:</span> <span class=nb>float</span> <span class=o>=</span> <span class=n>Field</span><span class=p>(</span><span class=n>ge</span><span class=o>=</span><span class=mf>0.0</span><span class=p>,</span> <span class=n>le</span><span class=o>=</span><span class=mf>1.0</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=n>passed</span><span class=p>:</span> <span class=nb>bool</span>
+</span></span><span class=line><span class=cl>    <span class=n>failed_items</span><span class=p>:</span> <span class=nb>list</span><span class=p>[</span><span class=nb>str</span><span class=p>]</span> <span class=o>=</span> <span class=n>Field</span><span class=p>(</span><span class=n>default_factory</span><span class=o>=</span><span class=nb>list</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=n>reason</span><span class=p>:</span> <span class=nb>str</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>class</span> <span class=nc>ReflectionExhausted</span><span class=p>(</span><span class=ne>Exception</span><span class=p>):</span>
+</span></span><span class=line><span class=cl>    <span class=s2>&#34;&#34;&#34;最大反復回数に達したが、ルーブリックを満たせなかった場合の例外&#34;&#34;&#34;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>def</span> <span class=fm>__init__</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span> <span class=n>last_verdict</span><span class=p>:</span> <span class=n>CriticVerdict</span><span class=p>,</span> <span class=n>attempts</span><span class=p>:</span> <span class=nb>int</span><span class=p>)</span> <span class=o>-&gt;</span> <span class=kc>None</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>        <span class=nb>super</span><span class=p>()</span><span class=o>.</span><span class=fm>__init__</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=sa>f</span><span class=s2>&#34;</span><span class=si>{</span><span class=n>attempts</span><span class=si>}</span><span class=s2>回描き直しても、ルーブリックを満たせませんでした(score=</span><span class=si>{</span><span class=n>last_verdict</span><span class=o>.</span><span class=n>score</span><span class=si>}</span><span class=s2>)&#34;</span>
+</span></span><span class=line><span class=cl>        <span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=bp>self</span><span class=o>.</span><span class=n>last_verdict</span> <span class=o>=</span> <span class=n>last_verdict</span>
+</span></span><span class=line><span class=cl>        <span class=bp>self</span><span class=o>.</span><span class=n>attempts</span> <span class=o>=</span> <span class=n>attempts</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>score</code>は0.0から1.0までの範囲に、<code>passed</code>はブール値に、それぞれ型で縛られています。隻眼鏡がどんな言い回しで講評を語ろうと、最終的にプログラムが目にするのは、この四つのフィールドだけです。隻眼鏡が実際に何を基準に検分しているのか——輪郭線の精度、陰影の一貫性、配色の均衡、依頼主への忠実度、といった見どころ——は、検分を求める一言の中に委ねたままです。型が保証してくれるのは、判定の「結果」がこの決まった形で返ってくることだけであり、その採点基準そのものの妥当性までは、型の外側の話なのだと、私は自分に言い聞かせました。</p><p>そう自分に言い聞かせながらも、目は書いたばかりの<code>CriticVerdict</code>という文字から離れませんでした。<code>score</code>、<code>passed</code>、<code>failed_items</code>、<code>reason</code>――四角い罫線に区切られた、たった四つの欄です。耳の奥には、まだあの日の講評が残っています。「大変よく描けています」「これで結構だと思います」「申し分のない出来です」。どれも間違いなく、合格を告げる言葉でした。けれど「もう十分」という並びは、その響きのどこにも、一度も現れなかった。同じ「合格」のはずなのに、片方は言葉の川に紛れて流れ去り、もう片方は、四つの欄の中に、指で示せる形をして収まっています。</p><p><img src=/public_images/2026/code-puppeteer-agent-self-reflection/infographic_1.webp loading=lazy alt=critique()の戻り値をBeforeとAfterで比較する型構造図。Beforeは呼ぶたびに言い回しが変わる自然文の講評であり、「大変よく描けています」等の意味的に明確な合格文でも「もう十分」という文字列は一度も現れない。AfterはCriticVerdict型に置き換わり、score(0.0〜1.0・閾値0.85と比較可能)・passed・failed_items・reasonの4フィールドが均一な枠に収まる></p><p>あの言葉たちは、隻眼鏡が次に口を開いた瞬間、もう二度と同じ形では戻ってきません。けれど<code>score</code>という数字と<code>passed</code>という真偽値は、何度呼び出しても、いつも同じ欄に、比べられる形で収まって出てきます。型が変えたのは、講評の中身の良し悪しではありません。その良し悪しを、私が確かめられる形にしたこと、それだけでした。</p><p>筆の腕（<code>paint</code>）の実装は、Beforeから一字一句変えていません。変わったのは、検分の隻眼鏡（<code>critique</code>）が、講評を自然文でなく<code>CriticVerdict</code>という型で返すようになったことだけです。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span><span class=lnt>51
+</span><span class=lnt>52
+</span><span class=lnt>53
+</span><span class=lnt>54
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=k>class</span> <span class=nc>PortraitPuppet</span><span class=p>(</span><span class=n>BaseAgent</span><span class=p>):</span>
+</span></span><span class=line><span class=cl>    <span class=s2>&#34;&#34;&#34;肖像画を描く、筆の腕(Actor)と検分の隻眼鏡(Critic)を持つからくり人形(After)&#34;&#34;&#34;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>def</span> <span class=fm>__init__</span><span class=p>(</span><span class=bp>self</span><span class=p>)</span> <span class=o>-&gt;</span> <span class=kc>None</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>        <span class=nb>super</span><span class=p>()</span><span class=o>.</span><span class=fm>__init__</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=n>name</span><span class=o>=</span><span class=s2>&#34;厚塗りの肖像人形&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>system_prompt</span><span class=o>=</span><span class=s2>&#34;依頼された肖像画を、指示と講評に従って描き込みなさい。&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>def</span> <span class=nf>paint</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span> <span class=n>prompt</span><span class=p>:</span> <span class=nb>str</span><span class=p>)</span> <span class=o>-&gt;</span> <span class=nb>str</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>        <span class=s2>&#34;&#34;&#34;筆の腕(Actor): 現在の指示に基づき、肖像画の状態を文で描写する&#34;&#34;&#34;</span>
+</span></span><span class=line><span class=cl>        <span class=n>response</span> <span class=o>=</span> <span class=bp>self</span><span class=o>.</span><span class=n>client</span><span class=o>.</span><span class=n>chat</span><span class=o>.</span><span class=n>completions</span><span class=o>.</span><span class=n>create</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=n>model</span><span class=o>=</span><span class=bp>self</span><span class=o>.</span><span class=n>model</span><span class=p>,</span> <span class=n>messages</span><span class=o>=</span><span class=p>[{</span><span class=s2>&#34;role&#34;</span><span class=p>:</span> <span class=s2>&#34;user&#34;</span><span class=p>,</span> <span class=s2>&#34;content&#34;</span><span class=p>:</span> <span class=n>prompt</span><span class=p>}]</span>
+</span></span><span class=line><span class=cl>        <span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=n>response</span><span class=o>.</span><span class=n>choices</span><span class=p>[</span><span class=mi>0</span><span class=p>]</span><span class=o>.</span><span class=n>message</span><span class=o>.</span><span class=n>content</span> <span class=ow>or</span> <span class=s2>&#34;&#34;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>def</span> <span class=nf>critique</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span> <span class=n>artifact</span><span class=p>:</span> <span class=nb>str</span><span class=p>)</span> <span class=o>-&gt;</span> <span class=n>CriticVerdict</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>        <span class=s2>&#34;&#34;&#34;検分の隻眼鏡(Critic): 講評を自然文でなくCriticVerdictという型で返す&#34;&#34;&#34;</span>
+</span></span><span class=line><span class=cl>        <span class=n>response</span> <span class=o>=</span> <span class=bp>self</span><span class=o>.</span><span class=n>client</span><span class=o>.</span><span class=n>beta</span><span class=o>.</span><span class=n>chat</span><span class=o>.</span><span class=n>completions</span><span class=o>.</span><span class=n>parse</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=n>model</span><span class=o>=</span><span class=bp>self</span><span class=o>.</span><span class=n>model</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>messages</span><span class=o>=</span><span class=p>[</span>
+</span></span><span class=line><span class=cl>                <span class=p>{</span><span class=s2>&#34;role&#34;</span><span class=p>:</span> <span class=s2>&#34;user&#34;</span><span class=p>,</span> <span class=s2>&#34;content&#34;</span><span class=p>:</span> <span class=sa>f</span><span class=s2>&#34;この肖像画をルーブリックに従い検分してください:</span><span class=se>\n</span><span class=si>{</span><span class=n>artifact</span><span class=si>}</span><span class=s2>&#34;</span><span class=p>}</span>
+</span></span><span class=line><span class=cl>            <span class=p>],</span>
+</span></span><span class=line><span class=cl>            <span class=n>response_format</span><span class=o>=</span><span class=n>CriticVerdict</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=n>verdict</span> <span class=o>=</span> <span class=n>response</span><span class=o>.</span><span class=n>choices</span><span class=p>[</span><span class=mi>0</span><span class=p>]</span><span class=o>.</span><span class=n>message</span><span class=o>.</span><span class=n>parsed</span>
+</span></span><span class=line><span class=cl>        <span class=k>assert</span> <span class=n>verdict</span> <span class=ow>is</span> <span class=ow>not</span> <span class=kc>None</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=n>verdict</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>def</span> <span class=nf>refine_until_passed</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>puppet</span><span class=p>:</span> <span class=n>PortraitPuppet</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>prompt</span><span class=p>:</span> <span class=nb>str</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>max_iterations</span><span class=p>:</span> <span class=nb>int</span> <span class=o>=</span> <span class=mi>3</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>score_threshold</span><span class=p>:</span> <span class=nb>float</span> <span class=o>=</span> <span class=mf>0.85</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>)</span> <span class=o>-&gt;</span> <span class=nb>tuple</span><span class=p>[</span><span class=nb>str</span><span class=p>,</span> <span class=n>CriticVerdict</span><span class=p>]:</span>
+</span></span><span class=line><span class=cl>    <span class=s2>&#34;&#34;&#34;型で保証されたpassed/scoreの機械的比較でループを終了する。max_iterationsを安全弁として併用する&#34;&#34;&#34;</span>
+</span></span><span class=line><span class=cl>    <span class=n>current_prompt</span> <span class=o>=</span> <span class=n>prompt</span>
+</span></span><span class=line><span class=cl>    <span class=n>verdict</span><span class=p>:</span> <span class=n>CriticVerdict</span> <span class=o>|</span> <span class=kc>None</span> <span class=o>=</span> <span class=kc>None</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=n>attempt</span> <span class=ow>in</span> <span class=nb>range</span><span class=p>(</span><span class=mi>1</span><span class=p>,</span> <span class=n>max_iterations</span> <span class=o>+</span> <span class=mi>1</span><span class=p>):</span>
+</span></span><span class=line><span class=cl>        <span class=n>artifact</span> <span class=o>=</span> <span class=n>puppet</span><span class=o>.</span><span class=n>paint</span><span class=p>(</span><span class=n>current_prompt</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=n>verdict</span> <span class=o>=</span> <span class=n>puppet</span><span class=o>.</span><span class=n>critique</span><span class=p>(</span><span class=n>artifact</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=n>verdict</span><span class=o>.</span><span class=n>passed</span> <span class=ow>or</span> <span class=n>verdict</span><span class=o>.</span><span class=n>score</span> <span class=o>&gt;=</span> <span class=n>score_threshold</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>            <span class=k>return</span> <span class=n>artifact</span><span class=p>,</span> <span class=n>verdict</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=n>current_prompt</span> <span class=o>=</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=sa>f</span><span class=s2>&#34;</span><span class=si>{</span><span class=n>prompt</span><span class=si>}</span><span class=se>\n\n</span><span class=s2>前回の検分(</span><span class=si>{</span><span class=n>attempt</span><span class=si>}</span><span class=s2>回目): score=</span><span class=si>{</span><span class=n>verdict</span><span class=o>.</span><span class=n>score</span><span class=si>}</span><span class=se>\n</span><span class=s2>&#34;</span>
+</span></span><span class=line><span class=cl>            <span class=sa>f</span><span class=s2>&#34;未達の項目: </span><span class=si>{</span><span class=s1>&#39;, &#39;</span><span class=o>.</span><span class=n>join</span><span class=p>(</span><span class=n>verdict</span><span class=o>.</span><span class=n>failed_items</span><span class=p>)</span><span class=si>}</span><span class=se>\n</span><span class=s2>理由: </span><span class=si>{</span><span class=n>verdict</span><span class=o>.</span><span class=n>reason</span><span class=si>}</span><span class=s2>&#34;</span>
+</span></span><span class=line><span class=cl>        <span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>assert</span> <span class=n>verdict</span> <span class=ow>is</span> <span class=ow>not</span> <span class=kc>None</span>
+</span></span><span class=line><span class=cl>    <span class=k>raise</span> <span class=n>ReflectionExhausted</span><span class=p>(</span><span class=n>verdict</span><span class=p>,</span> <span class=n>max_iterations</span><span class=p>)</span>
+</span></span></code></pre></td></tr></table></div></div><p>なぜ、こう書き直すだけで話が変わるのでしょうか。順を追って考えてみます。</p><p>そもそも、なぜ<code>"もう十分" in feedback</code>という一行は、事実上ループを終わらせられなかったのでしょうか。隻眼鏡は、思考のゼンマイ（LLM）の出力です。呼び出すたびに、微妙に違う言い回しで講評を語ります。「もう十分」という厳密な文字列が毎回そのまま現れることは、まず期待できません。たとえ講評の中身がどれほど明確な合格を意味していても、狙った一言一句がその中に現れない限り、機械的には「不合格」として扱われ続けてしまいます。</p><p>では、一致すべき言葉をもっと増やせば足りたのでしょうか。答えは否です。言い回しの候補を増やせば、偶然一致する確率はいくらか上がるかもしれません。けれど、判定の土台が「文字列が一致するかどうか」である限り、確率が上がるだけで、一致しない場合の脆さそのものは消えません。実際、あの日の私は「もう十分」というたった一つの言い回しにさえ、一度は偶然救われ、次には裏切られました。運のいい一致は、狙って再現できる挙動ではないのです。</p><p>だからこそ、隻眼鏡の判定結果を<code>CriticVerdict</code>という型で受け取ることに意味があります。「合格かどうか」を隻眼鏡の言い回しに依存せず、プログラムが機械的に比較できる値として扱えるようになるからです。<code>verdict.passed or verdict.score >= score_threshold</code>——この一行は、「合格」に至る二つの独立した道を表しています。隻眼鏡がはっきりと合格を示す場合と、点数が閾値を超える場合。どちらか一方で十分であり、両方を待つ必要はありません。</p><p><code>passed</code>は隻眼鏡の総合判断そのものであり、これもまた一種の「言い分」には違いありません。それでも、Beforeの脆さとは性質が違います。Beforeは、内容がどれほど良くても、狙った文字列が一致しない限り機械的に「不合格」として扱われ続ける仕組みでした。Afterでは、たとえ隻眼鏡の総合判断に多少のブレがあっても、<code>score</code>という数値の物差しが、もう一つの独立した合格ルートとして控えています。どちらか一方の物差しが緩んでも、もう一方が拾える——<code>passed</code>と<code>score</code>を「か」で結んだのは、そういう理由からでした。</p><p>加えて、<code>max_iterations</code>という反復上限を設けたことにも理由があります。たとえルーブリックの設計そのものに見落としがあっても、無限に描き直し続けることだけは、型システムの外側からでも防ぎたかったのです。上限に達してなお基準を満たせない場合は、<code>ReflectionExhausted</code>という例外を送出し、そこで正直に立ち止まります。黙って描きかけのまま返してしまえば、基準に届いていないことにリゼットが気づかないまま、後援者の前に出てしまうかもしれません。だからこそ、続けるか諦めるかの判断そのものを、呼び出す側に押し返すことにしたのです。</p><p>ただし、正直に言わなければならないことがあります。型が保証するのは「ループが必ず終わること」であって、「隻眼鏡の採点そのものが正しいこと」ではありません。ルーブリックの基準が甘すぎれば早すぎる合格を、厳しすぎれば毎回上限まで描き直してから諦めることになります——型は、その中身までは面倒を見てくれないのです。</p><p>言葉だけを目で追っていると、何が変わったのか、かえって見失いそうになります。私は紙の端に、二つの仕立てを並べて整理し直してみることにしました。</p><p>Beforeの仕立てには、「含まれない」場合の行き先が一つしかありません。何度巡っても、律儀に描き直しへ舞い戻るだけです。反復の回数を数える者も、見張る者も、どこにもいませんでした。</p><p>Afterの仕立てには、「型で判定」という分岐が新しく加わり、さらにその先に「反復回数」という、もう一段の見張りが立っています。合格への道は二つに増えましたが、諦めるべき瞬間もまた、初めてはっきりと定義されました。</p><p>机上の小さな試作の隻眼鏡で、まずはBeforeがどう壊れていたのかを確かめ直すことにしました。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=c1># 意味的には明確な合格でも、「もう十分」という文字列を一度も含まない講評</span>
+</span></span><span class=line><span class=cl><span class=n>CLEARLY_PASSING_FEEDBACKS</span> <span class=o>=</span> <span class=p>[</span>
+</span></span><span class=line><span class=cl>    <span class=s2>&#34;とても良い出来だと思います。&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=s2>&#34;特に問題は見当たりません。&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=s2>&#34;素晴らしい仕上がりです。細部まで丁寧に描かれています。&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=s2>&#34;これ以上、直すところは見当たらないでしょう。&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=s2>&#34;文句のつけようがない仕上がりかと存じます。&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>]</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nd>@patch</span><span class=p>(</span><span class=s2>&#34;openai.OpenAI&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=k>def</span> <span class=nf>test_semantically_clear_pass_never_matches_and_loop_guard_trips</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span> <span class=n>mock_openai</span><span class=p>):</span>
+</span></span><span class=line><span class=cl>    <span class=n>mock_client</span> <span class=o>=</span> <span class=n>MagicMock</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>    <span class=n>mock_openai</span><span class=o>.</span><span class=n>return_value</span> <span class=o>=</span> <span class=n>mock_client</span>
+</span></span><span class=line><span class=cl>    <span class=n>mock_client</span><span class=o>.</span><span class=n>chat</span><span class=o>.</span><span class=n>completions</span><span class=o>.</span><span class=n>create</span><span class=o>.</span><span class=n>side_effect</span> <span class=o>=</span> <span class=n>_make_before_side_effect</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>CLEARLY_PASSING_FEEDBACKS</span><span class=p>,</span> <span class=n>loop_guard_limit</span><span class=o>=</span><span class=mi>20</span>
+</span></span><span class=line><span class=cl>    <span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>puppet</span> <span class=o>=</span> <span class=n>BeforeAgentModule</span><span class=o>.</span><span class=n>PortraitPuppet</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>    <span class=k>with</span> <span class=bp>self</span><span class=o>.</span><span class=n>assertRaises</span><span class=p>(</span><span class=n>_LoopGuardTripped</span><span class=p>)</span> <span class=k>as</span> <span class=n>ctx</span><span class=p>:</span>
+</span></span><span class=line><span class=cl>        <span class=n>BeforeAgentModule</span><span class=o>.</span><span class=n>refine_until_satisfied</span><span class=p>(</span><span class=n>puppet</span><span class=p>,</span> <span class=s2>&#34;肖像画を描いてください&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=c1># 21回目のcritique呼び出しで安全装置が発動する</span>
+</span></span><span class=line><span class=cl>    <span class=c1># (=意味的に明確な合格が20回続いても、Beforeは一度も終了しなかった証拠)</span>
+</span></span><span class=line><span class=cl>    <span class=bp>self</span><span class=o>.</span><span class=n>assertEqual</span><span class=p>(</span><span class=n>ctx</span><span class=o>.</span><span class=n>exception</span><span class=o>.</span><span class=n>critique_call_count</span><span class=p>,</span> <span class=mi>21</span><span class=p>)</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>_LoopGuardTripped</code>は、製品コードのどこにも存在しない、テストだけの安全装置です。Beforeの<code>refine_until_satisfied</code>は自力で途中停止する仕組みを持たないため、意味的には明確な合格を示す講評が20回続いても、一度も終了しませんでした。だからこそ、テストの側で強制的に打ち切って、その事実を証明する必要があったのです。</p><p>対して、たまたま「もう十分」という言葉がそのまま出てきた場合には、Beforeも呆気なく終了します。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=nd>@patch</span><span class=p>(</span><span class=s2>&#34;openai.OpenAI&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=k>def</span> <span class=nf>test_terminates_only_on_incidental_exact_match</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span> <span class=n>mock_openai</span><span class=p>):</span>
+</span></span><span class=line><span class=cl>    <span class=n>mock_client</span> <span class=o>=</span> <span class=n>MagicMock</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>    <span class=n>mock_openai</span><span class=o>.</span><span class=n>return_value</span> <span class=o>=</span> <span class=n>mock_client</span>
+</span></span><span class=line><span class=cl>    <span class=n>mock_client</span><span class=o>.</span><span class=n>chat</span><span class=o>.</span><span class=n>completions</span><span class=o>.</span><span class=n>create</span><span class=o>.</span><span class=n>side_effect</span> <span class=o>=</span> <span class=n>_make_before_side_effect</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=p>[</span><span class=s2>&#34;まだ少し粗いですね。&#34;</span><span class=p>,</span> <span class=s2>&#34;もう十分、美しく仕上がりました。&#34;</span><span class=p>]</span>
+</span></span><span class=line><span class=cl>    <span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>puppet</span> <span class=o>=</span> <span class=n>BeforeAgentModule</span><span class=o>.</span><span class=n>PortraitPuppet</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>    <span class=n>result</span> <span class=o>=</span> <span class=n>BeforeAgentModule</span><span class=o>.</span><span class=n>refine_until_satisfied</span><span class=p>(</span><span class=n>puppet</span><span class=p>,</span> <span class=s2>&#34;肖像画を描いてください&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=bp>self</span><span class=o>.</span><span class=n>assertIsInstance</span><span class=p>(</span><span class=n>result</span><span class=p>,</span> <span class=nb>str</span><span class=p>)</span>
+</span></span></code></pre></td></tr></table></div></div><p>二つを並べると、Beforeの終了が内容の良し悪しでなく、言葉の巡り合わせに左右されていたことが、数字の上でもはっきりと分かります。</p><p>Afterの側は、二つの独立した道のどちらでも、正しく終わることを確かめます。一つは、点数が閾値へ届くまで描き直しを重ね、直前の指摘がきちんと次の指示に織り込まれていく道です。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=n>verdict1</span> <span class=o>=</span> <span class=n>AfterAgentModule</span><span class=o>.</span><span class=n>CriticVerdict</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>score</span><span class=o>=</span><span class=mf>0.5</span><span class=p>,</span> <span class=n>passed</span><span class=o>=</span><span class=kc>False</span><span class=p>,</span> <span class=n>failed_items</span><span class=o>=</span><span class=p>[</span><span class=s2>&#34;輪郭の粗さ&#34;</span><span class=p>],</span> <span class=n>reason</span><span class=o>=</span><span class=s2>&#34;輪郭が甘い&#34;</span>
+</span></span><span class=line><span class=cl><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=n>verdict2</span> <span class=o>=</span> <span class=n>AfterAgentModule</span><span class=o>.</span><span class=n>CriticVerdict</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>score</span><span class=o>=</span><span class=mf>0.7</span><span class=p>,</span> <span class=n>passed</span><span class=o>=</span><span class=kc>False</span><span class=p>,</span> <span class=n>failed_items</span><span class=o>=</span><span class=p>[</span><span class=s2>&#34;陰影の不足&#34;</span><span class=p>],</span> <span class=n>reason</span><span class=o>=</span><span class=s2>&#34;陰影が浅い&#34;</span>
+</span></span><span class=line><span class=cl><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=n>verdict3</span> <span class=o>=</span> <span class=n>AfterAgentModule</span><span class=o>.</span><span class=n>CriticVerdict</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>score</span><span class=o>=</span><span class=mf>0.9</span><span class=p>,</span> <span class=n>passed</span><span class=o>=</span><span class=kc>False</span><span class=p>,</span> <span class=n>failed_items</span><span class=o>=</span><span class=p>[],</span> <span class=n>reason</span><span class=o>=</span><span class=s2>&#34;十分な仕上がり&#34;</span>
+</span></span><span class=line><span class=cl><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=n>mock_client</span><span class=o>.</span><span class=n>beta</span><span class=o>.</span><span class=n>chat</span><span class=o>.</span><span class=n>completions</span><span class=o>.</span><span class=n>parse</span><span class=o>.</span><span class=n>side_effect</span> <span class=o>=</span> <span class=p>[</span>
+</span></span><span class=line><span class=cl>    <span class=n>_mock_parse_response</span><span class=p>(</span><span class=n>verdict1</span><span class=p>),</span>
+</span></span><span class=line><span class=cl>    <span class=n>_mock_parse_response</span><span class=p>(</span><span class=n>verdict2</span><span class=p>),</span>
+</span></span><span class=line><span class=cl>    <span class=n>_mock_parse_response</span><span class=p>(</span><span class=n>verdict3</span><span class=p>),</span>
+</span></span><span class=line><span class=cl><span class=p>]</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>artifact</span><span class=p>,</span> <span class=n>verdict</span> <span class=o>=</span> <span class=n>AfterAgentModule</span><span class=o>.</span><span class=n>refine_until_passed</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>puppet</span><span class=p>,</span> <span class=s2>&#34;肖像画を描いてください&#34;</span><span class=p>,</span> <span class=n>max_iterations</span><span class=o>=</span><span class=mi>5</span><span class=p>,</span> <span class=n>score_threshold</span><span class=o>=</span><span class=mf>0.85</span>
+</span></span><span class=line><span class=cl><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=bp>self</span><span class=o>.</span><span class=n>assertEqual</span><span class=p>(</span><span class=n>verdict</span><span class=o>.</span><span class=n>score</span><span class=p>,</span> <span class=mf>0.9</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=bp>self</span><span class=o>.</span><span class=n>assertEqual</span><span class=p>(</span><span class=n>mock_client</span><span class=o>.</span><span class=n>beta</span><span class=o>.</span><span class=n>chat</span><span class=o>.</span><span class=n>completions</span><span class=o>.</span><span class=n>parse</span><span class=o>.</span><span class=n>call_count</span><span class=p>,</span> <span class=mi>3</span><span class=p>)</span>
+</span></span></code></pre></td></tr></table></div></div><p>一回目の指摘「輪郭の粗さ」は二回目の指示にだけ現れ、二回目の指摘「陰影の不足」は三回目の指示にだけ現れる——過去の指摘が未来へ正しく橋渡しされ、まだ起きていない検分の結果が紛れ込むこともない。この順序も併せて確かめておきました。</p><p>もう一つの道は、点数が閾値に届かなくても、隻眼鏡が明確に「合格」を示せば、そこで即座に終わる場合です。実際、<code>passed=True</code>だが<code>score=0.6</code>という検分結果を一件だけ用意して呼び出すと、たった一回で終了しました。二つの道が、それぞれ独立して機能していることの証明です。</p><p>反対に、何度描き直しても基準に届かない意地の悪い設定では、<code>max_iterations</code>ちょうどの回数で<code>ReflectionExhausted</code>が送出され、それ以上は一度も試みられません。最後に、検分結果に<code>score=1.5</code>のような、あり得ない数字を紛れ込ませると、Pydanticがきちんと撥ねつけることも確かめました。</p><p>静かな確認で幕を閉じます。試作の隻眼鏡が、短いやり取りの末に静かに動きを止めました。私は小さく息をつき、本物の人形の前に戻ります。</p><h2 id=第4幕-開演と調和--筆が自ら置かれる>第4幕: 開演と調和 ── 筆が、自ら置かれる</h2><p>新しい仕立てで、本物の検分をやり直します。隻眼鏡が下り、<code>CriticVerdict</code>を返すたび、私の手元の記録には、はっきりとした数字と項目が並んでいきました。一度目、二度目と、狙いを定めた描き直しが続きます。けれど、あの欠けた一点には、もう一度も筆が触れませんでした。傷はもう増えないのだと、私は静かに確信していきます。</p><p>三度目の検分で、隻眼鏡の答えが基準を超えました。筆の腕がすっと持ち上がり、そのまま静かに——まるで自分の意志であるかのように——傍らの筆置きへと下ろされます。それ以上、何も描こうとはしませんでした。</p><p>リゼットが画布に駆け寄り、覗き込みます。欠けた一点にも、当然気づいたはずです。指先がその傷にそっと触れ、一瞬だけ止まりました。私は思わず身構えます——また塗り直させてほしいと、言い出すのではないかと。</p><p>けれど彼女は、それを隠そうとも、描き足させようともしませんでした。しばらく画布を見つめたあと、ふっと肩の力を抜いて、小さく笑います。</p><p>「……この傷も、含めて。これが今の、精一杯です」</p><p>その声には、迷いよりも、静かな納得が滲んでいるように、私には聞こえました。師匠の勘には、まだ届かないかもしれません。それでも、この一枚を「もう十分」だと決めたのは、他でもない彼女自身の言葉でした。</p><p>「上出来じゃない」</p><p>通りかかったアンが、軽く言い捨てます。</p><p>「言葉を数えるより先に、型を疑うべきだったのよ——次はもっと早く気づくことね」</p><p>マエストロは道具の手入れを続けたまま、こちらを見ずに、短く言いました。</p><p>「……筆は、置けるところで置くものだ」</p><p>それだけ言うと、また静かに手元の作業へ戻っていきます。技術的な答えを口にしたわけではありません。けれど、なぜかその一言は、画布に残ったあの小さな傷のことも、同時に語っているような気がしました。</p><p>リゼットは画布と人形を丁寧にまとめながら、初めて私の名を呼びました。</p><p>「コレットさん、本当に、ありがとうございました」</p><p>同業の見習い同士の、対等な呼びかけでした。</p><p>隻眼鏡の言葉を当てにいくのではなく、型で「もう十分」を言い切る——それが今日の答えでした。そう自分の中で結論を確かめたとき、ふと気づきます。あの一連の出来事のあいだ、私は「動いてるからいいのよね」を、一度も口にしていなかったのだと。</p><p>部屋に戻り、今夜の出来事をひと息に書き終えます。いつもなら書いたものを見返して、言葉を直したり書き足したりするところですが、今回はペンを置いた手で、そのまま静かにノートを閉じました。書き終えたものを、もう見返す必要はないのだと、初めて素直にそう思えたのです。</p><hr><h3 id=-操り人形師の覚書colettes-puppeteer-log>🎭 操り人形師の覚書（Colette&rsquo;s Puppeteer Log）</h3><ul><li><strong>調整したからくり（モジュール/関数名）</strong>: <code>PortraitPuppet.critique</code>とそれを束ねる制御ループ（Before: <code>refine_until_satisfied</code>が自然文の部分文字列一致で終了判定 → After: <code>refine_until_passed</code>が<code>CriticVerdict</code>〔Pydantic、score/passed/failed_items/reason〕の型判定＋<code>max_iterations</code>のOR条件で終了判定。尽きれば<code>ReflectionExhausted</code>）</li><li><strong>思考のゼンマイ（思考素子/LLMの特性）</strong>:<ul><li>検分の隻眼鏡（Critic）の講評は、同じ内容を意味していても、呼び出すたびに言い回しが変わる自然言語であり、二度と同じ文字列が現れるとは限らない</li></ul></li><li><strong>操り糸の張り具合（運糸の法/プロンプトと制御）</strong>:<ul><li>Pydantic <code>CriticVerdict</code>（score・passed・failed_items・reason）+ <code>verdict.passed or verdict.score >= score_threshold</code>のOR判定 + <code>max_iterations</code>上限に達した場合の<code>ReflectionExhausted</code></li></ul></li><li><strong>舞台裏の絡まり（背伸びの過ち/避けるべき罠）</strong>:<ul><li>人間の判断（頃合いを見て打ち切る）を、たった一つの言葉の一致に賭けて機械へ肩代わりさせようとしたこと（効果が偶然任せなのは変わらない）と、それによって代わりのきかない画布を後戻りできない形で傷めたこと</li></ul></li><li><strong>模擬公演の記録（検証のポイント）</strong>:<ul><li>Beforeが内容的に明確な合格でも文字列が一致せず終了しないこと（かつ偶然の一致でしか終了しないこと）、Afterがスコア閾値到達・合格フラグ・反復上限のいずれの経路でも正しく終了すること、直前の指摘が次の指示に反映されること、型が不正な値を拒むこと</li></ul></li><li><strong>マエストロの言葉</strong>:<ul><li><em>「……筆は、置けるところで置くものだ」</em></li></ul></li></ul></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/python/>Python</a>
+<a href=/tags/agent-self-reflection/>Agent-Self-Reflection</a>
+<a href=/tags/code-puppeteer/>Code-Puppeteer</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/07/29/070705/><div class=article-image><img src=/public_images/2026/code-puppeteer-code-puppeteer-integrated/header.webp loading=lazy data-key data-hash=/public_images/2026/code-puppeteer-code-puppeteer-integrated/header.webp></div><div class=article-details><h2 class=article-title>コードパペッティア【KISS Principle】鍵と歯車で着膨れた扉番からくり〜積み上げた十の備えと、選び抜いた三本の糸〜</h2></div></a></article><article class=has-image><a href=/2026/07/27/070705/><div class=article-image><img src=/public_images/2026/code-puppeteer-human-in-the-loop/header.webp loading=lazy data-key data-hash=/public_images/2026/code-puppeteer-human-in-the-loop/header.webp></div><div class=article-details><h2 class=article-title>コードパペッティア【Human-in-the-Loop】待ったなしの猟師人形〜凍りつく舞台裏と、遅れて届く合図〜</h2></div></a></article><article class=has-image><a href=/2026/07/26/070705/><div class=article-image><img src=/public_images/2026/code-puppeteer-multi-agent-orchestration/header.webp loading=lazy data-key data-hash=/public_images/2026/code-puppeteer-multi-agent-orchestration/header.webp></div><div class=article-details><h2 class=article-title>コードパペッティア【Blackboard Pattern】互いの出番を譲り合う二人の裏方人形〜暗く沈む舞台と、共有された進行表〜</h2></div></a></article><article class=has-image><a href=/2026/07/25/070705/><div class=article-image><img src=/public_images/2026/code-puppeteer-self-correction-retry/header.webp loading=lazy data-key data-hash=/public_images/2026/code-puppeteer-self-correction-retry/header.webp></div><div class=article-details><h2 class=article-title>コードパペッティア【Self-Correction Loop】いつもの毒舌を失くした相棒のオルゴール〜過熱する繰り言と、正しく止める勇気〜</h2></div></a></article><article class=has-image><a href=/2026/07/24/070705/><div class=article-image><img src=/public_images/2026/code-puppeteer-sliding-window-memory/header.webp loading=lazy data-key data-hash=/public_images/2026/code-puppeteer-sliding-window-memory/header.webp></div><div class=article-details><h2 class=article-title>コードパペッティア【Sliding Window Memory】夜更けに任務を忘れる夜警人形〜膨らむ今夜と、石盤ひと枚の覚え〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

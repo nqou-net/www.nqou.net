@@ -1,0 +1,381 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="配送料の見積りにテストを書こうにも、関数の奥で本物のDBと運送業者APIを直接呼んでいて一行も書けない。依存を内部で作るのをやめ外から受け取り、mainで組み立てて、本物に繋がず試験台で回せるようにする整備記録。"><title>コードメカニック【Dependency Injection】ローカルでは動くのにテストが一行も書けない〜内部で組み込んだ部品を外から受け取る形へ〜</title><link rel=canonical href=https://www.nqou.net/2026/06/29/070705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コードメカニック【Dependency Injection】ローカルでは動くのにテストが一行も書けない〜内部で組み込んだ部品を外から受け取る形へ〜"><meta property='og:description' content="配送料の見積りにテストを書こうにも、関数の奥で本物のDBと運送業者APIを直接呼んでいて一行も書けない。依存を内部で作るのをやめ外から受け取り、mainで組み立てて、本物に繋がず試験台で回せるようにする整備記録。"><meta property='og:url' content='https://www.nqou.net/2026/06/29/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='go'><meta property='article:tag' content='dependency-injection'><meta property='article:tag' content='tight-coupling'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-mechanic'><meta property='article:published_time' content='2026-06-29T07:07:05+09:00'><meta property='article:modified_time' content='2026-06-29T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-mechanic-di/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コードメカニック【Dependency Injection】ローカルでは動くのにテストが一行も書けない〜内部で組み込んだ部品を外から受け取る形へ〜"><meta name=twitter:description content="配送料の見積りにテストを書こうにも、関数の奥で本物のDBと運送業者APIを直接呼んでいて一行も書けない。依存を内部で作るのをやめ外から受け取り、mainで組み立てて、本物に繋がず試験台で回せるようにする整備記録。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-mechanic-di/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-06-29T07:07:05+09:00","datePublished":"2026-06-29T07:07:05+09:00","description":"配送料の見積りにテストを書こうにも、関数の奥で本物のDBと運送業者APIを直接呼んでいて一行も書けない。依存を内部で作るのをやめ外から受け取り、mainで組み立てて、本物に繋がず試験台で回せるようにする整備記録。","headline":"コードメカニック【Dependency Injection】ローカルでは動くのにテストが一行も書けない〜内部で組み込んだ部品を外から受け取る形へ〜","image":"https://www.nqou.net/public_images/2026/code-mechanic-di/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/06/29/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#動くのにテストが一行も書けない>動くのに、テストが一行も書けない</a></li><li><a href=#とりあえず本物を試験台に載せる>とりあえず本物を試験台に載せる</a></li><li><a href=#部品が関数の中で生まれている>部品が、関数の中で生まれている</a></li><li><a href=#中で作るのをやめ外から受け取る>中で作るのをやめ、外から受け取る</a></li><li><a href=#試験台で地域ぜんぶを回す>試験台で、地域ぜんぶを回す</a></li><li><a href=#整備記録簿>整備記録簿</a><ol><li><a href=#整備手順>整備手順</a></li><li><a href=#親方より>親方より</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/06/29/070705/><img src=/public_images/2026/code-mechanic-di/header.webp loading=lazy alt="Featured image of post コードメカニック【Dependency Injection】ローカルでは動くのにテストが一行も書けない〜内部で組み込んだ部品を外から受け取る形へ〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/06/29/070705/>コードメカニック【Dependency Injection】ローカルでは動くのにテストが一行も書けない〜内部で組み込んだ部品を外から受け取る形へ〜</a></h2><h3 class=article-subtitle>配送料の見積りにテストを書こうにも、関数の奥で本物のDBと運送業者APIを直接呼んでいて一行も書けない。依存を内部で作るのをやめ外から受け取り、mainで組み立てて、本物に繋がず試験台で回せるようにする整備記録。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>29, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 16分</time></div></footer></div></header><section class=article-content><h2 id=動くのにテストが一行も書けない>動くのに、テストが一行も書けない</h2><p>平日の十九時すぎ。オフィスはもう人がまばらで、空調の音がやけに大きく聞こえる。わたしのエディタには、さっき作ったばかりの <code>delivery_test.go</code> が開いている。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=nf>TestEstimateDelivery</span><span class=p>(</span><span class=nx>t</span><span class=w> </span><span class=o>*</span><span class=nx>testing</span><span class=p>.</span><span class=nx>T</span><span class=p>)</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p><code>func TestEstimateDelivery(t *testing.T) {</code> まで打って、その先が一文字も書けていない。カーソルだけが点滅している。</p><p>先週、配送料が¥0になるバグを直した。離島宛ての注文で、運送業者が「この宛先は配送できません」と返したとき、コードがその返事を見ずに、料金0円をそのまま通していた。無料配送の注文が、何件か成立してしまっていた。ホットフィックスはもう当ててある。配送できない宛先なら、エラーで止める。それだけのことだ。</p><p>だからリードの言葉も、もっともだと思った。「同じ取りこぼしが、他の地域にもあるかもしれない。直したことをテストで証明してから、次のリリースに乗せて」。明日の昼に出すはずの修正が、その一言で止まっている。</p><p>テストを書けばいい。書こうとした。なのに、書けない。<code>EstimateDelivery</code> を開くと、理由が分かる。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=kn>package</span><span class=w> </span><span class=nx>delivery</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kn>import</span><span class=w> </span><span class=p>(</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=s>&#34;database/sql&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=s>&#34;errors&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=s>&#34;ec/carrier&#34;</span><span class=w> </span><span class=c1>// 運送業者のクライアント（外部サービス）</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>var</span><span class=w> </span><span class=nx>ErrOutOfArea</span><span class=w> </span><span class=p>=</span><span class=w> </span><span class=nx>errors</span><span class=p>.</span><span class=nf>New</span><span class=p>(</span><span class=s>&#34;delivery: out of service area&#34;</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=c1>// 注文IDから配送料を見積もる</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=nf>EstimateDelivery</span><span class=p>(</span><span class=nx>orderID</span><span class=w> </span><span class=kt>int</span><span class=p>)</span><span class=w> </span><span class=p>(</span><span class=kt>int</span><span class=p>,</span><span class=w> </span><span class=kt>error</span><span class=p>)</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=c1>// ← DB接続を、この関数の中で作っている</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>db</span><span class=p>,</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>sql</span><span class=p>.</span><span class=nf>Open</span><span class=p>(</span><span class=s>&#34;postgres&#34;</span><span class=p>,</span><span class=w> </span><span class=s>&#34;host=prod-db user=app dbname=ec sslmode=require&#34;</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>!=</span><span class=w> </span><span class=kc>nil</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=k>return</span><span class=w> </span><span class=mi>0</span><span class=p>,</span><span class=w> </span><span class=nx>err</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>defer</span><span class=w> </span><span class=nx>db</span><span class=p>.</span><span class=nf>Close</span><span class=p>()</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=kd>var</span><span class=w> </span><span class=nx>postal</span><span class=w> </span><span class=kt>string</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=kd>var</span><span class=w> </span><span class=nx>weight</span><span class=w> </span><span class=kt>int</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>err</span><span class=w> </span><span class=p>=</span><span class=w> </span><span class=nx>db</span><span class=p>.</span><span class=nf>QueryRow</span><span class=p>(</span><span class=s>&#34;SELECT postal_code, weight FROM orders WHERE id=$1&#34;</span><span class=p>,</span><span class=w> </span><span class=nx>orderID</span><span class=p>).</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nf>Scan</span><span class=p>(</span><span class=o>&amp;</span><span class=nx>postal</span><span class=p>,</span><span class=w> </span><span class=o>&amp;</span><span class=nx>weight</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>!=</span><span class=w> </span><span class=kc>nil</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=k>return</span><span class=w> </span><span class=mi>0</span><span class=p>,</span><span class=w> </span><span class=nx>err</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=c1>// ← 運送業者のクライアントも、この関数の中で作っている</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>client</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>carrier</span><span class=p>.</span><span class=nf>NewClient</span><span class=p>(</span><span class=s>&#34;CARRIER_API_KEY&#34;</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>fee</span><span class=p>,</span><span class=w> </span><span class=nx>serviceable</span><span class=p>,</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>client</span><span class=p>.</span><span class=nf>Quote</span><span class=p>(</span><span class=nx>postal</span><span class=p>,</span><span class=w> </span><span class=nx>weight</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>!=</span><span class=w> </span><span class=kc>nil</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=k>return</span><span class=w> </span><span class=mi>0</span><span class=p>,</span><span class=w> </span><span class=nx>err</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=c1>// 先週のホットフィックス: 配送不可エリアはエラーにする</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=p>!</span><span class=nx>serviceable</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=k>return</span><span class=w> </span><span class=mi>0</span><span class=p>,</span><span class=w> </span><span class=nx>ErrOutOfArea</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>return</span><span class=w> </span><span class=nx>fee</span><span class=p>,</span><span class=w> </span><span class=kc>nil</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p>中で、本物のDBに繋いでいる。本物の運送業者APIを叩いている。このテストを走らせたら、<code>sql.Open</code> で指定した本番データベースと、運送業者の本番APIに、問い合わせが飛ぶ。テスト用の注文をどこかに用意して、運送業者には離島の住所を投げて……考えるほど、手が止まった。動かすだけなら、ローカルでもちゃんと動く。なのに、確かめるための一行が書けない。</p><p>社内Wikiの片隅に、「詰まったときに呼ぶといい」とだけ書かれた連絡先のメモがあった。半信半疑で連絡すると、三十分ほどで、物静かな女性が来た。薄いノートPCを一台だけ提げている。「よろしくお願いします」とだけ言って、わたしの隣に座った。</p><p>わたしは、開いたままの <code>EstimateDelivery</code> を、少し不安な気持ちで見せた。「配送料の計算に、テストを書きたいんです。でも、この関数、中で本物のDBと運送業者APIを叩いていて……テストを走らせると、本物に繋がっちゃう。わたしの書き方が、下手なんでしょうか」</p><p>その人は画面を一秒ほど見て、<code>sql.Open</code> の行を指した。「下手じゃない。ここでDBを、作ってる。だから、外せない」</p><p>エラーログでも、テストの書き方でもなく、最初に指したのはその一行だった。迷いのない指先だった。半信半疑のまま、わたしはこの人を親方と呼んだ。</p><p>作ってる——? わたしは聞き返した。「<code>sql.Open</code> のことですか。でも、DBに繋ぐには、要りますよね」</p><p>テストを書きたいだけなのに、なぜ書けないのか。配送料は、本物のDBと運送APIに繋がないと計算できない。そう思い込んでいた。</p><hr><h2 id=とりあえず本物を試験台に載せる>とりあえず本物を試験台に載せる</h2><p>親方は何も言わず、わたしのキーボードを借りて、テストを一本書いた。本物のDBの接続先を環境変数から読み、無ければスキップする。その先で <code>EstimateDelivery</code> をそのまま呼ぶ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=nf>TestEstimateDelivery_Integration</span><span class=p>(</span><span class=nx>t</span><span class=w> </span><span class=o>*</span><span class=nx>testing</span><span class=p>.</span><span class=nx>T</span><span class=p>)</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>os</span><span class=p>.</span><span class=nf>Getenv</span><span class=p>(</span><span class=s>&#34;DATABASE_URL&#34;</span><span class=p>)</span><span class=w> </span><span class=o>==</span><span class=w> </span><span class=s>&#34;&#34;</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nx>t</span><span class=p>.</span><span class=nf>Skip</span><span class=p>(</span><span class=s>&#34;本物のDBと運送業者サンドボックスが要る——配送不可ロジックを単体で検証できない&#34;</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>_</span><span class=p>,</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nf>EstimateDelivery</span><span class=p>(</span><span class=mi>1</span><span class=p>);</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>!=</span><span class=w> </span><span class=kc>nil</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nx>t</span><span class=p>.</span><span class=nf>Fatalf</span><span class=p>(</span><span class=s>&#34;EstimateDelivery: %v&#34;</span><span class=p>,</span><span class=w> </span><span class=nx>err</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p>そして走らせた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-sh data-lang=sh><span class=line><span class=cl>$ go <span class=nb>test</span> ./before/
+</span></span><span class=line><span class=cl><span class=o>===</span> RUN   TestEstimateDelivery_Integration
+</span></span><span class=line><span class=cl>    estimate_test.go:13: 本物のDBと運送業者サンドボックスが要る——配送不可ロジックを単体で検証できない
+</span></span><span class=line><span class=cl>--- SKIP: TestEstimateDelivery_Integration <span class=o>(</span>0.00s<span class=o>)</span>
+</span></span><span class=line><span class=cl>ok  	code-mechanic/tight-coupling-di/before  0.31s
+</span></span></code></pre></td></tr></table></div></div><p>「書けた……と思ったら、スキップ?」わたしは画面を覗き込んだ。緑の <code>ok</code> は出ている。でも、<code>SKIP</code> と書いてある。</p><p>「いまは本物のDBが無いから、スキップされた」と親方は言った。「緑に見えるが、あなたのロジックは一行も確かめていない。本物を用意すれば、走るには走る。テスト用のDBを立てて、運送業者のサンドボックスのキーを入れれば」</p><p>「じゃあ、それをCIにも用意すれば、いいんじゃないですか」わたしは少し前のめりになった。</p><p>親方は首を横に振らなかったが、肯定もしなかった。「そのテストが確かめているのは、運送業者のAPIと、DBです。あなたが直した『配送不可エリア』の動きは、運送業者が、そのとき、たまたまどう答えるかに左右される。あなたのロジックを、単体では試していない」</p><p>「でも……離島の宛先を、サンドボックスに投げれば、配送不可の返事が来ますよね。それで確かめられる」食い下がってみた。</p><p>「運送業者のサンドボックスが、あなたの試したい全部の地域を、いつも同じように返してくれますか」</p><p>詰まった。「……それは、分からないです。向こうの都合だから」。海外、重量超過、一時的に配送停止——確かめたい状況を、こちらから運送業者に「こう答えてくれ」とは頼めない。</p><p>「それに、本物に繋ぐぶん遅くなる」と親方は続けた。「運送業者が落ちていたら、あなたのコードは何も壊れていないのに、このテストは赤くなる。試験台が、相手の都合で揺れる」</p><p>親方は <code>EstimateDelivery</code> を、もう一度、上から下まで指でなぞった。「これは応急です。試験台に、本物のエンジンを丸ごと載せて回しているだけだ。回るには回る。でも、部品ひとつの働きを試したいだけなのに、毎回エンジン全部と、本物の燃料が要る」</p><p>本物じゃなくて、こちらが用意した答えを返す「偽物」を渡せたら——。そこまで考えて、でもどうやって、と止まった。<code>EstimateDelivery</code> は、運送業者のクライアントを、自分の中で作ってしまっている。</p><hr><h2 id=部品が関数の中で生まれている>部品が、関数の中で生まれている</h2><p>親方は、<code>EstimateDelivery</code> の中の二行を指した。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=w>	</span><span class=nx>db</span><span class=p>,</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>sql</span><span class=p>.</span><span class=nf>Open</span><span class=p>(</span><span class=s>&#34;postgres&#34;</span><span class=p>,</span><span class=w> </span><span class=s>&#34;host=prod-db ...&#34;</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=o>...</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>client</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>carrier</span><span class=p>.</span><span class=nf>NewClient</span><span class=p>(</span><span class=s>&#34;CARRIER_API_KEY&#34;</span><span class=p>)</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p>「原因はここ。部品を、関数の中で作っている。DBも、運送業者のクライアントも、この関数が自分で組み立てている。だから、外から別のものに替えられない」</p><p>部品が、関数の中で生まれている。わたしは頭の中で言い換えた。エンジンに部品が、配線で直に繋ぎ込まれている——直結されている。エンジンを開けて、その配線を引き抜かない限り、別の部品には替えられない。</p><p>「これ、密結合っていうやつですか」聞いたことのある言葉が、口から出た。</p><p>「そうです。密結合——使う側が、依存する部品を自分の内側で直接作って、その部品に縛りつけられている状態だ。<code>EstimateDelivery</code> は、<code>carrier.NewClient</code> という具体的な部品の名前を、自分の中に握っている。握っているから、テストのときだけ別のものに、とはいかない」</p><p>わたしは、自分なりの直し方を思いついた。手は動くほうだ。「じゃあ、テストのときだけ偽物に差し替えればいいんですよね。パッケージにグローバル変数を一個置いて——<code>var rateClient = carrier.NewClient(...)</code> みたいに——テストの最初で、それを偽物に上書きすれば」</p><p>親方は、別のファイルに、そのグローバル変数版を黙って書いて見せた。それから、こう言った。</p><p>「これでも、差し替えはできる。でも、<code>EstimateDelivery</code> の見た目は、何も変わっていない。関数の形を見ても、それが何に依存しているのか、分からないままだ。依存を、グローバルという物置の奥に隠しただけだ。さっきの『関数の中で作る』のと、結局は同じ——握っている場所を、関数の中からパッケージの隅に動かしただけで、外から見えないのは変わらない」</p><p>言われて、書きかけのグローバル変数版を見た。確かに、<code>EstimateDelivery(orderID int)</code> という形からは、この関数がDBや運送業者に依存していることは、一文字も読み取れない。差し替えはできても、どこで何に繋がっているのかは、関数を開けて中を追わないと分からない。隠れただけだ。</p><p>「おまけに、そのグローバルを複数のテストで奪い合えば、結果も混ざる」と親方は付け加えた。</p><p>「差し替えの口を作るのに、グローバルも、テスト用の条件分岐も要らない」。親方はわたしの目を見た。「外から、渡してもらえばいい」</p><p>外から渡す——? でも、DBも運送APIも、この関数が使うものだ。使う本人が用意しないで、どうやって渡してもらうんだろう。</p><hr><h2 id=中で作るのをやめ外から受け取る>中で作るのをやめ、外から受け取る</h2><p>「順番に組み直します」と親方は言った。</p><p>まず、使う側——<code>delivery</code> パッケージの中で、必要な操作だけを宣言した。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=kn>package</span><span class=w> </span><span class=nx>delivery</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=c1>// delivery（使う側）が、必要な操作だけを宣言する。</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=c1>// 実装が誰なのかは、ここでは知らない。</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>type</span><span class=w> </span><span class=nx>OrderRepo</span><span class=w> </span><span class=kd>interface</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nf>Find</span><span class=p>(</span><span class=nx>orderID</span><span class=w> </span><span class=kt>int</span><span class=p>)</span><span class=w> </span><span class=p>(</span><span class=nx>postalCode</span><span class=w> </span><span class=kt>string</span><span class=p>,</span><span class=w> </span><span class=nx>weight</span><span class=w> </span><span class=kt>int</span><span class=p>,</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=kt>error</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>type</span><span class=w> </span><span class=nx>RateClient</span><span class=w> </span><span class=kd>interface</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nf>Quote</span><span class=p>(</span><span class=nx>postalCode</span><span class=w> </span><span class=kt>string</span><span class=p>,</span><span class=w> </span><span class=nx>weight</span><span class=w> </span><span class=kt>int</span><span class=p>)</span><span class=w> </span><span class=p>(</span><span class=nx>fee</span><span class=w> </span><span class=kt>int</span><span class=p>,</span><span class=w> </span><span class=nx>serviceable</span><span class=w> </span><span class=kt>bool</span><span class=p>,</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=kt>error</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p>「インターフェースを……使う側が書くんですか」わたしは戸惑った。「<code>carrier</code> パッケージの側じゃなくて」</p><p>「Goは、使う側が『これだけ繋がれば、中身は問わない』と宣言する。<code>implements</code> とは書かない。<code>Quote</code> というメソッドを、この形で持っている型なら、何でもこの口に挿さる。本物の運送業者クライアントでも、テスト用の偽物でも。メソッドの形が合っていれば、コンパイラが『満たしている』と判断する。形が合わなければ、コンパイルエラーで止まる」</p><p>口の規格を、使う側が決める。本物の部品も、テスト用の偽物も、その規格さえ満たせば挿さる——そういうことか。戻り値に <code>fee</code> や <code>serviceable</code> と名前が付いているのは、何が返ってくるかを、口の宣言だけで読めるようにするためだった。引数ではなく、返り値の側だ。</p><p>次に、その口を、<code>struct</code> のフィールドとして持たせ、コンストラクタで受け取る形にした。コンストラクタといっても、Goに専用の構文があるわけではない。<code>New〜</code> という名前で、部品を組み立てて返すだけの、ただの関数だ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=kn>package</span><span class=w> </span><span class=nx>delivery</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kn>import</span><span class=w> </span><span class=s>&#34;errors&#34;</span><span class=w> </span><span class=c1>// ← database/sql も carrier も、もう import しない</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>var</span><span class=w> </span><span class=nx>ErrOutOfArea</span><span class=w> </span><span class=p>=</span><span class=w> </span><span class=nx>errors</span><span class=p>.</span><span class=nf>New</span><span class=p>(</span><span class=s>&#34;delivery: out of service area&#34;</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>type</span><span class=w> </span><span class=nx>Estimator</span><span class=w> </span><span class=kd>struct</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>orders</span><span class=w> </span><span class=nx>OrderRepo</span><span class=w> </span><span class=c1>// 具体型ではなく、口（interface）を持つ</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>rates</span><span class=w>  </span><span class=nx>RateClient</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=c1>// 依存を引数で受け取る。中で作らない。</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=nf>NewEstimator</span><span class=p>(</span><span class=nx>orders</span><span class=w> </span><span class=nx>OrderRepo</span><span class=p>,</span><span class=w> </span><span class=nx>rates</span><span class=w> </span><span class=nx>RateClient</span><span class=p>)</span><span class=w> </span><span class=o>*</span><span class=nx>Estimator</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>return</span><span class=w> </span><span class=o>&amp;</span><span class=nx>Estimator</span><span class=p>{</span><span class=nx>orders</span><span class=p>:</span><span class=w> </span><span class=nx>orders</span><span class=p>,</span><span class=w> </span><span class=nx>rates</span><span class=p>:</span><span class=w> </span><span class=nx>rates</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=p>(</span><span class=nx>e</span><span class=w> </span><span class=o>*</span><span class=nx>Estimator</span><span class=p>)</span><span class=w> </span><span class=nf>Estimate</span><span class=p>(</span><span class=nx>orderID</span><span class=w> </span><span class=kt>int</span><span class=p>)</span><span class=w> </span><span class=p>(</span><span class=kt>int</span><span class=p>,</span><span class=w> </span><span class=kt>error</span><span class=p>)</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>postal</span><span class=p>,</span><span class=w> </span><span class=nx>weight</span><span class=p>,</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>e</span><span class=p>.</span><span class=nx>orders</span><span class=p>.</span><span class=nf>Find</span><span class=p>(</span><span class=nx>orderID</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>!=</span><span class=w> </span><span class=kc>nil</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=k>return</span><span class=w> </span><span class=mi>0</span><span class=p>,</span><span class=w> </span><span class=nx>err</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>fee</span><span class=p>,</span><span class=w> </span><span class=nx>serviceable</span><span class=p>,</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>e</span><span class=p>.</span><span class=nx>rates</span><span class=p>.</span><span class=nf>Quote</span><span class=p>(</span><span class=nx>postal</span><span class=p>,</span><span class=w> </span><span class=nx>weight</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>!=</span><span class=w> </span><span class=kc>nil</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=k>return</span><span class=w> </span><span class=mi>0</span><span class=p>,</span><span class=w> </span><span class=nx>err</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=c1>// 先週のホットフィックスと同じ判定。今度は、これを単体で試せる</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=p>!</span><span class=nx>serviceable</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=k>return</span><span class=w> </span><span class=mi>0</span><span class=p>,</span><span class=w> </span><span class=nx>ErrOutOfArea</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>return</span><span class=w> </span><span class=nx>fee</span><span class=p>,</span><span class=w> </span><span class=kc>nil</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p>「<code>Estimate</code> は、もうDBも運送業者も、自分で作らない」と親方は言った。「コンストラクタで受け取った口を、使うだけだ」</p><p>ここで親方は、<code>delivery</code> パッケージの import 文を指した。さっきまで <code>database/sql</code> と <code>ec/carrier</code> があった場所が、いまは <code>errors</code> の一行だけになっている。</p><p>わたしは、その import 文を二度見した。<code>database/sql</code> が、消えている。<code>carrier</code> も、消えている。さっきまで関数の中で握っていた具体的な部品の名前が、このパッケージから無くなっていた。試しに、ここで <code>carrier.NewClient</code> と書こうとしても、もう書けない——書けば、このパッケージに無い import が要る。<code>delivery</code> は、本物の部品の名前すら、知らなくなった。口しか知らない。</p><p>「依存の向きが、逆になった」と親方は言った。「前は <code>delivery</code> が <code>carrier</code> を握っていた。いまは <code>carrier</code> のほうが、<code>delivery</code> の決めた口に合わせる側だ」</p><p>ロジックは、一行も変えていない。<code>if !serviceable</code> の判定は、先週わたしが当てたホットフィックスのままだ。変わったのは、部品を「どこで作るか」だけだった。</p><p>では、本物のDBと運送業者は、どこで作るのか。親方は、入口のファイルを開いた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=c1>// Composition Root: 部品を組み立てる場所は、ここ一カ所だけ</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kn>package</span><span class=w> </span><span class=nx>main</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kn>import</span><span class=w> </span><span class=p>(</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=s>&#34;database/sql&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=s>&#34;log&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=s>&#34;os&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=s>&#34;ec/carrier&#34;</span><span class=w> </span><span class=c1>// 具体的な部品の名前を知るのは、ここ（と infra）だけ</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=s>&#34;ec/delivery&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=s>&#34;ec/infra&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=nf>main</span><span class=p>()</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>db</span><span class=p>,</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>sql</span><span class=p>.</span><span class=nf>Open</span><span class=p>(</span><span class=s>&#34;postgres&#34;</span><span class=p>,</span><span class=w> </span><span class=nx>os</span><span class=p>.</span><span class=nf>Getenv</span><span class=p>(</span><span class=s>&#34;DATABASE_URL&#34;</span><span class=p>))</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>!=</span><span class=w> </span><span class=kc>nil</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nx>log</span><span class=p>.</span><span class=nf>Fatal</span><span class=p>(</span><span class=nx>err</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>defer</span><span class=w> </span><span class=nx>db</span><span class=p>.</span><span class=nf>Close</span><span class=p>()</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>repo</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>infra</span><span class=p>.</span><span class=nf>NewSQLOrderRepo</span><span class=p>(</span><span class=nx>db</span><span class=p>)</span><span class=w>                        </span><span class=c1>// 本物のDB実装</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>rates</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>carrier</span><span class=p>.</span><span class=nf>NewClient</span><span class=p>(</span><span class=nx>os</span><span class=p>.</span><span class=nf>Getenv</span><span class=p>(</span><span class=s>&#34;CARRIER_API_KEY&#34;</span><span class=p>))</span><span class=w> </span><span class=c1>// 本物の運送業者</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>est</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>delivery</span><span class=p>.</span><span class=nf>NewEstimator</span><span class=p>(</span><span class=nx>repo</span><span class=p>,</span><span class=w> </span><span class=nx>rates</span><span class=p>)</span><span class=w>                </span><span class=c1>// ← ここで本物を挿し込む</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=c1>// あとは est を、HTTPハンドラなどに渡して使う</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>_</span><span class=w> </span><span class=p>=</span><span class=w> </span><span class=nx>est</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p>「本物のDBと運送業者を作る処理は、無くならないんですね」とわたしは確かめた。「場所が、ここに移っただけ」</p><p>「そう。部品を作る場所を、入口の一カ所に集める。これを Composition Root——組み立ての根っこ、と呼ぶ。あちこちで部品を作らない。ここで組んで、あとは渡していくだけだ」</p><p>部品を作る場所と、部品を使う場所を、分けた。作るのは入口で一回。使う側は、渡された口を、使うだけ。わたしは自分の言葉に置き換えて、ようやく腑に落ちた。</p><p><code>main</code> が呼んでいる <code>infra.NewSQLOrderRepo</code> の中身も、見せてもらった。さっき <code>EstimateDelivery</code> の中にあった <code>db.QueryRow(...)</code> は、消えたわけではない。<code>OrderRepo</code> を満たす本物の実装として、<code>infra</code> パッケージに移ってきただけだった。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=kn>package</span><span class=w> </span><span class=nx>infra</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=c1>// delivery.OrderRepo を満たす、本物の実装。元の QueryRow はここが受け持つ</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>type</span><span class=w> </span><span class=nx>SQLOrderRepo</span><span class=w> </span><span class=kd>struct</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>db</span><span class=w> </span><span class=o>*</span><span class=nx>sql</span><span class=p>.</span><span class=nx>DB</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=nf>NewSQLOrderRepo</span><span class=p>(</span><span class=nx>db</span><span class=w> </span><span class=o>*</span><span class=nx>sql</span><span class=p>.</span><span class=nx>DB</span><span class=p>)</span><span class=w> </span><span class=o>*</span><span class=nx>SQLOrderRepo</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>return</span><span class=w> </span><span class=o>&amp;</span><span class=nx>SQLOrderRepo</span><span class=p>{</span><span class=nx>db</span><span class=p>:</span><span class=w> </span><span class=nx>db</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=p>(</span><span class=nx>r</span><span class=w> </span><span class=o>*</span><span class=nx>SQLOrderRepo</span><span class=p>)</span><span class=w> </span><span class=nf>Find</span><span class=p>(</span><span class=nx>orderID</span><span class=w> </span><span class=kt>int</span><span class=p>)</span><span class=w> </span><span class=p>(</span><span class=nx>postalCode</span><span class=w> </span><span class=kt>string</span><span class=p>,</span><span class=w> </span><span class=nx>weight</span><span class=w> </span><span class=kt>int</span><span class=p>,</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=kt>error</span><span class=p>)</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>err</span><span class=w> </span><span class=p>=</span><span class=w> </span><span class=nx>r</span><span class=p>.</span><span class=nx>db</span><span class=p>.</span><span class=nf>QueryRow</span><span class=p>(</span><span class=s>&#34;SELECT postal_code, weight FROM orders WHERE id=$1&#34;</span><span class=p>,</span><span class=w> </span><span class=nx>orderID</span><span class=p>).</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nf>Scan</span><span class=p>(</span><span class=o>&amp;</span><span class=nx>postalCode</span><span class=p>,</span><span class=w> </span><span class=o>&amp;</span><span class=nx>weight</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>return</span><span class=w> </span><span class=nx>postalCode</span><span class=p>,</span><span class=w> </span><span class=nx>weight</span><span class=p>,</span><span class=w> </span><span class=nx>err</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p><code>database/sql</code> を import しているのは、この <code>infra</code> と、組み立て役の <code>main</code> だけ。<code>delivery</code> は、もう知らない。DBを叩く処理そのものは消えていない。<code>delivery</code> の外へ、出ていっただけだ。</p><p>そして、テスト。親方は、口を満たす偽物を、その場で手書きした。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=kn>package</span><span class=w> </span><span class=nx>delivery</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=c1>// RateClient を満たす手書きの偽物。carrier も database/sql も import しない</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>type</span><span class=w> </span><span class=nx>fakeRateClient</span><span class=w> </span><span class=kd>struct</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>fee</span><span class=w>         </span><span class=kt>int</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>serviceable</span><span class=w> </span><span class=kt>bool</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>err</span><span class=w>         </span><span class=kt>error</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=p>(</span><span class=nx>f</span><span class=w> </span><span class=o>*</span><span class=nx>fakeRateClient</span><span class=p>)</span><span class=w> </span><span class=nf>Quote</span><span class=p>(</span><span class=nx>postalCode</span><span class=w> </span><span class=kt>string</span><span class=p>,</span><span class=w> </span><span class=nx>weight</span><span class=w> </span><span class=kt>int</span><span class=p>)</span><span class=w> </span><span class=p>(</span><span class=kt>int</span><span class=p>,</span><span class=w> </span><span class=kt>bool</span><span class=p>,</span><span class=w> </span><span class=kt>error</span><span class=p>)</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>return</span><span class=w> </span><span class=nx>f</span><span class=p>.</span><span class=nx>fee</span><span class=p>,</span><span class=w> </span><span class=nx>f</span><span class=p>.</span><span class=nx>serviceable</span><span class=p>,</span><span class=w> </span><span class=nx>f</span><span class=p>.</span><span class=nx>err</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=c1>// fakeOrderRepo も同じ。Find を一本実装するだけ（postal/weight/err を返す）</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p>「これ……<code>carrier</code> を import してない」わたしは気づいた。「偽物なのに、本物のクライアントを、一切知らないんですね」</p><p>「それが、疎結合だ」と親方は言った。「偽物は、口さえ満たせばいい。本物の部品を知らなくていい。だから、本物のDBも運送業者も要らずに、あなたのロジックだけを、試験台で回せる」</p><p>親方がやったこれには、名前があった。<strong>Dependency Injection（依存性注入）</strong>——使うものを自分の内側で作らず、外から渡してもらう組み付け方だ。これで、本物と、テスト用の偽物を、同じ口で差し替えられる。</p><p>親方は、作業台の壁に貼られた配線図を指差した。本物の重たい部品と、テスト用の透明なアクリル部品が、同じ『ソケット（口）』にカチリと差し替えられる構造が描かれていた。</p><p><img src=/public_images/2026/code-mechanic-di/infographic_1.webp loading=lazy alt="Dependency Injection (DI) pattern structure: An Estimator controller connects to interchangeable sub-modules (SQLOrderRepo database and CarrierClient/fakeRateClient rates client) via standardized interface ports OrderRepo and RateClient"></p><p>この構造に切り替えたことで、何が変わって、なぜテストが書けるようになったのか。整理すると、こうだ。依存を作る場所が、関数の内側から <code>main</code> へ移った。<code>delivery</code> パッケージから <code>database/sql</code> と <code>carrier</code> の import が消え、具体的な部品を握らなくなった。依存が <code>NewEstimator</code> の引数に現れて、何に依存しているか、関数の形を見るだけで分かるようになった。そしてテストでは、その口に偽物を挿せる。本物の部品を作る場所と、それを使う場所を切り離したから、使う側は口だけを知っていればよくなった。</p><hr><h2 id=試験台で地域ぜんぶを回す>試験台で、地域ぜんぶを回す</h2><p>わたしは、自分の手で、先週のバグの回帰テストを書いた。偽物に「配送不可」を仕込む。<code>serviceable</code> が <code>false</code> のとき、ちゃんとエラーで止まるか。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=c1>// 配送不可エリアはエラー（ホットフィックス前は ¥0 を返していた挙動を、ここで固定する）</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=nf>TestEstimate_OutOfArea_ReturnsError</span><span class=p>(</span><span class=nx>t</span><span class=w> </span><span class=o>*</span><span class=nx>testing</span><span class=p>.</span><span class=nx>T</span><span class=p>)</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>est</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nf>NewEstimator</span><span class=p>(</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=o>&amp;</span><span class=nx>fakeOrderRepo</span><span class=p>{</span><span class=nx>postal</span><span class=p>:</span><span class=w> </span><span class=s>&#34;907-0000&#34;</span><span class=p>,</span><span class=w> </span><span class=nx>weight</span><span class=p>:</span><span class=w> </span><span class=mi>800</span><span class=p>},</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=o>&amp;</span><span class=nx>fakeRateClient</span><span class=p>{</span><span class=nx>fee</span><span class=p>:</span><span class=w> </span><span class=mi>0</span><span class=p>,</span><span class=w> </span><span class=nx>serviceable</span><span class=p>:</span><span class=w> </span><span class=kc>false</span><span class=p>},</span><span class=w> </span><span class=c1>// 配送不可を仕込む</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>_</span><span class=p>,</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>est</span><span class=p>.</span><span class=nf>Estimate</span><span class=p>(</span><span class=mi>2</span><span class=p>);</span><span class=w> </span><span class=p>!</span><span class=nx>errors</span><span class=p>.</span><span class=nf>Is</span><span class=p>(</span><span class=nx>err</span><span class=p>,</span><span class=w> </span><span class=nx>ErrOutOfArea</span><span class=p>)</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nx>t</span><span class=p>.</span><span class=nf>Fatalf</span><span class=p>(</span><span class=s>&#34;配送不可エリアは ErrOutOfArea になるはず: got %v&#34;</span><span class=p>,</span><span class=w> </span><span class=nx>err</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p>ここで使った <code>errors.Is</code> は、返ってきたエラーが <code>ErrOutOfArea</code> と同じ目印かを確かめる関数だ。<code>==</code> での比較に近いが、エラーが途中で別のエラーに包まれていても、元を辿って見つけてくれる。<code>ErrOutOfArea</code> のほうは、最初に <code>errors.New</code> でパッケージの変数として一度だけ用意した、配送不可の目印だった。</p><p>走らせた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-sh data-lang=sh><span class=line><span class=cl>$ go <span class=nb>test</span> ./after/delivery/
+</span></span><span class=line><span class=cl><span class=o>===</span> RUN   TestEstimate_Serviceable_ReturnsFee
+</span></span><span class=line><span class=cl>--- PASS: TestEstimate_Serviceable_ReturnsFee <span class=o>(</span>0.00s<span class=o>)</span>
+</span></span><span class=line><span class=cl><span class=o>===</span> RUN   TestEstimate_OutOfArea_ReturnsError
+</span></span><span class=line><span class=cl>--- PASS: TestEstimate_OutOfArea_ReturnsError <span class=o>(</span>0.00s<span class=o>)</span>
+</span></span><span class=line><span class=cl><span class=o>===</span> RUN   TestEstimate_RepoError_Propagates
+</span></span><span class=line><span class=cl>--- PASS: TestEstimate_RepoError_Propagates <span class=o>(</span>0.00s<span class=o>)</span>
+</span></span><span class=line><span class=cl>ok  	code-mechanic/tight-coupling-di/after/delivery  0.25s
+</span></span></code></pre></td></tr></table></div></div><p>本物の運送業者は、もう要らなかった。離島でも、海外でも、配送不可でも——偽物に「こう答えろ」と仕込めば、そのとおりに返ってくる。試したい状況を、ぜんぶ自分の手で並べられる。さっきは本物が無いとスキップするしかなかったのに、いまは本物が無いからこそ、速く、毎回同じ結果で回る。</p><p>わたしは、止まらなかった。配送不可ならエラー。<code>Find</code> がDBエラーを返したら、それがそのまま伝わるか。重量超過のときは——。さっきまで一文字も書けなかったテストファイルが、ケースで埋まっていく。確かめたかったことが、一つずつ、テストになっていった。</p><p>親方は、わたしがテストを書き足していく手元を、黙って少しのあいだ見ていた。「もう本物は要らない。あとは、試したい答えを並べるだけだ」。そう言うと、わたしのキーを打つ音が止まないのを確かめるように一拍おいて、静かに立ち上がった。来たときと同じ、薄いノートPCを小脇に抱えただけの身軽さで。</p><p>「ありがとうございました」とわたしは言ったが、画面から目が離せなかった。書きたかったテストが、いま、いくらでも書ける。</p><hr><h2 id=整備記録簿>整備記録簿</h2><div class=table-wrapper><table><thead><tr><th>こんな異音・症状が出たら</th><th>入れるべき整備（Dependency Injection）</th><th>まだ様子見でいい</th></tr></thead><tbody><tr><td>関数やメソッドの中で <code>sql.Open</code> や外部APIクライアントを直接 <code>new</code> していて、テストに本物のDB/外部サービスが要る</td><td>✓</td><td></td></tr><tr><td>テストを書くのに、テスト用DBや外部サービスのサンドボックスを立てないと走らない／CIが相手の都合で揺れる</td><td>✓</td><td></td></tr><tr><td>「テスト用フラグ」やグローバル変数で、無理やり差し替えている</td><td>✓</td><td></td></tr><tr><td>依存が一つで、差し替える予定も、テストで偽物にしたい動機も無い安定した相手（標準ライブラリの <code>encoding/json</code> など）</td><td></td><td>✓</td></tr></tbody></table></div><h3 id=整備手順>整備手順</h3><ol><li>関数の中で「作っている」依存（<code>sql.Open</code>、外部クライアントの生成）を見つける。</li><li>使う側のパッケージで、必要な操作だけの小さな interface を宣言する（<code>OrderRepo</code>、<code>RateClient</code>）。</li><li>依存を <code>struct</code> のフィールドに持たせ、<code>NewXxx(...)</code> コンストラクタで外から受け取る。関数の中の生成を消す。</li><li>本物の組み立ては <code>main</code>（Composition Root）に集める。そこで具体的な部品を作って、注入する。</li><li>テストは、口を満たす偽物を手書きして渡す（<code>database/sql</code> や外部パッケージを import しない）。<code>go test</code> が、DB・ネットワーク無しで走る。</li></ol><h3 id=親方より>親方より</h3><p>使うものを、関数の中で作るな。外から受け取れ。作る場所は、入口の一カ所に集めろ。そうすれば、本物でも偽物でも、同じ口で挿せる。試験台に本物のエンジンを丸ごと載せなくても、部品ひとつの働きを試せる。</p><p>ただし、何でも口を付けるな。差し替えたいもの、偽物にしたいものだけだ。動かないものを直すのが整備じゃない。動いているものを、開けて確かめられるようにしておくのが、整備だ。</p></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/go/>Go</a>
+<a href=/tags/dependency-injection/>Dependency-Injection</a>
+<a href=/tags/tight-coupling/>Tight-Coupling</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-mechanic/>Code-Mechanic</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/07/01/170705/><div class=article-image><img src=/public_images/2026/code-mechanic-mediator/header.webp loading=lazy data-key data-hash=/public_images/2026/code-mechanic-mediator/header.webp></div><div class=article-details><h2 class=article-title>コードメカニック【Mediator】部品は全部直したのに、最後に全部が絡んでいた〜直結をやめ、仲介役にすべてを捌かせる〜</h2></div></a></article><article class=has-image><a href=/2026/07/01/120705/><div class=article-image><img src=/public_images/2026/code-mechanic-middleware/header.webp loading=lazy data-key data-hash=/public_images/2026/code-mechanic-middleware/header.webp></div><div class=article-details><h2 class=article-title>コードメカニック【Middleware】一行変えるのに、三十回ボンネットを開けた〜各車に貼った同じ点検を、通り抜ける一本のラインへ〜</h2></div></a></article><article class=has-image><a href=/2026/07/01/070705/><div class=article-image><img src=/public_images/2026/code-mechanic-fat-handler-command/header.webp loading=lazy data-key data-hash=/public_images/2026/code-mechanic-fat-handler-command/header.webp></div><div class=article-details><h2 class=article-title>コードメカニック【Command】一日見積もりが、底なしだった〜ハンドラーに作り付けた仕事を、一個の命令に切り出す〜</h2></div></a></article><article class=has-image><a href=/2026/06/30/170705/><div class=article-image><img src=/public_images/2026/code-mechanic-template-method/header.webp loading=lazy data-key data-hash=/public_images/2026/code-mechanic-template-method/header.webp></div><div class=article-details><h2 class=article-title>コードメカニック【Template Method】同じ直しが、三本目にだけ当たらなかった〜丸写しの骨格を、一本の手順書に組み直す〜</h2></div></a></article><article class=has-image><a href=/2026/06/30/120705/><div class=article-image><img src=/public_images/2026/code-mechanic-decorator/header.webp loading=lazy data-key data-hash=/public_images/2026/code-mechanic-decorator/header.webp></div><div class=article-details><h2 class=article-title>コードメカニック【Decorator】1年眠った証跡が、監査の朝に開かなかった〜専用型の掛け算を、積み重ねの一枚に解く〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

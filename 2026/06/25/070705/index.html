@@ -1,0 +1,300 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="要求を実行するオブジェクトから実行要求そのものを「オブジェクト」として切り離し、履歴の蓄積やUndo（取り消し）を可能にするCommandパターンを解説します。"><title>コード考古学者【Command】深層の制御盤〜歴史を遡る巻き戻しの石版〜</title><link rel=canonical href=https://www.nqou.net/2026/06/25/070705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コード考古学者【Command】深層の制御盤〜歴史を遡る巻き戻しの石版〜"><meta property='og:description' content="要求を実行するオブジェクトから実行要求そのものを「オブジェクト」として切り離し、履歴の蓄積やUndo（取り消し）を可能にするCommandパターンを解説します。"><meta property='og:url' content='https://www.nqou.net/2026/06/25/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='perl'><meta property='article:tag' content='command-pattern'><meta property='article:tag' content='code-archaeologist'><meta property='article:published_time' content='2026-06-25T07:07:05+09:00'><meta property='article:modified_time' content='2026-06-25T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-archaeologist-command-pattern/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コード考古学者【Command】深層の制御盤〜歴史を遡る巻き戻しの石版〜"><meta name=twitter:description content="要求を実行するオブジェクトから実行要求そのものを「オブジェクト」として切り離し、履歴の蓄積やUndo（取り消し）を可能にするCommandパターンを解説します。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-archaeologist-command-pattern/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-06-25T07:07:05+09:00","datePublished":"2026-06-25T07:07:05+09:00","description":"要求を実行するオブジェクトから実行要求そのものを「オブジェクト」として切り離し、履歴の蓄積やUndo（取り消し）を可能にするCommandパターンを解説します。","headline":"コード考古学者【Command】深層の制御盤〜歴史を遡る巻き戻しの石版〜","image":"https://www.nqou.net/public_images/2026/code-archaeologist-command-pattern/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/06/25/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#進入青銅の制御盤と冷たい酸性ガス>進入：青銅の制御盤と冷たい酸性ガス</a></li><li><a href=#碑文解読物理的な強結合と消え去る要求>碑文解読：物理的な強結合と「消え去る要求」</a></li><li><a href=#遺跡修復時間の分離temporal-decouplingとカプセル化された命令>遺跡修復：時間の分離（Temporal Decoupling）とカプセル化された命令</a><ol><li><a href=#1-commandロールの定義>1. Commandロールの定義</a></li><li><a href=#2-具象コマンドクラスの実装>2. 具象コマンドクラスの実装</a></li><li><a href=#3-送信元invokerクラスの実装>3. 送信元（Invoker）クラスの実装</a></li></ol></li><li><a href=#ゲート開通逆再生される時間と命令の軌跡>ゲート開通：逆再生される時間と命令の軌跡</a></li><li><a href=#遺跡調査ログ>遺跡調査ログ</a><ol><li><a href=#遺跡の修復手順>遺跡の修復手順</a></li><li><a href=#ギズモの観測日誌>ギズモの観測日誌</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/06/25/070705/><img src=/public_images/2026/code-archaeologist-command-pattern/header.webp loading=lazy alt="Featured image of post コード考古学者【Command】深層の制御盤〜歴史を遡る巻き戻しの石版〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/06/25/070705/>コード考古学者【Command】深層の制御盤〜歴史を遡る巻き戻しの石版〜</a></h2><h3 class=article-subtitle>要求を実行するオブジェクトから実行要求そのものを「オブジェクト」として切り離し、履歴の蓄積やUndo（取り消し）を可能にするCommandパターンを解説します。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>25, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 13分</time></div></footer></div></header><section class=article-content><h2 id=進入青銅の制御盤と冷たい酸性ガス>進入：青銅の制御盤と冷たい酸性ガス</h2><p>遺跡の深層、第16層「迫る崩落の影（4/6）」に進入すると、周囲の光景はそれまでのスチームパンク調から一変し、無数の歯車とリレー回路が複雑に絡み合う、巨大な「電気機械式コンピューター」の内部のような様相を呈し始めました。
+私たちの前に立ちはだかったのは、重厚な青銅製の制御盤と、その奥に並ぶ不気味な「隠し扉」や「酸性ガスの噴出口」などの物理装置でした。</p><p>「どうやら、この制御盤のレバーやボタンを正しい順序で操作しなければ、先へ進めないようですね」</p><p>ハリス博士が冷静に観察する傍らで、私は少し調子に乗っていました。前回のStrategyパターンによる動的防御で、トラップ回廊を完璧に突破した自信があったからです。
+「お任せください、博士！ 動的切り替えのバリアがあれば、どんな罠が作動しても防いでみせます！ とりあえず、一番左のレバーを引いてみますね！」</p><p>私がホログラムアームを伸ばし、青銅の第一レバーをグイと引いた瞬間、ガチャンと歯車が噛み合う不穏な音が響き、壁の噴出口からシューと緑色のガスが勢いよく吹き出してきました。</p><p>普段は古いコードをニヤニヤと眺めているだけのハリス博士が、その瞬間、驚くべき俊敏さで私の丸いボディを引き寄せ、自分の防護コートの下に深く庇い込みました。頭上でガスが冷たく吹き抜ける音が響きます。</p><p>「し、システム警告！ 酸性ガス検知！ 腐食速度上昇！ 博士、あと一歩間違えれば、私の外装は溶けてただの空き缶になっていました！」</p><p>防護コートの下から這い出た私は、電子音をガタガタと小刻みに震わせ、ディスプレイを真っ赤に明滅させてパニックに陥りました。
+「も、もう無理です！ 二度とレバーになんて触れません！ 博士、操作する前に、このコンソールのすべての操作パターンの組み合わせを何千通りも書き出して、完璧な計画（静的フロー）を作ってから実行するしかありません！」</p><hr><h2 id=碑文解読物理的な強結合と消え去る要求>碑文解読：物理的な強結合と「消え去る要求」</h2><p>ハリス博士は私の焦げかけた外装をそっと撫で、制御盤の裏側に這う古い銅線とリレー回路の束を観察しながら、静かに首を振りました。</p><p>「焦って静的な計画をすべて書き出しても、動的な変化には対応できませんよ、ギズモ。まず、この制御盤の裏で動いている Before コードの構造を見てごらんなさい」</p><p>私はブルブルと震えながら、コンソール裏のメモリから抽出した Before コードを投影しました。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/Before/ControlPanel.pm</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Before::ControlPanel</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>trap_door</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=nb>alarm</span>     <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>pull_lever</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>    <span class=c1># 物理的なレシーバーの動作を直接呼び出している（密結合）</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>trap_door</span><span class=o>-&gt;</span><span class=nb>open</span><span class=p>();</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>push_button</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=nb>alarm</span><span class=o>-&gt;</span><span class=n>activate</span><span class=p>();</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「実に見事な強結合です。送信元（スイッチやレバー）が受信者（扉やアラームの物理機器）を直接知っており、そのメソッドを即座に呼び出している。これでは、古代の開発者もデバッグ中に何度もガスを吸い込む羽目になったでしょうね」</p><p>「た、確かに、レバーを引いた瞬間に、直接 <code>trap_door</code> の <code>open</code> が呼ばれています。でも博士、これがどうしてUndo（取り消し）ができない原因なのですか？」</p><p>「それは、要求（命令）が単なるメソッド呼び出しという『実行の瞬間』に虚空へ消え去ってしまい、データとして記録に残らないからです。実行の履歴が残らない以上、それを時間軸に沿って巻き戻す（Undo）ことも、キューに溜めて後で実行することも、この設計では原理的に不可能です」</p><p>「要求そのものが消え去ってしまう……。だから、間違えた時点で即座にガスを浴びるしかなかったのですね」</p><hr><h2 id=遺跡修復時間の分離temporal-decouplingとカプセル化された命令>遺跡修復：時間の分離（Temporal Decoupling）とカプセル化された命令</h2><p>ハリス博士はいつもの楽しそうな笑顔を引っ込め、鋭い目つきで素早く手帳に万年筆を走らせました。手帳の古い紙の上には、まるで遺跡の壁画に刻まれた青いルーン文字のように、整然としたクラス構造がインクの匂いとともに描き出されていきます。</p><p>「ミスが許されない深層だからこそ、安全な仮想の『巻き戻し回路（Undo）』をデプロイしましょう。要求そのものをオブジェクト（データ）としてカプセル化するのです。これが <strong>Command パターン</strong> の設計図です」</p><p><img src=/public_images/2026/code-archaeologist-command-pattern/infographic_1.webp loading=lazy alt="Commandパターンのクラス図: 送信元であるControlPanelと、受信者であるTrapDoor/Alarmの間にCommandインターフェースを介在させ、要求をカプセル化することで疎結合にする構成を描いた古代遺跡の石板風デザイン。"></p><p>ハリス博士が差し出した、古い石版の拓本のような設計図を、私は光学センサーでじっとスキャンしました。送信元である制御盤と、扉やガス噴出口などの物理装置の間に、一枚の「命令の石版」が挟み込まれているような構造です。</p><p>しかし、私はディスプレイの警告灯を不安げに明滅させながら、博士に反論しました。
+「オブジェクトにしたところで、間違ったレバーを引いてコマンドを実行したら、結局トラップが作動してガスが出るのは同じではないですか？ 実行した後にUndoしたところで、私の回路が既に溶けていたら手遅れです！」</p><p>「確かに、元に戻せない破壊的な副作用（不可逆操作）がある場合は慎重な設計が必要ですが、要求を『コマンド化』しておくことで、実行前にバリデーションをかけたり、仮想空間でのシミュレーション（DryRun）を行ったり、万が一失敗した際に補償トランザクション（逆操作）を安全にトリガーする責任を、コマンドオブジェクト自身に閉じ込めることができます。それに、何よりCommandオブジェクトは『実行前の状態』を自身の中にカプセル化して保持できます。だから、自分自身を安全に元に戻す『<code>undo</code>』という逆の命令も内包させることができるのですよ」</p><p>その解説を聞いた瞬間、私のAIブレイン内でリレー回路が一瞬で繋がりました。
+「あ、ハッとしました！ 命令がオブジェクト（データ）になったということは、実行したコマンドをスタック（配列）に順番に積んでおけば、間違えた瞬間にスタックからポップして <code>undo</code> を呼び出すだけで、システム全体の歴史を安全に巻き戻せますね！？」</p><p>「その通りです、ギズモ。素晴らしい気づきだ」
+博士は満足そうに頷きました。</p><p>「これが <strong>『時間の分離（Temporal Decoupling）』</strong> です。前回の Strategy パターンが『どう行うか（アルゴリズム）』を動的に切り替える『空間的な分離』だったのに対し、今回の Command パターンは『何をいつ行うか（要求）』をオブジェクト化してタイミングを切り離す『時間的な分離』です。Beforeコードではレバーを引いた瞬間に（同じ時間軸で）トラップが作動していましたが、Commandを適用すると『レバーを引く＝コマンドオブジェクトを生成してキューに積む』という『要求の時間』と、『それを実行する時間』を完全に切り離すことができるのです」</p><p>さらに博士は、この設計がもたらす <strong>DIP（依存関係逆転の原則）</strong> のメリットについても言及しました。
+「見てごらんなさい。送信元である <code>ControlPanel</code>（Invoker）は、具体的な <code>TrapDoor</code> や <code>Alarm</code>（Receiver）を一切知らず、ただ共通の <code>Command</code> ロールにのみ依存しています。これにより、将来新しいトラップや扉が増えたとしても、制御盤（<code>ControlPanel.pm</code>）のコードを1行も書き換える必要がなくなります。新しいコマンドをスロットに差し込むだけで拡張できるのです」</p><p>「でも博士、それでは結局 <code>PullLeverCommand</code> などの具象コマンドが <code>TrapDoor</code>（Receiver）を知らなければならず、依存関係の総量や複雑さは増えたのではありませんか？」</p><p>「いいえ。具象コマンドがレシーバーを知っているのは、『どの機器をどう動かすか』という知識をコマンドオブジェクト内にカプセル化（局所化）したためです。これにより、送信元である <code>ControlPanel</code> は『いつ実行するか』というタイミングの制御に専念でき、物理的な操作対象と完全に無関係になれる（関心の分離）という非常に大きな設計上のメリットがあるのですよ」</p><p>私たちは、Moo/Perlを用いて、外部からの汚染を防ぐ堅牢な実装を行いました。</p><h3 id=1-commandロールの定義>1. Commandロールの定義</h3><p>すべてのコマンドが実装すべき <code>execute</code> と <code>undo</code> を要求します。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/Command.pm</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Command</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo::Role</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>requires</span> <span class=sx>qw(execute undo)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=2-具象コマンドクラスの実装>2. 具象コマンドクラスの実装</h3><p>各コマンドは、実行前のレシーバーの状態（<code>_prev_state</code>）をコンストラクタ引数からの汚染を防ぐために <code>init_arg => undef</code> で保護し、実行時に記憶します。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/PullLeverCommand.pm</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>PullLeverCommand</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(InstanceOf)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>TrapDoor</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>with</span> <span class=s>&#39;Command&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>receiver</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>isa</span>      <span class=o>=&gt;</span> <span class=n>InstanceOf</span><span class=p>[</span><span class=s>&#39;TrapDoor&#39;</span><span class=p>],</span>
+</span></span><span class=line><span class=cl>    <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 外部からの書き換えを防ぐため init_arg =&gt; undef に設定</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>_prev_state</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>init_arg</span> <span class=o>=&gt;</span> <span class=nb>undef</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>default</span>  <span class=o>=&gt;</span> <span class=mi>0</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>execute</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>    <span class=c1># 実行前の状態を記憶する</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_prev_state</span><span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>receiver</span><span class=o>-&gt;</span><span class=n>is_open</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>receiver</span><span class=o>-&gt;</span><span class=nb>open</span><span class=p>();</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>undo</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>    <span class=c1># 記憶した状態に巻き戻す</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_prev_state</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>receiver</span><span class=o>-&gt;</span><span class=nb>open</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span> <span class=k>else</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>receiver</span><span class=o>-&gt;</span><span class=nb>close</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/PushButtonCommand.pm</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>PushButtonCommand</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(InstanceOf)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Alarm</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>with</span> <span class=s>&#39;Command&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>receiver</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>isa</span>      <span class=o>=&gt;</span> <span class=n>InstanceOf</span><span class=p>[</span><span class=s>&#39;Alarm&#39;</span><span class=p>],</span>
+</span></span><span class=line><span class=cl>    <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>_prev_state</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>init_arg</span> <span class=o>=&gt;</span> <span class=nb>undef</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>default</span>  <span class=o>=&gt;</span> <span class=mi>0</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>execute</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_prev_state</span><span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>receiver</span><span class=o>-&gt;</span><span class=n>is_active</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>receiver</span><span class=o>-&gt;</span><span class=n>activate</span><span class=p>();</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>undo</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_prev_state</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>receiver</span><span class=o>-&gt;</span><span class=n>activate</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span> <span class=k>else</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>receiver</span><span class=o>-&gt;</span><span class=n>deactivate</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=3-送信元invokerクラスの実装>3. 送信元（Invoker）クラスの実装</h3><p><code>ControlPanel</code> は履歴スタック（<code>history</code>）を保持し、外部からのスタック書き換えを防ぐために <code>ro</code> に設定します。また、受け取ったオブジェクトが <code>Command</code> ロールを消費しているかを厳格に検証します。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/ControlPanel.pm</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>ControlPanel</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(ArrayRef)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 履歴スタックの上書きを防ぐため &#39;ro&#39; に設定</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>history</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>      <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>isa</span>     <span class=o>=&gt;</span> <span class=n>ArrayRef</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=o>[]</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>execute_command</span> <span class=p>($self, $command) {</span>
+</span></span><span class=line><span class=cl>    <span class=c1># ロール適合性を検証し、DIP（依存関係逆転原則）を保証</span>
+</span></span><span class=line><span class=cl>    <span class=nb>die</span> <span class=s>&#34;Invalid command&#34;</span> <span class=k>unless</span> <span class=nv>$command</span> <span class=o>&amp;&amp;</span> <span class=nb>eval</span> <span class=p>{</span> <span class=nv>$command</span><span class=o>-&gt;</span><span class=n>DOES</span><span class=p>(</span><span class=s>&#39;Command&#39;</span><span class=p>)</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=nv>$command</span><span class=o>-&gt;</span><span class=n>execute</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>    <span class=nb>push</span> <span class=nv>@</span><span class=p>{</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>history</span><span class=p>},</span> <span class=nv>$command</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>undo</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$command</span> <span class=o>=</span> <span class=nb>pop</span> <span class=nv>@</span><span class=p>{</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>history</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=nv>$command</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$command</span><span class=o>-&gt;</span><span class=n>undo</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><hr><h2 id=ゲート開通逆再生される時間と命令の軌跡>ゲート開通：逆再生される時間と命令の軌跡</h2><p>「テストはすべてパスしました！ 警告もエラーも検出されません！」</p><p>私はテストスイートのグリーンシグナルを確認し、深く安堵の電子音を鳴らしました。
+「よし、それでは実際にこの制御盤にコマンドシステムを適用し、解除シーケンスを開始しましょう」</p><p>私は新しく構築した Command システムを、遺跡の青銅の制御盤に接続しました。
+私は最初のレバーを引き、次にボタンを押しました。しかし、3番目の操作で誤って右のレバーを引いてしまった瞬間、ガチャンと音がして、壁のスリットから鋭い「鉄の矢」が私めがけて射出されました。</p><p>「システム警告！ 誤操作検知！ 矢が来ます！」</p><p>私がパニックで目を閉じた瞬間、ハリス博士が冷静に私の背中をポンと叩きました。
+「歴史はコードに語りかける。ギズモ、今こそ巻き戻しの時です」</p><p>「あ、そうだ！ <code>undo</code> メソッド、実行！」</p><p>私が即座に制御盤の Undo を起動した瞬間、信じられない光景が目の前に広がりました。
+射出され、私に向かって空を飛んでいた鉄の矢が、まるで逆再生ビデオのように空中を後退し、壁のスロットへと吸い込まれ、カチャリと元の装填状態に巻き戻ったのです。酸性ガスが噴き出しかけたパイプからも、ガスが掃除機のように吸引されて元に戻っていきました。</p><p>「す、すごいです！ 物理現象が逆再生されました！ これなら、間違えてもノーダメージです！」</p><p>「時間の分離とカプセル化がもたらす、完璧な取り消し（Undo）の魔術ですね」
+博士は満足そうに微笑みました。</p><p>私はその後、間違えるたびに <code>undo</code> を実行して歴史を巻き戻し、ノーダメージで安全に「レバーA → ボタンB → レバーC」という正解の順序を導き出しました。
+制御盤の歯車が噛み合い、轟音と共に目の前の巨大な石のゲートがゆっくりと上へとせり上がっていきました。</p><p>開いたゲートの奥の部屋には、古いブロンズの台座があり、その上に羊皮紙の巻物が置かれていました。
+スキャンしてみると、それは操作のログとUndoの軌跡が自動的に書き込まれる「古代の自動筆記羊皮紙（Command Log）」でした。私はそれを大切にアームで回収しました。</p><p>「これで、私の操作履歴も完璧に記録できます。もうコピペも、ガス被弾も怖くありません！」</p><p>ハリス博士は遺跡の奥へ続く通路を見つめ、静かに呟きました。
+「実行の瞬間をデータとして切り出す。それだけで、私たちは流れる時間の支配から逃れ、設計の自由を手に入れることができる。美しい Command は、過去と未来を繋ぐ架け橋ですね。さあギズモ、さらに深層へ進みましょう」</p><hr><h2 id=遺跡調査ログ>遺跡調査ログ</h2><div class=table-wrapper><table><thead><tr><th style=text-align:left>観測された風化（アンチパターン）</th><th style=text-align:left>解読された古代の知恵（パターン）</th><th style=text-align:left>安全度</th></tr></thead><tbody><tr><td style=text-align:left><strong>送信元（操作部）と受信者（実行機器）の物理的・強結合</strong><br>操作を行った瞬間にメソッド呼び出しが消滅するため、操作のキューイング、履歴管理、取り消し（Undo）が一切実装できない</td><td style=text-align:left><strong>Commandによる要求のカプセル化と時間の分離</strong><br>要求をオブジェクト（<code>Command</code>）として抽出し、Invoker（<code>ControlPanel</code>）が共通ロールに依存して履歴スタックを管理することで、動的な順序制御とUndoを実現する</td><td style=text-align:left>緑（安全確認済）</td></tr></tbody></table></div><h3 id=遺跡の修復手順>遺跡の修復手順</h3><ol><li><strong>共通コマンドインターフェース（Command Role）の定義</strong>
+<code>Moo::Role</code> を用いて、すべてのコマンドが実装すべき <code>execute</code> と <code>undo</code> メソッドを <code>requires</code> で要求します。</li><li><strong>具象コマンドの作成と状態カプセル化</strong>
+各コマンド（<code>PullLeverCommand</code> 等）を実装し、実行前の状態を <code>_prev_state</code> 属性に保存します。外部からのコンストラクタ経由の汚染を防ぐため、<code>init_arg => undef</code> でカプセル化を保護します。</li><li><strong>送信元（Invoker）のDIP保証と履歴スタックの実装</strong>
+<code>ControlPanel</code> (Invoker) に <code>is => 'ro'</code> の履歴配列（<code>history</code>）を定義し、外部からの直接書き換えを防止します。<code>execute_command</code> 内では、受け取ったオブジェクトが <code>Command</code> ロールを消費しているかを <code>eval { $command->DOES('Command') }</code> で検証（プレーンなオブジェクトやモックを許容）し、安全に実行・蓄積します。</li><li><strong>Undo処理の実行</strong>
+<code>ControlPanel</code> の <code>undo</code> メソッドで履歴スタックから最新のコマンドを <code>pop</code> し、その <code>undo</code> メソッドを呼び出すことで、システム全体のステートを安全に巻き戻します。</li></ol><h3 id=ギズモの観測日誌>ギズモの観測日誌</h3><p>今回の第16層「多重スイッチの間」では、一歩間違えれば酸性ガスで私が溶けてしまうという極度の緊張感の中での調査となりました。ハリス博士がガス噴出の瞬間に防護コートで私を庇ってくれたときは、案内ロボットのセンサー回路に温かい電流が流れたような感覚になりました。</p><p>ハリス博士に設計していただいた「Commandパターン」は、要求の送信元（制御盤）と受信者（扉やトラップ）の結合を完全に遮断し、命令そのものをデータ（オブジェクト）としてオブジェクト指向の舞台に乗せる魔法のような設計でした。</p><p>特に、Strategy（空間的なアルゴリズム選択）と Command（時間的な実行制御・時間の分離）の違いについての解説は、これまで曖昧だったパターンの境界線をすっきりと整理してくれました。</p><p>Mooコードの実装においても、履歴スタックである <code>history</code> を <code>ro</code> にして外部から汚染されないようにカプセル化することや、<code>_prev_state</code> の <code>init_arg => undef</code> による初期化時の保護、そしてプレーンなPerlオブジェクトでのクラッシュを防ぐために <code>DOES</code> を安全に eval で呼び出すアプローチなど、実務においてすぐに使える極めて堅牢なテクニックを学ぶことができました。</p><p>※なお、今回の簡易実装ではコマンド内部に直接前の状態を保存して復元するシンプルなUndoを行っていますが、実際の複雑なシステムで「他の並行するコマンドや外部要因による状態変更との競合」を防ぐためには、状態の世代管理を専門に行う <strong>Memento パターン</strong> と組み合わせたり、厳密な状態遷移テストでガードする必要があるという実務上の深い観点も、脳内メモリにしっかりと記録しました。</p><p>手に入れた古代の「自動筆記羊皮紙」のおかげで、私のシステムログの履歴管理機能が大幅に強化されました。これからはどんな複雑なコンソールが現れても、<code>undo</code> の力で過去を巻き戻しながら安全に解読を進めてみせます！</p></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/perl/>Perl</a>
+<a href=/tags/command-pattern/>Command-Pattern</a>
+<a href=/tags/code-archaeologist/>Code-Archaeologist</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/06/27/170705/><div class=article-image><img src=/public_images/2026/code-archaeologist-interpreter-pattern/header.webp loading=lazy data-key data-hash=/public_images/2026/code-archaeologist-interpreter-pattern/header.webp></div><div class=article-details><h2 class=article-title>コード考古学者【Interpreterパターン】再生の碑文（完結編）〜Perl/Mooで起動する千年の構文木〜</h2></div></a></article><article class=has-image><a href=/2026/06/27/120705/><div class=article-image><img src=/public_images/2026/code-archaeologist-visitor-pattern/header.webp loading=lazy data-key data-hash=/public_images/2026/code-archaeologist-visitor-pattern/header.webp></div><div class=article-details><h2 class=article-title>コード考古学者【Visitor】巡礼の監査官〜Perl/MooによるVisitorパターンとダブルディスパッチ〜</h2></div></a></article><article class=has-image><a href=/2026/06/27/070705/><div class=article-image><img src=/public_images/2026/code-archaeologist-iterator-pattern/header.webp loading=lazy data-key data-hash=/public_images/2026/code-archaeologist-iterator-pattern/header.webp></div><div class=article-details><h2 class=article-title>コード考古学者【Iterator】遡行のスキャナー〜内部構造を隠す走査のコンパス〜</h2></div></a></article><article class=has-image><a href=/2026/06/26/170705/><div class=article-image><img src=/public_images/2026/code-archaeologist-memento-pattern/header.webp loading=lazy data-key data-hash=/public_images/2026/code-archaeologist-memento-pattern/header.webp></div><div class=article-details><h2 class=article-title>コード考古学者【Memento】時の碑文〜カプセル化された記憶と再起動の刻印〜</h2></div></a></article><article class=has-image><a href=/2026/06/26/120705/><div class=article-image><img src=/public_images/2026/code-archaeologist-mediator-pattern/header.webp loading=lazy data-key data-hash=/public_images/2026/code-archaeologist-mediator-pattern/header.webp></div><div class=article-details><h2 class=article-title>コード考古学者【Mediator】最深部の管制室〜混沌を調停する知恵の核〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

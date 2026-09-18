@@ -1,0 +1,309 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="在庫数が合わないのにDBには現在値しかない。監査の30日間に答えられない在庫管理をEvent Sourcingで再設計し、出来事の積み重ねから任意時点の在庫を復元するコード探偵ロックの推理。"><title>コード探偵ロックの事件簿【Event Sourcing】失われた三十日間〜数字が語れない過去と出来事が紡ぐ真実〜</title><link rel=canonical href=https://www.nqou.net/2026/04/03/070705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コード探偵ロックの事件簿【Event Sourcing】失われた三十日間〜数字が語れない過去と出来事が紡ぐ真実〜"><meta property='og:description' content="在庫数が合わないのにDBには現在値しかない。監査の30日間に答えられない在庫管理をEvent Sourcingで再設計し、出来事の積み重ねから任意時点の在庫を復元するコード探偵ロックの推理。"><meta property='og:url' content='https://www.nqou.net/2026/04/03/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='perl'><meta property='article:tag' content='moo'><meta property='article:tag' content='event-sourcing'><meta property='article:tag' content='lost-history'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-detective'><meta property='article:published_time' content='2026-04-03T07:07:05+09:00'><meta property='article:modified_time' content='2026-04-03T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-detective-event-sourcing/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コード探偵ロックの事件簿【Event Sourcing】失われた三十日間〜数字が語れない過去と出来事が紡ぐ真実〜"><meta name=twitter:description content="在庫数が合わないのにDBには現在値しかない。監査の30日間に答えられない在庫管理をEvent Sourcingで再設計し、出来事の積み重ねから任意時点の在庫を復元するコード探偵ロックの推理。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-detective-event-sourcing/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-04-03T07:07:05+09:00","datePublished":"2026-04-03T07:07:05+09:00","description":"在庫数が合わないのにDBには現在値しかない。監査の30日間に答えられない在庫管理をEvent Sourcingで再設計し、出来事の積み重ねから任意時点の在庫を復元するコード探偵ロックの推理。","headline":"コード探偵ロックの事件簿【Event Sourcing】失われた三十日間〜数字が語れない過去と出来事が紡ぐ真実〜","image":"https://www.nqou.net/public_images/2026/code-detective-event-sourcing/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/04/03/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#三十日間の空白>三十日間の空白</a></li><li><a href=#上書きされた犯行現場>上書きされた犯行現場</a></li><li><a href=#出来事を積み重ねる捜査手法>出来事を積み重ねる捜査手法</a></li><li><a href=#時を遡る証明>時を遡る証明</a></li><li><a href=#探偵の調査報告書>探偵の調査報告書</a><ol><li><a href=#推理のステップ>推理のステップ</a></li><li><a href=#ロックより>ロックより</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/04/03/070705/><img src=/public_images/2026/code-detective-event-sourcing/header.webp loading=lazy alt="Featured image of post コード探偵ロックの事件簿【Event Sourcing】失われた三十日間〜数字が語れない過去と出来事が紡ぐ真実〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/04/03/070705/>コード探偵ロックの事件簿【Event Sourcing】失われた三十日間〜数字が語れない過去と出来事が紡ぐ真実〜</a></h2><h3 class=article-subtitle>在庫数が合わないのにDBには現在値しかない。監査の30日間に答えられない在庫管理をEvent Sourcingで再設計し、出来事の積み重ねから任意時点の在庫を復元するコード探偵ロックの推理。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>03, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 10分</time></div></footer></div></header><section class=article-content><p>モニターに表示された監査部門からのメールを、俺は三度目に読み返していた。</p><blockquote><p>過去30日間の在庫変動について、各商品の入出荷根拠データを提出してください。期限は来週金曜です。</p></blockquote><p>俺は日下部カイ。EC事業部でバックエンドを担当している。34歳。在庫管理システムの一人担当になって3年になる。</p><p>在庫数なら出せる。DBを叩けば、どの商品が今何個あるかは一瞬で分かる。だが「30日前に何個だったか」は分からない。「いつ、何個入荷して、いつ、何個出荷したか」も分からない。テーブルには現在の数字しか入っていない。3年間ずっとそうだった。誰も過去を聞かなかったから、問題にならなかっただけだ。</p><p>隣のデスクの吉岡が、俺のモニターを横目で見て言った。</p><p>「前にうちのAPIのバグを見てもらった奴がいるんだけど。コードの設計問題を嗅ぎ分けるのがうまい。ちょっと変わってるけど、腕は確かだ」</p><p>「変わってる、ってのは？」</p><p>「会えば分かる。連絡しとくわ」</p><p>翌日の午後。俺のデスクの前に、ノートPCのバッグを肩にかけた男が立っていた。手にはエナジードリンクの缶。挨拶はなかった。</p><p>男は俺のモニターに映ったメールをちらりと見て言った。</p><p>「三十日分の変動記録か。データはあるのか」</p><p>「在庫数ならDBにある」</p><p>「在庫数ではない。出来事だ」</p><p>意味が分からなかった。男はPCバッグのストラップに下げたキーホルダー——よく見るとキーキャップだ——を揺らしながら、俺の隣の空き椅子に座った。</p><p>「ロックだ。コード探偵をしている。コードを見せてもらおうか、ワトソン君」</p><p>日下部だ、と言おうとしたが、男はもう俺のモニターに向き直っていた。</p><h2 id=三十日間の空白>三十日間の空白</h2><p>俺は在庫管理のコードを開いた。</p><p>ECサイトの在庫テーブルに対応する<code>Item</code>クラス。商品が入荷されるたびに在庫数を加算し、注文が確定するたびに減算する。3年前に書いた、ごく普通のコードだ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Item</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>id</span>    <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>name</span>  <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>stock</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=mi>0</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>add_stock</span> <span class=p>($self, $qty) {</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>stock</span><span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>stock</span> <span class=o>+</span> <span class=nv>$qty</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>reduce_stock</span> <span class=p>($self, $qty) {</span>
+</span></span><span class=line><span class=cl>    <span class=nb>die</span> <span class=s>&#34;在庫不足\n&#34;</span> <span class=k>if</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>stock</span> <span class=o>&lt;</span> <span class=nv>$qty</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>stock</span><span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>stock</span> <span class=o>-</span> <span class=nv>$qty</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>ロックはコードを数秒眺めてから、エナジードリンクを一口飲んだ。</p><p>「完璧な証拠隠滅だ」</p><p>「何が？」</p><p>「このコードは、操作のたびに現場を書き換えている。入荷があれば<code>stock</code>を上書き。出荷があれば<code>stock</code>を上書き。現場には今の数字だけが残り、そこに至るまでの出来事は跡形もなく消えている」</p><p>「証拠隠滅って——普通の在庫管理だろう。状態を保持して、変更するだけだ」</p><p>「その通り。だが普通の在庫管理では、監査には答えられない」</p><p>ロックは静かにそう返した。反論しようとしたが、モニターに表示されたメールの文面が目に入って言葉を飲んだ。</p><h2 id=上書きされた犯行現場>上書きされた犯行現場</h2><p>ロックは俺の許可を待たずに、デスクの付箋を一枚はがしてペンを取った。</p><p>「核心を特定しよう。<code>stock</code>が<code>rw</code>になっている。読み書き可能だ。これが今回の真犯人だよ」</p><p>「真犯人？」</p><p>「名前をつけるなら Lost History。消えた履歴。状態を直接書き換えることで、変化の記録がすべて失われる」</p><p>「でも現在の在庫数は正確だ」</p><p>「今は、ね」ロックは付箋にペンを走らせた。「1週間前の在庫は？ 特定の出荷の後の在庫は？ 答えられるか」</p><p>答えられなかった。監査部門の問いがまさにそれだ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>my</span> <span class=nv>$item</span> <span class=o>=</span> <span class=nn>Item</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>id</span> <span class=o>=&gt;</span> <span class=s>&#39;1&#39;</span><span class=p>,</span> <span class=n>name</span> <span class=o>=&gt;</span> <span class=s>&#39;リンゴ&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nv>$item</span><span class=o>-&gt;</span><span class=n>add_stock</span><span class=p>(</span><span class=mi>200</span><span class=p>);</span>    <span class=c1># 200個入荷</span>
+</span></span><span class=line><span class=cl><span class=nv>$item</span><span class=o>-&gt;</span><span class=n>reduce_stock</span><span class=p>(</span><span class=mi>50</span><span class=p>);</span>  <span class=c1># 50個出荷</span>
+</span></span><span class=line><span class=cl><span class=nv>$item</span><span class=o>-&gt;</span><span class=n>reduce_stock</span><span class=p>(</span><span class=mi>30</span><span class=p>);</span>  <span class=c1># 30個出荷</span>
+</span></span><span class=line><span class=cl><span class=nv>$item</span><span class=o>-&gt;</span><span class=n>add_stock</span><span class=p>(</span><span class=mi>10</span><span class=p>);</span>     <span class=c1># 10個入荷返品</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>print</span> <span class=nv>$item</span><span class=o>-&gt;</span><span class=n>stock</span><span class=p>;</span>  <span class=c1># 130 — 現在値は分かる</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># しかし——</span>
+</span></span><span class=line><span class=cl><span class=c1># $item-&gt;history;             # このメソッドは存在しない</span>
+</span></span><span class=line><span class=cl><span class=c1># $item-&gt;stock($timestamp);   # このメソッドも存在しない</span>
+</span></span></code></pre></td></tr></table></div></div><p>ロックは付箋に時系列を書いた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>t=0  stock=0
+</span></span><span class=line><span class=cl>t=1  add_stock(200)  → stock=200  ← この時点に戻れるか？
+</span></span><span class=line><span class=cl>t=2  reduce_stock(50) → stock=150  ← この時点の状態は？
+</span></span><span class=line><span class=cl>t=3  reduce_stock(30) → stock=120
+</span></span><span class=line><span class=cl>t=4  add_stock(10)    → stock=130
+</span></span></code></pre></td></tr></table></div></div><p>「<code>t=1</code>も<code>t=2</code>も、このシステムにとっては存在しなかったことになっている。30日分の空白——これが消えた証拠だ、ワトソン君」</p><p>「日下部だ」</p><p>訂正したが、ロックは付箋にもう一行書き足していた。</p><h2 id=出来事を積み重ねる捜査手法>出来事を積み重ねる捜査手法</h2><p>「で、どう直す」</p><p>俺は回りくどい比喩に付き合うつもりはなかった。監査の期限は来週だ。ロックはペンを置いて、こちらを向いた。</p><p>「優秀な探偵は現場を変えない。出来事を記録するだけだ。状態は、その記録から演繹する」</p><p>「具体的に」</p><p>「<code>stock = 200</code>というのは状態だ。だが記録すべきは『200個が入荷された』という出来事のほうだ。出来事は消えない。出来事を積み重ねれば、任意の時点での状態が計算できる」</p><p>つまり、<code>stock</code>の値を書き換える代わりに、「入荷200個」「出荷50個」という出来事だけを溜めていく。今の在庫が知りたければ、出来事を頭から順に足し引きすればいい——Event Sourcingという手法だ。理屈は分かる。だが本当にそれで現場が回るのか。</p><p>「まずイベントを表すクラスを作る」</p><p>ロックは俺のPCのエディタを開いた。さすがに勝手にキーボードを触ろうとはしなかった——こちらに目で打てと促してきた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>StockEvent</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(Str Int)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>type</span>        <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>  <span class=c1># &#39;added&#39; | &#39;reduced&#39;</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>quantity</span>    <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Int</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>occurred_at</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Int</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<code>is => 'ro'</code>。読み取り専用だ。イベントは一度記録されたら変更できない。過去の出来事を改ざんさせてはならない」</p><p>「分かった。で、これをどう使う」</p><p>「<code>Item</code>を書き直す」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Item</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(Str ArrayRef)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>id</span>     <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>name</span>   <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>events</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>ArrayRef</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=o>[]</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>stock</span> <span class=p>($self, $upto = undef) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$total</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=k>my</span> <span class=nv>$e</span> <span class=p>(</span><span class=nv>@</span><span class=p>{</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>events</span> <span class=p>})</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>last</span> <span class=k>if</span> <span class=nb>defined</span> <span class=nv>$upto</span> <span class=o>&amp;&amp;</span> <span class=nv>$e</span><span class=o>-&gt;</span><span class=n>occurred_at</span> <span class=o>&gt;</span> <span class=nv>$upto</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$total</span> <span class=o>+=</span> <span class=nv>$e</span><span class=o>-&gt;</span><span class=n>quantity</span> <span class=k>if</span> <span class=nv>$e</span><span class=o>-&gt;</span><span class=n>type</span> <span class=ow>eq</span> <span class=s>&#39;added&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$total</span> <span class=o>-=</span> <span class=nv>$e</span><span class=o>-&gt;</span><span class=n>quantity</span> <span class=k>if</span> <span class=nv>$e</span><span class=o>-&gt;</span><span class=n>type</span> <span class=ow>eq</span> <span class=s>&#39;reduced&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$total</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>add_stock</span> <span class=p>($self, $qty) {</span>
+</span></span><span class=line><span class=cl>    <span class=nb>push</span> <span class=nv>@</span><span class=p>{</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>events</span> <span class=p>},</span> <span class=nn>StockEvent</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>type</span>        <span class=o>=&gt;</span> <span class=s>&#39;added&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>quantity</span>    <span class=o>=&gt;</span> <span class=nv>$qty</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>occurred_at</span> <span class=o>=&gt;</span> <span class=nb>time</span><span class=p>(),</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>reduce_stock</span> <span class=p>($self, $qty) {</span>
+</span></span><span class=line><span class=cl>    <span class=nb>die</span> <span class=s>&#34;在庫不足\n&#34;</span> <span class=k>if</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>stock</span> <span class=o>&lt;</span> <span class=nv>$qty</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nb>push</span> <span class=nv>@</span><span class=p>{</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>events</span> <span class=p>},</span> <span class=nn>StockEvent</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>type</span>        <span class=o>=&gt;</span> <span class=s>&#39;reduced&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>quantity</span>    <span class=o>=&gt;</span> <span class=nv>$qty</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>occurred_at</span> <span class=o>=&gt;</span> <span class=nb>time</span><span class=p>(),</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>history</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>@</span><span class=p>{</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>events</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>俺はコードを追った。<code>add_stock</code>は<code>stock</code>の値を変えるのではなく、<code>StockEvent->new(type => 'added', ...)</code>をイベントリストに追加するだけだ。<code>reduce_stock</code>も同じ。状態の変更ではなく、出来事の記録。</p><p>「<code>stock</code>が属性じゃなくなっている」</p><p>「そう。<code>stock</code>はもはや保存されたデータではなく、イベントを積み重ねて演算した結果だ。証言の一覧から真実を演繹するようなものだね」</p><p>「<code>stock()</code>メソッドは全イベントをループして、<code>added</code>なら加算、<code>reduced</code>なら減算。これで現在の在庫が出る——」</p><p>俺は一度コードから目を離した。ここが引っかかる。</p><p>「待ってくれ。毎回全イベントをループするのか。うちのECサイト、商品1万点ある。年間の入出荷イベントが商品あたり数百件だとして、全商品で数百万件。それを毎回先頭から舐めるのか」</p><p>ロックは初めて、少しだけ椅子を引いてこちらに体を向けた。</p><p>「いい反論だ。Snapshotという手法がある。一定数のイベントが溜まった時点で、その瞬間の状態を『スナップショット』として保存する。リプレイはそのスナップショット以降のイベントだけ処理すればいい」</p><p>「それなら現実的だな」</p><p>「だが今回の事件にはまだ必要ない。まず基本の仕組みを理解してからだ」</p><p>もう一つ気になることがあった。</p><p>「イベントが<code>ro</code>で不変だと言ったな。間違って記録したらどうする。消せないんだろう」</p><p>「消さない。補正イベントを追加する。帳簿の赤伝票と同じだ。誤った入荷100個に対して、減算100個の補正イベントを記録する。元のイベントは改ざんせず、記録の連鎖で正しい状態に収束させる」</p><p>なるほど。削除ではなく追記。不変なログが積み重なる構造なら、矛盾なく成り立つ。</p><h2 id=時を遡る証明>時を遡る証明</h2><p>「この手法の真価を見せよう」</p><p>ロックは<code>stock</code>メソッドの引数<code>$upto</code>に注目した。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span><span class=lnt>9
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>sub</span> <span class=nf>stock</span> <span class=p>($self, $upto = undef) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$total</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=k>my</span> <span class=nv>$e</span> <span class=p>(</span><span class=nv>@</span><span class=p>{</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>events</span> <span class=p>})</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>last</span> <span class=k>if</span> <span class=nb>defined</span> <span class=nv>$upto</span> <span class=o>&amp;&amp;</span> <span class=nv>$e</span><span class=o>-&gt;</span><span class=n>occurred_at</span> <span class=o>&gt;</span> <span class=nv>$upto</span><span class=p>;</span>  <span class=c1># ここがキモ</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$total</span> <span class=o>+=</span> <span class=nv>$e</span><span class=o>-&gt;</span><span class=n>quantity</span> <span class=k>if</span> <span class=nv>$e</span><span class=o>-&gt;</span><span class=n>type</span> <span class=ow>eq</span> <span class=s>&#39;added&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$total</span> <span class=o>-=</span> <span class=nv>$e</span><span class=o>-&gt;</span><span class=n>quantity</span> <span class=k>if</span> <span class=nv>$e</span><span class=o>-&gt;</span><span class=n>type</span> <span class=ow>eq</span> <span class=s>&#39;reduced&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$total</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「タイムスタンプを渡せば、その時点までのイベントだけを集計する」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>my</span> <span class=nv>$item</span> <span class=o>=</span> <span class=nn>Item</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>id</span> <span class=o>=&gt;</span> <span class=s>&#39;1&#39;</span><span class=p>,</span> <span class=n>name</span> <span class=o>=&gt;</span> <span class=s>&#39;リンゴ&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$t0</span> <span class=o>=</span> <span class=nb>time</span><span class=p>();</span>        <span class=c1># 操作前</span>
+</span></span><span class=line><span class=cl><span class=nb>sleep</span><span class=p>(</span><span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$item</span><span class=o>-&gt;</span><span class=n>add_stock</span><span class=p>(</span><span class=mi>500</span><span class=p>);</span>  <span class=c1># 500個入荷</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$t1</span> <span class=o>=</span> <span class=nb>time</span><span class=p>();</span>        <span class=c1># 入荷後</span>
+</span></span><span class=line><span class=cl><span class=nb>sleep</span><span class=p>(</span><span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$item</span><span class=o>-&gt;</span><span class=n>reduce_stock</span><span class=p>(</span><span class=mi>100</span><span class=p>);</span> <span class=c1># 100個出荷</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$t2</span> <span class=o>=</span> <span class=nb>time</span><span class=p>();</span>
+</span></span><span class=line><span class=cl><span class=nb>sleep</span><span class=p>(</span><span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$item</span><span class=o>-&gt;</span><span class=n>reduce_stock</span><span class=p>(</span><span class=mi>200</span><span class=p>);</span> <span class=c1># 200個出荷</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$t3</span> <span class=o>=</span> <span class=nb>time</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>print</span> <span class=nv>$item</span><span class=o>-&gt;</span><span class=n>stock</span><span class=p>;</span>       <span class=c1># 200（現在）</span>
+</span></span><span class=line><span class=cl><span class=k>print</span> <span class=nv>$item</span><span class=o>-&gt;</span><span class=n>stock</span><span class=p>(</span><span class=nv>$t0</span><span class=p>);</span>  <span class=c1># 0（入荷前）</span>
+</span></span><span class=line><span class=cl><span class=k>print</span> <span class=nv>$item</span><span class=o>-&gt;</span><span class=n>stock</span><span class=p>(</span><span class=nv>$t1</span><span class=p>);</span>  <span class=c1># 500（入荷後、出荷前）</span>
+</span></span><span class=line><span class=cl><span class=k>print</span> <span class=nv>$item</span><span class=o>-&gt;</span><span class=n>stock</span><span class=p>(</span><span class=nv>$t2</span><span class=p>);</span>  <span class=c1># 400（1回目の出荷後）</span>
+</span></span></code></pre></td></tr></table></div></div><p>30日前の在庫が、タイムスタンプ一つで出せる。</p><p>俺は黙ってモニターを見ていた。監査部門が要求しているのは、まさにこれだ。「この日の在庫は何個だったか」「この出荷で何個減ったか」——全部、イベントから演算できる。</p><p>さらに<code>history()</code>で全イベントを取り出せる。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>my</span> <span class=nv>@history</span> <span class=o>=</span> <span class=nv>$item</span><span class=o>-&gt;</span><span class=n>history</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>for</span> <span class=k>my</span> <span class=nv>$e</span> <span class=p>(</span><span class=nv>@history</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=nb>printf</span> <span class=s>&#34;[%s] %s: %d個 (at %d)\n&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$e</span><span class=o>-&gt;</span><span class=n>type</span><span class=p>,</span> <span class=p>(</span><span class=nv>$e</span><span class=o>-&gt;</span><span class=n>type</span> <span class=ow>eq</span> <span class=s>&#39;added&#39;</span> <span class=p>?</span> <span class=s>&#39;入荷&#39;</span> <span class=p>:</span> <span class=s>&#39;出荷&#39;</span><span class=p>),</span> <span class=nv>$e</span><span class=o>-&gt;</span><span class=n>quantity</span><span class=p>,</span> <span class=nv>$e</span><span class=o>-&gt;</span><span class=n>occurred_at</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「出来事を消していなければ、時間などただの変数に過ぎない」</p><p>ロックは静かにそう言った。</p><p>テストを走らせた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl># Subtest: After: FIX — 全イベント履歴が残る
+</span></span><span class=line><span class=cl>ok 1 - 現在の在庫は130個
+</span></span><span class=line><span class=cl>ok 2 - FIX: 4件のイベントが記録されている
+</span></span><span class=line><span class=cl>ok 3 - 1件目: added
+</span></span><span class=line><span class=cl>ok 4 - 1件目: 200個
+</span></span><span class=line><span class=cl>...
+</span></span><span class=line><span class=cl>ok 10 - 4件目: 10個
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl># Subtest: After: FIX — 任意時点の在庫を復元できる（time travel）
+</span></span><span class=line><span class=cl>ok 1 - 現在の在庫: 200個 (500 - 100 - 200)
+</span></span><span class=line><span class=cl>ok 2 - t0時点: 0個（何も起きていない）
+</span></span><span class=line><span class=cl>ok 3 - t1時点: 500個（入荷後、出荷前）
+</span></span><span class=line><span class=cl>ok 4 - t2時点: 400個（1回目の出荷後）
+</span></span><span class=line><span class=cl>ok 5 - t3時点: 200個（2回目の出荷後）
+</span></span><span class=line><span class=cl>1..5
+</span></span><span class=line><span class=cl>ok 4 - After: FIX — 任意時点の在庫を復元できる（time travel）
+</span></span></code></pre></td></tr></table></div></div><p>全テスト、警告ゼロでパスした。</p><p>「これで30日分のイベントログから、どの時点の在庫でも再現できる」</p><p>ロックは頷いた。荷物をまとめ始めている。</p><pre class=mermaid>
+	classDiagram
+    class StockEvent {
+        +String type
+        +Int quantity
+        +Int occurred_at
+    }
+
+    class Item {
+        +String id
+        +String name
+        +Array events
+        +stock(upto) Int
+        +add_stock(qty) Item
+        +reduce_stock(qty) Item
+        +history() Array
+    }
+
+    Item &#34;1&#34; --&gt; &#34;*&#34; StockEvent : events
+</pre><p>「報酬の話をしていない」</p><p>「吉岡に借りがあった。今回はその返済だ」</p><p>ロックはエナジードリンクの空き缶をゴミ箱に入れて、そのまま出ていった。</p><p>静かになったデスクで、俺はモニターに残ったコードを眺めていた。3年間、<code>UPDATE items SET stock = ? WHERE id = ?</code> を何千回と実行してきた。あれは在庫を更新していたんじゃない。毎回、入荷と出荷の記録を消していたんだ。</p><p>俺たちは3年間、知らないうちに証拠を消す側にいた。</p><hr><h2 id=探偵の調査報告書>探偵の調査報告書</h2><div class=table-wrapper><table><thead><tr><th>容疑（アンチパターン）</th><th>真実（パターン）</th><th>証拠（効果）</th></tr></thead><tbody><tr><td>Mutable State — 状態を直接上書きすることで、変化の記録が消える</td><td>Event Sourcing — 状態の変化を「イベント」として不変に記録し、状態はリプレイで算出</td><td>任意時点の状態復元・完全な監査ログ・履歴の追跡が可能になる</td></tr><tr><td>Lost History — 「今」しか知らないシステム</td><td>イベントの蓄積による「時間軸の復元」</td><td><code>stock($timestamp)</code> で過去の任意時点の在庫を演算できる</td></tr></tbody></table></div><h3 id=推理のステップ>推理のステップ</h3><ol><li>イベントクラスを作る — 状態変化の「出来事」を表す不変オブジェクト（<code>type</code>, <code>quantity</code>, <code>occurred_at</code>）を定義する</li><li>状態を属性から演算に変える — 集約クラスの<code>stock</code>を<code>rw</code>属性から、イベントをリプレイして計算するメソッドに変換する</li><li>変更操作をイベント追加に変える — <code>add_stock</code>/<code>reduce_stock</code>は状態を変えず、イベントを<code>push</code>するだけにする</li><li>履歴を取得できるようにする — <code>history()</code>メソッドで全イベントを返す</li><li>過去の状態を演算できるようにする — <code>stock($timestamp)</code>で特定時点以前のイベントだけを集計する</li></ol><h3 id=ロックより>ロックより</h3><p><code>UPDATE SET stock = ?</code> という一行が実行されるたびに、そこに至るまでの出来事の連鎖が消えていく。証拠の隠滅に悪意は要らない。知らなかっただけで十分だ。</p><p>Event Sourcingの本質は単純だ。状態を保存するのではなく、出来事を保存する。状態は常に、出来事の積み重ねから演繹される——副産物に過ぎない。イベントの数が増えてリプレイのコストが気になり始めたら、Snapshotという切り札がある。だがそれは次の事件だ。</p></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/perl/>Perl</a>
+<a href=/tags/moo/>Moo</a>
+<a href=/tags/event-sourcing/>Event-Sourcing</a>
+<a href=/tags/lost-history/>Lost-History</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-detective/>Code-Detective</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/05/15/070705/><div class=article-image><img src=/public_images/2026/code-detective-bff/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-bff/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Backends for Frontends】最後の依頼〜一つの答えが全員を不満にする夜〜</h2></div></a></article><article class=has-image><a href=/2026/05/14/070705/><div class=article-image><img src=/public_images/2026/code-detective-api-gateway/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-api-gateway/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【API Gateway】窓口のない捜査本部〜マイクロサービスに個別に会いに行く悲劇〜</h2></div></a></article><article class=has-image><a href=/2026/05/13/070705/><div class=article-image><img src=/public_images/2026/code-detective-strangler-fig/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-strangler-fig/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Strangler Fig】外壁に伸びる蔓〜全面更改が新旧を窒息させる夜〜</h2></div></a></article><article class=has-image><a href=/2026/05/12/070705/><div class=article-image><img src=/public_images/2026/code-detective-anti-corruption-layer/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-anti-corruption-layer/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Anti-Corruption Layer】越境伝票の怪〜外様の略語が捜査本部を汚す夜〜</h2></div></a></article><article class=has-image><a href=/2026/05/11/070705/><div class=article-image><img src=/public_images/2026/code-detective-competing-consumers/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-competing-consumers/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Competing Consumers】重なる受領印〜増員だけでは消えない二重処理〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

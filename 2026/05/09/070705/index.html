@@ -1,0 +1,311 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="緑の /health が壊れた canary を見逃す状況を、Liveness/Readiness 分離と Composite な HealthChecker で正します"><title>コード探偵ロックの事件簿【Health Check】緑の証言者〜嘘をつかない診断書〜</title><link rel=canonical href=https://www.nqou.net/2026/05/09/070705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コード探偵ロックの事件簿【Health Check】緑の証言者〜嘘をつかない診断書〜"><meta property='og:description' content="緑の /health が壊れた canary を見逃す状況を、Liveness/Readiness 分離と Composite な HealthChecker で正します"><meta property='og:url' content='https://www.nqou.net/2026/05/09/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='perl'><meta property='article:tag' content='moo'><meta property='article:tag' content='health-check'><meta property='article:tag' content='dummy-health-endpoint'><meta property='article:tag' content='readiness'><meta property='article:tag' content='liveness'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-detective'><meta property='article:published_time' content='2026-05-09T07:07:05+09:00'><meta property='article:modified_time' content='2026-05-09T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-detective-health-check/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コード探偵ロックの事件簿【Health Check】緑の証言者〜嘘をつかない診断書〜"><meta name=twitter:description content="緑の /health が壊れた canary を見逃す状況を、Liveness/Readiness 分離と Composite な HealthChecker で正します"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-detective-health-check/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-05-09T07:07:05+09:00","datePublished":"2026-05-09T07:07:05+09:00","description":"緑の /health が壊れた canary を見逃す状況を、Liveness/Readiness 分離と Composite な HealthChecker で正します","headline":"コード探偵ロックの事件簿【Health Check】緑の証言者〜嘘をつかない診断書〜","image":"https://www.nqou.net/public_images/2026/code-detective-health-check/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/05/09/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#緑の画面落ちる最初の一件>緑の画面、落ちる最初の一件</a></li><li><a href=#現場検証--緑は誰に向けた証言か>現場検証 — 緑は誰に向けた証言か</a><ol><li><a href=#beforeコード-緑を返すだけの-endpoint>Beforeコード: 緑を返すだけの endpoint</a></li><li><a href=#全部載せ-health-check-も別の嘘になる>全部載せ health check も別の嘘になる</a></li></ol></li><li><a href=#推理披露--三枚の診断票>推理披露 — 三枚の診断票</a><ol><li><a href=#まず-live-と-ready-を分ける>まず live と ready を分ける</a></li><li><a href=#composite-で依存ツリーを一枚の診断書にまとめる>Composite で依存ツリーを一枚の診断書にまとめる</a></li><li><a href=#route-判定と診断の詳細は同じ-level-でも同じ意味ではない>route 判定と診断の詳細は、同じ level でも同じ意味ではない</a></li><li><a href=#deep-check-は正しく深くただし重くしすぎない>deep check は正しく深く、ただし重くしすぎない</a></li><li><a href=#json-は-house-contract-だと明示する>JSON は house contract だと明示する</a></li></ol></li><li><a href=#事件の終わり--止めるべきものだけ止まる>事件の終わり — 止めるべきものだけ止まる</a></li><li><a href=#探偵の調査報告書>探偵の調査報告書</a><ol><li><a href=#推理のステップ>推理のステップ</a></li><li><a href=#ロックより>ロックより</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/05/09/070705/><img src=/public_images/2026/code-detective-health-check/header.webp loading=lazy alt="Featured image of post コード探偵ロックの事件簿【Health Check】緑の証言者〜嘘をつかない診断書〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/05/09/070705/>コード探偵ロックの事件簿【Health Check】緑の証言者〜嘘をつかない診断書〜</a></h2><h3 class=article-subtitle>緑の /health が壊れた canary を見逃す状況を、Liveness/Readiness 分離と Composite な HealthChecker で正します</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>09, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 10分</time></div></footer></div></header><section class=article-content><h2 id=緑の画面落ちる最初の一件>緑の画面、落ちる最初の一件</h2><p>日曜の朝5時台。war room の壁に並んだモニタは、どれも穏やかな色をしていた。</p><p>Lazy Loading を入れてから、起動時間は目に見えて縮んだ。重かったワーカーは軽くなった。Object Pool で接続の使い捨てはやめたし、Bulkhead で月末バッチの巻き込みも止めた。数字だけを見るなら、ここ数回の修正は全部うまくいっていた。</p><p>前夜、Lazy Loading のあとに残った違和感が拭えなくて、わたしはロックさんへ「明朝の判定だけ見てほしい」と連絡していた。だから、この早朝の war room にあの人がいること自体は不自然ではなかった。</p><p>だからこそ、その一件は気味が悪かった。</p><p>canary deploy のヘルスチェックは通った。<code>/health</code> は緑のままだった。なのに、QA が最初に開いたテナント別売上レポートの画面だけが 500 を返した。</p><p>検索 index がまだ warming 中で、Lazy Loading された tenant 設定の初回参照とぶつかった。利用者相当のリクエストは失敗している。けれど、dashboard は落ち着いたままだった。</p><p>緑のまま壊れている。</p><p>それが、今回の事件だった。</p><p>ロックさんは、わたしが停止ボタンを押した rollout 画面を一瞥すると、ホワイトボードに三つだけ単語を書いた。</p><p><code>live / ready / details</code></p><p>それだけだった。今回は帆船模型も、妙な箱もない。代わりに、言葉だけが妙に重かった。</p><p>「ワトソン君。緑は出ている。だが、その緑は誰の証言だね」</p><p>「少なくとも、利用者の証言ではありません」</p><p>「結構。では今日は、色ではなく契約を調べよう」</p><p>その言い方で、ようやく腹に落ちた。</p><p>Health Check の問題は、200 を返したことそのものではない。誰に向けて、何を保証する 200 なのかを曖昧にしたことだ。</p><h2 id=現場検証--緑は誰に向けた証言か>現場検証 — 緑は誰に向けた証言か</h2><p>いまの実装は、かなり単純だった。単純すぎる、と言った方が正確かもしれない。</p><h3 id=beforeコード-緑を返すだけの-endpoint>Beforeコード: 緑を返すだけの endpoint</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>App::Web::Health</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(CodeRef)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>clock</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>      <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>isa</span>     <span class=o>=&gt;</span> <span class=n>CodeRef</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=k>sub</span> <span class=p>{</span> <span class=s>&#39;1970-01-01T00:00:00Z&#39;</span> <span class=p>}</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>health_response</span> <span class=p>($self, $service = undef) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>http_status</span> <span class=o>=&gt;</span> <span class=mi>200</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>body</span> <span class=o>=&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=n>status</span>     <span class=o>=&gt;</span> <span class=s>&#39;ok&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>checked_at</span> <span class=o>=&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>clock</span><span class=o>-&gt;</span><span class=p>(),</span>
+</span></span><span class=line><span class=cl>        <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>これでは、tenant 設定ストアが未接続でも、検索 index が warming 中でも、<code>/health</code> は平然と 200 を返す。</p><p>一方で、実際のリクエスト側は required dependency をちゃんと見ている。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>sub</span> <span class=nf>serve_report_request</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>http_status</span> <span class=o>=&gt;</span> <span class=mi>503</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>error</span>       <span class=o>=&gt;</span> <span class=s>&#39;tenant_store_not_ready&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span> <span class=k>unless</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>tenant_store</span><span class=o>-&gt;</span><span class=n>is_ready</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>http_status</span> <span class=o>=&gt;</span> <span class=mi>503</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>error</span>       <span class=o>=&gt;</span> <span class=s>&#39;search_warming&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span> <span class=k>unless</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>search_index</span><span class=o>-&gt;</span><span class=n>is_warmed</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>http_status</span> <span class=o>=&gt;</span> <span class=mi>200</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>body</span>        <span class=o>=&gt;</span> <span class=p>{</span> <span class=n>status</span> <span class=o>=&gt;</span> <span class=s>&#39;ok&#39;</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>つまり、外向きの診断書と、本物の業務リクエストが見ている現実がずれていた。</p><p>ロックさんは <code>200</code> の横に、小さく <code>to whom?</code> と書いた。</p><p>「君たちは一枚の診断書に、三人分の質問を書いている」</p><p>「三人分」</p><p>「load balancer、orchestrator、人間の運用者だ。彼らは同じことを知りたがってはいない」</p><p>たしかにそうだった。</p><div class=table-wrapper><table><thead><tr><th>読み手</th><th>本当に知りたいこと</th><th>同じ <code>/health</code> に押し込むと起きること</th></tr></thead><tbody><tr><td>Load balancer</td><td>今この instance に流してよいか</td><td>optional な揺らぎまで route 判定へ混ざる</td></tr><tr><td>Orchestrator</td><td>再起動で改善する自己異常か</td><td>dependency の一時障害で healthy な process まで落とす</td></tr><tr><td>人間の運用者</td><td>どこがどの程度まずいか</td><td>200 では情報が足りず、503 では粒度が粗すぎる</td></tr></tbody></table></div><p>問題は 200 が軽いことではない。意味が混線していることだった。</p><h3 id=全部載せ-health-check-も別の嘘になる>全部載せ health check も別の嘘になる</h3><p>ここで次に出やすい短絡は、だいたい同じだ。</p><p>「だったら DB も検索も外部 API も、全部 <code>/health</code> で見ればいいのでは」</p><p>わたしも、そう考えかけていた。</p><p>でも、それは別の種類の嘘になる。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>sub</span> <span class=nf>handle_health</span> <span class=p>($service) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=n>_fail</span><span class=p>(</span><span class=s>&#39;tenant_store&#39;</span><span class=p>)</span> <span class=k>unless</span> <span class=nv>$service</span><span class=o>-&gt;</span><span class=nn>tenant_store</span><span class=o>-&gt;</span><span class=n>is_ready</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=n>_fail</span><span class=p>(</span><span class=s>&#39;search_index&#39;</span><span class=p>)</span> <span class=k>unless</span> <span class=nv>$service</span><span class=o>-&gt;</span><span class=nn>search_index</span><span class=o>-&gt;</span><span class=n>is_warmed</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=n>_fail</span><span class=p>(</span><span class=s>&#39;payment_gateway&#39;</span><span class=p>)</span> <span class=k>unless</span> <span class=nv>$service</span><span class=o>-&gt;</span><span class=nn>payment_gateway</span><span class=o>-&gt;</span><span class=n>ping</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=n>_ok</span><span class=p>();</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>この種の endpoint を <code>liveness</code> にも <code>readiness</code> にも使うと、依存先の一時的な不調でプロセス自身まで再起動対象にしてしまう。再起動しても tenant 設定ストアの障害は治らないし、warming 中の index も早まらない。むしろ probe が増えるぶん、壊れている依存先を余計に叩く。</p><p>Health Check は observability 全体の代用品ではない。ログもメトリクスも synthetic monitoring も必要だ。そのうえで Health Check が担うのは、「この instance を今どう扱うべきか」という契約の部分だけだ。</p><p>そこが抜けると、緑も赤も信用できなくなる。</p><h2 id=推理披露--三枚の診断票>推理披露 — 三枚の診断票</h2><p>ロックさんは、さっき書いた三語の下へ短い説明を足した。</p><ul><li><code>live</code>: 再起動で改善しうるほど process 自身が詰まっているか</li><li><code>ready</code>: required dependency と warmup が終わり、いま traffic を受けてよいか</li><li><code>details</code>: 人間が読む診断書として、内訳をどこまで見せるか</li></ul><p>「<code>shallow</code> と <code>deep</code> という呼び方をすることはある。だが、それは実務上のラベルにすぎない。重要なのは名前ではない。誰が何に使うのかだよ」</p><p>今回はそこから実装を組み直した。</p><h3 id=まず-live-と-ready-を分ける>まず live と ready を分ける</h3><p><code>live</code> に入れるのは process 自身の前進可能性だけに絞る。deadlock、heartbeat 停止、致命的な自己矛盾。逆に、DB の一時遅延や外部 API の不調、Lazy Loading 後の warmup 未完了は <code>live</code> に入れない。</p><p>その代わり <code>ready</code> には、required dependency と startup 後の準備完了を入れる。今回の service なら、tenant 設定ストアの接続と検索 index の warming 完了がそこに当たる。</p><p>この分離だけで、war room の矛盾はだいぶ解ける。</p><div class=table-wrapper><table><thead><tr><th>状況</th><th><code>/live</code></th><th><code>/ready</code></th><th>意味</th></tr></thead><tbody><tr><td>process は動くが search index が warming 中</td><td>200</td><td>503</td><td>再起動は不要だが配送は止める</td></tr><tr><td>process 自身が stalled</td><td>503</td><td>503</td><td>再起動対象</td></tr><tr><td>required dependency は揃っている</td><td>200</td><td>200</td><td>配送可</td></tr></tbody></table></div><p>要するに、<code>live=true / ready=false</code> を恥ずかしがらず表に出すことが大事だった。</p><h3 id=composite-で依存ツリーを一枚の診断書にまとめる>Composite で依存ツリーを一枚の診断書にまとめる</h3><p>次に必要なのは、細かな check をばらばらに生やすことではない。集約の仕方を first-class にすることだ。</p><p>そのために、Phase 2 では次のような責務分割にした。</p><pre class=mermaid>
+	classDiagram
+    class HealthChecker {
+        +run_profile(profile, ctx) HealthStatus
+    }
+
+    class HealthCheck {
+        &lt;&lt;role&gt;&gt;
+        +name()
+        +run(ctx) HealthStatus
+    }
+
+    class CompositeHealthCheck {
+        +children()
+        +run(ctx) HealthStatus
+    }
+
+    class HealthStatus {
+        +level()
+        +summary()
+        +latency_ms()
+        +checked_at()
+        +checks()
+        +http_status()
+    }
+
+    HealthChecker --&gt; HealthCheck
+    CompositeHealthCheck --&gt; HealthCheck
+    HealthCheck --&gt; HealthStatus
+</pre><p><code>HealthStatus</code> は値オブジェクトだ。名前、level、summary、latency、checked_at を持ち、子 check の結果も配列で抱える。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>HealthStatus</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(ArrayRef Enum Num Str)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>name</span>       <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>level</span>      <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Enum</span><span class=p>[</span><span class=sx>qw(healthy degraded unhealthy)</span><span class=p>],</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>summary</span>    <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>latency_ms</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Num</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>checked_at</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>checks</span>     <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>ArrayRef</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=o>[]</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>http_status</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>level</span> <span class=ow>eq</span> <span class=s>&#39;unhealthy&#39;</span> <span class=p>?</span> <span class=mi>503</span> <span class=p>:</span> <span class=mi>200</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>CompositeHealthCheck</code> は、複数の leaf check を束ねて最悪値を top-level に引き上げる。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>CompositeHealthCheck</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(ArrayRef Str)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>HealthStatus</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>name</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>children</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>ArrayRef</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=o>[]</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>with</span> <span class=s>&#39;HealthCheck&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>run</span> <span class=p>($self, $ctx = {})</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>@results</span> <span class=o>=</span> <span class=nb>map</span> <span class=p>{</span> <span class=nv>$_</span><span class=o>-&gt;</span><span class=n>run</span><span class=p>(</span><span class=nv>$ctx</span><span class=p>)</span> <span class=p>}</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>children</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>my</span> <span class=nv>$level</span> <span class=o>=</span> <span class=n>_worst_level</span><span class=p>(</span><span class=nv>@results</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nn>HealthStatus</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>name</span>       <span class=o>=&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>name</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>level</span>      <span class=o>=&gt;</span> <span class=nv>$level</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>summary</span>    <span class=o>=&gt;</span> <span class=nb>join</span><span class=p>(</span><span class=s>&#39;, &#39;</span><span class=p>,</span> <span class=nb>map</span> <span class=p>{</span> <span class=nv>$_</span><span class=o>-&gt;</span><span class=n>summary</span> <span class=p>}</span> <span class=nv>@results</span><span class=p>),</span>
+</span></span><span class=line><span class=cl>        <span class=n>latency_ms</span> <span class=o>=&gt;</span> <span class=n>_sum_latency</span><span class=p>(</span><span class=nv>@results</span><span class=p>),</span>
+</span></span><span class=line><span class=cl>        <span class=n>checked_at</span> <span class=o>=&gt;</span> <span class=nv>$ctx</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>clock</span><span class=p>}</span><span class=o>-&gt;</span><span class=p>(),</span>
+</span></span><span class=line><span class=cl>        <span class=n>checks</span>     <span class=o>=&gt;</span> <span class=o>\</span><span class=nv>@results</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>この形にしておくと、Health Check の主役が endpoint ではなく check tree になる。HTTP handler はただの薄い包装になる。</p><h3 id=route-判定と診断の詳細は同じ-level-でも同じ意味ではない>route 判定と診断の詳細は、同じ level でも同じ意味ではない</h3><p>ここで効いてくるのが <code>degraded</code> だ。</p><p>Bulkhead の空きが減っている。Object Pool の headroom が低い。Circuit Breaker が open か half-open に寄っている。どれも「いま即座に route を止める」べきとは限らない。でも「healthy と同じ顔をさせる」のは違う。</p><p>だから <code>details</code> profile では、こうした状態を <code>degraded</code> で返す。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>HealthChecker</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(CodeRef HashRef Num)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>profiles</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>HashRef</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>cache_ttl_seconds</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Num</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=mi>2</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>cacheable_profiles</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>HashRef</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=p>{}</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>clock</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>CodeRef</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>run_profile</span> <span class=p>($self, $profile, $ctx = {})</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$root</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>profiles</span><span class=o>-&gt;</span><span class=p>{</span><span class=nv>$profile</span><span class=p>}</span>
+</span></span><span class=line><span class=cl>      <span class=ow>or</span> <span class=nb>die</span> <span class=s>&#34;Unknown profile: $profile&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$root</span><span class=o>-&gt;</span><span class=n>run</span><span class=p>({</span>
+</span></span><span class=line><span class=cl>        <span class=nv>%</span><span class=p>{</span><span class=nv>$ctx</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>        <span class=n>clock</span> <span class=o>=&gt;</span> <span class=nv>$ctx</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>clock</span><span class=p>}</span> <span class=sr>//</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>clock</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>実際の <code>details</code> profile には、次のような check をぶら下げた。</p><ul><li><code>ProcessAliveCheck</code></li><li><code>TenantStoreReadyCheck</code></li><li><code>SearchWarmupCheck</code></li><li><code>ConnectionPoolHeadroomCheck</code></li><li><code>BulkheadHeadroomCheck</code></li><li><code>CircuitStateCheck</code></li></ul><p>この配置だと、Lazy Loading で遅らせた初回失敗は <code>ready</code> で止められる。いっぽう、Bulkhead や Pool の逼迫は <code>details</code> で <code>degraded</code> として見える。Circuit Breaker の open も、人間には見せるが route 判定へ自動では混ぜない。</p><p>つまり、これまで別々に実装してきた防衛線が、ここで初めて一枚の診断書になる。</p><h3 id=deep-check-は正しく深くただし重くしすぎない>deep check は正しく深く、ただし重くしすぎない</h3><p>deep check を入れるときに忘れやすいのは、health check 自身が事故の増幅器になることだ。</p><p>今回の実装では、<code>details</code> profile だけを短 TTL でキャッシュし、短時間の連続 probe では pool や bulkhead や circuit を何度も採取し直さないようにした。Phase 2 のテストでも、2 秒以内の再実行では deep probe の回数が増えず、TTL を超えたところで再評価されることを確認している。</p><p>これは「楽をするための cache」ではなく、「診断書の採血をやりすぎない」ための cache だ。</p><h3 id=json-は-house-contract-だと明示する>JSON は house contract だと明示する</h3><p>Health Check の JSON 形式には参考になる草案がある。ただ、IETF の正式標準として固まった聖典があるわけではない。</p><p>だから、field 名を何にするかよりも、誰がその field を読み、どう扱うかを曖昧にしないことが先に来る。今回の記事では <code>status</code> ではなく <code>level</code> を使っているが、それは「この service ではこう読む」という house contract を明示するためだ。</p><p>たとえば <code>details</code> endpoint の payload は、次のような形になる。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-json data-lang=json><span class=line><span class=cl><span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=nt>&#34;name&#34;</span><span class=p>:</span> <span class=s2>&#34;details&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>  <span class=nt>&#34;level&#34;</span><span class=p>:</span> <span class=s2>&#34;degraded&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>  <span class=nt>&#34;summary&#34;</span><span class=p>:</span> <span class=s2>&#34;connection pool headroom low, outbound circuit open&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>  <span class=nt>&#34;latency_ms&#34;</span><span class=p>:</span> <span class=mi>20</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>  <span class=nt>&#34;checked_at&#34;</span><span class=p>:</span> <span class=s2>&#34;2026-05-09T07:07:05+09:00&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>  <span class=nt>&#34;checks&#34;</span><span class=p>:</span> <span class=p>[</span>
+</span></span><span class=line><span class=cl>    <span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=nt>&#34;name&#34;</span><span class=p>:</span> <span class=s2>&#34;process_alive&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>      <span class=nt>&#34;level&#34;</span><span class=p>:</span> <span class=s2>&#34;healthy&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>      <span class=nt>&#34;summary&#34;</span><span class=p>:</span> <span class=s2>&#34;process heartbeat ok&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>      <span class=nt>&#34;latency_ms&#34;</span><span class=p>:</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>      <span class=nt>&#34;checked_at&#34;</span><span class=p>:</span> <span class=s2>&#34;2026-05-09T07:07:05+09:00&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>      <span class=nt>&#34;checks&#34;</span><span class=p>:</span> <span class=p>[]</span>
+</span></span><span class=line><span class=cl>    <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=nt>&#34;name&#34;</span><span class=p>:</span> <span class=s2>&#34;connection_pool&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>      <span class=nt>&#34;level&#34;</span><span class=p>:</span> <span class=s2>&#34;degraded&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>      <span class=nt>&#34;summary&#34;</span><span class=p>:</span> <span class=s2>&#34;connection pool headroom low&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>      <span class=nt>&#34;latency_ms&#34;</span><span class=p>:</span> <span class=mi>3</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>      <span class=nt>&#34;checked_at&#34;</span><span class=p>:</span> <span class=s2>&#34;2026-05-09T07:07:05+09:00&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>      <span class=nt>&#34;checks&#34;</span><span class=p>:</span> <span class=p>[]</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>  <span class=p>]</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>ここでの 200 は「配送可」の意味ではなく、「診断書としては読める」の意味だ。route 判定はあくまで <code>/ready</code> へ閉じる。</p><h2 id=事件の終わり--止めるべきものだけ止まる>事件の終わり — 止めるべきものだけ止まる</h2><p>Phase 2 のテストで見えた差は、かなりはっきりしていた。</p><div class=table-wrapper><table><thead><tr><th>状況</th><th>Before</th><th>After</th></tr></thead><tbody><tr><td>tenant 設定ストア未準備</td><td><code>/health</code> は 200 のまま</td><td><code>/live</code> は 200、<code>/ready</code> は 503</td></tr><tr><td>search index warming 中</td><td><code>/health</code> は 200 のまま</td><td><code>/live</code> は 200、<code>/ready</code> は 503</td></tr><tr><td>process 自身が stalled</td><td><code>/health</code> は 200 のまま</td><td><code>/live</code> も <code>/ready</code> も 503</td></tr><tr><td>pool / bulkhead の headroom が低い</td><td>外から分からない</td><td><code>/details</code> が <code>degraded</code> を返す</td></tr><tr><td>circuit が open</td><td>外から分からない</td><td><code>/details</code> が <code>degraded</code> を返す</td></tr><tr><td>連続 probe</td><td>同じ 200 を返すだけ</td><td><code>details</code> は TTL 内で deep check を再利用</td></tr></tbody></table></div><p>重要なのは、落とす場所が適切になったことだ。</p><p>検索 index が warming 中なら、instance はまだ traffic を受けるべきではない。だから <code>ready</code> は落とす。でも process 自身は死んでいないから、<code>live</code> までは落とさない。</p><p>逆に、Bulkhead の headroom が減っている、Pool が細くなっている、Circuit が開き気味だ、という状態は「すぐ route を止める」とは限らない。そこで必要なのは 503 より先に、<code>degraded</code> という言葉で運用者へ正直に伝えることだ。</p><p>war room の最後に、わたしは deployment gate の設定を書き換えた。</p><ul><li>rollout 判定は <code>/ready</code></li><li>restart 判定は <code>/live</code></li><li>人間が読む診断書は <code>/health/details</code></li></ul><p>それで、ようやく最初の緑に意味が戻った。</p><p>Circuit Breaker で外向きの失敗を封じ、Timeout で待ちすぎを止め、Bulkhead で巻き込みを防ぎ、Object Pool で再利用資源を清潔に保ち、Lazy Loading で重い初期化を必要時へ押し戻した。</p><p>Health Check Pattern は、そのどれか一つの代用品ではない。防衛線を敷いたあとで、「この instance をいまどう扱うべきか」を嘘なく外へ伝える監視役だ。</p><p>ロックさんはホワイトボードの三列を見返してから、ペンを置いた。</p><p>「診断書は安心のためではない。処置を誤らないためのものだ」</p><p>今回は、その言葉に言い返す必要がなかった。</p><p>緑が出ていることではなく、緑の意味を説明できることの方が大事だと、ようやく分かったからだ。</p><hr><h2 id=探偵の調査報告書>探偵の調査報告書</h2><div class=table-wrapper><table><thead><tr><th>容疑（アンチパターン）</th><th>真実（パターン）</th><th>証拠（効果）</th></tr></thead><tbody><tr><td><code>always 200</code> のダミー health endpoint</td><td><code>live</code> / <code>ready</code> / <code>details</code> の責務分離</td><td>起動済みだが未準備の instance を配送対象から外せる</td></tr><tr><td>dependency の一時障害まで <code>liveness</code> に背負わせる設計</td><td><code>liveness</code> は process 自身の前進可能性だけに絞る</td><td>healthy な process を無駄に再起動し続ける事故を防げる</td></tr><tr><td>すべての deep check を毎回直列実行する</td><td>timeout と TTL cache を付けた details profile</td><td>probe 自体が downstream への負荷源になる事故を防げる</td></tr><tr><td>防衛機構ごとの状態が散らばっている</td><td>Composite な診断書へ集約する</td><td>Bulkhead / Pool / Circuit / warmup の状態を一度に読める</td></tr><tr><td>HTTP status と health level を同一視する</td><td>route 判定と human-readable details を分ける</td><td>LB と運用者が別々の意味で同じ payload を誤読しなくなる</td></tr></tbody></table></div><h3 id=推理のステップ>推理のステップ</h3><ol><li>いまの health endpoint を読む相手を <code>LB</code> <code>orchestrator</code> <code>human operator</code> に分ける</li><li><code>liveness</code> に入れる条件を「再起動で改善しうる自己異常」に限定する</li><li>required dependency と warmup 完了を <code>readiness</code> へ寄せる</li><li><code>HealthStatus</code> <code>HealthCheck</code> <code>CompositeHealthCheck</code> <code>HealthChecker</code> に責務を分ける</li><li><code>degraded</code> を details endpoint で表現し、route 判定から切り離す</li><li>deep check に timeout と cache を入れ、health check 自身が障害増幅装置にならないようにする</li></ol><h3 id=ロックより>ロックより</h3><p>防衛線を敷くだけでは足りないのだよ、ワトソン君。隔壁も、回路遮断器も、遅延初期化も、それ自体は沈黙している。沈黙した防衛線は、外から見れば存在しないのと同じだ。</p><p>ゆえに最後に必要なのは、派手な赤信号ではない。誰に向けた合図かを失わない、正直な診断書だ。緑を出したまえ。ただし、その緑が何を保証し、何を保証しないのかを、必ず書き添えるのだ。</p></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/perl/>Perl</a>
+<a href=/tags/moo/>Moo</a>
+<a href=/tags/health-check/>Health-Check</a>
+<a href=/tags/dummy-health-endpoint/>Dummy-Health-Endpoint</a>
+<a href=/tags/readiness/>Readiness</a>
+<a href=/tags/liveness/>Liveness</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-detective/>Code-Detective</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/05/15/070705/><div class=article-image><img src=/public_images/2026/code-detective-bff/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-bff/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Backends for Frontends】最後の依頼〜一つの答えが全員を不満にする夜〜</h2></div></a></article><article class=has-image><a href=/2026/05/14/070705/><div class=article-image><img src=/public_images/2026/code-detective-api-gateway/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-api-gateway/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【API Gateway】窓口のない捜査本部〜マイクロサービスに個別に会いに行く悲劇〜</h2></div></a></article><article class=has-image><a href=/2026/05/13/070705/><div class=article-image><img src=/public_images/2026/code-detective-strangler-fig/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-strangler-fig/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Strangler Fig】外壁に伸びる蔓〜全面更改が新旧を窒息させる夜〜</h2></div></a></article><article class=has-image><a href=/2026/05/12/070705/><div class=article-image><img src=/public_images/2026/code-detective-anti-corruption-layer/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-anti-corruption-layer/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Anti-Corruption Layer】越境伝票の怪〜外様の略語が捜査本部を汚す夜〜</h2></div></a></article><article class=has-image><a href=/2026/05/11/070705/><div class=article-image><img src=/public_images/2026/code-detective-competing-consumers/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-competing-consumers/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Competing Consumers】重なる受領印〜増員だけでは消えない二重処理〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>
