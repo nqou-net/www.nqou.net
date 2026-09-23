@@ -1,0 +1,631 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="注文モデルにビジネスロジックとSQL直書きが同居しテスト毎にDB接続必須。30分のテストスイートをRepositoryパターンでデータアクセス層を分離し3秒に激減させるコード探偵の推理。"><title>コード探偵ロックの事件簿【Repository】肥大化した容疑者〜DBに縛られた証言〜</title><link rel=canonical href=https://www.nqou.net/2026/04/01/070705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コード探偵ロックの事件簿【Repository】肥大化した容疑者〜DBに縛られた証言〜"><meta property='og:description' content="注文モデルにビジネスロジックとSQL直書きが同居しテスト毎にDB接続必須。30分のテストスイートをRepositoryパターンでデータアクセス層を分離し3秒に激減させるコード探偵の推理。"><meta property='og:url' content='https://www.nqou.net/2026/04/01/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='perl'><meta property='article:tag' content='moo'><meta property='article:tag' content='repository'><meta property='article:tag' content='fat-model'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-detective'><meta property='article:published_time' content='2026-04-01T07:07:05+09:00'><meta property='article:modified_time' content='2026-04-01T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-detective-repository/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コード探偵ロックの事件簿【Repository】肥大化した容疑者〜DBに縛られた証言〜"><meta name=twitter:description content="注文モデルにビジネスロジックとSQL直書きが同居しテスト毎にDB接続必須。30分のテストスイートをRepositoryパターンでデータアクセス層を分離し3秒に激減させるコード探偵の推理。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-detective-repository/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-04-01T07:07:05+09:00","datePublished":"2026-04-01T07:07:05+09:00","description":"注文モデルにビジネスロジックとSQL直書きが同居しテスト毎にDB接続必須。30分のテストスイートをRepositoryパターンでデータアクセス層を分離し3秒に激減させるコード探偵の推理。","headline":"コード探偵ロックの事件簿【Repository】肥大化した容疑者〜DBに縛られた証言〜","image":"https://www.nqou.net/public_images/2026/code-detective-repository/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/04/01/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#現場検証二重生活を送る容疑者>現場検証：二重生活を送る容疑者</a></li><li><a href=#推理披露供述を分離せよrepository>推理披露：供述を分離せよ（Repository）</a></li><li><a href=#解決30分が3秒になった日>解決：30分が3秒になった日</a></li><li><a href=#探偵の調査報告書>探偵の調査報告書</a><ol><li><a href=#推理のステップ>推理のステップ</a></li><li><a href=#ロックより>ロックより</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/04/01/070705/><img src=/public_images/2026/code-detective-repository/header.webp loading=lazy alt="Featured image of post コード探偵ロックの事件簿【Repository】肥大化した容疑者〜DBに縛られた証言〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/04/01/070705/>コード探偵ロックの事件簿【Repository】肥大化した容疑者〜DBに縛られた証言〜</a></h2><h3 class=article-subtitle>注文モデルにビジネスロジックとSQL直書きが同居しテスト毎にDB接続必須。30分のテストスイートをRepositoryパターンでデータアクセス層を分離し3秒に激減させるコード探偵の推理。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>01, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 17分</time></div></footer></div></header><section class=article-content><p>CIダッシュボードが赤く染まったまま3日が過ぎた。</p><p>僕は中原。BtoB SaaS「OrderHub」のバックエンドエンジニアだ。経験6年、30歳。OrderHubは中小企業向けの受発注管理プラットフォームで、月間取引件数は50万件を超えている。CIが赤い間はPRをマージできない。マージできなければ次の機能開発に入れない。チームの3人がそれぞれブランチを抱えたまま手詰まりになっていた。</p><p>原因はわかっている。テストスイートが30分かかるのだ。CIのタイムアウトは20分。結果、テストは毎回途中で打ち切られる。</p><p>テストが遅い理由もわかっている。注文管理の <code>Order</code> クラスを3年前に僕が書いた。最初はシンプルだった。注文の作成、ステータス遷移、合計金額の計算。それだけのクラスだったが、3年間の機能追加でビジネスロジックだけでなく、<code>save</code>、<code>find_by_id</code>、<code>search</code> といったデータベースアクセスのメソッドが同居するようになった。SQLを直接書いて、DBIで実行している。テストのたびにテスト用DBを立ち上げなければならない。ステータスの遷移を確認するだけのテストに、30秒のDB起動を待つ。それが100ケース。30分。</p><p>先週、注文ステータスの遷移に新しいルールを追加したところ、既存のテストが5件壊れた。修正しようにもトライ&エラーが1日3回しかできない。僕は3ヶ月間この悪循環を見て見ぬふりをしてきたが、さすがに限界だった。</p><p>チームの高木さん——入社12年のシニアエンジニアで、僕が新人のころからコードレビューを見てもらっている人だ——がSlackで「テストの設計に詳しい奴がいるんだが、一度話してみるか？ 変わった男だけど腕は確かだ」と声をかけてきた。</p><p>「変わった」が何を意味するのかは聞かなかった。藁にもすがる思いとはこのことだ。</p><p>翌日の14時、会議室Bのドアが開いた。現れたのは、ノートPCを小脇に抱え、反対の手にエナジードリンクの缶を持った男だった。挨拶もなければ名刺もない。会議室の椅子に座るなり僕のPCの画面を覗き込み、「注文モデルを見せたまえ」と言った。</p><p>「あの、まず自己紹介を——」</p><p>「ロックだ。コード探偵をしている。それより君の <code>Order</code> クラスは何行ある？」</p><p>コード探偵。高木さんの言う「変わった男」というのは控えめな表現だったらしい。モニターの裏に「Locke - Code Detective」と印字されたステッカーが自分のPCに貼ってあるのが見えた。</p><p>「中原です。注文モデルのテストが——」</p><p>「ああ、わかっている、ワトソン君。テストが30分かかる件だろう」</p><p>「中原です」</p><h2 id=現場検証二重生活を送る容疑者>現場検証：二重生活を送る容疑者</h2><p>ロックさんは僕のPCの前に座った。「画面をこちらに」と言いながら、もう画面をスクロールし始めている。高木さんの紹介でなければ、この時点で会議室を出ていたと思う。</p><p>僕は <code>Order</code> クラスを開いた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span><span class=lnt>51
+</span><span class=lnt>52
+</span><span class=lnt>53
+</span><span class=lnt>54
+</span><span class=lnt>55
+</span><span class=lnt>56
+</span><span class=lnt>57
+</span><span class=lnt>58
+</span><span class=lnt>59
+</span><span class=lnt>60
+</span><span class=lnt>61
+</span><span class=lnt>62
+</span><span class=lnt>63
+</span><span class=lnt>64
+</span><span class=lnt>65
+</span><span class=lnt>66
+</span><span class=lnt>67
+</span><span class=lnt>68
+</span><span class=lnt>69
+</span><span class=lnt>70
+</span><span class=lnt>71
+</span><span class=lnt>72
+</span><span class=lnt>73
+</span><span class=lnt>74
+</span><span class=lnt>75
+</span><span class=lnt>76
+</span><span class=lnt>77
+</span><span class=lnt>78
+</span><span class=lnt>79
+</span><span class=lnt>80
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Order</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Carp</span> <span class=sx>qw( croak )</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>id</span>       <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>customer</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>items</span>    <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>  <span class=c1># [{ name, price, qty }]</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>status</span>   <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>default</span>  <span class=o>=&gt;</span> <span class=s>&#39;draft&#39;</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>dbh</span>      <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>   <span class=c1># ← DB接続が必須！</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=c1># --- ビジネスロジック ---</span>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>total</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$sum</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$sum</span> <span class=o>+=</span> <span class=nv>$_</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>price</span><span class=p>}</span> <span class=o>*</span> <span class=nv>$_</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>qty</span><span class=p>}</span> <span class=k>for</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>items</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*;</span>
+</span></span><span class=line><span class=cl>        <span class=nv>return</span> <span class=nv>$sum</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>confirm</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>        <span class=n>croak</span> <span class=s>&#34;Cannot confirm: status is &#34;</span> <span class=o>.</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>status</span>
+</span></span><span class=line><span class=cl>            <span class=k>unless</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>status</span> <span class=ow>eq</span> <span class=s>&#39;draft&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>status</span><span class=p>(</span><span class=s>&#39;confirmed&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>save</span><span class=p>();</span>  <span class=c1># ← ビジネスロジックの中で直接 DB に書き込む</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>ship</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>        <span class=n>croak</span> <span class=s>&#34;Cannot ship: status is &#34;</span> <span class=o>.</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>status</span>
+</span></span><span class=line><span class=cl>            <span class=k>unless</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>status</span> <span class=ow>eq</span> <span class=s>&#39;confirmed&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>status</span><span class=p>(</span><span class=s>&#39;shipped&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>save</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>cancel</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>        <span class=n>croak</span> <span class=s>&#34;Cannot cancel: status is &#34;</span> <span class=o>.</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>status</span>
+</span></span><span class=line><span class=cl>            <span class=k>unless</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>status</span> <span class=ow>eq</span> <span class=s>&#39;draft&#39;</span> <span class=o>||</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>status</span> <span class=ow>eq</span> <span class=s>&#39;confirmed&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>status</span><span class=p>(</span><span class=s>&#39;cancelled&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>save</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=c1># --- データアクセス（SQL直書き）---</span>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>save</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$dbh</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>dbh</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>id</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$dbh</span><span class=o>-&gt;</span><span class=k>do</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>                <span class=s>&#34;UPDATE orders SET customer=?, status=?, items=? WHERE id=?&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>                <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>customer</span><span class=p>,</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>status</span><span class=p>,</span> <span class=n>_serialize_items</span><span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>items</span><span class=p>),</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>id</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=k>else</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$dbh</span><span class=o>-&gt;</span><span class=k>do</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>                <span class=s>&#34;INSERT INTO orders (customer, status, items) VALUES (?, ?, ?)&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>                <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>customer</span><span class=p>,</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>status</span><span class=p>,</span> <span class=n>_serialize_items</span><span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>items</span><span class=p>),</span>
+</span></span><span class=line><span class=cl>            <span class=p>);</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>id</span><span class=p>(</span><span class=nv>$dbh</span><span class=o>-&gt;</span><span class=n>last_insert_id</span><span class=p>(</span><span class=nb>undef</span><span class=p>,</span> <span class=nb>undef</span><span class=p>,</span> <span class=s>&#39;orders&#39;</span><span class=p>,</span> <span class=s>&#39;id&#39;</span><span class=p>));</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>find_by_id</span> <span class=p>($class, $dbh, $id) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$row</span> <span class=o>=</span> <span class=nv>$dbh</span><span class=o>-&gt;</span><span class=n>selectrow_hashref</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=s>&#34;SELECT * FROM orders WHERE id = ?&#34;</span><span class=p>,</span> <span class=nb>undef</span><span class=p>,</span> <span class=nv>$id</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nb>undef</span> <span class=k>unless</span> <span class=nv>$row</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$class</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=n>id</span> <span class=o>=&gt;</span> <span class=nv>$row</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>id</span><span class=p>},</span> <span class=n>customer</span> <span class=o>=&gt;</span> <span class=nv>$row</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>customer</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>            <span class=n>items</span> <span class=o>=&gt;</span> <span class=nv>$row</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>items</span><span class=p>},</span> <span class=n>status</span> <span class=o>=&gt;</span> <span class=nv>$row</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>status</span><span class=p>},</span> <span class=n>dbh</span> <span class=o>=&gt;</span> <span class=nv>$dbh</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>search</span> <span class=p>($class, $dbh, %criteria) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$rows</span> <span class=o>=</span> <span class=nv>$dbh</span><span class=o>-&gt;</span><span class=n>selectall_arrayref</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=s>&#34;SELECT * FROM orders WHERE status = ?&#34;</span><span class=p>,</span> <span class=p>{</span> <span class=n>Slice</span> <span class=o>=&gt;</span> <span class=p>{}</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$criteria</span><span class=p>{</span><span class=n>status</span><span class=p>}</span> <span class=sr>//</span> <span class=s>&#39;draft&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=p>[</span> <span class=nb>map</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$class</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>                <span class=n>id</span> <span class=o>=&gt;</span> <span class=nv>$_</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>id</span><span class=p>},</span> <span class=n>customer</span> <span class=o>=&gt;</span> <span class=nv>$_</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>customer</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>                <span class=n>items</span> <span class=o>=&gt;</span> <span class=nv>$_</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>items</span><span class=p>},</span> <span class=n>status</span> <span class=o>=&gt;</span> <span class=nv>$_</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>status</span><span class=p>},</span> <span class=n>dbh</span> <span class=o>=&gt;</span> <span class=nv>$dbh</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span> <span class=nv>@$rows</span> <span class=p>];</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>ロックさんは会議室のホワイトボードに歩み寄った。マーカーを手に取り、ボードを縦に二分する線を引く。</p><p>「この容疑者は二重生活を送っている」</p><p>「容疑者？」</p><p>「Order クラスのことだよ、ワトソン君」</p><p>ここでロックさんの言う「ワトソン君」が僕のことだと気づく。訂正する気力は残っていなかった。</p><p>「左がビジネスロジック。<code>total</code>、<code>confirm</code>、<code>ship</code>、<code>cancel</code>。注文の振る舞いを定義する——これは Order の本来の仕事だ」ロックさんは左側に4つのメソッド名を書いた。「右がデータアクセス。<code>save</code>、<code>find_by_id</code>、<code>search</code>。SQLを組み立て、DBに問い合わせる——これは Order の仕事ではない」</p><p>「いや、待ってください」僕は口を挟んだ。自分で書いたコードだ。設計判断には理由がある。「<code>confirm</code> の中で <code>$self->save()</code> を呼んでいるのは、ステータスを変えたら即座にDBに反映したいからです。ステータスの不整合を防ぐためには、遷移と永続化を一体にするのが自然でしょう」</p><p>「自然、ね」ロックさんはマーカーで <code>confirm</code> と <code>save</code> の間に矢印を引いた。「では聞くが、<code>confirm</code> をテストしたいとき何が起きる？ <code>confirm</code> は <code>save</code> を呼ぶ。<code>save</code> は <code>$dbh</code> を使う。<code>$dbh</code> はデータベースの接続先だ。つまり君はステータスが <code>draft</code> から <code>confirmed</code> に変わるかどうかを確認したいだけなのに、データベースを立ち上げなければテストすら始められない」</p><pre class=mermaid>
+	graph TD
+    subgraph &#34;Order クラス（Fat Model）&#34;
+        BL[&#34;ビジネスロジック&lt;br/&gt;total / confirm / ship / cancel&#34;]
+        DA[&#34;データアクセス&lt;br/&gt;save / find_by_id / search&#34;]
+        DBH[&#34;has dbh =&gt; required&#34;]
+    end
+
+    BL --&gt;|&#34;confirm 内で save() 呼出&#34;| DA
+    DA --&gt;|&#34;SQL 実行&#34;| DB[&#34;Database&#34;]
+    DBH --&gt;|&#34;コンストラクタで強制&#34;| DB
+
+    TEST[&#34;テスト&#34;] -.-&gt;|&#34;DB 必須！&#34;| DB
+
+    style DA fill:#f99,stroke:#333
+    style DBH fill:#f99,stroke:#333
+    style TEST fill:#f99,stroke:#333
+</pre><p>「赤い部分を見たまえ。注文の合計金額を計算するだけのテストに、なぜデータベースが要る？ <code>has dbh => ( required => 1 )</code> が Order のコンストラクタに埋め込まれているからだ。<code>total</code> の計算にデータベースは何一つ関係しないのに、<code>Order->new</code> する時点で <code>$dbh</code> を渡さなければエラーになる」</p><p>僕は反論しようとして、やめた。実際に <code>total</code> のテストを書くとき、毎回 <code>FakeDbh</code> をでっち上げて <code>$dbh</code> に渡している。<code>total</code> はDBを一切触らないのに、だ。</p><p>「不整合の防止は大事だと思うんですが……」</p><p>「不整合の防止と、テスト不能は別の問題だ」ロックさんはマーカーのキャップを閉じた。「今、君のチームは何が起きている？ テストが30分かかるからテストを書かない。テストを書かないからバグが出る。バグが出るからリファクタリングしたい。でもテストがないからリファクタリングが怖い——この悪循環の起点が、この <code>has dbh => required</code> だ」</p><p>図星だった。3ヶ月間、僕が見て見ぬふりをしてきた悪循環を、この男は5分で言い当てた。</p><p>「この容疑者は知りすぎている。自分のビジネスルールだけでなく、自分がどのテーブルに保存されるか、どんなSQLで呼び出されるかまで知っている。Fat Model——肥大化したモデルだ」</p><h2 id=推理披露供述を分離せよrepository>推理披露：供述を分離せよ（Repository）</h2><p>ロックさんはホワイトボードを消し、新しい図を描き始めた。</p><p>「この容疑者には弁護士を付ける」</p><p>「弁護士？」</p><p>「データアクセスを専門に扱う外部の存在だ。容疑者の供述——つまりデータの保存と取得は、すべて弁護士を通して行われる。容疑者自身はビジネスルールだけを語ればいい」</p><p>比喩が過剰だが、要は「データアクセスを別のクラスに分離しろ」ということだろう。</p><p>「まず Order から余計なものを全部外す」</p><p>【After】純粋なドメインモデル（DB依存なし）</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Order</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Carp</span> <span class=sx>qw( croak )</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>id</span>       <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>customer</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>items</span>    <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>status</span>   <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>default</span>  <span class=o>=&gt;</span> <span class=s>&#39;draft&#39;</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=c1># dbh は不要！</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>total</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$sum</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$sum</span> <span class=o>+=</span> <span class=nv>$_</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>price</span><span class=p>}</span> <span class=o>*</span> <span class=nv>$_</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>qty</span><span class=p>}</span> <span class=k>for</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>items</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*;</span>
+</span></span><span class=line><span class=cl>        <span class=nv>return</span> <span class=nv>$sum</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>confirm</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>        <span class=n>croak</span> <span class=s>&#34;Cannot confirm: status is &#34;</span> <span class=o>.</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>status</span>
+</span></span><span class=line><span class=cl>            <span class=k>unless</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>status</span> <span class=ow>eq</span> <span class=s>&#39;draft&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>status</span><span class=p>(</span><span class=s>&#39;confirmed&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=c1># save() は呼ばない — 永続化は呼び出し側の責務</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>ship</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>        <span class=n>croak</span> <span class=s>&#34;Cannot ship: status is &#34;</span> <span class=o>.</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>status</span>
+</span></span><span class=line><span class=cl>            <span class=k>unless</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>status</span> <span class=ow>eq</span> <span class=s>&#39;confirmed&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>status</span><span class=p>(</span><span class=s>&#39;shipped&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>cancel</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>        <span class=n>croak</span> <span class=s>&#34;Cannot cancel: status is &#34;</span> <span class=o>.</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>status</span>
+</span></span><span class=line><span class=cl>            <span class=k>unless</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>status</span> <span class=ow>eq</span> <span class=s>&#39;draft&#39;</span> <span class=o>||</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>status</span> <span class=ow>eq</span> <span class=s>&#39;confirmed&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>status</span><span class=p>(</span><span class=s>&#39;cancelled&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<code>has dbh</code> が消えた。<code>confirm</code> の中の <code>$self->save()</code> も消えた。Order は自分のビジネスルールだけを知っている。どこに保存されるかは知らない。知る必要がない」</p><p>「ちょっと待ってください」僕は画面を見ながら言った。「<code>confirm</code> から <code>save</code> を外したら、アプリケーション側で <code>confirm</code> と <code>save</code> を別々に呼ぶことになりますよね。その間に例外が飛んだらどうなるんですか。ステータスは変わったのにDBには反映されていない——それこそ不整合では？」</p><p>「良い質問だ」ロックさんが少し前のめりになった。初めて僕を「使える助手」と認識したような表情だ。「トランザクションを管理するのはサービス層の仕事だ。<code>$order->confirm; $repo->save($order)</code> をトランザクションで囲む。Order は状態遷移だけに集中し、永続化の保証は外側が担う。責務がはっきりする」</p><p>「でも、保存や検索のコードはどこかに必要ですよね？」</p><p>「弁護士——Repository を作る」</p><p>【After】Repository ロール（インターフェース）</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>OrderRepository</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo::Role</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>requires</span> <span class=s>&#39;save&#39;</span><span class=p>;</span>           <span class=c1># ($order) → $order (id付与済み)</span>
+</span></span><span class=line><span class=cl>    <span class=n>requires</span> <span class=s>&#39;find_by_id&#39;</span><span class=p>;</span>     <span class=c1># ($id)    → $order | undef</span>
+</span></span><span class=line><span class=cl>    <span class=n>requires</span> <span class=s>&#39;search&#39;</span><span class=p>;</span>         <span class=c1># (%criteria) → [$order, ...]</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<code>OrderRepository</code> ロールが弁護士の資格要件だ。<code>save</code>、<code>find_by_id</code>、<code>search</code>——この3つを実装できなければ、弁護士にはなれない。そして弁護士は2人用意する」</p><p>ロックさんはホワイトボードに2つの箱を書いた。</p><p>「1人目は本番用。DBI を使って実際のデータベースに問い合わせる」</p><p>【After】DbiOrderRepository（本番用）</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>DbiOrderRepository</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>with</span> <span class=s>&#39;OrderRepository&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>dbh</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>save</span> <span class=p>($self, $order) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$dbh</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>dbh</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=nv>$order</span><span class=o>-&gt;</span><span class=n>id</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$dbh</span><span class=o>-&gt;</span><span class=k>do</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>                <span class=s>&#34;UPDATE orders SET customer=?, status=?, items=? WHERE id=?&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>                <span class=nv>$order</span><span class=o>-&gt;</span><span class=n>customer</span><span class=p>,</span> <span class=nv>$order</span><span class=o>-&gt;</span><span class=n>status</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>                <span class=n>_serialize</span><span class=p>(</span><span class=nv>$order</span><span class=o>-&gt;</span><span class=n>items</span><span class=p>),</span> <span class=nv>$order</span><span class=o>-&gt;</span><span class=n>id</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=k>else</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$dbh</span><span class=o>-&gt;</span><span class=k>do</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>                <span class=s>&#34;INSERT INTO orders (customer, status, items) VALUES (?, ?, ?)&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>                <span class=nv>$order</span><span class=o>-&gt;</span><span class=n>customer</span><span class=p>,</span> <span class=nv>$order</span><span class=o>-&gt;</span><span class=n>status</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>                <span class=n>_serialize</span><span class=p>(</span><span class=nv>$order</span><span class=o>-&gt;</span><span class=n>items</span><span class=p>),</span>
+</span></span><span class=line><span class=cl>            <span class=p>);</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$order</span><span class=o>-&gt;</span><span class=n>id</span><span class=p>(</span><span class=nv>$dbh</span><span class=o>-&gt;</span><span class=n>last_insert_id</span><span class=p>(</span><span class=nb>undef</span><span class=p>,</span> <span class=nb>undef</span><span class=p>,</span> <span class=s>&#39;orders&#39;</span><span class=p>,</span> <span class=s>&#39;id&#39;</span><span class=p>));</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$order</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>find_by_id</span> <span class=p>($self, $id) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$row</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>dbh</span><span class=o>-&gt;</span><span class=n>selectrow_hashref</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=s>&#34;SELECT * FROM orders WHERE id = ?&#34;</span><span class=p>,</span> <span class=nb>undef</span><span class=p>,</span> <span class=nv>$id</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nb>undef</span> <span class=k>unless</span> <span class=nv>$row</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nn>Order</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=n>id</span> <span class=o>=&gt;</span> <span class=nv>$row</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>id</span><span class=p>},</span> <span class=n>customer</span> <span class=o>=&gt;</span> <span class=nv>$row</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>customer</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>            <span class=n>items</span> <span class=o>=&gt;</span> <span class=nv>$row</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>items</span><span class=p>},</span> <span class=n>status</span> <span class=o>=&gt;</span> <span class=nv>$row</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>status</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>        <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>search</span> <span class=p>($self, %criteria) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$rows</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>dbh</span><span class=o>-&gt;</span><span class=n>selectall_arrayref</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=s>&#34;SELECT * FROM orders WHERE status = ?&#34;</span><span class=p>,</span> <span class=p>{</span> <span class=n>Slice</span> <span class=o>=&gt;</span> <span class=p>{}</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$criteria</span><span class=p>{</span><span class=n>status</span><span class=p>}</span> <span class=sr>//</span> <span class=s>&#39;draft&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=p>[</span> <span class=nb>map</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nn>Order</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>                <span class=n>id</span> <span class=o>=&gt;</span> <span class=nv>$_</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>id</span><span class=p>},</span> <span class=n>customer</span> <span class=o>=&gt;</span> <span class=nv>$_</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>customer</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>                <span class=n>items</span> <span class=o>=&gt;</span> <span class=nv>$_</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>items</span><span class=p>},</span> <span class=n>status</span> <span class=o>=&gt;</span> <span class=nv>$_</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>status</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>            <span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span> <span class=nv>@$rows</span> <span class=p>];</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「SQL は <code>DbiOrderRepository</code> の中に閉じ込められた。Order は SQL の存在すら知らない」</p><p>「それはわかります。でも結局、テストでは <code>DbiOrderRepository</code> を使うんですよね？ だとしたらテスト用のDBは依然として必要で——」</p><p>「だから2人目の弁護士を立てる」</p><p>ロックさんはホワイトボードの2つ目の箱を指した。</p><p>「本番用の弁護士はデータベースと話す。テスト用の弁護士はハッシュと話す。同じ資格を持った別人だ」</p><p>【After】InMemoryOrderRepository（テスト用）</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>InMemoryOrderRepository</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>with</span> <span class=s>&#39;OrderRepository&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>_store</span>   <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=p>{}</span> <span class=p>}</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>has</span> <span class=n>_next_id</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>save</span> <span class=p>($self, $order) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>unless</span> <span class=p>(</span><span class=nv>$order</span><span class=o>-&gt;</span><span class=n>id</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$order</span><span class=o>-&gt;</span><span class=n>id</span><span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_next_id</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_next_id</span><span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_next_id</span> <span class=o>+</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>_store</span><span class=o>-&gt;</span><span class=p>{</span><span class=nv>$order</span><span class=o>-&gt;</span><span class=n>id</span><span class=p>}</span> <span class=o>=</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=n>id</span>       <span class=o>=&gt;</span> <span class=nv>$order</span><span class=o>-&gt;</span><span class=n>id</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>customer</span> <span class=o>=&gt;</span> <span class=nv>$order</span><span class=o>-&gt;</span><span class=n>customer</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>items</span>    <span class=o>=&gt;</span> <span class=p>[</span> <span class=nb>map</span> <span class=p>{</span> <span class=p>{</span><span class=nv>%$_</span><span class=p>}</span> <span class=p>}</span> <span class=nv>$order</span><span class=o>-&gt;</span><span class=nn>items</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span> <span class=err>]</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>status</span>   <span class=o>=&gt;</span> <span class=nv>$order</span><span class=o>-&gt;</span><span class=n>status</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>};</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$order</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>find_by_id</span> <span class=p>($self, $id) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$data</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>_store</span><span class=o>-&gt;</span><span class=p>{</span><span class=nv>$id</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nb>undef</span> <span class=k>unless</span> <span class=nv>$data</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nn>Order</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=n>id</span>       <span class=o>=&gt;</span> <span class=nv>$data</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>id</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>            <span class=n>customer</span> <span class=o>=&gt;</span> <span class=nv>$data</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>customer</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>            <span class=n>items</span>    <span class=o>=&gt;</span> <span class=p>[</span> <span class=nb>map</span> <span class=p>{</span> <span class=p>{</span><span class=nv>%$_</span><span class=p>}</span> <span class=p>}</span> <span class=nv>$data</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>items</span><span class=p>}</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span> <span class=err>]</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>status</span>   <span class=o>=&gt;</span> <span class=nv>$data</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>status</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>        <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>search</span> <span class=p>($self, %criteria) {</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>@results</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>for</span> <span class=k>my</span> <span class=nv>$data</span> <span class=p>(</span><span class=nb>values</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>_store</span><span class=o>-&gt;</span><span class=nv>%</span><span class=err>*</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=k>if</span> <span class=p>(</span><span class=nv>$criteria</span><span class=p>{</span><span class=n>status</span><span class=p>})</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>                <span class=k>next</span> <span class=k>unless</span> <span class=nv>$data</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>status</span><span class=p>}</span> <span class=ow>eq</span> <span class=nv>$criteria</span><span class=p>{</span><span class=n>status</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>            <span class=p>}</span>
+</span></span><span class=line><span class=cl>            <span class=nb>push</span> <span class=nv>@results</span><span class=p>,</span> <span class=nn>Order</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>                <span class=n>id</span>       <span class=o>=&gt;</span> <span class=nv>$data</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>id</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>                <span class=n>customer</span> <span class=o>=&gt;</span> <span class=nv>$data</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>customer</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>                <span class=n>items</span>    <span class=o>=&gt;</span> <span class=p>[</span> <span class=nb>map</span> <span class=p>{</span> <span class=p>{</span><span class=nv>%$_</span><span class=p>}</span> <span class=p>}</span> <span class=nv>$data</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>items</span><span class=p>}</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span> <span class=err>]</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>                <span class=n>status</span>   <span class=o>=&gt;</span> <span class=nv>$data</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>status</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>            <span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=o>\</span><span class=nv>@results</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>count</span> <span class=p>($self) {</span> <span class=nb>scalar</span> <span class=nb>keys</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>_store</span><span class=o>-&gt;</span><span class=nv>%</span><span class=err>*</span> <span class=err>}</span>
+</span></span><span class=line><span class=cl><span class=err>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<code>InMemoryOrderRepository</code> はPerlのハッシュだけでデータを保持する。DBは不要。SQL も不要。テストでこれを使えば、データベース接続なしで保存・検索・取得ができる」</p><p>僕は少し考えた。Order と Repository が完全に別のクラスになった。Order は自分のビジネスルールだけを知っている。保存先がMySQLなのか、ハッシュなのか、ファイルなのかは知らない。Repository が <code>with 'OrderRepository'</code> で同じロールを実装している以上、呼び出し側からは区別がつかない——つまりテストと本番で差し替えるだけだ。</p><p>「使い方はこうなりますか」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># 本番コード</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$repo</span> <span class=o>=</span> <span class=nn>DbiOrderRepository</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>dbh</span> <span class=o>=&gt;</span> <span class=nv>$dbh</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$order</span> <span class=o>=</span> <span class=nn>Order</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>customer</span> <span class=o>=&gt;</span> <span class=s>&#39;株式会社X&#39;</span><span class=p>,</span> <span class=n>items</span> <span class=o>=&gt;</span> <span class=o>\</span><span class=nv>@items</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$order</span><span class=o>-&gt;</span><span class=n>confirm</span><span class=p>();</span>
+</span></span><span class=line><span class=cl><span class=nv>$repo</span><span class=o>-&gt;</span><span class=n>save</span><span class=p>(</span><span class=nv>$order</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># テストコード — DB 不要！</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$repo</span> <span class=o>=</span> <span class=nn>InMemoryOrderRepository</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$order</span> <span class=o>=</span> <span class=nn>Order</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>customer</span> <span class=o>=&gt;</span> <span class=s>&#39;テスト社&#39;</span><span class=p>,</span> <span class=n>items</span> <span class=o>=&gt;</span> <span class=o>\</span><span class=nv>@items</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$order</span><span class=o>-&gt;</span><span class=n>confirm</span><span class=p>();</span>
+</span></span><span class=line><span class=cl><span class=nv>$repo</span><span class=o>-&gt;</span><span class=n>save</span><span class=p>(</span><span class=nv>$order</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$found</span> <span class=o>=</span> <span class=nv>$repo</span><span class=o>-&gt;</span><span class=n>find_by_id</span><span class=p>(</span><span class=nv>$order</span><span class=o>-&gt;</span><span class=n>id</span><span class=p>);</span>
+</span></span></code></pre></td></tr></table></div></div><p>「その通り」ロックさんが頷いた。「本番とテストでRepositoryを差し替えるだけだ。Order のコードは1行も変わらない」</p><pre class=mermaid>
+	graph TD
+    subgraph &#34;Order（純粋なドメインモデル）&#34;
+        BL[&#34;ビジネスロジック&lt;br/&gt;total / confirm / ship / cancel&#34;]
+    end
+
+    subgraph &#34;OrderRepository ロール&#34;
+        R[&#34;requires save&lt;br/&gt;requires find_by_id&lt;br/&gt;requires search&#34;]
+    end
+
+    subgraph &#34;具象 Repository&#34;
+        DBI[&#34;DbiOrderRepository&lt;br/&gt;（本番用・DBI使用）&#34;]
+        MEM[&#34;InMemoryOrderRepository&lt;br/&gt;（テスト用・ハッシュ）&#34;]
+    end
+
+    DBI --&gt;|&#34;with&#34;| R
+    MEM --&gt;|&#34;with&#34;| R
+
+    DBI --&gt;|&#34;SQL&#34;| DB[&#34;Database&#34;]
+    MEM --&gt;|&#34;ハッシュ&#34;| HASH[&#34;メモリ&#34;]
+
+    style BL fill:#9f9,stroke:#333
+    style MEM fill:#9f9,stroke:#333
+    style R fill:#9f9,stroke:#333
+</pre><p>「Before では Order の中にビジネスロジックとデータアクセスが一体化していた。After では完全に分離されている。Order は緑——テストにDBが要らない」</p><p>「一つ確認させてください」僕はまだ気になっていることがあった。「今のOrderHubには <code>Order->find_by_id</code> を直接呼んでいる箇所が40近くあります。それを全部 <code>$repo->find_by_id</code> に書き換えるんですよね。移行の工数はどれくらいかかりますか」</p><p>「呼び出し側の変更は機械的だ。<code>Order->find_by_id($dbh, $id)</code> を <code>$repo->find_by_id($id)</code> に置き換えるだけ。パターンが統一されているなら、正規表現の一括置換でほぼ片付く。厄介なのは <code>$repo</code> の生成場所を決めることだが、それはアプリケーションの初期化時に1箇所で行えばいい」</p><p>実際にやってみないとわからない部分はあるが、40箇所の単純な書き換えと、1箇所のリポジトリ初期化。30分のテストが数秒になる見返りとしては、十分に合う計算だ。</p><p>「Repository のインターフェースが増えてきたらどうなりますか。<code>search</code> の条件が複雑になって、メソッドが10個も20個もできたら——」</p><p>「そのときは Query Object パターンや Specification パターンで検索条件そのものをオブジェクト化する手がある。だがまずは <code>save</code>、<code>find_by_id</code>、<code>search</code> の3メソッドで始めるべきだ。弁護士を増やしすぎると、今度は弁護士団の管理に追われることになる」</p><h2 id=解決30分が3秒になった日>解決：30分が3秒になった日</h2><p>ロックさんがテストを実行した。ターミナルの出力を僕も横から見た。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl>$ prove -v t/repository.t
+</span></span><span class=line><span class=cl><span class=c1># Subtest: Before: Fat Model</span>
+</span></span><span class=line><span class=cl>    ok <span class=m>1</span> - Total: 1000*5 + 2000*3 <span class=o>=</span> <span class=m>11000</span>
+</span></span><span class=line><span class=cl>    ok <span class=m>2</span> - Status changed to confirmed
+</span></span><span class=line><span class=cl>    ok <span class=m>3</span> - save<span class=o>()</span> was called inside confirm<span class=o>()</span> — id assigned
+</span></span><span class=line><span class=cl>    ok <span class=m>4</span> - Cannot create Order without dbh — Fat Model problem
+</span></span><span class=line><span class=cl>    ok <span class=m>5</span> - find_by_id requires <span class=nv>$dbh</span> as argument
+</span></span><span class=line><span class=cl>    ok <span class=m>6</span> - Found order has correct status
+</span></span><span class=line><span class=cl>    ok <span class=m>7</span> - search requires <span class=nv>$dbh</span> as argument
+</span></span><span class=line><span class=cl>    ok <span class=m>8</span> - PROBLEM: Every <span class=nb>test</span> needs a DB handle, even <span class=k>for</span> pure business logic
+</span></span><span class=line><span class=cl>ok <span class=m>1</span> - Before: Fat Model
+</span></span><span class=line><span class=cl><span class=c1># Subtest: After: Repository Pattern — Pure Business Logic (no DB)</span>
+</span></span><span class=line><span class=cl>    ok <span class=m>1</span> - Total: 1000*5 + 2000*3 <span class=o>=</span> <span class=m>11000</span> <span class=o>(</span>no DB needed<span class=o>)</span>
+</span></span><span class=line><span class=cl>    ok <span class=m>2</span> - confirm<span class=o>()</span> changes status without DB
+</span></span><span class=line><span class=cl>    ok <span class=m>3</span> - confirm<span class=o>()</span> does NOT call save<span class=o>()</span> — no side effects
+</span></span><span class=line><span class=cl>    ok <span class=m>4</span> - ship<span class=o>()</span> changes status without DB
+</span></span><span class=line><span class=cl>    ok <span class=m>5</span> - Cannot cancel a shipped order
+</span></span><span class=line><span class=cl>    ok <span class=m>6</span> - confirmed order can be cancelled
+</span></span><span class=line><span class=cl>    ok <span class=m>7</span> - FIX: All business logic tests run WITHOUT any DB handle
+</span></span><span class=line><span class=cl>ok <span class=m>2</span> - After: Repository Pattern — Pure Business Logic <span class=o>(</span>no DB<span class=o>)</span>
+</span></span><span class=line><span class=cl><span class=c1># Subtest: After: Repository Pattern — InMemoryRepository</span>
+</span></span><span class=line><span class=cl>    ok <span class=m>1</span> - save<span class=o>()</span> assigns id via Repository
+</span></span><span class=line><span class=cl>    ok <span class=m>2</span> - Repository has <span class=m>1</span> order
+</span></span><span class=line><span class=cl>    ok <span class=m>3</span> - find_by_id returns correct order
+</span></span><span class=line><span class=cl>    ok <span class=m>4</span> - Found order has correct status
+</span></span><span class=line><span class=cl>    ok <span class=m>5</span> - Status updated after save
+</span></span><span class=line><span class=cl>    ok <span class=m>6</span> - Repository has <span class=m>2</span> orders
+</span></span><span class=line><span class=cl>    ok <span class=m>7</span> - search<span class=o>(</span><span class=nv>status</span> <span class=o>=</span>&gt; draft<span class=o>)</span> returns <span class=m>1</span> order
+</span></span><span class=line><span class=cl>    ok <span class=m>8</span> - Draft order is テスト社
+</span></span><span class=line><span class=cl>    ok <span class=m>9</span> - search<span class=o>(</span><span class=nv>status</span> <span class=o>=</span>&gt; confirmed<span class=o>)</span> returns <span class=m>1</span> order
+</span></span><span class=line><span class=cl>    ok <span class=m>10</span> - Confirmed order is 株式会社タクミ
+</span></span><span class=line><span class=cl>ok <span class=m>3</span> - After: Repository Pattern — InMemoryRepository
+</span></span><span class=line><span class=cl><span class=c1># Subtest: After: Repository Pattern — DbiOrderRepository (same interface)</span>
+</span></span><span class=line><span class=cl>    ok <span class=m>1</span> - DbiOrderRepository assigns id
+</span></span><span class=line><span class=cl>    ok <span class=m>2</span> - DbiOrderRepository find_by_id works
+</span></span><span class=line><span class=cl>    ok <span class=m>3</span> - InMemoryOrderRepository implements OrderRepository role
+</span></span><span class=line><span class=cl>    ok <span class=m>4</span> - DbiOrderRepository implements OrderRepository role
+</span></span><span class=line><span class=cl>    ok <span class=m>5</span> - Both repositories share the same interface — swappable
+</span></span><span class=line><span class=cl>ok <span class=m>4</span> - After: Repository Pattern — DbiOrderRepository <span class=o>(</span>same interface<span class=o>)</span>
+</span></span><span class=line><span class=cl><span class=c1># Subtest: After: Repository Pattern — Testability comparison</span>
+</span></span><span class=line><span class=cl>    ok <span class=m>1</span> - Business logic test: no setup required
+</span></span><span class=line><span class=cl>    ok <span class=m>2</span> - State transition test: no setup required
+</span></span><span class=line><span class=cl>    ok <span class=m>3</span> - FIX: Business logic tests need ZERO infrastructure
+</span></span><span class=line><span class=cl>    ok <span class=m>4</span> - FIX: Test suite runs in seconds, not <span class=m>30</span> minutes
+</span></span><span class=line><span class=cl>ok <span class=m>5</span> - After: Repository Pattern — Testability comparison
+</span></span><span class=line><span class=cl>All tests successful.
+</span></span></code></pre></td></tr></table></div></div><p>Before のテスト4——<code>dbh</code> なしでは Order を生成すらできない。After のテスト1〜3——DB なしでビジネスロジックが完全にテストできる。テスト3をもう一度見た。<code>confirm()</code> は <code>save()</code> を呼ばない。副作用がゼロだ。</p><p>テスト3と4——<code>InMemoryOrderRepository</code> と <code>DbiOrderRepository</code> は同じロールを実装している。インターフェースが同じだから、差し替えるだけで本番とテストを切り替えられる。</p><p>「30分が——」声が出た。</p><p>「3秒だ」</p><p>ロックさんはPCの画面を閉じ、エナジードリンクの缶を持って立ち上がった。</p><p>「一つだけ」背中越しに言った。「Repository に <code>confirm_and_save</code> というメソッドを生やしたくなったら、それは弁護士にビジネスの判断をさせているということだ。弁護士の仕事は書類の保管と返却だけでいい」</p><p>それだけ言うと、会議室を出ていった。</p><p>僕はしばらく <code>All tests successful.</code> の画面を眺めていた。3年前、まだOrderHubが小さかったころ、<code>Order</code> に <code>save</code> を書いたのは僕だ。それが間違いだったとは思わない。あのときはあれで回っていた。でも3年間の機能追加で、Order は自分のビジネスルールだけでなく、どのテーブルに住んでいるか、どんなSQLで呼ばれるかまで知ることになった。知りすぎた容疑者は黙秘する——確かにそうだ。DBがなければテストに応じないモデルは、黙秘しているのと同じだった。</p><p>チームのSlackを開いた。</p><p>「テストスイートの高速化、目処が立ちました。来週のスプリントで <code>Order</code> のリファクタリングに着手します。方針：ビジネスロジックとデータアクセスの分離。詳細は明日のスタンドアップで共有します」</p><p>送信ボタンを押してから、もう一つ書き足した。</p><p>「高木さん、紹介ありがとうございました。確かに変わった人でしたが、腕は確かでした」</p><hr><h2 id=探偵の調査報告書>探偵の調査報告書</h2><div class=table-wrapper><table><thead><tr><th style=text-align:left>容疑（アンチパターン）</th><th style=text-align:left>真実（パターン）</th><th style=text-align:left>証拠（効果）</th></tr></thead><tbody><tr><td style=text-align:left>Fat Model（ファットモデル）。Order クラスにビジネスロジック（ステータス遷移・合計計算）とデータアクセス（SQL直書き・DBI操作）が混在。コンストラクタに <code>$dbh</code> が必須となり、ビジネスロジックのテストにもDB接続が必要。テストスイートが30分かかり、CIがタイムアウトで破綻。</td><td style=text-align:left>Repository パターン。データアクセスを <code>OrderRepository</code> ロールとして分離し、本番用（<code>DbiOrderRepository</code>）とテスト用（<code>InMemoryOrderRepository</code>）を差し替え可能にする。Order は純粋なドメインモデルとなり、DB依存なしでテスト可能に。</td><td style=text-align:left>Order クラスから <code>dbh</code>・<code>save</code>・<code>find_by_id</code>・<code>search</code> を除去。ビジネスロジックのテストにDB接続が不要に。テスト実行時間が30分→数秒に短縮。<code>InMemoryOrderRepository</code> と <code>DbiOrderRepository</code> が同一のロールを実装し、差し替え可能。</td></tr></tbody></table></div><h3 id=推理のステップ>推理のステップ</h3><ol><li>ビジネスロジックとデータアクセスを特定する: モデルクラスのメソッドを「ドメインの振る舞い（total, confirm, ship）」と「永続化操作（save, find_by_id, search）」に分類する。両者が混在しているのが Fat Model のにおい</li><li>Repository ロールを定義する: <code>save</code>、<code>find_by_id</code>、<code>search</code> の3メソッドを <code>requires</code> で宣言した <code>OrderRepository</code> ロールを作る。これがデータアクセスの契約書となる</li><li>モデルからデータアクセスを除去する: <code>has dbh</code> を削除し、<code>confirm</code> 内の <code>$self->save()</code> 呼び出しを除去する。永続化は呼び出し側（サービス層）の責務にする</li><li>具象 Repository を2つ実装する: <code>DbiOrderRepository</code>（本番用・DBI経由）と <code>InMemoryOrderRepository</code>（テスト用・ハッシュ保持）。同じロールを実装しているため、差し替えるだけで本番とテストを切り替えられる</li></ol><h3 id=ロックより>ロックより</h3><p>知りすぎたモデルは黙秘する。「DBがなければ何も話さない」——これが Fat Model の正体だ。</p><p>Repository パターンの本質は「知識の分離」にある。Order は自分のビジネスルールだけを知っていればいい。どこに保存されるか、どんなSQLで呼ばれるかは、Repository の仕事だ。Repository を差し替えれば、テストはDBなしで数秒で終わる。</p><p>ただし、Repository にビジネスロジックを混ぜてはいけない。<code>confirm_and_save</code> のようなメソッドを生やし始めたら、それは Fat Model の亡霊が Repository に取り憑いたということだ。Repository の仕事は <code>save</code>、<code>find_by_id</code>、<code>search</code>——保管と返却だけ。それ以上のことを知る必要はない。</p></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/perl/>Perl</a>
+<a href=/tags/moo/>Moo</a>
+<a href=/tags/repository/>Repository</a>
+<a href=/tags/fat-model/>Fat-Model</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-detective/>Code-Detective</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/05/15/070705/><div class=article-image><img src=/public_images/2026/code-detective-bff/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-bff/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Backends for Frontends】最後の依頼〜一つの答えが全員を不満にする夜〜</h2></div></a></article><article class=has-image><a href=/2026/05/14/070705/><div class=article-image><img src=/public_images/2026/code-detective-api-gateway/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-api-gateway/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【API Gateway】窓口のない捜査本部〜マイクロサービスに個別に会いに行く悲劇〜</h2></div></a></article><article class=has-image><a href=/2026/05/13/070705/><div class=article-image><img src=/public_images/2026/code-detective-strangler-fig/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-strangler-fig/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Strangler Fig】外壁に伸びる蔓〜全面更改が新旧を窒息させる夜〜</h2></div></a></article><article class=has-image><a href=/2026/05/12/070705/><div class=article-image><img src=/public_images/2026/code-detective-anti-corruption-layer/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-anti-corruption-layer/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Anti-Corruption Layer】越境伝票の怪〜外様の略語が捜査本部を汚す夜〜</h2></div></a></article><article class=has-image><a href=/2026/05/11/070705/><div class=article-image><img src=/public_images/2026/code-detective-competing-consumers/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-competing-consumers/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Competing Consumers】重なる受領印〜増員だけでは消えない二重処理〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

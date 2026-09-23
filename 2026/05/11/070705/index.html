@@ -1,0 +1,388 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="単一コンシューマで詰まる出荷指示キューを、Competing Consumers と idempotency で安全に並列化します"><title>コード探偵ロックの事件簿【Competing Consumers】重なる受領印〜増員だけでは消えない二重処理〜</title><link rel=canonical href=https://www.nqou.net/2026/05/11/070705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コード探偵ロックの事件簿【Competing Consumers】重なる受領印〜増員だけでは消えない二重処理〜"><meta property='og:description' content="単一コンシューマで詰まる出荷指示キューを、Competing Consumers と idempotency で安全に並列化します"><meta property='og:url' content='https://www.nqou.net/2026/05/11/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='perl'><meta property='article:tag' content='moo'><meta property='article:tag' content='competing-consumers'><meta property='article:tag' content='single-consumer'><meta property='article:tag' content='duplicate-processing'><meta property='article:tag' content='idempotency'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-detective'><meta property='article:published_time' content='2026-05-11T07:07:05+09:00'><meta property='article:modified_time' content='2026-05-11T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-detective-competing-consumers/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コード探偵ロックの事件簿【Competing Consumers】重なる受領印〜増員だけでは消えない二重処理〜"><meta name=twitter:description content="単一コンシューマで詰まる出荷指示キューを、Competing Consumers と idempotency で安全に並列化します"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-detective-competing-consumers/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-05-11T07:07:05+09:00","datePublished":"2026-05-11T07:07:05+09:00","description":"単一コンシューマで詰まる出荷指示キューを、Competing Consumers と idempotency で安全に並列化します","headline":"コード探偵ロックの事件簿【Competing Consumers】重なる受領印〜増員だけでは消えない二重処理〜","image":"https://www.nqou.net/public_images/2026/code-detective-competing-consumers/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/05/11/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#正午前の出荷管制室>正午前の出荷管制室</a></li><li><a href=#現場検証---一人では詰まり増やすと重なる>現場検証 - 一人では詰まり、増やすと重なる</a><ol><li><a href=#beforeコード-単一ワーカーが全件を抱える>Beforeコード: 単一ワーカーが全件を抱える</a></li></ol></li><li><a href=#推理披露---claim-は一回性ではない>推理披露 - claim は一回性ではない</a></li><li><a href=#推理披露---競わせるのは-worker重ねないのは-idempotency-key>推理披露 - 競わせるのは worker、重ねないのは idempotency key</a><ol><li><a href=#afterコード-stable-な-messageenvelope>Afterコード: stable な MessageEnvelope</a></li><li><a href=#afterコード-worker-は-ledger-と-queue-の契約を守る>Afterコード: worker は ledger と queue の契約を守る</a></li><li><a href=#順序が必要なメッセージは別に扱う>順序が必要なメッセージは別に扱う</a></li></ol></li><li><a href=#解決---テストで-throughput-と-duplicate-抑制を確認する>解決 - テストで throughput と duplicate 抑制を確認する</a><ol><li><a href=#beforeテスト-単一ワーカーは一件ずつしか進まない>Beforeテスト: 単一ワーカーは一件ずつしか進まない</a></li><li><a href=#beforeテスト-ack-前障害で同じ仕事が二度走る>Beforeテスト: ack 前障害で同じ仕事が二度走る</a></li><li><a href=#afterテスト-三人で三件進めつつ重複を抑える>Afterテスト: 三人で三件進めつつ、重複を抑える</a></li><li><a href=#afterテスト-同じ-idempotency-key-の再配信でも副作用は一回>Afterテスト: 同じ idempotency key の再配信でも副作用は一回</a></li></ol></li><li><a href=#監視画面の数字が変わるとき>監視画面の数字が変わるとき</a></li><li><a href=#探偵の調査報告書>探偵の調査報告書</a><ol><li><a href=#推理のステップ>推理のステップ</a></li><li><a href=#ロックより>ロックより</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/05/11/070705/><img src=/public_images/2026/code-detective-competing-consumers/header.webp loading=lazy alt="Featured image of post コード探偵ロックの事件簿【Competing Consumers】重なる受領印〜増員だけでは消えない二重処理〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/05/11/070705/>コード探偵ロックの事件簿【Competing Consumers】重なる受領印〜増員だけでは消えない二重処理〜</a></h2><h3 class=article-subtitle>単一コンシューマで詰まる出荷指示キューを、Competing Consumers と idempotency で安全に並列化します</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>11, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 10分</time></div></footer></div></header><section class=article-content><h2 id=正午前の出荷管制室>正午前の出荷管制室</h2><p>正午の十五分前、出荷管制室の空気は、空調ではどうにもならない種類の熱を帯びていた。</p><p>壁のモニタには、配送締切までの残り時間と、出荷指示キューの監視画面が並んでいた。ラベルプリンタは止まっていない。むしろ動き続けている。なのに、一覧の数字だけが悪い方向へ揃っていた。</p><p><code>depth 18,400 / oldest age 38m / duplicate reservation 37</code></p><p>前日の incident review で、別チームが DLQ の件を妙な探偵に片づけてもらった、という話を聞いた。議事メモには「雑居ビルの三階の変人」としか書かれていなかったけれど、今日の私はその曖昧さを笑っていられる状況ではなかった。事務所まで行く時間はない。出荷管制室に来てもらった。</p><p>その人は、私が説明を始める前に、机の隅に積まれた未処理伝票を三列に分けていた。受領スタンプ台まで引き寄せている。</p><p>「ワトソン君。列を増やしたのに、受領印まで重なったのだね」</p><p>「私はその役ではありません」</p><p>反射的に訂正してから、私はすぐにモニタを指した。</p><p>「depth は下がり始めました。でも duplicate reservation が三十七件です。単一ワーカーでは締切に間に合わなくて、四台に増やしたら今度は倉庫 API への予約が二重になりました」</p><p>ロックさんは私のノートPCではなく、伝票の束を見ていた。</p><p>「一人では捌ききれず、人数を増やしたら同じ札が二度数えられた。結構。今日は速さそのものではなく、受け渡しの契約を調べよう」</p><p>その言い方で、今回の問題がただのスケール不足ではないことが分かった。</p><p>Competing Consumers の肝は、ワーカーを増やすことではありません。各メッセージを複数のコンシューマが安全に奪い合えるようにしながら、同じ仕事が再配信されても副作用を二重に起こさないことです。</p><h2 id=現場検証---一人では詰まり増やすと重なる>現場検証 - 一人では詰まり、増やすと重なる</h2><p>いまの実装は、単一ワーカーが一件ずつ受け取り、外部倉庫 API に予約を送り、その後で ack するだけの構造でした。</p><h3 id=beforeコード-単一ワーカーが全件を抱える>Beforeコード: 単一ワーカーが全件を抱える</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>SerialShipmentWorker</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(InstanceOf)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>queue</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>isa</span>      <span class=o>=&gt;</span> <span class=n>InstanceOf</span><span class=p>[</span><span class=s>&#39;DeliveryQueue&#39;</span><span class=p>],</span>
+</span></span><span class=line><span class=cl>    <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>gateway</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>isa</span>      <span class=o>=&gt;</span> <span class=n>InstanceOf</span><span class=p>[</span><span class=s>&#39;WarehouseGateway&#39;</span><span class=p>],</span>
+</span></span><span class=line><span class=cl>    <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>process_next</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$message</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>queue</span><span class=o>-&gt;</span><span class=n>receive</span> <span class=ow>or</span> <span class=k>return</span> <span class=s>&#39;idle&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$ok</span> <span class=o>=</span> <span class=nb>eval</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>gateway</span><span class=o>-&gt;</span><span class=n>reserve</span><span class=p>(</span> <span class=nv>$message</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>shipment_id</span><span class=p>}</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=mi>1</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=nv>$ok</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>queue</span><span class=o>-&gt;</span><span class=n>ack</span><span class=p>(</span> <span class=nv>$message</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>message_id</span><span class=p>}</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=s>&#39;acked&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>queue</span><span class=o>-&gt;</span><span class=n>release</span><span class=p>(</span> <span class=nv>$message</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>message_id</span><span class=p>}</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=s>&#39;retry&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>私はこのコードを見せながら、先に弁解を口にしていた。</p><p>「単一ワーカーなのは、もともと安全側に倒したかったからです。倉庫 API は遅いし、重複予約の防御も薄い。だから最初は一人で回していました」</p><p>「それ自体は悪くない」</p><p>ロックさんはあっさり言った。</p><p>「一人で持てる量しか来ないならね。だが今日は違う。列は君の慎重さを待ってくれない」</p><p>そこまでは、私も分かっていた。問題はその先だった。四台に増やした瞬間、処理速度は上がった。なのに、同じ <code>shipment_id</code> に対して外部倉庫側の受領番号が二つ返るケースが出た。</p><p>「でも queue は一件を一人にしか渡さないはずです」</p><p>「受け取った瞬間に、事件が終わるのかね」</p><p>私は言葉を止めた。</p><p>ロックさんはホワイトボードに三つだけ書いた。</p><p><code>claim / reserve / ack</code></p><p>「君たちが一回だと思い込んでいるのは、どれだ」</p><p>「……claim です」</p><p>「そこだ。claim は一時的な専有権にすぎない。<code>reserve</code> のあと、<code>ack</code> の前に係が倒れれば、その伝票は未受領として戻ってくる。次の係がもう一度押す」</p><p>それで、ようやく duplicate reservation の正体が腹に落ちた。</p><p>Queue が保証していたのは、その瞬間、そのメッセージを誰が処理中かという排他だけだった。副作用が一回しか起きないことまでは保証していない。そこを埋めないままワーカーだけ増やしたから、問題の性質が「遅い」から「重なる」に変わった。</p><h2 id=推理披露---claim-は一回性ではない>推理披露 - claim は一回性ではない</h2><p>私はもう一度、ホワイトボードの三つの単語を見た。</p><p>「つまり、増員そのものが危険なのではなくて、<code>reserve</code> と <code>ack</code> の間が無防備なんですね」</p><p>「結構。Competing Consumers は並列化の技法だが、同時に再配信の現実を引き受ける設計でもある」</p><p>「再配信は避けられない」</p><p>「少なくとも、避けられるものとして振る舞うべきではない」</p><p>この切り分けは大事です。Competing Consumers を使うと、各メッセージはその時点で空いているコンシューマに分配されます。だから throughput は上がります。しかし broker 側の <code>claim</code> や lock は、せいぜい「今はこの係が持っている」という一時的な専有権です。</p><p>外部 API 呼び出しや DB 更新のような副作用は、その外側にあります。副作用の成功と broker ack の間に障害が挟まれば、メッセージは再配信されます。ここで冪等性がなければ、同じ仕事が二回実行されます。</p><p>言い換えると、Competing Consumers は「メッセージを複数人で捌く」パターンですが、「副作用を一回しか起こさない」ことは別途設計しなければなりません。</p><h2 id=推理披露---競わせるのは-worker重ねないのは-idempotency-key>推理披露 - 競わせるのは worker、重ねないのは idempotency key</h2><p>ロックさんは、三列に分けた伝票の先頭に、それぞれ小さな付箋を置いた。</p><p>「札を付けたまえ、ワトソン君。同じ仕事なら、誰が拾っても同じ札だ」</p><p>「idempotency key」</p><p>「そう。message の中だけに閉じ込めず、倉庫 API にもその札を見せる」</p><p>After では、メッセージ自体に stable な <code>idempotency_key</code> を持たせます。Queue は visible と in-flight を分けて <code>claim_next</code> で分配し、worker は共有の <code>IdempotencyLedger</code> を見ながら処理します。</p><h3 id=afterコード-stable-な-messageenvelope>Afterコード: stable な MessageEnvelope</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>MessageEnvelope</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(HashRef Int Str)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>message_id</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>isa</span>      <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>shipment_id</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>isa</span>      <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>idempotency_key</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>isa</span>      <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>payload</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>isa</span>      <span class=o>=&gt;</span> <span class=n>HashRef</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>delivery_attempt</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>      <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>isa</span>     <span class=o>=&gt;</span> <span class=n>Int</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=mi>0</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=afterコード-worker-は-ledger-と-queue-の契約を守る>Afterコード: worker は ledger と queue の契約を守る</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Role::Worker</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo::Role</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>requires</span> <span class=sx>qw(consumer_id queue gateway ledger)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>process_once</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$message</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>queue</span><span class=o>-&gt;</span><span class=n>claim_next</span><span class=p>(</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>consumer_id</span> <span class=p>)</span> <span class=ow>or</span> <span class=k>return</span> <span class=s>&#39;idle&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$claim</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>ledger</span><span class=o>-&gt;</span><span class=n>claim</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$message</span><span class=o>-&gt;</span><span class=n>idempotency_key</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>consumer_id</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span> <span class=nv>$claim</span> <span class=ow>eq</span> <span class=s>&#39;completed&#39;</span> <span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>queue</span><span class=o>-&gt;</span><span class=n>ack</span><span class=p>(</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>consumer_id</span><span class=p>,</span> <span class=nv>$message</span><span class=o>-&gt;</span><span class=n>message_id</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=s>&#39;duplicate&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$ok</span> <span class=o>=</span> <span class=nb>eval</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>gateway</span><span class=o>-&gt;</span><span class=n>reserve</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$message</span><span class=o>-&gt;</span><span class=n>shipment_id</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$message</span><span class=o>-&gt;</span><span class=n>idempotency_key</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=mi>1</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=o>!</span><span class=nv>$ok</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>ledger</span><span class=o>-&gt;</span><span class=n>release</span><span class=p>(</span> <span class=nv>$message</span><span class=o>-&gt;</span><span class=n>idempotency_key</span><span class=p>,</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>consumer_id</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>queue</span><span class=o>-&gt;</span><span class=n>release</span><span class=p>(</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>consumer_id</span><span class=p>,</span> <span class=nv>$message</span><span class=o>-&gt;</span><span class=n>message_id</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=s>&#39;retry&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>ledger</span><span class=o>-&gt;</span><span class=n>complete</span><span class=p>(</span> <span class=nv>$message</span><span class=o>-&gt;</span><span class=n>idempotency_key</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>queue</span><span class=o>-&gt;</span><span class=n>ack</span><span class=p>(</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>consumer_id</span><span class=p>,</span> <span class=nv>$message</span><span class=o>-&gt;</span><span class=n>message_id</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=s>&#39;acked&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>ここで効いているのは、単なるワーカー増員ではありません。</p><ol><li>Queue は <code>claim_next</code> によって、その瞬間に空いている worker へメッセージを配る</li><li>Worker は stable な <code>idempotency_key</code> を共有 ledger に照会する</li><li>外部倉庫 API にも同じ key を渡す</li><li>成功後だけ <code>ack</code> し、失敗時は <code>release</code> する</li></ol><p>この設計にすると、問題の性質が変わります。ack 前に障害が起きても、再配信されたメッセージは同じ <code>idempotency_key</code> を持ちます。だから、外部 API 側がその key を見て二回目の副作用を無効化できます。さらに、アプリケーション側の ledger が「この仕事はもう完了した」と覚えていれば、あとから来た duplicate copy は gateway に触れずに ack して終えられます。</p><p>「つまり、queue の中だけで重複を防ごうとしない」</p><p>「その通り。副作用の相手にも、同じ札を見せるのだよ」</p><p>ここで私は、ようやく納得できた。parallelism と idempotency は別々の機能ではない。前者が速さを作り、後者がその速さを壊れないものにする。片方だけでは足りない。</p><h3 id=順序が必要なメッセージは別に扱う>順序が必要なメッセージは別に扱う</h3><p>ただし、全部を無条件に競わせてよいわけではありません。</p><p>私が気にしたのは、同じ注文に対する「出荷確定」と「取消」が同時に並ぶケースでした。これを別 worker が好きな順で処理したら、別の事故になります。</p><p>ロックさんはすぐに首を振った。</p><p>「何でも競わせるのではない。順序を守るべき仕事は group を切るか、単独係に戻す。Competing Consumers は万能薬ではなく、並列化してよい単位を選ぶための道具だ」</p><p>ここも重要です。Competing Consumers は待ち行列の詰まりを解消しますが、ordering を必要とする仕事まで無差別に parallel にしてよい、という話ではありません。独立したメッセージだけを競わせ、順序が必要なものは message group や単一 consumer で守る必要があります。</p><h2 id=解決---テストで-throughput-と-duplicate-抑制を確認する>解決 - テストで throughput と duplicate 抑制を確認する</h2><p>今回のコード例は、before と after の両方をテストで検証しています。</p><h3 id=beforeテスト-単一ワーカーは一件ずつしか進まない>Beforeテスト: 単一ワーカーは一件ずつしか進まない</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;single worker drains one message per poll and backlog remains&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$queue</span> <span class=o>=</span> <span class=nn>DeliveryQueue</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>enqueue_message</span><span class=p>(</span><span class=nv>$queue</span><span class=p>,</span> <span class=s>&#39;msg-001&#39;</span><span class=p>,</span> <span class=s>&#39;shipment-001&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>enqueue_message</span><span class=p>(</span><span class=nv>$queue</span><span class=p>,</span> <span class=s>&#39;msg-002&#39;</span><span class=p>,</span> <span class=s>&#39;shipment-002&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>enqueue_message</span><span class=p>(</span><span class=nv>$queue</span><span class=p>,</span> <span class=s>&#39;msg-003&#39;</span><span class=p>,</span> <span class=s>&#39;shipment-003&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$gateway</span> <span class=o>=</span> <span class=nn>WarehouseGateway</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$worker</span>  <span class=o>=</span> <span class=nn>SerialShipmentWorker</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>queue</span>   <span class=o>=&gt;</span> <span class=nv>$queue</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>gateway</span> <span class=o>=&gt;</span> <span class=nv>$gateway</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>is</span> <span class=nv>$worker</span><span class=o>-&gt;</span><span class=n>process_next</span><span class=p>,</span> <span class=s>&#39;acked&#39;</span><span class=p>,</span> <span class=s>&#39;first poll acks one message&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span> <span class=nv>$gateway</span><span class=o>-&gt;</span><span class=n>total_reservations</span><span class=p>,</span> <span class=mi>1</span><span class=p>,</span> <span class=s>&#39;exactly one shipment reserved&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span> <span class=nv>$queue</span><span class=o>-&gt;</span><span class=n>depth</span><span class=p>,</span> <span class=mi>2</span><span class=p>,</span> <span class=s>&#39;two messages remain in backlog&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span></code></pre></td></tr></table></div></div><p>一回の poll で進むのは一件だけです。これは小さなキューなら十分でも、流量が跳ねた瞬間にそのままボトルネックになります。</p><h3 id=beforeテスト-ack-前障害で同じ仕事が二度走る>Beforeテスト: ack 前障害で同じ仕事が二度走る</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;message can be reserved twice when crash happens before ack&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$queue</span> <span class=o>=</span> <span class=nn>DeliveryQueue</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>enqueue_message</span><span class=p>(</span><span class=nv>$queue</span><span class=p>,</span> <span class=s>&#39;msg-101&#39;</span><span class=p>,</span> <span class=s>&#39;shipment-101&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$gateway</span> <span class=o>=</span> <span class=nn>WarehouseGateway</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>fail_after_first_reserve_for</span> <span class=o>=&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=s>&#39;shipment-101&#39;</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$worker</span> <span class=o>=</span> <span class=nn>SerialShipmentWorker</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>queue</span>   <span class=o>=&gt;</span> <span class=nv>$queue</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>gateway</span> <span class=o>=&gt;</span> <span class=nv>$gateway</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>is</span> <span class=nv>$worker</span><span class=o>-&gt;</span><span class=n>process_next</span><span class=p>,</span> <span class=s>&#39;retry&#39;</span><span class=p>,</span> <span class=s>&#39;first poll releases message for retry&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span> <span class=nv>$worker</span><span class=o>-&gt;</span><span class=n>process_next</span><span class=p>,</span> <span class=s>&#39;acked&#39;</span><span class=p>,</span> <span class=s>&#39;second poll finally acks message&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span> <span class=nv>$gateway</span><span class=o>-&gt;</span><span class=n>reservation_count_for</span><span class=p>(</span><span class=s>&#39;shipment-101&#39;</span><span class=p>),</span> <span class=mi>2</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=s>&#39;shipment was reserved twice&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span></code></pre></td></tr></table></div></div><p>このテストが示しているのは、queue が一件を一人に渡しても、障害が <code>reserve</code> と <code>ack</code> の間で起きれば同じ仕事は再実行される、という事実です。</p><h3 id=afterテスト-三人で三件進めつつ重複を抑える>Afterテスト: 三人で三件進めつつ、重複を抑える</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;three workers drain three messages in one round&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$queue</span>   <span class=o>=</span> <span class=nn>DeliveryQueue</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$gateway</span> <span class=o>=</span> <span class=nn>WarehouseGateway</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$ledger</span>  <span class=o>=</span> <span class=nn>IdempotencyLedger</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=nv>$queue</span><span class=o>-&gt;</span><span class=n>enqueue</span><span class=p>(</span> <span class=n>make_message</span><span class=p>(</span> <span class=s>&#39;msg-001&#39;</span><span class=p>,</span> <span class=s>&#39;shipment-001&#39;</span><span class=p>,</span> <span class=s>&#39;key-001&#39;</span> <span class=p>)</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$queue</span><span class=o>-&gt;</span><span class=n>enqueue</span><span class=p>(</span> <span class=n>make_message</span><span class=p>(</span> <span class=s>&#39;msg-002&#39;</span><span class=p>,</span> <span class=s>&#39;shipment-002&#39;</span><span class=p>,</span> <span class=s>&#39;key-002&#39;</span> <span class=p>)</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$queue</span><span class=o>-&gt;</span><span class=n>enqueue</span><span class=p>(</span> <span class=n>make_message</span><span class=p>(</span> <span class=s>&#39;msg-003&#39;</span><span class=p>,</span> <span class=s>&#39;shipment-003&#39;</span><span class=p>,</span> <span class=s>&#39;key-003&#39;</span> <span class=p>)</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$queue</span><span class=o>-&gt;</span><span class=n>enqueue</span><span class=p>(</span> <span class=n>make_message</span><span class=p>(</span> <span class=s>&#39;msg-004&#39;</span><span class=p>,</span> <span class=s>&#39;shipment-004&#39;</span><span class=p>,</span> <span class=s>&#39;key-004&#39;</span> <span class=p>)</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>@workers</span> <span class=o>=</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>make_consumer</span><span class=p>(</span> <span class=s>&#39;worker-A&#39;</span><span class=p>,</span> <span class=nv>$queue</span><span class=p>,</span> <span class=nv>$gateway</span><span class=p>,</span> <span class=nv>$ledger</span> <span class=p>),</span>
+</span></span><span class=line><span class=cl>        <span class=n>make_consumer</span><span class=p>(</span> <span class=s>&#39;worker-B&#39;</span><span class=p>,</span> <span class=nv>$queue</span><span class=p>,</span> <span class=nv>$gateway</span><span class=p>,</span> <span class=nv>$ledger</span> <span class=p>),</span>
+</span></span><span class=line><span class=cl>        <span class=n>make_consumer</span><span class=p>(</span> <span class=s>&#39;worker-C&#39;</span><span class=p>,</span> <span class=nv>$queue</span><span class=p>,</span> <span class=nv>$gateway</span><span class=p>,</span> <span class=nv>$ledger</span> <span class=p>),</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>is</span> <span class=nv>$_</span><span class=o>-&gt;</span><span class=n>process_once</span><span class=p>,</span> <span class=s>&#39;acked&#39;</span><span class=p>,</span> <span class=s>&#39;worker acked one message&#39;</span> <span class=k>for</span> <span class=nv>@workers</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span> <span class=nv>$gateway</span><span class=o>-&gt;</span><span class=n>total_reservations</span><span class=p>,</span> <span class=mi>3</span><span class=p>,</span> <span class=s>&#39;three reservations completed&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span> <span class=nv>$queue</span><span class=o>-&gt;</span><span class=n>depth</span><span class=p>,</span> <span class=mi>1</span><span class=p>,</span> <span class=s>&#39;one message remains in queue&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span></code></pre></td></tr></table></div></div><p>Competing Consumers にすると、一回のラウンドで複数件を前に進められます。重要なのは、これが「同じコードを三回並べただけ」ではなく、queue 側の契約を <code>claim</code> 単位に切り直していることです。</p><h3 id=afterテスト-同じ-idempotency-key-の再配信でも副作用は一回>Afterテスト: 同じ idempotency key の再配信でも副作用は一回</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;redelivery with same idempotency key does not repeat side effect&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$queue</span> <span class=o>=</span> <span class=nn>DeliveryQueue</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$queue</span><span class=o>-&gt;</span><span class=n>enqueue</span><span class=p>(</span> <span class=n>make_message</span><span class=p>(</span> <span class=s>&#39;msg-101&#39;</span><span class=p>,</span> <span class=s>&#39;shipment-101&#39;</span><span class=p>,</span> <span class=s>&#39;key-101&#39;</span> <span class=p>)</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$gateway</span> <span class=o>=</span> <span class=nn>WarehouseGateway</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>fail_after_first_reserve_for_key</span> <span class=o>=&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=s>&#39;key-101&#39;</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$ledger</span> <span class=o>=</span> <span class=nn>IdempotencyLedger</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$worker_a</span> <span class=o>=</span> <span class=n>make_consumer</span><span class=p>(</span> <span class=s>&#39;worker-A&#39;</span><span class=p>,</span> <span class=nv>$queue</span><span class=p>,</span> <span class=nv>$gateway</span><span class=p>,</span> <span class=nv>$ledger</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$worker_b</span> <span class=o>=</span> <span class=n>make_consumer</span><span class=p>(</span> <span class=s>&#39;worker-B&#39;</span><span class=p>,</span> <span class=nv>$queue</span><span class=p>,</span> <span class=nv>$gateway</span><span class=p>,</span> <span class=nv>$ledger</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>is</span> <span class=nv>$worker_a</span><span class=o>-&gt;</span><span class=n>process_once</span><span class=p>,</span> <span class=s>&#39;retry&#39;</span><span class=p>,</span> <span class=s>&#39;first attempt releases the message&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span> <span class=nv>$worker_b</span><span class=o>-&gt;</span><span class=n>process_once</span><span class=p>,</span> <span class=s>&#39;acked&#39;</span><span class=p>,</span> <span class=s>&#39;second attempt acks the same logical work&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span> <span class=nv>$gateway</span><span class=o>-&gt;</span><span class=n>reservation_count_for</span><span class=p>(</span><span class=s>&#39;shipment-101&#39;</span><span class=p>),</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=s>&#39;side effect ran only once&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span></code></pre></td></tr></table></div></div><p>この一行が、今回の答えです。</p><p><code>reservation_count_for('shipment-101') == 1</code></p><p>再配信は起きています。worker も変わっています。それでも副作用が一回で止まっているのは、メッセージそのものではなく、仕事の識別子を end-to-end で持ち回っているからです。</p><p>実際の broker では <code>ack</code> や <code>nack</code> や <code>release</code> の呼び方が違います。ですが、考え方は同じです。</p><ul><li>claim や lock は一時的な専有権である</li><li>ack は成功後に返す</li><li>失敗時は retry を許す</li><li>retry されても壊れないよう、stable な idempotency key を副作用の相手まで渡す</li></ul><p>この四つが揃って、はじめて安全な Competing Consumers になります。</p><h2 id=監視画面の数字が変わるとき>監視画面の数字が変わるとき</h2><p>実装を切り替えてから、私はもう一度、出荷管制室の壁を見上げた。</p><p>queue depth はすぐには消えなかった。でも、増え続ける列ではなくなっていた。<code>18,400</code> が <code>17,920</code> になり、また少し下がった。duplicate reservation の件数は、それ以上増えなかった。</p><p>「速くなった、では足りませんね」</p><p>自分でそう口にしたとき、ようやく今回の理解が形になった気がした。</p><p>「そうだ。速さは結果にすぎない。先に決めるべきは、同じ仕事が戻ってきても世界が二度変わらぬことだ」</p><p>ロックさんは、最初に三列へ分けた伝票を指先で揃えた。</p><p>「列を増やすのは、そのあとでよい」</p><p>私は監視画面へ視線を戻した。今度は、数字の意味が前よりはっきり読めた。並列化で解決したのではない。並列化しても壊れない契約に直したから、ようやく速くできたのだ。</p><hr><h2 id=探偵の調査報告書>探偵の調査報告書</h2><div class=table-wrapper><table><thead><tr><th>容疑（アンチパターン）</th><th>真実（パターン）</th><th>証拠（効果）</th></tr></thead><tbody><tr><td>単一コンシューマ固定</td><td>Competing Consumers</td><td>1 ラウンドで複数件を前へ進められる</td></tr><tr><td>claim を一回性保証と誤認</td><td>idempotency key + shared ledger</td><td>再配信されても副作用は一回に抑えられる</td></tr><tr><td>成功前の安易な ack / 失敗時の無秩序な再実行</td><td>success 後 ack / failure 時 release</td><td>retry を許しつつ queue の整合性を保てる</td></tr></tbody></table></div><h3 id=推理のステップ>推理のステップ</h3><ul><li>単一ワーカーがボトルネックになっているかを、queue depth と oldest age で確認する</li><li><code>claim -> side effect -> ack</code> の順に書き出し、障害が入る隙間を特定する</li><li>message に stable な <code>idempotency_key</code> を持たせる</li><li>queue を <code>claim_next/ack/release</code> の契約で扱い、worker を複数化する</li><li>shared ledger と外部 API の両方で、同じ key の重複実行を無害化する</li><li>順序が必要な仕事は group を切るか、単一 consumer に残す</li></ul><h3 id=ロックより>ロックより</h3><p>Competing Consumers は、列を短くする魔術ではない。戻ってきた伝票を、別の係が拾っても世界が二度変わらないようにする作法である。速さはその結果として現れるにすぎない。</p><p>外へ向かうメッセージを扱うなら、broker の都合だけで設計してはならない。君のコードの外で起きる副作用まで含めて、同じ仕事をどう見分けるかを決めたまえ。受領印は、一度で十分なのだから。</p></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/perl/>Perl</a>
+<a href=/tags/moo/>Moo</a>
+<a href=/tags/competing-consumers/>Competing-Consumers</a>
+<a href=/tags/single-consumer/>Single-Consumer</a>
+<a href=/tags/duplicate-processing/>Duplicate-Processing</a>
+<a href=/tags/idempotency/>Idempotency</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-detective/>Code-Detective</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/05/15/070705/><div class=article-image><img src=/public_images/2026/code-detective-bff/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-bff/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Backends for Frontends】最後の依頼〜一つの答えが全員を不満にする夜〜</h2></div></a></article><article class=has-image><a href=/2026/05/14/070705/><div class=article-image><img src=/public_images/2026/code-detective-api-gateway/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-api-gateway/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【API Gateway】窓口のない捜査本部〜マイクロサービスに個別に会いに行く悲劇〜</h2></div></a></article><article class=has-image><a href=/2026/05/13/070705/><div class=article-image><img src=/public_images/2026/code-detective-strangler-fig/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-strangler-fig/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Strangler Fig】外壁に伸びる蔓〜全面更改が新旧を窒息させる夜〜</h2></div></a></article><article class=has-image><a href=/2026/05/12/070705/><div class=article-image><img src=/public_images/2026/code-detective-anti-corruption-layer/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-anti-corruption-layer/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Anti-Corruption Layer】越境伝票の怪〜外様の略語が捜査本部を汚す夜〜</h2></div></a></article><article class=has-image><a href=/2026/05/10/070705/><div class=article-image><img src=/public_images/2026/code-detective-dlq/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-dlq/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Dead Letter Queue】差し戻し地獄〜リトライの檻に囚われたメッセージ〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

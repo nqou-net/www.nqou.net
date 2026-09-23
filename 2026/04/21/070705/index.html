@@ -1,0 +1,379 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="注文確定時の副作用（メール・在庫・ポイント）が1メソッドに密結合した問題を、Domain Eventパターンで「何が起きたか」を不変オブジェクトとして記録しディスパッチャーで疎結合化するリファクタリング事例をPerl/Mooで解説"><title>コード探偵ロックの事件簿【Domain Event】沈黙の目撃者〜密結合が隠した「起きたこと」の記録〜</title><link rel=canonical href=https://www.nqou.net/2026/04/21/070705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コード探偵ロックの事件簿【Domain Event】沈黙の目撃者〜密結合が隠した「起きたこと」の記録〜"><meta property='og:description' content="注文確定時の副作用（メール・在庫・ポイント）が1メソッドに密結合した問題を、Domain Eventパターンで「何が起きたか」を不変オブジェクトとして記録しディスパッチャーで疎結合化するリファクタリング事例をPerl/Mooで解説"><meta property='og:url' content='https://www.nqou.net/2026/04/21/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='perl'><meta property='article:tag' content='moo'><meta property='article:tag' content='domain-event'><meta property='article:tag' content='tight-coupling'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-detective'><meta property='article:published_time' content='2026-04-21T07:07:05+09:00'><meta property='article:modified_time' content='2026-04-21T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-detective-domain-event/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コード探偵ロックの事件簿【Domain Event】沈黙の目撃者〜密結合が隠した「起きたこと」の記録〜"><meta name=twitter:description content="注文確定時の副作用（メール・在庫・ポイント）が1メソッドに密結合した問題を、Domain Eventパターンで「何が起きたか」を不変オブジェクトとして記録しディスパッチャーで疎結合化するリファクタリング事例をPerl/Mooで解説"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-detective-domain-event/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-04-21T07:07:05+09:00","datePublished":"2026-04-21T07:07:05+09:00","description":"注文確定時の副作用（メール・在庫・ポイント）が1メソッドに密結合した問題を、Domain Eventパターンで「何が起きたか」を不変オブジェクトとして記録しディスパッチャーで疎結合化するリファクタリング事例をPerl/Mooで解説","headline":"コード探偵ロックの事件簿【Domain Event】沈黙の目撃者〜密結合が隠した「起きたこと」の記録〜","image":"https://www.nqou.net/public_images/2026/code-detective-domain-event/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/04/21/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#事件現場密結合の指紋>事件現場——密結合の指紋</a></li><li><a href=#容疑者の浮上消えた目撃者>容疑者の浮上——消えた目撃者</a></li><li><a href=#推理披露イベントという証言>推理披露——イベントという証言</a><ol><li><a href=#第一の手がかり何が起きたかをオブジェクトにする>第一の手がかり——「何が起きたか」をオブジェクトにする</a></li><li><a href=#第二の手がかり仲介者を置く>第二の手がかり——仲介者を置く</a></li><li><a href=#第三の手がかり反応を独立させる>第三の手がかり——反応を独立させる</a></li><li><a href=#リファクタリング後の-orderservice>リファクタリング後の OrderService</a></li></ol></li><li><a href=#事件の終わりテスト通過>事件の終わり——テスト通過</a></li><li><a href=#エピローグ>エピローグ</a></li><li><a href=#探偵の調査報告書>探偵の調査報告書</a><ol><li><a href=#推理のステップ>推理のステップ</a></li><li><a href=#ロックより>ロックより</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/04/21/070705/><img src=/public_images/2026/code-detective-domain-event/header.webp loading=lazy alt="Featured image of post コード探偵ロックの事件簿【Domain Event】沈黙の目撃者〜密結合が隠した「起きたこと」の記録〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/04/21/070705/>コード探偵ロックの事件簿【Domain Event】沈黙の目撃者〜密結合が隠した「起きたこと」の記録〜</a></h2><h3 class=article-subtitle>注文確定時の副作用（メール・在庫・ポイント）が1メソッドに密結合した問題を、Domain Eventパターンで「何が起きたか」を不変オブジェクトとして記録しディスパッチャーで疎結合化するリファクタリング事例をPerl/Mooで解説</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>21, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 13分</time></div></footer></div></header><section class=article-content><p>1ヶ月前、社内Slackの <code>#tech-tips</code> で見かけた投稿を思い出している。</p><p>「レガシーコードで困ってるならLCIってところが面白いらしい」。投稿者はそれ以上の詳細を書いていなかった。あのときは流し読みした。ポイント加算のバグが出るまでは。</p><p>先月、注文確定処理にポイント加算を追加した。テストは通った。本番に出した。翌朝、在庫引き当てが二重に走っていた。修正した。今度はメール送信のタイミングがずれて、注文確定前に確認メールが飛んだ。顧客からクレームが入った。</p><p>Slackの検索窓に「LCI」と打ち込んで、あの投稿を掘り起こしたのは、その夜だった。</p><p>ビデオ通話の接続ボタンを押す。画面が切り替わる。背景に本棚とモニターが雑然と並ぶ部屋が映った。飲みかけのエナジードリンクの缶が画面の端にちらりと見える。画面の中央に、手元の何かを見つめている男がいた。カメラのほうを見ていない。</p><p>「あの、接続できていますか？」</p><p>「……304ステンレスとチタンの熱伝導率の差は、コーヒーの冷め方に12%の影響を——ああ」男がようやく画面を見た。「ロックだ。コードの探偵。画面共有してくれたまえ、ワトソン君」</p><p>「……ワトソン君？」</p><p>一瞬、聞き間違いかと思った。</p><p>「私にはちゃんとした名前がありますけど」</p><p>「名前より症状だ。コードを見せたまえ」</p><p>（Slackの投稿には「面白い」と書いてあった。面白い、ね）</p><p>まあいい。コードの話さえできれば。画面共有を開始した。</p><h2 id=事件現場密結合の指紋>事件現場——密結合の指紋</h2><p>注文確定処理の <code>OrderService</code> クラスが画面に映し出される。</p><p>「注文確定の処理です。確認メールの送信、在庫の引き当て、ポイントの加算を、<code>confirm_order</code> メソッドの中でやっています」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>OrderService</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>mailer</span>           <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>inventory_client</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>points_client</span>    <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>confirm_order</span> <span class=p>($self, %args) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$order_id</span>    <span class=o>=</span> <span class=nv>$args</span><span class=p>{</span><span class=n>order_id</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$customer_id</span> <span class=o>=</span> <span class=nv>$args</span><span class=p>{</span><span class=n>customer_id</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$items</span>       <span class=o>=</span> <span class=nv>$args</span><span class=p>{</span><span class=n>items</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=c1># 注文確定ロジック</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$total</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$total</span> <span class=o>+=</span> <span class=nv>$_</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>unit_price</span><span class=p>}</span> <span class=o>*</span> <span class=nv>$_</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>quantity</span><span class=p>}</span> <span class=k>for</span> <span class=nv>@$items</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=c1># 副作用: すべて直書き</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>mailer</span><span class=o>-&gt;</span><span class=n>send_confirmation</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>customer_id</span> <span class=o>=&gt;</span> <span class=nv>$customer_id</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>order_id</span>    <span class=o>=&gt;</span> <span class=nv>$order_id</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>total</span>       <span class=o>=&gt;</span> <span class=nv>$total</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>inventory_client</span><span class=o>-&gt;</span><span class=n>reduce_stock</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>order_id</span> <span class=o>=&gt;</span> <span class=nv>$order_id</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>items</span>    <span class=o>=&gt;</span> <span class=nv>$items</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>points_client</span><span class=o>-&gt;</span><span class=n>add_points</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>customer_id</span> <span class=o>=&gt;</span> <span class=nv>$customer_id</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>amount</span>      <span class=o>=&gt;</span> <span class=nb>int</span><span class=p>(</span><span class=nv>$total</span> <span class=o>*</span> <span class=mf>0.01</span><span class=p>),</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>{</span> <span class=n>order_id</span> <span class=o>=&gt;</span> <span class=nv>$order_id</span><span class=p>,</span> <span class=n>total</span> <span class=o>=&gt;</span> <span class=nv>$total</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「先月ポイント加算を追加したら、在庫引き当てが二重に走って——」</p><p>「待ちたまえ」</p><p>ロックさんが画面のコードに目を細めた。数秒の沈黙。ビデオ通話の向こうで、缶を手に取る音が聞こえた。</p><h2 id=容疑者の浮上消えた目撃者>容疑者の浮上——消えた目撃者</h2><p>「ワトソン君、ひとつ聞きたい。この <code>confirm_order</code> メソッドの仕事は何だ？」</p><p>「注文を確定することです」</p><p>「では、メールを送ることは？ 在庫を減らすことは？ ポイントを加算することは？」</p><p>「……それは、注文を確定したら当然やるべきことで——」</p><p>「&ldquo;当然やるべきこと&rdquo;。その"当然"が3つ、4つ、5つと増えたとき、このメソッドはどうなる？」</p><p>少し考えた。実際、ポイント加算で4つ目になったばかりだ。</p><p>「……太ります」</p><p>「太るだけではない。ポイント加算を追加したとき、在庫引き当てが二重に走った。なぜだ？」</p><p>「条件分岐の位置を間違えて、<code>return</code> の前にポイント加算を入れたら、その下の在庫引き当てが——」</p><p>「つまり、副作用の順序がメソッドの行番号に依存している。副作用同士が暗黙に干渉し合う余地がある。これが密結合だ」</p><p>密結合。それはわかる。わかっているからこそ、次の言葉が口をついた。</p><p>「Observer パターンで解決できますよね？ リスナーを登録して、<code>confirm_order</code> の最後で <code>notify</code> すれば——」</p><p>ロックさんが一拍置いた。</p><p>「では、なぜ君はそうしなかった？」</p><p>詰まった。Observer パターンは研修で学んだ。自分の別のコードでも使っている。なのに、この注文確定処理には適用しなかった。なぜだろう。</p><p>「……Observer だと、<code>OrderService</code> が各 Observer を <code>add_observer</code> で登録する必要がありますよね。結局、<code>OrderService</code> がリスナーの存在を知っている——」</p><p>「いい線だ。Observer は配線の問題を解く。Subject がリスナーに直接通知する代わりに、登録されたリスナーに順番に通知する。だが Subject はリスナーの顔を知っている。配線は変わったが、依存は残っている」</p><p>ロックさんは画面のコードを指さした。</p><p>「真犯人は"直接呼び出し"だけではない。より深い問題は、&ldquo;何が起きたか"という情報が、どこにもオブジェクトとして存在していないことだ」</p><p>「どういう意味ですか？」</p><p>「メール送信も在庫引き当てもポイント加算も、&ldquo;注文が確定した"という事実への反応だ。だが、&ldquo;注文が確定した"という事実そのものが、このコードのどこにも記録されていない。事件が起きたのに、目撃証言がない。<strong>沈黙の目撃者</strong>——起きたことを誰も記録していないんだ」</p><h2 id=推理披露イベントという証言>推理披露——イベントという証言</h2><h3 id=第一の手がかり何が起きたかをオブジェクトにする>第一の手がかり——「何が起きたか」をオブジェクトにする</h3><p>「まず、&ldquo;何が起きたか"をオブジェクトにする」</p><p>ロックさんが画面共有を切り替え、エディタに新しいコードを書き始めた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>OrderConfirmed</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(Str Num Int)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>order_id</span>     <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>customer_id</span>  <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>total_amount</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Num</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>item_count</span>   <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Int</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>confirmed_at</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「全属性が <code>ro</code>。読み取り専用だ。&ldquo;注文が確定した"という事実は、過去に起きたことだ。過去は変更できない」</p><p>「イベントをオブジェクトにする理由は何ですか？ コールバックの引数にハッシュを渡せば十分では？」</p><p>「コールバックの引数は、呼び出し側が毎回決める。ハンドラが必要なデータが増えたら？」</p><p>「呼び出し側を変更する……あ」</p><p>「最初の密結合と同じ構造だ。イベントオブジェクトは"起きたこと"の完全な記録だ。作る側は記録を作るだけ、使う側は記録を読むだけ。間に依存はない」</p><p>（なるほど。引数の追加で呼び出し側が変わるなら、結局は密結合が形を変えただけだ）</p><p>「それと——<code>order_updated</code> じゃダメですか？ イベント名」</p><p>「<code>order_updated</code> は"何かが変わった"としか言っていない。CRUDの名前は真犯人を隠す偽名だよ、ワトソン君。<code>OrderConfirmed</code> なら"注文が確定した"という業務上の意味がある。半年後にこのコードを読む人間が、名前だけで何が起きたか理解できる」</p><p>確かに <code>order_updated</code> では、確定なのかキャンセルなのか金額変更なのか区別がつかない。</p><h3 id=第二の手がかり仲介者を置く>第二の手がかり——仲介者を置く</h3><p>「次に��伝言を届ける仲介者を置く」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>EventDispatcher</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(HashRef ArrayRef CodeRef)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Scalar::Util</span> <span class=sx>qw(blessed)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>_subscribers</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>isa</span>      <span class=o>=&gt;</span> <span class=n>HashRef</span><span class=p>[</span><span class=n>ArrayRef</span><span class=p>[</span><span class=n>CodeRef</span><span class=p>]],</span>
+</span></span><span class=line><span class=cl>    <span class=n>default</span>  <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=p>{}</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=n>init_arg</span> <span class=o>=&gt;</span> <span class=nb>undef</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>subscribe</span> <span class=p>($self, $event_class, $handler) {</span>
+</span></span><span class=line><span class=cl>    <span class=nb>push</span> <span class=nv>@</span><span class=p>{</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>_subscribers</span><span class=o>-&gt;</span><span class=p>{</span><span class=nv>$event_class</span><span class=p>}</span> <span class=sr>//</span><span class=o>=</span> <span class=o>[]</span> <span class=p>},</span> <span class=nv>$handler</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>dispatch</span> <span class=p>($self, $event) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$class</span> <span class=o>=</span> <span class=n>blessed</span><span class=p>(</span><span class=nv>$event</span><span class=p>)</span> <span class=sr>//</span> <span class=k>return</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$handlers</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>_subscribers</span><span class=o>-&gt;</span><span class=p>{</span><span class=nv>$class</span><span class=p>}</span> <span class=sr>//</span> <span class=k>return</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$_</span><span class=o>-&gt;</span><span class=p>(</span><span class=nv>$event</span><span class=p>)</span> <span class=k>for</span> <span class=nv>@$handlers</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<code>subscribe</code> でハンドラを登録し、<code>dispatch</code> でイベントを配る。それだけのシンプルな仲介者です」</p><p>「Observer なら Subject が直接 <code>notify</code> すれば済みますよね。わざわざ仲介者を置く意味は？」</p><p>「Subject が Observer を知っている限り、新しい Observer を追加するには Subject を変更する必要がある。ディスパッチャーはその参照を断ち切る。注文サービスは"誰が聞いているか"を知らなくていい。&ldquo;何が起きたか"を叫ぶだけだ」</p><p>「叫ぶだけ……つまり、<code>OrderService</code> のコードは、ハンドラが何個追加されても変わらない？」</p><p>「その通り。開放閉鎖原則だ。新しい反応を追加するとき、既存のコードは一行も変えない」</p><p>ロックさんがMermaid図を画面に表示した。</p><pre class=mermaid>
+	classDiagram
+    class OrderConfirmed {
+        +order_id: Str
+        +customer_id: Str
+        +total_amount: Num
+        +item_count: Int
+        +confirmed_at: Str
+    }
+
+    class EventDispatcher {
+        -_subscribers: HashRef
+        +subscribe(event_class, handler)
+        +dispatch(event)
+    }
+
+    class OrderService {
+        +dispatcher: EventDispatcher
+        +confirm_order(%args)
+    }
+
+    class Handler_Email {
+        +handle(event)
+    }
+
+    class Handler_Inventory {
+        +handle(event)
+    }
+
+    class Handler_Points {
+        +handle(event)
+    }
+
+    OrderService --&gt; EventDispatcher : dispatch
+    OrderService ..&gt; OrderConfirmed : creates
+    EventDispatcher --&gt; Handler_Email : notifies
+    EventDispatcher --&gt; Handler_Inventory : notifies
+    EventDispatcher --&gt; Handler_Points : notifies
+    Handler_Email ..&gt; OrderConfirmed : reads
+    Handler_Inventory ..&gt; OrderConfirmed : reads
+    Handler_Points ..&gt; OrderConfirmed : reads
+</pre><p>矢印の向きが Observer とは明らかに違う。Observer では Subject から Observer への矢印が直接伸びていた。ここでは <code>OrderService</code> から <code>EventDispatcher</code> への矢印が1本あるだけで、各ハンドラへの矢印は <code>EventDispatcher</code> から伸びている。<code>OrderService</code> とハンドラの間に、直接の線がない。</p><h3 id=第三の手がかり反応を独立させる>第三の手がかり——反応を独立させる</h3><p>「最後に、各副作用を独立したハンドラとして分離する」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Handler::SendConfirmationEmail</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>mailer</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>handle</span> <span class=p>($self, $event) {</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>mailer</span><span class=o>-&gt;</span><span class=n>send_confirmation</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>customer_id</span> <span class=o>=&gt;</span> <span class=nv>$event</span><span class=o>-&gt;</span><span class=n>customer_id</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>order_id</span>    <span class=o>=&gt;</span> <span class=nv>$event</span><span class=o>-&gt;</span><span class=n>order_id</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>total</span>       <span class=o>=&gt;</span> <span class=nv>$event</span><span class=o>-&gt;</span><span class=n>total_amount</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Handler::ReduceInventory</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>inventory_client</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>handle</span> <span class=p>($self, $event) {</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>inventory_client</span><span class=o>-&gt;</span><span class=n>reduce_stock</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>order_id</span> <span class=o>=&gt;</span> <span class=nv>$event</span><span class=o>-&gt;</span><span class=n>order_id</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Handler::AddPoints</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>points_client</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>handle</span> <span class=p>($self, $event) {</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>points_client</span><span class=o>-&gt;</span><span class=n>add_points</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>customer_id</span> <span class=o>=&gt;</span> <span class=nv>$event</span><span class=o>-&gt;</span><span class=n>customer_id</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>amount</span>      <span class=o>=&gt;</span> <span class=nb>int</span><span class=p>(</span><span class=nv>$event</span><span class=o>-&gt;</span><span class=n>total_amount</span> <span class=o>*</span> <span class=mf>0.01</span><span class=p>),</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「各ハンドラは <code>$event</code> からデータを読み取るだけ。<code>OrderService</code> を参照しない。ハンドラ同士も互いを知らない」</p><p>「これなら、たとえば Slack 通知を追加したいとき——」</p><p>「<code>SlackHandler</code> を1つ書いて、ディスパッチャーに登録する。<code>OrderService</code> には指一本触れない」</p><p>「Observer でもリスナーを追加するだけで拡張できますけど、違いは……あ。Observer だと <code>$stock_manager->add_observer($slack_notifier)</code> みたいに、Subject 側の初期化コードを変更しますよね」</p><p>「そうだ。Observer ではリスナーの登録が Subject の責務に含まれる。Domain Event ではディスパッチャーへの登録が独立しているから、Subject は登録の存在すら知らない」</p><h3 id=リファクタリング後の-orderservice>リファクタリング後の OrderService</h3><p>「そして <code>OrderService</code> はこうなる」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>OrderService</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(InstanceOf)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>dispatcher</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>isa</span>      <span class=o>=&gt;</span> <span class=n>InstanceOf</span><span class=p>[</span><span class=s>&#39;EventDispatcher&#39;</span><span class=p>],</span>
+</span></span><span class=line><span class=cl>    <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>confirm_order</span> <span class=p>($self, %args) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$order_id</span>    <span class=o>=</span> <span class=nv>$args</span><span class=p>{</span><span class=n>order_id</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$customer_id</span> <span class=o>=</span> <span class=nv>$args</span><span class=p>{</span><span class=n>customer_id</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$items</span>       <span class=o>=</span> <span class=nv>$args</span><span class=p>{</span><span class=n>items</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=c1># 注文確定ロジック</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$total</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$total</span> <span class=o>+=</span> <span class=nv>$_</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>unit_price</span><span class=p>}</span> <span class=o>*</span> <span class=nv>$_</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>quantity</span><span class=p>}</span> <span class=k>for</span> <span class=nv>@$items</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=c1># イベントを発行するだけ</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$event</span> <span class=o>=</span> <span class=nn>OrderConfirmed</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>order_id</span>     <span class=o>=&gt;</span> <span class=nv>$order_id</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>customer_id</span>  <span class=o>=&gt;</span> <span class=nv>$customer_id</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>total_amount</span> <span class=o>=&gt;</span> <span class=nv>$total</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>item_count</span>   <span class=o>=&gt;</span> <span class=nb>scalar</span> <span class=nv>@$items</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>confirmed_at</span> <span class=o>=&gt;</span> <span class=s>&#39;2026-04-21T07:07:05+09:00&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>dispatcher</span><span class=o>-&gt;</span><span class=n>dispatch</span><span class=p>(</span><span class=nv>$event</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>{</span> <span class=n>order_id</span> <span class=o>=&gt;</span> <span class=nv>$order_id</span><span class=p>,</span> <span class=n>total</span> <span class=o>=&gt;</span> <span class=nv>$total</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<code>mailer</code> も <code>inventory_client</code> も <code>points_client</code> も消えた。<code>OrderService</code> が知っているのは <code>dispatcher</code> だけ。注文を確定して、&ldquo;確定した"というイベントを叫ぶ。それだけだ」</p><p>「……整理させてください」</p><p>私は画面を見ながら、頭の中で Observer との違いを並べた。</p><p>「Observer は"通知の仕組み"で、Domain Event は"何が起きたかの記録&rdquo;。Observer は"どう伝えるか"を解決する。Domain Event は"何が起きたか"をドメインの言葉でモデル化する」</p><p>「正確だ」</p><p>「でも Observer も Domain Event の実装手段になり得ますよね。実際、ディスパッ��ャーの中身は Observer に似ている」</p><p>「その通り。だが、イベントをオブジェクトとして名前を与え、ディスパッチャーで参照を断ち切ったとき、Observer とは別の設計判断が入っている」</p><p>「別の設計判断……」</p><p>「3つある」ロックさんが指を立てた。「第一に、イベントは不変の Value Object だ。過去に起きたことは変更できない。第二に、イベントの名前はユビキタス言語——業務の言葉でつける。<code>OrderConfirmed</code> であって <code>data_changed</code> ではない。第三に、ディスパッチャーが仲介することで、発行側と購読側が互いの存在を知らない。Observer にはこの3つの制約がない」</p><p>Observer を知っていたつもりだった。通知の仕組みは理解していた。でもそれは"どう伝えるか"の話でしかなかった。&ldquo;何が起きたか"をオブジェクトとして記録するという発想が、私にはなかった。</p><h2 id=事件の終わりテスト通過>事件の終わり——テスト通過</h2><p>ロックさんの指示に従って、テストを書いた。</p><p><code>OrderConfirmed</code> の全属性が読み取り専用であること。<code>EventDispatcher</code> が登録されたハンドラにイベントを配ること。未登録のイベントクラスを <code>dispatch</code> してもエラーにならないこと。<code>OrderService</code> がイベントを発行すること。各ハンドラがイベントからデータを正しく読み取ること。ハンドラが未登録でも <code>confirm_order</code> が正常に完了すること。</p><p>そして、新しいハンドラの追加が <code>OrderService</code> のコードに一切影響しないこと。</p><p>全テスト通過。</p><p>「全部通りました。……ハンドラを全部外しても <code>confirm_order</code> 自体は動くんですね」</p><p>「注文の確定と、確定への反応は、別の関心事だからだ。反応がゼロでも、確定という事実は成立する」</p><p>「そうですね。確定は確定で、メールもポイントも在庫も、それぞれ"確定を聞いて動く"だけ」</p><p>ロックさんが小さくうなずいた。画面越しでも、それが肯定の合図だとわかった。</p><h2 id=エピローグ>エピローグ</h2><p>「今日はありがとうございました」</p><p>「礼には及ばないよ、ワトソン君。事件が解決しただけだ」</p><p>そう呼びたいならどうぞ。もう訂正する気はない。</p><p>ビデオ通話の終了ボタンを���した。画面が暗転する。</p><p>エディタを開いた。新しいファイル。カーソルが点滅している。</p><p><code>package OrderConfirmed;</code></p><p>打ち込んだ文字列を見つめる。たった1行。でも、1時間前の私はこの1行を書く発想がなかった。</p><p>Observer を知っていたつもりだった。通知の仕組みは理解していた。でもそれは"どう伝えるか"の話でしかなかった。</p><p>&ldquo;何が起きたか"を記録する。その記録に業務の名前をつける。<code>OrderConfirmed</code>。注文が確定した。それだけのことが、コードの中に存在していなかった。</p><p>Slackの投稿には「面白い」と書いてあった。面白い、というのは少し違う。でも、忘れられない1時間だった。</p><p><code>#tech-tips</code> に返信を書こうかと思った。やめた。代わりに、エディタに次の行を打ち込んだ。</p><p><code>has order_id => (is => 'ro', isa => Str, required => 1);</code></p><hr><h2 id=探偵の調査報告書>探偵の調査報告書</h2><div class=table-wrapper><table><thead><tr><th style=text-align:left>容疑（アンチパターン）</th><th style=text-align:left>真実（パターン）</th><th style=text-align:left>証拠（効果）</th></tr></thead><tbody><tr><td style=text-align:left>副作用の直接呼び出し（メール・在庫・ポイントが1メソッドに密結合）</td><td style=text-align:left>Domain Event（「何が起きたか」を不変オブジェクトとして記録）</td><td style=text-align:left>副作用の追加・削除が OrderService の変更なしに可能</td></tr><tr><td style=text-align:left>Subject が Observer を直接参照（Observer パターンの限界）</td><td style=text-align:left>EventDispatcher による参照の断絶</td><td style=text-align:left>発行側と購読側が互いの存在を知らない完全な疎結合</td></tr><tr><td style=text-align:left>イベント情報の不在（「何が起きたか」がコードに存在しない）</td><td style=text-align:left>ユビキタス言語による命名（OrderConfirmed）</td><td style=text-align:left>ビジネス意図がコードに記録され、半年後も読める</td></tr></tbody></table></div><h3 id=推理のステップ>推理のステップ</h3><ol><li><strong>症状の確認</strong>: <code>confirm_order</code> に副作用が直書きされ、追加のたびに既存動作が壊れる</li><li><strong>Observer の限界を確認</strong>: Observer では Subject がリスナーを知っている。依存は形を変えて残る</li><li><strong>イベントオブジェクトの切り出し</strong>: 「注文が確定した」を <code>OrderConfirmed</code> として不変の Value Object に</li><li><strong>EventDispatcher の導入</strong>: 発行側と購読側の参照を断ち切る仲介者を置く</li><li><strong>ハンドラの分離</strong>: 各副作用を独立した���ラスに。イベントからデータを読み取るだけ</li><li><strong>テスト検証</strong>: ハンドラ追加時に OrderService が不変であること、ハンドラ未登録でも動作すること</li></ol><h3 id=ロックより>ロックより</h3><p>通知の仕組みを知っているだけでは足りない。「どう伝えるか」は配線の話だ。本当に必要なのは、「何が起きたか」にドメインの言葉で名前をつけ、不変の記録として残すことだ。記録がなければ、事件は闇に葬られる。記録があれば、誰がいつ聞きに来ても、同じ事実を伝えられる。——沈黙の目撃者に、声を与えたまえ。</p></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/perl/>Perl</a>
+<a href=/tags/moo/>Moo</a>
+<a href=/tags/domain-event/>Domain-Event</a>
+<a href=/tags/tight-coupling/>Tight-Coupling</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-detective/>Code-Detective</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/06/07/070705/><div class=article-image><img src=/public_images/2026/code-chef-observer-pattern/header.webp loading=lazy data-key data-hash=/public_images/2026/code-chef-observer-pattern/header.webp></div><div class=article-details><h2 class=article-title>コードシェフの仕込み帳【Observer】走って伝える注文変更〜通知先を登録すれば、足で回らなくてよい〜</h2></div></a></article><article class=has-image><a href=/2026/05/15/070705/><div class=article-image><img src=/public_images/2026/code-detective-bff/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-bff/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Backends for Frontends】最後の依頼〜一つの答えが全員を不満にする夜〜</h2></div></a></article><article class=has-image><a href=/2026/05/14/070705/><div class=article-image><img src=/public_images/2026/code-detective-api-gateway/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-api-gateway/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【API Gateway】窓口のない捜査本部〜マイクロサービスに個別に会いに行く悲劇〜</h2></div></a></article><article class=has-image><a href=/2026/05/13/070705/><div class=article-image><img src=/public_images/2026/code-detective-strangler-fig/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-strangler-fig/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Strangler Fig】外壁に伸びる蔓〜全面更改が新旧を窒息させる夜〜</h2></div></a></article><article class=has-image><a href=/2026/05/12/070705/><div class=article-image><img src=/public_images/2026/code-detective-anti-corruption-layer/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-anti-corruption-layer/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Anti-Corruption Layer】越境伝票の怪〜外様の略語が捜査本部を汚す夜〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>
