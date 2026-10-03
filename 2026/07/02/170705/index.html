@@ -1,0 +1,378 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="魔力嵐で本塔が黙るたび、通信士は雷鳥を連発した。だが連発するほど届かない——焦りの雷鳥は、嵐が去る前に羽を使い果たす。失敗ごとに待ちを倍へ伸ばす指数バックオフと、群れを散らすFull Jitterの契約を、sleepを論理時計に変えた模擬戦で検証する物語。"><title>コードテイマー【Exponential Backoff】焦りの雷鳥は、嵐の前に羽を使い果たす〜待つ刻を倍にし、揺らぎで群れを散らす〜</title><link rel=canonical href=https://www.nqou.net/2026/07/02/170705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コードテイマー【Exponential Backoff】焦りの雷鳥は、嵐の前に羽を使い果たす〜待つ刻を倍にし、揺らぎで群れを散らす〜"><meta property='og:description' content="魔力嵐で本塔が黙るたび、通信士は雷鳥を連発した。だが連発するほど届かない——焦りの雷鳥は、嵐が去る前に羽を使い果たす。失敗ごとに待ちを倍へ伸ばす指数バックオフと、群れを散らすFull Jitterの契約を、sleepを論理時計に変えた模擬戦で検証する物語。"><meta property='og:url' content='https://www.nqou.net/2026/07/02/170705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='typescript'><meta property='article:tag' content='exponential-backoff'><meta property='article:tag' content='jitter'><meta property='article:tag' content='thundering-herd'><meta property='article:tag' content='retry'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-tamer'><meta property='article:published_time' content='2026-07-02T17:07:05+09:00'><meta property='article:modified_time' content='2026-07-02T17:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-tamer-retry-exponential-backoff/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コードテイマー【Exponential Backoff】焦りの雷鳥は、嵐の前に羽を使い果たす〜待つ刻を倍にし、揺らぎで群れを散らす〜"><meta name=twitter:description content="魔力嵐で本塔が黙るたび、通信士は雷鳥を連発した。だが連発するほど届かない——焦りの雷鳥は、嵐が去る前に羽を使い果たす。失敗ごとに待ちを倍へ伸ばす指数バックオフと、群れを散らすFull Jitterの契約を、sleepを論理時計に変えた模擬戦で検証する物語。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-tamer-retry-exponential-backoff/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-07-02T17:07:05+09:00","datePublished":"2026-07-02T17:07:05+09:00","description":"魔力嵐で本塔が黙るたび、通信士は雷鳥を連発した。だが連発するほど届かない——焦りの雷鳥は、嵐が去る前に羽を使い果たす。失敗ごとに待ちを倍へ伸ばす指数バックオフと、群れを散らすFull Jitterの契約を、sleepを論理時計に変えた模擬戦で検証する物語。","headline":"コードテイマー【Exponential Backoff】焦りの雷鳥は、嵐の前に羽を使い果たす〜待つ刻を倍にし、揺らぎで群れを散らす〜","image":"https://www.nqou.net/public_images/2026/code-tamer-retry-exponential-backoff/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/07/02/170705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#届かぬ報せ>届かぬ報せ</a><ol><li><a href=#数撃てば当たるはずだった>数撃てば、当たるはずだった</a></li></ol></li><li><a href=#嵐を檻に閉じ込める>嵐を、檻に閉じ込める</a><ol><li><a href=#嵐が去る前に羽は尽きる>嵐が去る前に、羽は尽きる</a></li></ol></li><li><a href=#間を置くそれだけの契約>間を置く、それだけの契約</a><ol><li><a href=#どれだけ待つかを決める>どれだけ待つかを決める</a></li><li><a href=#群れは同じ刻に飛ぶ>群れは、同じ刻に飛ぶ</a></li><li><a href=#待っても縛れないもの>待っても、縛れないもの</a></li></ol></li><li><a href=#見送り>見送り</a><ol><li><a href=#-カイナの魔獣契約録tamers-registry>📜 カイナの魔獣契約録（Tamer&rsquo;s Registry）</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/07/02/170705/><img src=/public_images/2026/code-tamer-retry-exponential-backoff/header.webp loading=lazy alt="Featured image of post コードテイマー【Exponential Backoff】焦りの雷鳥は、嵐の前に羽を使い果たす〜待つ刻を倍にし、揺らぎで群れを散らす〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/07/02/170705/>コードテイマー【Exponential Backoff】焦りの雷鳥は、嵐の前に羽を使い果たす〜待つ刻を倍にし、揺らぎで群れを散らす〜</a></h2><h3 class=article-subtitle>魔力嵐で本塔が黙るたび、通信士は雷鳥を連発した。だが連発するほど届かない——焦りの雷鳥は、嵐が去る前に羽を使い果たす。失敗ごとに待ちを倍へ伸ばす指数バックオフと、群れを散らすFull Jitterの契約を、sleepを論理時計に変えた模擬戦で検証する物語。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>02, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 21分</time></div></footer></div></header><section class=article-content><h2 id=届かぬ報せ>届かぬ報せ</h2><p>魔物使いが来たのは、嵐が抜けた翌朝だった。</p><p>俺は辺境の中継伝達所をひとりで預かっている。仕事は単純だ。麓の村々から上がってくる報せを、雷鳥（伝令の獣）に結んで、稜線の向こうの本塔へ継ぐ。本塔がそれを受けて、王都へ流す。止まり木に並んだ雷鳥を一羽放ち、向こうが受け取れば、それで一件。何年もそうやってきた。</p><p>厄介なのは、魔力嵐だ。嵐が稜線を覆うと、本塔は黙り込む。雷鳥を放っても、結界に弾かれて戻ってくる。そういうときの俺のやり方は、決まっていた。もう一羽放つ。それでも戻れば、また放つ。届くまで放つ。<strong>リトライ</strong>——失敗した送りを、もう一度試みること。そんな上等な名前があると知ったのは、あの女が来てからだ。俺にとっては、ただの「数撃ちゃ当たる」だった。</p><p>先の大嵐までは、それで通っていた。</p><p>呼んだ覚えはない。嵐の夜、狼煙は雨に死に、伝書の鳩も飛べず、残ったのは止まり木の雷鳥だけだった。俺は最後の一羽に「腕利きの魔物使いを寄越してくれ」と短く結んで、行き先も決めず、闇雲に空へ放った。当てなんてなかった。</p><p>その一羽が、たまたまこの女のいる方角へ落ちたらしい。カイナと名乗った。稜線を越えて、嵐の晴れ間に、ひとりで歩いてきた。</p><p>「悪い報せほど、早く飛ぶ」とカイナは止まり木を見て言った。「お前があの夜に放った雷鳥は、何十羽だ。その中で、ちゃんと行き先に届いたのは——一羽だけだったろう」</p><p>虚を突かれた。確かに、当てずっぽうに放った最後の一羽だけが、こうして使い手を連れてきた。連発した残りは、どこへ消えたのか俺も知らない。だがその皮肉に俺が気づくのは、もっと後だ。</p><h3 id=数撃てば当たるはずだった>数撃てば、当たるはずだった</h3><p>「本塔が嵐で黙る。雷鳥が弾かれる。なら、もっと放つ」俺は止まり木の雷鳥を顎で示した。「届くまで放てば、いつか一羽は通る。今までずっと、そうやって嵐をやり過ごしてきた」</p><p>カイナは何も言わず、俺の術式（コード）を写した巻物へ目を落とした。俺は続けた。半分は言い訳だったかもしれない。</p><p>「だが、先の大嵐は違った。放っても放っても弾かれる。だから手数を増やした。間を詰めて、立て続けに放った。なのに——本塔は、よけいに深く黙り込んだ。最後は一羽も通らねえ。報せが丸ごと落ちた」声が掠れた。「数撃ちゃ当たるはずだ。なのに、撃つほど当たらねえ。どういうことなんだ、それは」</p><p>巻物に書いてあるのは、こういう術式だった。失敗したら、すぐ次を放つ。当たり前のことしか書いていない。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=c1>// 一度の送信試行（雷鳥を一羽放つ）。成功すれば応答 T、一時障害なら reject
+</span></span></span><span class=line><span class=cl><span class=kr>export</span> <span class=kr>type</span> <span class=nx>Attempt</span><span class=p>&lt;</span><span class=nt>T</span><span class=p>&gt;</span> <span class=o>=</span> <span class=p>()</span> <span class=o>=&gt;</span> <span class=nx>Promise</span><span class=p>&lt;</span><span class=nt>T</span><span class=p>&gt;;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// 待機（DI）。本番は実時間待ち、模擬戦では即解決＋累積を論理時計に使う
+</span></span></span><span class=line><span class=cl><span class=kr>export</span> <span class=kr>type</span> <span class=nx>Sleep</span> <span class=o>=</span> <span class=p>(</span><span class=nx>ms</span>: <span class=kt>number</span><span class=p>)</span> <span class=o>=&gt;</span> <span class=nx>Promise</span><span class=p>&lt;</span><span class=nt>void</span><span class=p>&gt;;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// 揺らぎ源（DI）。[0,1) を返す。模擬戦では決定的に固定/差し替える
+</span></span></span><span class=line><span class=cl><span class=kr>export</span> <span class=kr>type</span> <span class=nx>Random</span> <span class=o>=</span> <span class=p>()</span> <span class=o>=&gt;</span> <span class=kt>number</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kr>export</span> <span class=kr>type</span> <span class=nx>RelayOptions</span><span class=p>&lt;</span><span class=nt>T</span><span class=p>&gt;</span> <span class=o>=</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=nx>attempt</span>: <span class=kt>Attempt</span><span class=p>&lt;</span><span class=nt>T</span><span class=p>&gt;;</span>
+</span></span><span class=line><span class=cl>  <span class=nx>sleep</span>: <span class=kt>Sleep</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=nx>random</span>: <span class=kt>Random</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=nx>maxRetries</span>: <span class=kt>number</span><span class=p>;</span> <span class=c1>// 最大リトライ回数（試行は maxRetries+1 回）
+</span></span></span><span class=line><span class=cl>  <span class=nx>baseMs</span>: <span class=kt>number</span><span class=p>;</span>     <span class=c1>// 初回の待機基準
+</span></span></span><span class=line><span class=cl>  <span class=nx>capMs</span>: <span class=kt>number</span><span class=p>;</span>      <span class=c1>// 待機の上限（頭打ち）
+</span></span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kr>export</span> <span class=kr>class</span> <span class=nx>RelayBefore</span><span class=p>&lt;</span><span class=nt>T</span><span class=p>&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=kr>private</span> <span class=nx>attempt</span>: <span class=kt>Attempt</span><span class=p>&lt;</span><span class=nt>T</span><span class=p>&gt;;</span>
+</span></span><span class=line><span class=cl>  <span class=kr>private</span> <span class=nx>sleep</span>: <span class=kt>Sleep</span><span class=p>;</span>     <span class=c1>// 持ってはいるが、使っていない
+</span></span></span><span class=line><span class=cl>  <span class=kr>private</span> <span class=nx>random</span>: <span class=kt>Random</span><span class=p>;</span>   <span class=c1>// 同上
+</span></span></span><span class=line><span class=cl>  <span class=kr>private</span> <span class=nx>maxRetries</span>: <span class=kt>number</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=kr>private</span> <span class=nx>baseMs</span>: <span class=kt>number</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=kr>private</span> <span class=nx>capMs</span>: <span class=kt>number</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=kr>constructor</span><span class=p>(</span><span class=nx>opts</span>: <span class=kt>RelayOptions</span><span class=p>&lt;</span><span class=nt>T</span><span class=p>&gt;)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>this</span><span class=p>.</span><span class=nx>attempt</span> <span class=o>=</span> <span class=nx>opts</span><span class=p>.</span><span class=nx>attempt</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>this</span><span class=p>.</span><span class=nx>sleep</span> <span class=o>=</span> <span class=nx>opts</span><span class=p>.</span><span class=nx>sleep</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>this</span><span class=p>.</span><span class=nx>random</span> <span class=o>=</span> <span class=nx>opts</span><span class=p>.</span><span class=nx>random</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>this</span><span class=p>.</span><span class=nx>maxRetries</span> <span class=o>=</span> <span class=nx>opts</span><span class=p>.</span><span class=nx>maxRetries</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>this</span><span class=p>.</span><span class=nx>baseMs</span> <span class=o>=</span> <span class=nx>opts</span><span class=p>.</span><span class=nx>baseMs</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>this</span><span class=p>.</span><span class=nx>capMs</span> <span class=o>=</span> <span class=nx>opts</span><span class=p>.</span><span class=nx>capMs</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=kr>async</span> <span class=nx>send</span><span class=p>()</span><span class=o>:</span> <span class=nx>Promise</span><span class=p>&lt;</span><span class=nt>T</span><span class=p>&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=kd>let</span> <span class=nx>lastErr</span>: <span class=kt>unknown</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=p>(</span><span class=kd>let</span> <span class=nx>n</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=nx>n</span> <span class=o>&lt;=</span> <span class=k>this</span><span class=p>.</span><span class=nx>maxRetries</span><span class=p>;</span> <span class=nx>n</span><span class=o>++</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=k>try</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=k>await</span> <span class=k>this</span><span class=p>.</span><span class=nx>attempt</span><span class=p>();</span>   <span class=c1>// 雷鳥を一羽放つ
+</span></span></span><span class=line><span class=cl>      <span class=p>}</span> <span class=k>catch</span> <span class=p>(</span><span class=nx>err</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=nx>lastErr</span> <span class=o>=</span> <span class=nx>err</span><span class=p>;</span>                 <span class=c1>// 失敗。——間を空けず、次の周回へ
+</span></span></span><span class=line><span class=cl>      <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>throw</span> <span class=nx>lastErr</span><span class=p>;</span>                     <span class=c1>// 撃ち尽くして最終失敗
+</span></span></span><span class=line><span class=cl>  <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>カイナは巻物を端まで追ってから、止まり木の雷鳥に手をやり、稜線の向こうの本塔の影へ目をやった。すぐには名を下さなかった。</p><p>「お前の雷鳥は、速い。速すぎる」と、低く言った。「嵐は、お前の雷鳥より、ずっと長く吹く」</p><p>意味が掴めなかった。速いのは美徳だろう。一刻も早く届けるのが、伝達所の仕事だ。</p><p>カイナは空の一点を指した。嵐が抜けかけて、本塔の影がかすかに輪郭を取り戻そうとしている、その方角だ。「あの塔は今、ようやく立ち上がろうとしている。嵐に打たれて、膝をついて、それでも起きようとしている。——そこへお前は、何十羽を一度に叩きつけた。立ちかけた者の肩を、もう一度押し倒すように」</p><p>俺は黙った。答えは、まだ返ってこなかった。</p><h2 id=嵐を檻に閉じ込める>嵐を、檻に閉じ込める</h2><p>カイナは伝達所の卓に、奇妙な仕掛けを組みはじめた。本人いわく「模擬戦」——嵐は、半日も吹く。その半日を、卓の上の数行へ畳み込む檻だ。</p><p>仕掛けの作りを、俺にも分かるように説明してくれた。本塔は、ある刻まで嵐で黙り、その刻を過ぎれば応える。その「嵐が去る刻」を、こちらで決められるようにする。雷鳥を放つ術（<code>attempt</code>）も、待つ間（<code>sleep</code>）も、外から握れる作り物に差し替える。</p><p>肝はここだった。待つ間（<code>sleep</code>）は、模擬戦では実際には待たない。代わりに、待つはずだった時間を一つの帳面に足し込んでいって、その合計を「今、何刻まで来たか」とみなす。待ち時間の累計が、そのまま時計の針になる。放った雷鳥の数も数える。これで、嵐が吹く前と、過ぎた後を、思いのままに行き来できる。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=c1>// 嵐の本塔と論理時計を組む共通ハーネス
+</span></span></span><span class=line><span class=cl><span class=kd>function</span> <span class=nx>makeStorm</span><span class=p>(</span><span class=nx>stormEndsAt</span>: <span class=kt>number</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=kd>let</span> <span class=nx>elapsed</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>             <span class=c1>// 積み上げた待機＝論理時刻（時計の針）
+</span></span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>sleeps</span>: <span class=kt>number</span><span class=p>[]</span> <span class=o>=</span> <span class=p>[];</span> <span class=c1>// 何ミリ秒待ったかの記録
+</span></span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>sleep</span> <span class=o>=</span> <span class=p>(</span><span class=nx>ms</span>: <span class=kt>number</span><span class=p>)</span><span class=o>:</span> <span class=nx>Promise</span><span class=p>&lt;</span><span class=nt>void</span><span class=p>&gt;</span> <span class=o>=&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=nx>elapsed</span> <span class=o>+=</span> <span class=nx>ms</span><span class=p>;</span>             <span class=c1>// 待つ代わりに、針を進める
+</span></span></span><span class=line><span class=cl>    <span class=nx>sleeps</span><span class=p>.</span><span class=nx>push</span><span class=p>(</span><span class=nx>ms</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nx>Promise</span><span class=p>.</span><span class=nx>resolve</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>  <span class=p>};</span>
+</span></span><span class=line><span class=cl>  <span class=kd>let</span> <span class=nx>attempts</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>attempt</span> <span class=o>=</span> <span class=p>()</span><span class=o>:</span> <span class=nx>Promise</span><span class=p>&lt;</span><span class=nt>string</span><span class=p>&gt;</span> <span class=o>=&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=nx>attempts</span><span class=o>++</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=c1>// 針が「嵐が去る刻」を越えていれば応答、まだ嵐なら一時障害で弾く
+</span></span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nx>elapsed</span> <span class=o>&gt;=</span> <span class=nx>stormEndsAt</span>
+</span></span><span class=line><span class=cl>      <span class=o>?</span> <span class=nx>Promise</span><span class=p>.</span><span class=nx>resolve</span><span class=p>(</span><span class=s2>&#34;delivered&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>      <span class=o>:</span> <span class=nx>Promise</span><span class=p>.</span><span class=nx>reject</span><span class=p>(</span><span class=k>new</span> <span class=nb>Error</span><span class=p>(</span><span class=s2>&#34;storm&#34;</span><span class=p>));</span>
+</span></span><span class=line><span class=cl>  <span class=p>};</span>
+</span></span><span class=line><span class=cl>  <span class=k>return</span> <span class=p>{</span> <span class=nx>sleep</span><span class=p>,</span> <span class=nx>sleeps</span><span class=p>,</span> <span class=nx>attempt</span><span class=p>,</span> <span class=nx>elapsed</span><span class=o>:</span> <span class=p>()</span> <span class=o>=&gt;</span> <span class=nx>elapsed</span><span class=p>,</span> <span class=nx>attempts</span><span class=o>:</span> <span class=p>()</span> <span class=o>=&gt;</span> <span class=nx>attempts</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「待たずに時計だけ進めるなら、嵐の半日も、瞬きの間に通り抜けられる」とカイナは言った。本塔がいつ口を開くかは <code>stormEndsAt</code> の一語で決まり、針がそこを越えたかどうかで、雷鳥が弾かれるか通るかが決まる。針が必ず「進んでから」次の試行で読まれるのは、<code>send</code> が待ち（<code>sleep</code>）と試行（<code>attempt</code>）を一つずつ順に <code>await</code> していくからだ。同じ刻に二羽が並んで判定を奪い合うことはない——だから、待ちの累計をそのまま時計と呼べる。曖昧なところは、どこにもない。</p><p>そして、俺の術式を——即時連射のやつを——その檻に載せた。嵐は、針にして千の刻まで吹くことにした。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=nx>it</span><span class=p>(</span><span class=s2>&#34;即座に連射し、嵐が去る前に手持ちを撃ち尽くして最終失敗する&#34;</span><span class=p>,</span> <span class=kr>async</span> <span class=p>()</span> <span class=o>=&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>h</span> <span class=o>=</span> <span class=nx>makeStorm</span><span class=p>(</span><span class=mi>1000</span><span class=p>);</span> <span class=c1>// 嵐は論理時刻 1000 まで
+</span></span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>relay</span> <span class=o>=</span> <span class=k>new</span> <span class=nx>RelayBefore</span><span class=p>&lt;</span><span class=nt>string</span><span class=p>&gt;({</span>
+</span></span><span class=line><span class=cl>    <span class=nx>attempt</span>: <span class=kt>h.attempt</span><span class=p>,</span> <span class=nx>sleep</span>: <span class=kt>h.sleep</span><span class=p>,</span> <span class=nx>random</span><span class=o>:</span> <span class=p>()</span> <span class=o>=&gt;</span> <span class=mf>0.5</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=nx>maxRetries</span>: <span class=kt>5</span><span class=p>,</span> <span class=nx>baseMs</span>: <span class=kt>100</span><span class=p>,</span> <span class=nx>capMs</span>: <span class=kt>2000</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>  <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>await</span> <span class=nx>assert</span><span class=p>.</span><span class=nx>rejects</span><span class=p>(()</span> <span class=o>=&gt;</span> <span class=nx>relay</span><span class=p>.</span><span class=nx>send</span><span class=p>(),</span> <span class=p>{</span> <span class=nx>message</span><span class=o>:</span> <span class=s2>&#34;storm&#34;</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>  <span class=nx>assert</span><span class=p>.</span><span class=nx>equal</span><span class=p>(</span><span class=nx>h</span><span class=p>.</span><span class=nx>sleeps</span><span class=p>.</span><span class=nx>length</span><span class=p>,</span> <span class=mi>0</span><span class=p>);</span> <span class=c1>// 一度も待っていない
+</span></span></span><span class=line><span class=cl>  <span class=nx>assert</span><span class=p>.</span><span class=nx>equal</span><span class=p>(</span><span class=nx>h</span><span class=p>.</span><span class=nx>elapsed</span><span class=p>(),</span> <span class=mi>0</span><span class=p>);</span>     <span class=c1>// 時計は 0 のまま＝全弾が「嵐の中」
+</span></span></span><span class=line><span class=cl>  <span class=nx>assert</span><span class=p>.</span><span class=nx>equal</span><span class=p>(</span><span class=nx>h</span><span class=p>.</span><span class=nx>attempts</span><span class=p>(),</span> <span class=mi>6</span><span class=p>);</span>    <span class=c1>// maxRetries+1 羽を撃ち尽くした
+</span></span></span><span class=line><span class=cl><span class=p>});</span>
+</span></span></code></pre></td></tr></table></div></div><p>走らせると、結果は素っ気なかった。雷鳥は間髪入れず連射され、六羽——手持ちの全部——が一息に飛び、一息に弾かれた。時計の針は、<code>0</code> から一刻も動いていない。</p><h3 id=嵐が去る前に羽は尽きる>嵐が去る前に、羽は尽きる</h3><p>「待て」と俺は言った。「なんで一羽も通らねえんだ。嵐だって、いつかは止むんだろう」</p><p>カイナは答えなかった。ただ、時計の針を——<code>elapsed</code> を指した。「数えてみろ」</p><p>俺は見た。雷鳥が六羽すべて飛び終わってもなお、針は <code>0</code>。嵐が去る刻は千だというのに、針はそこへ一歩も近づいていない。カイナはそれ以上、何も言わなかった。その沈黙が、俺に続きを考えさせた。針が動いていない。ということは——待っていない。一秒も。</p><p>「……嵐が去る前に、手持ちを全部使い切ったのか」声が低くなった。「嵐が明けた後に放てる雷鳥が、もう一羽も残っちゃいねえ。明ける頃には、俺はとっくに諦めてる」</p><p>掴めなかった逆説が、誰に教えられたわけでもなく、自分の口から像を結んだ。連発は、当たる確率を上げるどころか、嵐の後に残るはずの最後の手を、自分で先に潰していた。</p><p>カイナは本塔の影を見たまま、刻むように続けた。</p><p>「お前の雷鳥は、自分が届くことしか考えていない。嵐で弱った塔に、群がって覆いかぶさる」</p><p>「で、つまり?」俺は急かした。</p><p>「塔が息を継ごうとするたび、お前の鳥がまた口をふさぐ。応えようにも、応える隙がない」</p><p>「……じゃあ、俺の連発が、本塔の立ち直りを、よけいに遅らせてたってのか」</p><p>「待つというのは」とカイナは俺を見た。「お前の雷鳥のためじゃない。叩かれる塔のためだ。塔に息を継がせる間を空ける。それだけが、嵐を早く終わらせる」</p><p>リトライは利己的なのだ、とカイナは言った。自分が通りたいがために、向こうに負荷を押しつける。待つのは譲歩じゃない。弱った相手を立ち直らせて、結果として自分の報せを通すための、唯一の筋道だった。</p><p>カイナは止まり木へ顎をしゃくった。「お前が飼っているのは、ただの伝令じゃない。焦りの雷鳥だ。急くほどに羽を散らして、嵐の前に使い果たす」</p><p>俺は、どうにも納得のいかないことを口にした。「だったら、放つ前に分かりゃいい。今は嵐だから待て、今は晴れたから放て、って。先に分かりゃ、無駄撃ちせずに済むだろう」</p><p>「『今、向こうが嵐か』は」とカイナ。「放って、弾かれて、初めて分かる。放つ前には決まっていない。だから、撃つ前に止めるんじゃない——弾かれた後に、どう退くかを、術式に持たせるしかない」</p><p>書いた時点では、向こうの空模様は誰にも見えない。見えないものを先回りで防ぐことはできない。できるのは、弾かれてから、どう身を引くかだ。</p><p>「……間を空けりゃいいのか」俺は唸った。「だが、どれだけ空ける? やみくもに長く待ったら、今度は嵐が明けてるのに気づかねえ。それじゃ遅すぎる」</p><p>問いが、自分から次へ転がっていた。</p><h2 id=間を置くそれだけの契約>間を置く、それだけの契約</h2><p>カイナの直しは、呆気ないものだった。術式を組み替えるでも、新しい鎖を足すでもない。俺の <code>catch</code>——失敗を受け止めるあの場所に、待つ一行を、ただ一つ挿んだだけだった。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=kr>async</span> <span class=nx>send</span><span class=p>()</span><span class=o>:</span> <span class=nx>Promise</span><span class=p>&lt;</span><span class=nt>T</span><span class=p>&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=kd>let</span> <span class=nx>lastErr</span>: <span class=kt>unknown</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=k>for</span> <span class=p>(</span><span class=kd>let</span> <span class=nx>n</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=nx>n</span> <span class=o>&lt;=</span> <span class=k>this</span><span class=p>.</span><span class=nx>maxRetries</span><span class=p>;</span> <span class=nx>n</span><span class=o>++</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>try</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=k>return</span> <span class=k>await</span> <span class=k>this</span><span class=p>.</span><span class=nx>attempt</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span> <span class=k>catch</span> <span class=p>(</span><span class=nx>err</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=nx>lastErr</span> <span class=o>=</span> <span class=nx>err</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>      <span class=k>if</span> <span class=p>(</span><span class=nx>n</span> <span class=o>&lt;</span> <span class=k>this</span><span class=p>.</span><span class=nx>maxRetries</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>await</span> <span class=k>this</span><span class=p>.</span><span class=nx>sleep</span><span class=p>(</span><span class=k>this</span><span class=p>.</span><span class=nx>backoff</span><span class=p>(</span><span class=nx>n</span><span class=p>));</span> <span class=c1>// ★ここだけ：次を放つ前に、間を空ける
+</span></span></span><span class=line><span class=cl>      <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>  <span class=p>}</span>
+</span></span><span class=line><span class=cl>  <span class=k>throw</span> <span class=nx>lastErr</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「変えたのは、待つか待たないか。それだけだ」とカイナは言った。雷鳥を放つ、通れば返す、上限まで試す、尽きれば諦める——術のすることは何も変わっていない。変わったのは、失敗と次の試行の間に、間ができたこと。たったそれだけだった。</p><h3 id=どれだけ待つかを決める>どれだけ待つかを決める</h3><p>「待つ、と決めた。あとは——どれだけ待つかだ」</p><p>カイナは <code>backoff</code> を示した。待ち時間を決める、短い手だ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=c1>// 賢い待ち方の「内訳」：指数で伸ばし cap で頭打ち、揺らぎで散らす
+</span></span></span><span class=line><span class=cl><span class=kr>private</span> <span class=nx>backoff</span><span class=p>(</span><span class=nx>n</span>: <span class=kt>number</span><span class=p>)</span><span class=o>:</span> <span class=kt>number</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>exp</span> <span class=o>=</span> <span class=nb>Math</span><span class=p>.</span><span class=nx>min</span><span class=p>(</span><span class=k>this</span><span class=p>.</span><span class=nx>capMs</span><span class=p>,</span> <span class=k>this</span><span class=p>.</span><span class=nx>baseMs</span> <span class=o>*</span> <span class=mi>2</span> <span class=o>**</span> <span class=nx>n</span><span class=p>);</span> <span class=c1>// 指数で伸ばし、capで頭打ち
+</span></span></span><span class=line><span class=cl>  <span class=k>return</span> <span class=k>this</span><span class=p>.</span><span class=nx>random</span><span class=p>()</span> <span class=o>*</span> <span class=nx>exp</span><span class=p>;</span>                             <span class=c1>// 0〜expの間で揺らす
+</span></span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「一度目の失敗は、短く退く。二度目はその倍。三度目はさらに倍」。失敗のたびに、次までの待ちを倍々に伸ばす。これを<strong>指数バックオフ</strong>——失敗のたびに再試行までの待機を指数的に（倍々に）伸ばすやり方、という。「嵐が長引くほど、深く退く。立ち上がろうとする塔に、たっぷり間を与えるためだ」</p><p>ただし、際限なく伸ばしはしない。ある上限で頭打ちにする。これを<strong>cap</strong>——待ち時間の天井、と呼ぶ。「退きすぎれば、嵐が明けても気づくのが遅れる」。退きそのものが塔のための譲歩なら、この天井だけは、こちら側の都合だ。報せを抱えたまま無限に沈み込まない、その歯止め。「深く退くにも、限度を決めておく」</p><p>俺は、もう一つ目に留まったものを指した。待ち時間に、何か乱数のようなものが掛かっている。</p><p>「これか」とカイナは <code>this.random()</code> の一語を指したが、深くは語らなかった。「これは、お前一羽のための仕掛けじゃない。意味は、後で分かる」。それ以上は説明せず、術式はそのまま——最初から、その乱数を含んだ形——で置かれた。</p><p>同じ嵐で、直した術式を走らせた。今度は針が進む。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=nx>it</span><span class=p>(</span><span class=s2>&#34;失敗ごとに待ち、嵐が去った後の一羽が届いて成功する&#34;</span><span class=p>,</span> <span class=kr>async</span> <span class=p>()</span> <span class=o>=&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>h</span> <span class=o>=</span> <span class=nx>makeStorm</span><span class=p>(</span><span class=mi>1000</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>relay</span> <span class=o>=</span> <span class=k>new</span> <span class=nx>RelayAfter</span><span class=p>&lt;</span><span class=nt>string</span><span class=p>&gt;({</span>
+</span></span><span class=line><span class=cl>    <span class=nx>attempt</span>: <span class=kt>h.attempt</span><span class=p>,</span> <span class=nx>sleep</span>: <span class=kt>h.sleep</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=nx>random</span><span class=o>:</span> <span class=p>()</span> <span class=o>=&gt;</span> <span class=mf>1.0</span><span class=p>,</span>  <span class=c1>// 揺らぎを最大に固定＝指数値そのもの（決定的に確かめるため）
+</span></span></span><span class=line><span class=cl>    <span class=nx>maxRetries</span>: <span class=kt>10</span><span class=p>,</span> <span class=nx>baseMs</span>: <span class=kt>100</span><span class=p>,</span> <span class=nx>capMs</span>: <span class=kt>2000</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>  <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>result</span> <span class=o>=</span> <span class=k>await</span> <span class=nx>relay</span><span class=p>.</span><span class=nx>send</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>  <span class=nx>assert</span><span class=p>.</span><span class=nx>equal</span><span class=p>(</span><span class=nx>result</span><span class=p>,</span> <span class=s2>&#34;delivered&#34;</span><span class=p>);</span>  <span class=c1>// 嵐の後に届いた
+</span></span></span><span class=line><span class=cl>  <span class=nx>assert</span><span class=p>.</span><span class=nx>ok</span><span class=p>(</span><span class=nx>h</span><span class=p>.</span><span class=nx>elapsed</span><span class=p>()</span> <span class=o>&gt;=</span> <span class=mi>1000</span><span class=p>);</span>     <span class=c1>// 累積した待ちが、嵐の長さを越えてから成功
+</span></span></span><span class=line><span class=cl><span class=p>});</span>
+</span></span></code></pre></td></tr></table></div></div><p>一羽放って、弾かれる。百の刻、退く。また放つ。弾かれる。二百、退く。三度退いて累計は七百、まだ嵐の中だ。四度目に八百退いて、累計は千五百——ここで初めて嵐の千を越え、本塔はもう口を開いていた。次の一羽が、通った。</p><p>ここで <code>random</code> を <code>() => 1.0</code> に固定しているのには、わけがある。揺らぎを最大の <code>1.0</code> に張りつければ、待ち時間は指数の値そのものになり、毎回きっかり <code>100, 200, 400, 800</code> と積み上がる。乱数を使う術式でも、乱数の出方をこちらで握ってしまえば、結果は一通りに定まる。模擬戦が、まぐれでも気まぐれでもなく、いつ走らせても同じ針を刻む——だから「待ったから届いた」と、迷いなく言い切れる。</p><p>待ちが倍々に伸び、天井で頭打ちになることも、針を覗けば確かめられた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=nx>it</span><span class=p>(</span><span class=s2>&#34;待機は失敗ごとに倍へ伸び、cap で頭打ちになる&#34;</span><span class=p>,</span> <span class=kr>async</span> <span class=p>()</span> <span class=o>=&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>h</span> <span class=o>=</span> <span class=nx>makeStorm</span><span class=p>(</span><span class=nb>Number</span><span class=p>.</span><span class=nx>POSITIVE_INFINITY</span><span class=p>);</span> <span class=c1>// 永遠の嵐＝必ず全失敗
+</span></span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>relay</span> <span class=o>=</span> <span class=k>new</span> <span class=nx>RelayAfter</span><span class=p>&lt;</span><span class=nt>string</span><span class=p>&gt;({</span>
+</span></span><span class=line><span class=cl>    <span class=nx>attempt</span>: <span class=kt>h.attempt</span><span class=p>,</span> <span class=nx>sleep</span>: <span class=kt>h.sleep</span><span class=p>,</span> <span class=nx>random</span><span class=o>:</span> <span class=p>()</span> <span class=o>=&gt;</span> <span class=mf>1.0</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=nx>maxRetries</span>: <span class=kt>6</span><span class=p>,</span> <span class=nx>baseMs</span>: <span class=kt>100</span><span class=p>,</span> <span class=nx>capMs</span>: <span class=kt>800</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>  <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>await</span> <span class=nx>assert</span><span class=p>.</span><span class=nx>rejects</span><span class=p>(()</span> <span class=o>=&gt;</span> <span class=nx>relay</span><span class=p>.</span><span class=nx>send</span><span class=p>());</span>
+</span></span><span class=line><span class=cl>  <span class=c1>// min(800, 100*2^n): 100,200,400,800,800,800（最後の失敗の後は、次が無いので待たない）
+</span></span></span><span class=line><span class=cl>  <span class=nx>assert</span><span class=p>.</span><span class=nx>deepEqual</span><span class=p>(</span><span class=nx>h</span><span class=p>.</span><span class=nx>sleeps</span><span class=p>,</span> <span class=p>[</span><span class=mi>100</span><span class=p>,</span> <span class=mi>200</span><span class=p>,</span> <span class=mi>400</span><span class=p>,</span> <span class=mi>800</span><span class=p>,</span> <span class=mi>800</span><span class=p>,</span> <span class=mi>800</span><span class=p>]);</span>
+</span></span><span class=line><span class=cl><span class=p>});</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>100, 200, 400</code> と倍に伸び、<code>800</code> で天井に着いて、あとは <code>800</code> のまま。退きは深くなり、しかし無限には沈まない。「待ったから、嵐の後まで雷鳥が生き残った」とカイナは言った。「お前の前のやり方は、嵐の前に羽を使い果たしていた。それだけの違いだ」</p><p>焦りの雷鳥は、嵐の前に羽を使い果たす。直したのは、それを使い果たさないように、間を置いただけ。</p><h3 id=群れは同じ刻に飛ぶ>群れは、同じ刻に飛ぶ</h3><p>これで終わりか、と肩の力が抜けかけたとき、カイナが横から新しい事実を置いた。</p><p>「辺境の伝達所は、お前のところだけじゃない」</p><p>そうだ。稜線沿いには、同じような中継所がいくつもある。どこも同じ本塔へ報せを継いでいる。</p><p>「嵐が来れば、どの伝達所も、お前と同じように雷鳥を退かせる。皆が同じだけ退き、皆が同じ刻に待ち終え——」カイナは言葉を切った。「皆が、同じ刻に、一斉に飛び立つ」</p><p>背筋が冷えた。嵐が明けた、まさにその瞬間。立ち直りかけた本塔へ、稜線じゅうの伝達所の雷鳥が、揃って殺到する。せっかく退いて与えた間が、明けた途端に帳消しになる。群れごと覆いかぶさって、塔をまた焼く。これを<strong>Thundering Herd</strong>——殺到する群れ、と呼ぶらしい。俺がひとりで間を詰めて自滅するのが連射の暴走なら、こっちは、退きを覚えた伝達所どうしが、皆そろって同じ拍子で戻ってきてぶつかる暴走だ。原因は逆を向いているのに、潰れるのは同じ本塔だ。皆が同じ拍子で退くから、同じ拍子で戻ってくる。</p><p>「待てよ」俺は当然の反論をした。「俺一羽が退く刻をずらしたって、他の連中が揃って飛んだら、波は立つだろう。俺だけがバラけて、何になる」</p><p>「波は立つ」とカイナは認めた。「だが、その波を作る側を降りる第一歩は、お前の術式だ。それに——」カイナは止まり木の雷鳥へ目をやった。「辺境の伝達所は、どれも同じ古い術式の写しを使っている。お前が直した一枚が、巡って、皆に配られる」</p><p>連発が利己なら、退きをずらすのは、譲り合いだ。自分が波を立てない側に回る。それが巡って、本塔を守り、結局は自分の報せを通す。</p><p>俺は、さっきの乱数を思い出した。</p><p>「……待つ刻が、皆同じだからだ。同じだけ待ちゃ、同じ刻に飛ぶ。なら——待つ刻を、一羽ずつ、わざとバラけさせりゃいい」</p><p>「それが、さっきの <code>random()</code> だ」とカイナ。「最初から、そこにあった」</p><p>待ち時間を、<code>0</code> から、さっき決めた指数の値までの間で、ランダムに選ぶ。これを<strong>Full Jitter</strong>——待ちを「0から指数値までの一様乱数」で選ぶ揺らぎの入れ方、という。退きの深さは指数で決め、その範囲のどこに着地するかは、一羽ずつ運任せにする。群れの飛び立ちが時間に散らばり、本塔は一羽ずつ捌けるようになる。「揃えて待つな。散らして待て」</p><p>カイナは、それを数で見せた。同じ術式を、百の伝達所ぶん並べて走らせる。揺らぎを殺した場合と、Full Jitter を効かせた場合で。断っておくと、「揺らぎを殺す」といっても、別の術式に差し替えるわけじゃない。さっきの <code>random()</code> に毎回きっかり <code>1.0</code> を返させ、待ちを指数の上限へ張りつけて、全員を同じ値に揃えるだけだ。式は一文字も変えていない。揺らぎを入れるか殺すかは、供給する乱数の出方だけで決まる。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=c1>// N 個の伝達所が同じ嵐で最初に退く「待ち時間」を集める
+</span></span></span><span class=line><span class=cl><span class=kr>async</span> <span class=kd>function</span> <span class=nx>firstWaits</span><span class=p>(</span><span class=nx>N</span>: <span class=kt>number</span><span class=p>,</span> <span class=nx>random</span>: <span class=kt>Random</span><span class=p>)</span><span class=o>:</span> <span class=nx>Promise</span><span class=p>&lt;</span><span class=nt>number</span><span class=err>[]</span><span class=p>&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>waits</span>: <span class=kt>number</span><span class=p>[]</span> <span class=o>=</span> <span class=p>[];</span>
+</span></span><span class=line><span class=cl>  <span class=k>for</span> <span class=p>(</span><span class=kd>let</span> <span class=nx>i</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=nx>i</span> <span class=o>&lt;</span> <span class=nx>N</span><span class=p>;</span> <span class=nx>i</span><span class=o>++</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=kr>const</span> <span class=nx>sleeps</span>: <span class=kt>number</span><span class=p>[]</span> <span class=o>=</span> <span class=p>[];</span>
+</span></span><span class=line><span class=cl>    <span class=kr>const</span> <span class=nx>sleep</span>: <span class=kt>Sleep</span> <span class=o>=</span> <span class=p>(</span><span class=nx>ms</span><span class=p>)</span> <span class=o>=&gt;</span> <span class=p>{</span> <span class=nx>sleeps</span><span class=p>.</span><span class=nx>push</span><span class=p>(</span><span class=nx>ms</span><span class=p>);</span> <span class=k>return</span> <span class=nx>Promise</span><span class=p>.</span><span class=nx>resolve</span><span class=p>();</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=kr>const</span> <span class=nx>attempt</span>: <span class=kt>Attempt</span><span class=p>&lt;</span><span class=nt>string</span><span class=p>&gt;</span> <span class=o>=</span> <span class=p>()</span> <span class=o>=&gt;</span> <span class=nx>Promise</span><span class=p>.</span><span class=nx>reject</span><span class=p>(</span><span class=k>new</span> <span class=nb>Error</span><span class=p>(</span><span class=s2>&#34;storm&#34;</span><span class=p>));</span>
+</span></span><span class=line><span class=cl>    <span class=kr>const</span> <span class=nx>relay</span> <span class=o>=</span> <span class=k>new</span> <span class=nx>RelayAfter</span><span class=p>&lt;</span><span class=nt>string</span><span class=p>&gt;({</span>
+</span></span><span class=line><span class=cl>      <span class=nx>attempt</span><span class=p>,</span> <span class=nx>sleep</span><span class=p>,</span> <span class=nx>random</span><span class=p>,</span> <span class=nx>maxRetries</span>: <span class=kt>1</span><span class=p>,</span> <span class=nx>baseMs</span>: <span class=kt>100</span><span class=p>,</span> <span class=nx>capMs</span>: <span class=kt>2000</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>});</span>
+</span></span><span class=line><span class=cl>    <span class=k>await</span> <span class=nx>relay</span><span class=p>.</span><span class=nx>send</span><span class=p>().</span><span class=k>catch</span><span class=p>(()</span> <span class=o>=&gt;</span> <span class=p>{});</span>
+</span></span><span class=line><span class=cl>    <span class=nx>waits</span><span class=p>.</span><span class=nx>push</span><span class=p>(</span><span class=nx>sleeps</span><span class=p>[</span><span class=mi>0</span><span class=p>]);</span> <span class=c1>// 最初の再送までの待ち
+</span></span></span><span class=line><span class=cl>  <span class=p>}</span>
+</span></span><span class=line><span class=cl>  <span class=k>return</span> <span class=nx>waits</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=nx>it</span><span class=p>(</span><span class=s2>&#34;群れ: 揺らぎなしは同一刻に集中し、Full Jitter は分散する&#34;</span><span class=p>,</span> <span class=kr>async</span> <span class=p>()</span> <span class=o>=&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>N</span> <span class=o>=</span> <span class=mi>100</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=c1>// 揺らぎなし：全員 random=1.0 → 全員 backoff(0)=100 で同値
+</span></span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>synced</span> <span class=o>=</span> <span class=k>await</span> <span class=nx>firstWaits</span><span class=p>(</span><span class=nx>N</span><span class=p>,</span> <span class=p>()</span> <span class=o>=&gt;</span> <span class=mf>1.0</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>  <span class=nx>assert</span><span class=p>.</span><span class=nx>equal</span><span class=p>(</span><span class=nx>peakInBucket</span><span class=p>(</span><span class=nx>synced</span><span class=p>,</span> <span class=mi>10</span><span class=p>),</span> <span class=nx>N</span><span class=p>);</span> <span class=c1>// 100羽が同じ窓に殺到
+</span></span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=c1>// Full Jitter：決定的な擬似乱数で [0,100) に散らす（シード固定＝再現可能）
+</span></span></span><span class=line><span class=cl>  <span class=kd>let</span> <span class=nx>seed</span> <span class=o>=</span> <span class=mi>1</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>rand</span>: <span class=kt>Random</span> <span class=o>=</span> <span class=p>()</span> <span class=o>=&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=nx>seed</span> <span class=o>=</span> <span class=p>(</span><span class=nx>seed</span> <span class=o>*</span> <span class=mi>1103515245</span> <span class=o>+</span> <span class=mi>12345</span><span class=p>)</span> <span class=o>&amp;</span> <span class=mh>0x7fffffff</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nx>seed</span> <span class=o>/</span> <span class=mh>0x7fffffff</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=p>};</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>jittered</span> <span class=o>=</span> <span class=k>await</span> <span class=nx>firstWaits</span><span class=p>(</span><span class=nx>N</span><span class=p>,</span> <span class=nx>rand</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>  <span class=c1>// 実測ピーク値: 15（N/2=50 を十分下回り安定）
+</span></span></span><span class=line><span class=cl>  <span class=nx>assert</span><span class=p>.</span><span class=nx>ok</span><span class=p>(</span><span class=nx>peakInBucket</span><span class=p>(</span><span class=nx>jittered</span><span class=p>,</span> <span class=mi>10</span><span class=p>)</span> <span class=o>&lt;</span> <span class=nx>N</span> <span class=o>/</span> <span class=mi>2</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>});</span>
+</span></span></code></pre></td></tr></table></div></div><p>ここで使う物差しが <code>peakInBucket</code> だ。退いた刻を、十刻ごとの窓に振り分けて、一番混んだ窓に何羽詰まったかを数える。これが、群れの殺到の度合いになる。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=kd>function</span> <span class=nx>peakInBucket</span><span class=p>(</span><span class=nx>values</span>: <span class=kt>number</span><span class=p>[],</span> <span class=nx>bucketMs</span>: <span class=kt>number</span><span class=p>)</span><span class=o>:</span> <span class=kt>number</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>counts</span> <span class=o>=</span> <span class=k>new</span> <span class=nx>Map</span><span class=p>&lt;</span><span class=nt>number</span><span class=p>,</span> <span class=na>number</span><span class=p>&gt;();</span>
+</span></span><span class=line><span class=cl>  <span class=kd>let</span> <span class=nx>peak</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=k>for</span> <span class=p>(</span><span class=kr>const</span> <span class=nx>v</span> <span class=k>of</span> <span class=nx>values</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=kr>const</span> <span class=nx>b</span> <span class=o>=</span> <span class=nb>Math</span><span class=p>.</span><span class=nx>floor</span><span class=p>(</span><span class=nx>v</span> <span class=o>/</span> <span class=nx>bucketMs</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=kr>const</span> <span class=nx>c</span> <span class=o>=</span> <span class=p>(</span><span class=nx>counts</span><span class=p>.</span><span class=kr>get</span><span class=p>(</span><span class=nx>b</span><span class=p>)</span> <span class=o>??</span> <span class=mi>0</span><span class=p>)</span> <span class=o>+</span> <span class=mi>1</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nx>counts</span><span class=p>.</span><span class=kr>set</span><span class=p>(</span><span class=nx>b</span><span class=p>,</span> <span class=nx>c</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=nx>c</span> <span class=o>&gt;</span> <span class=nx>peak</span><span class=p>)</span> <span class=nx>peak</span> <span class=o>=</span> <span class=nx>c</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=p>}</span>
+</span></span><span class=line><span class=cl>  <span class=k>return</span> <span class=nx>peak</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>揺らぎを殺すと、百羽が一つの窓に揃って詰まった。ピークは、きっかり百。全部が同じ刻に飛ぶ。Full Jitter を効かせると、同じ百羽が刻の上に散り、一番混んだ窓でも十五羽までしか重ならなかった。百が十五へ。<code>[0,100)</code> の幅に百羽を撒けば、十刻ごとの窓は十個ぶん——一窓あたり平均すれば十羽前後で、十五はそのばらつきの内に収まる。だからこの十五は窓の幅（<code>bucketMs</code>）しだいで動く目安であって、きっかりの数そのものに意味があるわけじゃない。テストが見るのも「ピークが半分（五十）を割るか」——群れがほどけたか否かの境であって、何羽きっかりか、ではない。これだけ散れば、本塔も一羽ずつ受けられる。</p><p>ここでも、揺らぎは運任せに見えて、種（シード）を固定した擬似乱数を使っている。だから「散った」という結果も、まぐれではなく、いつ走らせても同じ十五に落ち着く。乱数を使う仕掛けほど、検める時には乱数の出所をこちらで握る。それで初めて、「揺らぎが群れを解いた」と数で言い切れる。</p><p>断っておくと、この百羽の模擬戦で並べたのは、さっき直した術式（<code>RelayAfter</code>）を、ただ百個こしらえただけだ。術式そのものは一文字も変えていない。群れに効かせるからといって、別物に組み替えたわけじゃない。群れの散り方は最初の退きで決まるから、ここでは一度だけ退かせれば足りる（<code>maxRetries: 1</code>）。回数を絞ったのは、測りたいものに合わせて手数を減らしただけで、中身は直したときのままだ。変えたのは、相変わらず、あの待つ一行だけだった。
+この「群れがほどける」という現象を、伝達所と本塔のやり取りに引き写して考えてみる。</p><p>まずは、揺らぎを殺して（Jitterなし）全員を同じ待ち時間に揃えた場合だ。</p><p><img src=/public_images/2026/code-tamer-retry-exponential-backoff/infographic_1.webp loading=lazy alt="Infographic showing a ‘No Jitter’ retry storm in a dark fantasy style. Three outposts send retry signals at the exact same time (t=8) to the Central Tower. The signals collide simultaneously, creating a red and amber magic explosion of overload at the tower, illustrating how synchronized retries crash a system."></p><p>そしてこちらが、揺らぎ（Full Jitter）を効かせて、各自がバラバラの待ち時間を選択した場合だ。</p><p><img src=/public_images/2026/code-tamer-retry-exponential-backoff/infographic_2.webp loading=lazy alt="Infographic showing a ‘Full Jitter’ decentralized retry mechanism in a dark fantasy style. Three outposts stagger their retry signals at different times (t=3, t=6, and t=9) to the Central Tower. Each signal arrives separately and is safely processed with a green checkmark, illustrating how randomized delay prevents system overload."></p><p>揺らぎがない上の状況では、三所の雷鳥が同じ刻にぶつかって、本塔がまた潰れてしまう（再送衝突）。しかし、揺らぎを効かせた下の状況では、退く刻が一羽ずつずれて、本塔が順に捌いていくことができる。退きを倍々にするだけでは、群れは揃ったまま戻ってくる。揺らぎを足して初めて、群れがほどけるのだ。</p><h3 id=待っても縛れないもの>待っても、縛れないもの</h3><p>「これで」と俺は訊いた。「嵐は、もう怖くねえか」</p><p>カイナは止まり木の雷鳥を一羽、指の腹で撫でた。羽が落ち着くのを待つように、ひと呼吸おいてから口を開いた。</p><p>「この退きが効くのは、嵐がいつか去るときだけだ。一時の不調——それが大前提だ」。一時的に塞がっているだけで、待てば必ず通じる相手。そういう障害を<strong>一時的障害</strong>と呼ぶ。「本塔が嵐じゃなく、崩れて完全に死んでいるなら、何度退いても応えはしない。待つだけ無駄に雷鳥を捨てることになる。何度退いても無駄な相手には、いっそ放つのをやめ、結界を下ろして傷を広げない見極めが要る。それは別の獣の領分だ」。失敗が続けば送りを自動で遮断して、連鎖の倒れを防ぐ仕組み——<strong>Circuit Breaker</strong>、封印の自動結界。それはまた、別のいつか名を付けることになる、とカイナは言った。</p><p>「それと」とカイナは俺を見た。「同じ報せを二度放っても害がない——それが、退いて放ち直すことの、もう一つの前提だ」。同じことを何度繰り返しても結果が変わらない性質を、<strong>冪等</strong>という。「お前の雷鳥が運ぶのが、ただの報せなら、二度届いても害はない。だが、もし運ぶのが『荷を一つ送れ』のような、二度効けば二度起きる命令だったら——退いて放ち直した一羽が、向こうにもう一度、荷を送らせる。待つことが、そのまま二重の事故になる」</p><p>二度効けば、二度起きる。俺はその図を思い浮かべて、ぞっとした。</p><p>「届いたか分からぬまま、もう一羽放つ。両方が効いて、荷が二つ出る。——それは、別の街で双頭の犬を飼っていた、どこかの誰かの話だ」とカイナは言った。誰のことかは知らない。だが、再送という手は、二度効いて困らない命令にだけ許される。それだけは、肝に銘じた。</p><p>縛れる相手と、そうでない相手。その境が、ようやく見えた。退きで救えるのは、いつか目を覚ます塔だけだ。死んだ塔にも、二度効けば二度起きる荷にも、退きは届かない——そこには別の手がいる。それでも、嵐に黙るだけの塔が相手なら、俺はもう、焦って羽を撒き散らしはしない。</p><h2 id=見送り>見送り</h2><p>檻は、そのまま伝達所に置いていくという。連射する古い術式も、退きを覚えた術式も、掛けたままだ。連射する方には「嵐の前に尽きる」ことを、退く方には「嵐の後に届く」ことを、それぞれ刻みつけて。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-console data-lang=console><span class=line><span class=cl><span class=gp>$</span> node --test
+</span></span><span class=line><span class=cl><span class=go>▶ After: RelayAfter（手懐けた魔獣・賢く待つ）
+</span></span></span><span class=line><span class=cl><span class=go>  ✔ 失敗ごとに待ち、嵐が去った後の一羽が届いて成功する
+</span></span></span><span class=line><span class=cl><span class=go>  ✔ 待機は失敗ごとに倍へ伸び、cap で頭打ちになる
+</span></span></span><span class=line><span class=cl><span class=go>  ✔ 群れ: 揺らぎなしは同一刻に集中し、Full Jitter は分散する
+</span></span></span><span class=line><span class=cl><span class=go>▶ Before: RelayBefore（暴れる魔獣・即時連射）
+</span></span></span><span class=line><span class=cl><span class=go>  ✔ 即座に連射し、嵐が去る前に手持ちを撃ち尽くして最終失敗する
+</span></span></span><span class=line><span class=cl><span class=go>ℹ tests 4
+</span></span></span><span class=line><span class=cl><span class=go>ℹ pass 4
+</span></span></span><span class=line><span class=cl><span class=go>ℹ fail 0
+</span></span></span></code></pre></td></tr></table></div></div><p>これからは、この檻が見張る。次に誰かが——あるいは俺自身が、また気が急いて——間を詰めようとすれば、嵐の前に羽が尽きるその姿が、卓の上で先に捕まる。</p><p>その日の夕、嵐は本当に去った。稜線の影が晴れて、本塔の輪郭が戻った。俺は止まり木から雷鳥を一羽だけ取って、空へ放った。そして——放った手を、次の一羽へ伸ばさなかった。待った。</p><p>「待つのは、性に合わねえ」と、つい口に出た。</p><p>「だが、待てない奴の雷鳥は」とカイナは稜線の方を向いたまま言った。「嵐の前に、羽を使い果たす」</p><p>しばらくして、稜線の向こうの本塔に、小さく灯がともった。一羽、届いた。連発しなくても、たった一羽で、届いた。</p><p>カイナはもう、伝達所に背を向けて、晴れた稜線の下を歩き出していた。呼び止めようとして、やめた。次に何かが黙り込んでも——今度は、自分で待てる気がした。</p><hr><h3 id=-カイナの魔獣契約録tamers-registry>📜 カイナの魔獣契約録（Tamer&rsquo;s Registry）</h3><ul><li><strong>魔獣名（クラス/パターン名）</strong>: サンダーバード（焦りの雷鳥）／ 即時連射の自滅（単一クライアント）と Thundering Herd（群れの同期再送）（指数バックオフ＋Full Jitter で馴致）</li><li><strong>危険度（難易度/バグの影響度）</strong>: ★★★★☆（平時は無害。相手が一時障害で弱った刻にだけ牙をむき、即時連射が復旧を妨げ、群れが揃えば回復しかけた相手をもう一度倒す）</li><li><strong>主な生態（アンチパターンの特徴）</strong>:<ul><li>失敗するたび、間を空けず次を放つ（<code>catch</code> で何もせず周回）。一時障害の相手には、嵐が去る前に手持ち（<code>maxRetries+1</code> 回）を撃ち尽くし最終失敗する</li><li>弱った相手へ高頻度で叩き込むため、相手の復旧そのものを遅らせる（リトライは利己的）</li><li>複数のクライアントが同じ拍子で退くと、同じ刻に揃って再送し、回復しかけた相手をまた倒す（クラスタリング）</li></ul></li><li><strong>契約のポイント（設計の要点）</strong>:<ul><li>変えたのは「待つか待たないか」1点。<code>catch</code> 内に <code>await this.sleep(this.backoff(n))</code> を一つ挿むだけ。<code>for</code>・上限・成功時 <code>return</code>・最終 <code>throw</code> のロジックは Before と同一</li><li>待ちの中身は、指数で倍々に伸ばし（Exponential Backoff）、cap で頭打ちにし、Full Jitter（<code>random() * exp</code>）で散らす。相手に息を継がせ、群れの再送を脱同期する</li><li><code>sleep</code> を論理時計に流用し、<code>random</code> を固定して、実時間ゼロ・決定的に検証。群れの脱同期は同じ術式を N 個並べて定量化（術式自体は不変）</li></ul></li><li><strong>契約外事項（保証しないこと）</strong>:<ul><li>嵐がいつか去る（一時障害）前提。完全に死んだ相手には待つだけ無駄＝遮断（Circuit Breaker）の領分</li><li>二度効けば二度起きる命令（非冪等）の再送は二重実行になる。冪等な送りにのみ許される</li><li>多層で各層が独立に退くと、総試行は層の数だけ掛け算で膨らむ（各層が3回退けば3層で27倍）。退くのは単一の層だけにするのが原則</li><li>一時障害かどうかの判定（待つ価値のある失敗か）は本話では前提とし、別途見極めが要る</li></ul></li><li><strong>現在のステータス</strong>: 🟢 焦りの雷鳥を馴致（嵐がいつか去る前提で・群れは揺らぎで散らす）／死んだ塔への見極めと、二度効く荷は別領分</li></ul></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/typescript/>Typescript</a>
+<a href=/tags/exponential-backoff/>Exponential-Backoff</a>
+<a href=/tags/jitter/>Jitter</a>
+<a href=/tags/thundering-herd/>Thundering-Herd</a>
+<a href=/tags/retry/>Retry</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-tamer/>Code-Tamer</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/07/05/170705/><div class=article-image><img src=/public_images/2026/code-tamer-graceful-shutdown-abyss-null/header.webp loading=lazy data-key data-hash=/public_images/2026/code-tamer-graceful-shutdown-abyss-null/header.webp></div><div class=article-details><h2 class=article-title>コードテイマー【Graceful Shutdown】終いを急ぐ獣が、還らぬ客と開いた鍵を闇に残す〜受け入れを閉ざし、皆を還してから己を閉じる〜</h2></div></a></article><article class=has-image><a href=/2026/07/05/120705/><div class=article-image><img src=/public_images/2026/code-tamer-bulkhead/header.webp loading=lazy data-key data-hash=/public_images/2026/code-tamer-bulkhead/header.webp></div><div class=article-details><h2 class=article-title>コードテイマー【Bulkhead】汲み上げの大食らいが船中の魔力を飲み干し、守りの防壁が飢えて落ちる〜魔力槽を機能ごとに隔て、守りの取り分を絶やさない〜</h2></div></a></article><article class=has-image><a href=/2026/07/05/070705/><div class=article-image><img src=/public_images/2026/code-tamer-circuit-breaker/header.webp loading=lazy data-key data-hash=/public_images/2026/code-tamer-circuit-breaker/header.webp></div><div class=article-details><h2 class=article-title>コードテイマー【Circuit Breaker】倒れた一匹を見捨てられず、群れごと魔力が枯れ果てる〜倒れた相手への鎖を断ち、頃合いを見て繋ぎ直す〜</h2></div></a></article><article class=has-image><a href=/2026/07/04/170705/><div class=article-image><img src=/public_images/2026/code-tamer-eventual-consistency/header.webp loading=lazy data-key data-hash=/public_images/2026/code-tamer-eventual-consistency/header.webp></div><div class=article-details><h2 class=article-title>コードテイマー【Eventual Consistency】取りこぼした叫びのあと、その階層だけが古いまま黙り込む〜叫びと巡回の二本を版で束ね、遅れても必ず追いつかせる〜</h2></div></a></article><article class=has-image><a href=/2026/07/04/120705/><div class=article-image><img src=/public_images/2026/code-tamer-optimistic-locking/header.webp loading=lazy data-key data-hash=/public_images/2026/code-tamer-optimistic-locking/header.webp></div><div class=article-details><h2 class=article-title>コードテイマー【Optimistic Locking】二人の手が同じ数を書き、一方の更新が静かに消える〜帳に版を刻み、後から来た手にやり直させる〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

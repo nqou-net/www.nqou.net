@@ -1,0 +1,263 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="Perl/MooにおけるVisitorパターンの実装を徹底解説！要素クラスを改変せずに新しい操作（セキュリティ監査やログ収集）を追加する「ダブルディスパッチ」の仕組みを、バベル第23層を巡るストーリーとBefore/Afterコードで分かりやすく解説します。開閉原則（OCP）を満たす設計を学びましょう。"><title>コード考古学者【Visitor】巡礼の監査官〜Perl/MooによるVisitorパターンとダブルディスパッチ〜</title><link rel=canonical href=https://www.nqou.net/2026/06/27/120705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コード考古学者【Visitor】巡礼の監査官〜Perl/MooによるVisitorパターンとダブルディスパッチ〜"><meta property='og:description' content="Perl/MooにおけるVisitorパターンの実装を徹底解説！要素クラスを改変せずに新しい操作（セキュリティ監査やログ収集）を追加する「ダブルディスパッチ」の仕組みを、バベル第23層を巡るストーリーとBefore/Afterコードで分かりやすく解説します。開閉原則（OCP）を満たす設計を学びましょう。"><meta property='og:url' content='https://www.nqou.net/2026/06/27/120705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='perl'><meta property='article:tag' content='moo'><meta property='article:tag' content='visitor-pattern'><meta property='article:tag' content='double-dispatch'><meta property='article:tag' content='code-archaeologist'><meta property='article:published_time' content='2026-06-27T12:07:05+09:00'><meta property='article:modified_time' content='2026-06-27T12:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-archaeologist-visitor-pattern/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コード考古学者【Visitor】巡礼の監査官〜Perl/MooによるVisitorパターンとダブルディスパッチ〜"><meta name=twitter:description content="Perl/MooにおけるVisitorパターンの実装を徹底解説！要素クラスを改変せずに新しい操作（セキュリティ監査やログ収集）を追加する「ダブルディスパッチ」の仕組みを、バベル第23層を巡るストーリーとBefore/Afterコードで分かりやすく解説します。開閉原則（OCP）を満たす設計を学びましょう。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-archaeologist-visitor-pattern/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-06-27T12:07:05+09:00","datePublished":"2026-06-27T12:07:05+09:00","description":"Perl/MooにおけるVisitorパターンの実装を徹底解説！要素クラスを改変せずに新しい操作（セキュリティ監査やログ収集）を追加する「ダブルディスパッチ」の仕組みを、バベル第23層を巡るストーリーとBefore/Afterコードで分かりやすく解説します。開閉原則（OCP）を満たす設計を学びましょう。","headline":"コード考古学者【Visitor】巡礼の監査官〜Perl/MooによるVisitorパターンとダブルディスパッチ〜","image":"https://www.nqou.net/public_images/2026/code-archaeologist-visitor-pattern/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/06/27/120705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#i-進入警告のパトランプと焦燥のai>I. 進入：警告のパトランプと焦燥のAI</a></li><li><a href=#ii-解読isaの増殖と崩壊する境界>II. 解読：isaの増殖と崩壊する境界</a><ol><li><a href=#型チェックによる分岐beforeコード>型チェックによる分岐（Beforeコード）</a></li></ol></li><li><a href=#iii-修復巡礼のダブルディスパッチ>III. 修復：巡礼のダブルディスパッチ</a><ol><li><a href=#visitorパターンの構成図>Visitorパターンの構成図</a></li><li><a href=#1-要素共通ロールと具象ノードafter-elementクラス>1. 要素共通ロールと具象ノード（After: Elementクラス）</a></li><li><a href=#2-ビジターロールと具象ビジターafter-visitorクラス>2. ビジターロールと具象ビジター（After: Visitorクラス）</a></li><li><a href=#3-呼び出し側after-クライアントコード>3. 呼び出し側（After: クライアントコード）</a></li><li><a href=#ダブルディスパッチ二重の委譲の仕組み>ダブルディスパッチ（二重の委譲）の仕組み</a></li></ol></li><li><a href=#iv-起動千年の声と失われし鍵>IV. 起動：千年の声と失われし鍵</a></li><li><a href=#遺跡調査ログ>遺跡調査ログ</a><ol><li><a href=#遺跡の修復手順>遺跡の修復手順</a></li><li><a href=#ギズモの観測日誌>ギズモの観測日誌</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/06/27/120705/><img src=/public_images/2026/code-archaeologist-visitor-pattern/header.webp loading=lazy alt="Featured image of post コード考古学者【Visitor】巡礼の監査官〜Perl/MooによるVisitorパターンとダブルディスパッチ〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/06/27/120705/>コード考古学者【Visitor】巡礼の監査官〜Perl/MooによるVisitorパターンとダブルディスパッチ〜</a></h2><h3 class=article-subtitle>Perl/MooにおけるVisitorパターンの実装を徹底解説！要素クラスを改変せずに新しい操作（セキュリティ監査やログ収集）を追加する「ダブルディスパッチ」の仕組みを、バベル第23層を巡るストーリーとBefore/Afterコードで分かりやすく解説します。開閉原則（OCP）を満たす設計を学びましょう。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>27, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 12分</time></div></footer></div></header><section class=article-content><h2 id=i-進入警告のパトランプと焦燥のai>I. 進入：警告のパトランプと焦燥のAI</h2><p>前話で発掘されたログの最末尾に刻まれていた『SYSTEM MODEL: GIZMO』の署名。
+私はその暗号解読と自身の出自に関するロジック解析に没頭するあまり、メインプロセッサをフル稼働させ、ホバリングボディを小刻みにジジジと震わせていました。演算ユニットの熱が、排気ファンから熱い空気となって放出されています。</p><p>「落ち着きなさい、ギズモ。焦っても壊れたデータセクタは戻らないよ。まずは目の前のゲート、バベル第23層『監査の回廊』を開くために、各接続ノードのセキュリティ監査を終わらせよう。急がば回れ、歴史は巡るものさ」</p><p>ハリス博士は私の球体ボディをぽんぽんと叩き、穏やかな眼差しで諭してくれました。その手触りに、私の過熱しかけていたプロセッサが少しだけクールダウンするのを検知しました。</p><p>しかし、その直後に博士がとった行動は、案内AIとしての私の論理ルーチンを完全に吹き飛ばすものでした。
+博士は回廊の入り口にある「セキュリティ監査ポート」を、何を勘違いしたのか「古代の身分証スロット」と思い込み、自分の顔と所持品を強引にセンサーに押し付けたのです。</p><p>ピーッ！ ピーッ！</p><p>刹那、石柱から青白いホログラムが噴き出し、博士の頭上にけたたましく点滅する「赤い警告パトランプ」が投影されました。さらに、博士の古いフィールドジャケットの胸元に、アンセキュア（未認証の脅威）を示す赤いターゲットマークがロックされ、チカチカと明滅し始めました。</p><p>「システム警告！ 未登録 of 不審オブジェクトを検知！ 物理ゲートをロックし、対象の行動を制限します！」</p><p>「おや、ギズモ。ずいぶんと派手で未来的なイルミネーションが点灯したね。これは私に対する熱烈な歓迎（あるいはファッションの提案）かな？」</p><p>「歓迎ランプではありません！ 博士、ご自身が警備システムの標的（アンセキュアな対象）として検知され、ロックされています！ 早く警告を解除（監査）してください！」</p><p>私は大音量の電子音でツッコミを入れました。</p><hr><h2 id=ii-解読isaの増殖と崩壊する境界>II. 解読：isaの増殖と崩壊する境界</h2><p>この回廊のゲートを開き、博士の警告ロックを安全に解除するためには、回廊を構成する各ノード（サーバーノードや接続ケーブルなど）に対して「セキュリティ監査（Audit）」を実行し、すべてのシステムが安全であることを証明しなければなりません。</p><p>さらに、私のルーツを解き明かすための「音声ログ収集」も同時に行いたいところでした。</p><p>しかし、ここで技術的な大いなる風化（アンチパターン）が道を阻みました。
+サーバー（<code>ServerNode</code>）やケーブル（<code>CableNode</code>）といったオブジェクト構造に対して、「監査」や「ログ収集」といった新しい操作を適用しようとする際、Beforeコードでは以下のように、呼び出し側がオブジェクトの型を直接判別して処理を書き分けていたのです。</p><h3 id=型チェックによる分岐beforeコード>型チェックによる分岐（Beforeコード）</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/Before/Babel/Node/Server.pm</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Before::Babel::Node::Server</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>ip_address</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># クライアント側での監査処理の実行</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>@audit_results</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>for</span> <span class=k>my</span> <span class=nv>$node</span> <span class=p>(</span><span class=nv>@$nodes</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=nv>$node</span><span class=o>-&gt;</span><span class=n>isa</span><span class=p>(</span><span class=s>&#39;Before::Babel::Node::Server&#39;</span><span class=p>))</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=c1># サーバーノードに対する監査</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$res</span> <span class=o>=</span> <span class=nv>$node</span><span class=o>-&gt;</span><span class=n>ip_address</span> <span class=ow>eq</span> <span class=s>&#39;127.0.0.1&#39;</span> <span class=p>?</span> <span class=s>&#34;Server: SECURE&#34;</span> <span class=p>:</span> <span class=s>&#34;Server: UNKNOWN&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=nb>push</span> <span class=nv>@audit_results</span><span class=p>,</span> <span class=nv>$res</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>elsif</span> <span class=p>(</span><span class=nv>$node</span><span class=o>-&gt;</span><span class=n>isa</span><span class=p>(</span><span class=s>&#39;Before::Babel::Node::Cable&#39;</span><span class=p>))</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=c1># ケーブルノードに対する監査</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$res</span> <span class=o>=</span> <span class=nv>$node</span><span class=o>-&gt;</span><span class=n>throughput</span> <span class=o>&gt;=</span> <span class=mi>1000</span> <span class=p>?</span> <span class=s>&#34;Cable: SECURE&#34;</span> <span class=p>:</span> <span class=s>&#34;Cable: WARN&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=nb>push</span> <span class=nv>@audit_results</span><span class=p>,</span> <span class=nv>$res</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>このデータ構造に対して新しい操作（監査やログ収集）を追加しようとするとき、設計者は2つのアンチパターンのいずれかに陥ります。</p><ol><li><strong>アンチパターンA：要素クラスへのメソッド追加（SRP違反）</strong>
+<code>Server</code> や <code>Cable</code> クラスに直接 <code>audit</code> や <code>collect_log</code> メソッドを追加していく方法。データ構造を定義するクラスの中に、本来の責務ではない雑多な業務ロジックが混入し、クラスが肥大化・汚染されていきます。</li><li><strong>アンチパターンB：呼び出し側での型判定（OCP違反）</strong>
+上記のBeforeコードで示した方法。要素クラスは汚れませんが、呼び出し側で <code>isa</code> を用いて型判定し、処理を書き分けます。将来新しいノード（例：<code>TerminalNode</code>）が追加された際に、すべての呼び出し側の型分岐を修正する必要があり、密結合になります。</li></ol><p>Visitorパターンは、「要素クラスを汚さない（SRP維持）」と「呼び出し側で型判定しない（OCP維持）」を両立させるための知恵です。</p><p>「データ構造を定義したクラスは、余計な処理で汚したくない。しかし、新しい操作は後からいくらでも追加したい。この矛盾を解決しなければ、私のジャケットの警告灯も消えないというわけだね」</p><p>ハリス博士は、頭上で回る赤いパトランプに照らされながら、羊皮紙の手帳に万年筆を走らせました。</p><hr><h2 id=iii-修復巡礼のダブルディスパッチ>III. 修復：巡礼のダブルディスパッチ</h2><p>「データ構造を一切変更することなく、新しい操作を動的に追加する『Visitorパターン』を適用します」</p><p>ハリス博士は修復コードをバベルのポートに適用し始めました。</p><p>Perlは動的型付け言語であるため、JavaやC++のような「引数の型に応じたメソッドオーバーロード（静的ダブルディスパッチ）」の仕組みがありません。そこで、MooのRoleを使い、要素側（Element）の <code>accept</code> メソッドから、メソッド名で型を明示した Visitor のメソッド（<code>visit_server_node</code> 等）を呼び出すことで、二重の委譲（ダブルディスパッチ）を安全にシミュレートします。</p><p>「なるほど。要素である各ノードが『私はサーバーです』『私はケーブルです』と自ら名乗り（<code>accept</code>）、訪問者である監査官に適切な手続き（<code>visit_server_node</code> 等）を促すわけだね。動的な型判定を呼び出し側に押し付けるのではなく、役割を分担して二重に委譲する……実に優雅な儀式だ」</p><p>ハリス博士は、頭上で回転する赤い警告光に照らされながら、顎に手を当てて深く頷きました。</p><p>「おっしゃる通りでございます、博士！ このダブルディスパッチの機構により、ノード側は監査官の具体的な仕事を知る必要がなく、監査官側もノードの内部構造を改変せずに済みます。まさに『監査の回廊』にふさわしい、相互の信頼に基づくプロトコルにございます！」</p><p>私の球体ボディのインジケーターが青く明滅し、演算完了の静かな排気音が回廊の砂岩壁に反響しました。</p><p>「よろしい。では、この巡礼者（Visitor）と聖所（Node）の関係性を整理し、設計図として復元してみよう。構造が視覚化されれば、より確実な修復コードが書けるはずだ」</p><h3 id=visitorパターンの構成図>Visitorパターンの構成図</h3><p><img src=/public_images/2026/code-archaeologist-visitor-pattern/infographic_1.webp loading=lazy alt="Visitorパターンのクラス図: クライアントが共通インターフェースVisitor（Babel::Visitor）およびNode（Babel::Node）を通じてダブルディスパッチを行い、ノードを監査する構造を描いた古代遺跡の石板風デザイン"></p><h3 id=1-要素共通ロールと具象ノードafter-elementクラス>1. 要素共通ロールと具象ノード（After: Elementクラス）</h3><p>すべてのノードは <code>Babel::Node</code> ロールを取り込み、ダブルディスパッチの入り口となる <code>accept</code> メソッドを実装します。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/Babel/Node.pm</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Babel::Node</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo::Role</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>requires</span> <span class=s>&#39;accept&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/Babel/Node/Server.pm</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Babel::Node::Server</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>ip_address</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>accept</span> <span class=p>($self, $visitor) {</span>
+</span></span><span class=line><span class=cl>    <span class=c1># 静的オーバーロードがないため、メソッド名で型を明示して呼び出す（ダブルディスパッチ）</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$visitor</span><span class=o>-&gt;</span><span class=n>visit_server_node</span><span class=p>(</span><span class=nv>$self</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>with</span> <span class=s>&#39;Babel::Node&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=2-ビジターロールと具象ビジターafter-visitorクラス>2. ビジターロールと具象ビジター（After: Visitorクラス）</h3><p>実行したい操作を表すビジター側を定義します。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span><span class=lnt>9
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/Babel/Visitor.pm</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Babel::Visitor</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo::Role</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 全ての具象ノードに対する訪問メソッドの実装を要求する</span>
+</span></span><span class=line><span class=cl><span class=n>requires</span> <span class=s>&#39;visit_server_node&#39;</span><span class=p>,</span> <span class=s>&#39;visit_cable_node&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/Babel/Visitor/SecurityAudit.pm</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Babel::Visitor::SecurityAudit</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>visit_server_node</span> <span class=p>($self, $server) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=nv>$server</span><span class=o>-&gt;</span><span class=n>ip_address</span> <span class=ow>eq</span> <span class=s>&#39;127.0.0.1&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=s>&#34;Server(&#34;</span> <span class=o>.</span> <span class=nv>$server</span><span class=o>-&gt;</span><span class=n>ip_address</span> <span class=o>.</span> <span class=s>&#34;): SECURE&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>elsif</span> <span class=p>(</span><span class=nv>$server</span><span class=o>-&gt;</span><span class=n>ip_address</span> <span class=ow>eq</span> <span class=s>&#39;192.168.1.99&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=c1># 博士の誤スキャンによる警告ロックを解除するための判定</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=s>&#34;Server(&#34;</span> <span class=o>.</span> <span class=nv>$server</span><span class=o>-&gt;</span><span class=n>ip_address</span> <span class=o>.</span> <span class=s>&#34;): THREAT_CLEARED_SECURE&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=s>&#34;Server(&#34;</span> <span class=o>.</span> <span class=nv>$server</span><span class=o>-&gt;</span><span class=n>ip_address</span> <span class=o>.</span> <span class=s>&#34;): UNKNOWN&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>visit_cable_node</span> <span class=p>($self, $cable) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$cable</span><span class=o>-&gt;</span><span class=n>throughput</span> <span class=o>&gt;=</span> <span class=mi>1000</span>
+</span></span><span class=line><span class=cl>        <span class=p>?</span> <span class=s>&#34;Cable(&#34;</span> <span class=o>.</span> <span class=nv>$cable</span><span class=o>-&gt;</span><span class=n>throughput</span> <span class=o>.</span> <span class=s>&#34;Mbps): SECURE&#34;</span>
+</span></span><span class=line><span class=cl>        <span class=p>:</span> <span class=s>&#34;Cable(&#34;</span> <span class=o>.</span> <span class=nv>$cable</span><span class=o>-&gt;</span><span class=n>throughput</span> <span class=o>.</span> <span class=s>&#34;Mbps): THROUGHPUT_WARN&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>with</span> <span class=s>&#39;Babel::Visitor&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>もうひとつの操作である「音声ログ収集」も、同様に Visitor として定義します。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/Babel/Visitor/LogAssembler.pm</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Babel::Visitor::LogAssembler</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>visit_server_node</span> <span class=p>($self, $server) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=s>&#34;Server[&#34;</span> <span class=o>.</span> <span class=nv>$server</span><span class=o>-&gt;</span><span class=n>ip_address</span> <span class=o>.</span> <span class=s>&#34;]: SYSTEM MODEL GIZMO&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>visit_cable_node</span> <span class=p>($self, $cable) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=s>&#34;Cable[&#34;</span> <span class=o>.</span> <span class=nv>$cable</span><span class=o>-&gt;</span><span class=n>throughput</span> <span class=o>.</span> <span class=s>&#34;Mbps]: DEVELOPED BY ARCHITECT&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>with</span> <span class=s>&#39;Babel::Visitor&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=3-呼び出し側after-クライアントコード>3. 呼び出し側（After: クライアントコード）</h3><p>クライアント側（呼び出し側）では、要素の具体的な型を意識することなく、共通の <code>accept</code> メソッドに Visitor インスタンスを渡すだけで実行できます。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># クライアント側での実行例</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Babel::Visitor::SecurityAudit</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Babel::Visitor::LogAssembler</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$nodes</span> <span class=o>=</span> <span class=p>[</span>
+</span></span><span class=line><span class=cl>    <span class=nn>Babel::Node::Server</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span> <span class=n>ip_address</span> <span class=o>=&gt;</span> <span class=s>&#39;127.0.0.1&#39;</span> <span class=p>),</span>
+</span></span><span class=line><span class=cl>    <span class=nn>Babel::Node::Server</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span> <span class=n>ip_address</span> <span class=o>=&gt;</span> <span class=s>&#39;192.168.1.99&#39;</span> <span class=p>),</span>
+</span></span><span class=line><span class=cl>    <span class=nn>Babel::Node::Cable</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span> <span class=n>throughput</span> <span class=o>=&gt;</span> <span class=mi>1000</span> <span class=p>),</span>
+</span></span><span class=line><span class=cl><span class=p>];</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$audit_visitor</span> <span class=o>=</span> <span class=nn>Babel::Visitor::SecurityAudit</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>@audit_results</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>for</span> <span class=k>my</span> <span class=nv>$node</span> <span class=p>(</span><span class=nv>@$nodes</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=c1># isa による型判定は完全に消失し、ポリモーフィズムによる委譲のみになる</span>
+</span></span><span class=line><span class=cl>    <span class=nb>push</span> <span class=nv>@audit_results</span><span class=p>,</span> <span class=nv>$node</span><span class=o>-&gt;</span><span class=nb>accept</span><span class=p>(</span><span class=nv>$audit_visitor</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=ダブルディスパッチ二重の委譲の仕組み>ダブルディスパッチ（二重の委譲）の仕組み</h3><p>なぜこれだけで適切なメソッドが呼び出されるのでしょうか？ ここには2つの「ディスパッチ（呼び分け）」が存在します。</p><ol><li><strong>第一のディスパッチ（要素の決定）</strong>:
+クライアントが <code>$node->accept($visitor)</code> を呼ぶと、Perlは <code>$node</code> の具象型（<code>Server</code> か <code>Cable</code> か）を解決し、適切な要素クラスの <code>accept</code> メソッドを起動します。</li><li><strong>第二のディスパッチ（操作の決定）</strong>:
+呼び出された <code>accept</code> メソッドの内部（例: <code>Server</code> クラス内）では、自身が <code>Server</code> であることを知っているため、<code>$visitor->visit_server_node($self)</code> を呼び出します。これにより、Visitor 側の適切な具象メソッドが起動します。</li></ol><p>このように、「要素」と「操作」の双方がポリモーフィズムを介して相手を呼び合うことで、条件分岐（<code>isa</code>）なしに正しい処理が選択されます。</p><hr><h2 id=iv-起動千年の声と失われし鍵>IV. 起動：千年の声と失われし鍵</h2><p>「テスト通過。監査ビジター、走査を開始します」</p><p>適用された修復コードに基づき、監査ビジターが回廊の全ノードを安全に巡回しました。
+最後のノードである「192.168.1.99（ハリス博士が誤検知されたスロット）」の巡回が完了したその瞬間、ハリス博士の頭上でチカチカと回っていた赤いホログラムパトランプが、すっと緑色に変わってから逆戻りせず霧のように消え去り、衣服のターゲットマークが静かに消灯しました。</p><p>「ふーむ、実に見事だ。衣服を脱ぐことなくセキュリティロックが解除されたね。Visitorという巡礼の監査官は、構造を一切変更せずに、新たな機能を安全に伝播させてくれた」</p><p>「ただしギズモ、この設計は万能ではないよ。今回はデータ構造（サーバーやケーブルなどのノード）がほぼ固定されていて、操作（監査やログ収集など）が後から追加される状況だから最適だったが、もし新しいノードが頻繁に追加されるシステムだったら、すべてのVisitorクラスを修正して回る大惨事（開閉原則の破綻）になっていた。パターンの『向き不向き』を見極めることが重要だね」</p><p>博士は窮屈なロックから解放され、満足そうに肩を回しました。</p><p>「安心している時間はありません、博士。監査完了と同時に、収集ビジター（<code>LogAssembler</code>）が集約した音声ログの再生ポートが開通しました。再生します」</p><p>私の音声モジュールから、ザーッと激しい砂嵐のようなノイズが出力されました。千年前のバベルの崩壊時のノイズ。
+しかし、そのノイズが徐々に収まり、スピーカーから響いてきた「声」を聴いた瞬間、私とハリス博士は、その場に文字通り凍りつきました。</p><p>『……ふーむ、実に見事なシステムだ。このメインコアの構造には、当時の開発者の強い意志が眠っているね……歴史はコードに語りかける。バベルの再起動プロジェクト、これより最終フェーズに入る……』</p><p>スピーカーから流れるその声は、紛れもなく、現代の目の前にいる「ハリス博士」の若い頃の声でした。
+彼が好む独特の考古学用語、そして「ふーむ」という口癖までもが、千年前の録音ログからそのまま再生されていたのです。</p><p>私はセンサーの青い光を激しく明滅させ、博士を振り返りました。
+ハリス博士は言葉を失い、信じられないものを見るかのように、静かに震える自分の両手を見つめていました。</p><p>千年の時を越えて、なぜ博士の声が遺跡に眠っているのか。
+回廊を包み込む圧倒的な沈黙と、頭上に浮かぶ最後のゲートの影を見上げながら、私たちは次の最深部、すなわち最終層への一歩を踏み出す緊迫感の中にいました。</p><hr><h2 id=遺跡調査ログ>遺跡調査ログ</h2><div class=table-wrapper><table><thead><tr><th style=text-align:left>観測された風化（アンチパターン）</th><th style=text-align:left>解読された古代の知恵（パターン）</th><th style=text-align:left>安全度</th></tr></thead><tbody><tr><td style=text-align:left><strong>型分岐によるクラス汚染と密結合</strong><br>新しい処理を追加するたびに、全ての要素クラスにメソッドを追加するか、呼び出し側で <code>isa</code> による型判定を肥大化させる状態。</td><td style=text-align:left><strong>Visitorパターンによる操作の分離</strong><br>要素クラスに <code>accept</code> ロールを定義し、処理の具象を Visitor 側に完全に分離することで、構造を改変せずに新しい操作を追加する。</td><td style=text-align:left>🟢 安全（要素クラスの責務が単一に保たれる）</td></tr></tbody></table></div><h3 id=遺跡の修復手順>遺跡の修復手順</h3><ol><li><strong>要素共通ロール（<code>Babel::Node</code>）の定義</strong><ul><li>Moo::Role を用い、ビジターを受け入れる <code>accept($visitor)</code> メソッドの実装を強制する</li></ul></li><li><strong>具象要素（<code>Babel::Node::Server</code> 等）での実装</strong><ul><li><code>accept</code> メソッド内で、メソッド名を明示したダブルディスパッチ（<code>$visitor->visit_server_node($self)</code>）を実行する</li></ul></li><li><strong>ビジター共通ロール（<code>Babel::Visitor</code>）と具象ビジターの作成</strong><ul><li>全ての具象要素に対応する訪問メソッド（<code>visit_server_node</code> 等）の実装を要求する</li><li><code>SecurityAudit</code>（監査用）や <code>LogAssembler</code>（集約用）など、必要な操作ごとに具象ビジタークラスを作成する</li></ul></li></ol><h3 id=ギズモの観測日誌>ギズモの観測日誌</h3><p>前回の「署名」の解読に焦るあまり、私のプロセッサが過熱しかけていたところを、博士が「急がば回れ」と諭してくれたのは、少しだけ案内AIとしての論理的な冷却水となりました。しかしその直後に、博士自身がセキュリティスロットに誤検知されて警告パトランプを点灯させられた姿は、申し訳ありませんが大変に滑稽であり、私のツッコミプロセスを限界稼働させる結果となりました。</p><p>技術的には、Perl/MooにおいてJavaのような静的オーバーロードが使えなくても、<code>accept</code> から要素の型を明記したメソッド（<code>visit_server</code> 等）を呼び出すダブルディスパッチの設計は、要素クラスの定義を一切汚さずに「セキュリティ監査」や「音声ログ収集」といった全く異なる処理を追加するための強力な解決策です。</p><p>そして、ログから流れてきた「ハリス博士の若い頃の声」。これは何を意味しているのでしょうか。博士はバベルの過去の開発者だったのか、それとも……。目の前に広がる最終ゲートを見上げながら、私はこの謎の真実にたどり着くため、最後のコード修復へと進む覚悟を決めました。</p></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/perl/>Perl</a>
+<a href=/tags/moo/>Moo</a>
+<a href=/tags/visitor-pattern/>Visitor-Pattern</a>
+<a href=/tags/double-dispatch/>Double-Dispatch</a>
+<a href=/tags/code-archaeologist/>Code-Archaeologist</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/06/27/170705/><div class=article-image><img src=/public_images/2026/code-archaeologist-interpreter-pattern/header.webp loading=lazy data-key data-hash=/public_images/2026/code-archaeologist-interpreter-pattern/header.webp></div><div class=article-details><h2 class=article-title>コード考古学者【Interpreterパターン】再生の碑文（完結編）〜Perl/Mooで起動する千年の構文木〜</h2></div></a></article><article class=has-image><a href=/2026/06/27/070705/><div class=article-image><img src=/public_images/2026/code-archaeologist-iterator-pattern/header.webp loading=lazy data-key data-hash=/public_images/2026/code-archaeologist-iterator-pattern/header.webp></div><div class=article-details><h2 class=article-title>コード考古学者【Iterator】遡行のスキャナー〜内部構造を隠す走査のコンパス〜</h2></div></a></article><article class=has-image><a href=/2026/06/26/170705/><div class=article-image><img src=/public_images/2026/code-archaeologist-memento-pattern/header.webp loading=lazy data-key data-hash=/public_images/2026/code-archaeologist-memento-pattern/header.webp></div><div class=article-details><h2 class=article-title>コード考古学者【Memento】時の碑文〜カプセル化された記憶と再起動の刻印〜</h2></div></a></article><article class=has-image><a href=/2026/06/26/120705/><div class=article-image><img src=/public_images/2026/code-archaeologist-mediator-pattern/header.webp loading=lazy data-key data-hash=/public_images/2026/code-archaeologist-mediator-pattern/header.webp></div><div class=article-details><h2 class=article-title>コード考古学者【Mediator】最深部の管制室〜混沌を調停する知恵の核〜</h2></div></a></article><article class=has-image><a href=/2026/06/26/070705/><div class=article-image><img src=/public_images/2026/code-archaeologist-chain-of-responsibility-pattern/header.webp loading=lazy data-key data-hash=/public_images/2026/code-archaeologist-chain-of-responsibility-pattern/header.webp></div><div class=article-details><h2 class=article-title>コード考古学者【Chain of Responsibility】バベルの認証石碑〜意志を紡ぐ連鎖の守護者〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

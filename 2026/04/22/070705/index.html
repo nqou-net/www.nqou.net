@@ -1,0 +1,425 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="営業・配送・経理で異なる意味を持つ「顧客」を単一モデルで表現して崩壊した事件。Bounded Contextで境界を定め、Perl/Mooの名前空間分離とShared Kernelで解決する。"><title>コード探偵ロックの事件簿【Bounded Context】管轄争いの怪〜一つの名前に三つの真実〜</title><link rel=canonical href=https://www.nqou.net/2026/04/22/070705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コード探偵ロックの事件簿【Bounded Context】管轄争いの怪〜一つの名前に三つの真実〜"><meta property='og:description' content="営業・配送・経理で異なる意味を持つ「顧客」を単一モデルで表現して崩壊した事件。Bounded Contextで境界を定め、Perl/Mooの名前空間分離とShared Kernelで解決する。"><meta property='og:url' content='https://www.nqou.net/2026/04/22/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='perl'><meta property='article:tag' content='moo'><meta property='article:tag' content='bounded-context'><meta property='article:tag' content='god-class'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-detective'><meta property='article:tag' content='ddd'><meta property='article:tag' content='context-mapping'><meta property='article:published_time' content='2026-04-22T07:07:05+09:00'><meta property='article:modified_time' content='2026-04-22T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-detective-bounded-context/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コード探偵ロックの事件簿【Bounded Context】管轄争いの怪〜一つの名前に三つの真実〜"><meta name=twitter:description content="営業・配送・経理で異なる意味を持つ「顧客」を単一モデルで表現して崩壊した事件。Bounded Contextで境界を定め、Perl/Mooの名前空間分離とShared Kernelで解決する。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-detective-bounded-context/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-04-22T07:07:05+09:00","datePublished":"2026-04-22T07:07:05+09:00","description":"営業・配送・経理で異なる意味を持つ「顧客」を単一モデルで表現して崩壊した事件。Bounded Contextで境界を定め、Perl/Mooの名前空間分離とShared Kernelで解決する。","headline":"コード探偵ロックの事件簿【Bounded Context】管轄争いの怪〜一つの名前に三つの真実〜","image":"https://www.nqou.net/public_images/2026/code-detective-bounded-context/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/04/22/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#管轄争いの怪>管轄争いの怪</a></li><li><a href=#一つの名前に三つの真実>一つの名前に三つの真実</a></li><li><a href=#境界線を引け>境界線を引け</a><ol><li><a href=#三人の別人に別の住所を>三人の別人に別の住所を</a></li><li><a href=#共有カーネルという最小限の合意>共有カーネルという最小限の合意</a></li><li><a href=#コンテキストマップ管轄の境界図>コンテキストマップ：管轄の境界図</a></li><li><a href=#aggregateとの関係門番と管轄>Aggregateとの関係——門番と管轄</a></li></ol></li><li><a href=#事件の終わり>事件の終わり</a></li><li><a href=#探偵の調査報告書>探偵の調査報告書</a><ol><li><a href=#推理のステップ>推理のステップ</a></li><li><a href=#ロックより>ロックより</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/04/22/070705/><img src=/public_images/2026/code-detective-bounded-context/header.webp loading=lazy alt="Featured image of post コード探偵ロックの事件簿【Bounded Context】管轄争いの怪〜一つの名前に三つの真実〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/04/22/070705/>コード探偵ロックの事件簿【Bounded Context】管轄争いの怪〜一つの名前に三つの真実〜</a></h2><h3 class=article-subtitle>営業・配送・経理で異なる意味を持つ「顧客」を単一モデルで表現して崩壊した事件。Bounded Contextで境界を定め、Perl/Mooの名前空間分離とShared Kernelで解決する。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>22, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 13分</time></div></footer></div></header><section class=article-content><h2 id=管轄争いの怪>管轄争いの怪</h2><p>技術部長の城田さんに泣きついたのが先週のことだ。</p><p>「顧客マスタの統合プロジェクトが炎上してまして」と切り出すと、城田さんは苦笑いしてスマホの画面を見せてくれた。「レガシー・コード・インベスティゲーション」。聞いたことのない名前だった。</p><p>「変な男だが腕は確かだ。依頼者をワトソン君と呼ぶらしいが、気にするな」</p><p>探偵事務所みたいな名前のサービスに頼るほど追い詰められているのか、と自分で自分に問いかけて、答えは即座に出た。——追い詰められている。</p><p>都心近郊のコワーキングスペース。城田さんが指定した場所に着くと、受付で「お連れ様は奥のホワイトボードエリアに」と案内された。奥に進むと、大きなホワイトボードの前に一人の男が立っていた。丸と線と矢印。走り書きで「Sales」「Shipping」「Billing」と書かれている。</p><p>……コワーキングスペースのホワイトボードを私物化する人間は初めて見た。</p><p>「ワトソン君、3分遅れだ。まあいい」</p><p>振り向きもせずにそう言った男は、細身のシャツに紺のベストという出で立ちで、手にはホワイトボードマーカーが3色握られていた。赤、青、緑。色分けの規則は私にはわからない。</p><p>「城田の紹介かね」</p><p>「ええ。ロックさんですね。部長から聞いてます」</p><p>挨拶より先にワトソン君呼び。噂通りだ。ただ、城田さんから事前に聞いていたおかげで驚きはない。</p><p>「聞いているなら話が早い。統合プロジェクトの炎上だろう」ロックさんはようやくこちらを向いた。「コードを見せたまえ」</p><p>ノートPCを取り出し、統合した <code>Customer</code> クラスのコードを画面に映した。ロックさんが画面を一瞥し、すぐにホワイトボードの図に視線を戻す。</p><p>「……ふむ。城田が心配するわけだ」</p><h2 id=一つの名前に三つの真実>一つの名前に三つの真実</h2><p>経緯を説明した。経営層から「顧客マスタを一元化しろ」と号令がかかった。営業・配送・経理の3部門がそれぞれ持っていた顧客クラスをマージして、一つの <code>Customer</code> に統合した。正直に言えば、統合した時点では達成感すらあった。DRY原則——重複を避けよ。三つが一つになるのは、正しいことだと思った。</p><p>結果がこれだ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Customer</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(Str Int Num)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 共通</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>id</span>   <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Int</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>name</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 営業用</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>email</span>      <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=s>&#39;&#39;</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>phone</span>      <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=s>&#39;&#39;</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>lead_score</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Int</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=mi>0</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 配送用</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>shipping_address</span>     <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=s>&#39;&#39;</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>delivery_time_slot</span>   <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=s>&#39;&#39;</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>special_instructions</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=s>&#39;&#39;</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 経理用</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>billing_address</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=s>&#39;&#39;</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>payment_terms</span>   <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=s>&#39;&#39;</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>credit_limit</span>    <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Num</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=mi>0</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「属性はいくつある？」ロックさんが訊いた。</p><p>「ここに見えているだけで11個。本番コードにはさらに追加されていて、全部で23になります」</p><p>「23。——ワトソン君、法律の話をしよう」</p><p>法律。技術者に法律の話をする探偵。城田さんの「変な男」という評価は控えめだったかもしれない。</p><p>「ある街に警察署、消防署、税務署がある。三つとも市民を相手にする組織だ。では、三つの組織の住民台帳を一つに統合したらどうなる？」</p><p>「……管轄が混乱する、ということですか」</p><p>「警察が把握すべき情報と、税務署が把握すべき情報は違う。前科情報が税務署から丸見えになったり、年収が警察のデータベースに入ったりする」ロックさんがディスプレイを指した。「<strong>君のコードで起きているのはまさにそれだ</strong>」</p><p>心当たりがある。先月のインシデントだ。</p><p>「営業チームが <code>email</code> を更新したら、配送チームの通知先も変わったことがあるだろう？」</p><p>「……あります。営業が商談用の担当者メールに変更したら、配送通知が担当者宛に飛んで、お客さんの倉庫で誰も荷物を受け取らなかった」</p><p>あのときの配送チームリーダーの顔を思い出したくない。</p><p>「<strong>犯人はDRYだ</strong>」</p><p>予想外の名前が出た。「……DRY？ 重複を避けよ、のDRYですか」</p><p>「正確には、DRYを誤解した者が犯人だ」ロックさんがホワイトボードに向き直り、赤いマーカーで <code>Customer</code> と書いた。その周りに <code>email (Sales)</code> <code>email (Shipping)</code> と書き添える。「DRYは『知識の重複を避けよ』という原則であって、『同じ綴りの属性を一つにまとめよ』という原則ではない。営業の <code>email</code> と配送の通知先メールは<strong>同姓同名の別人だ</strong>。別人を同じ部屋に住まわせたら、郵便物が混ざる。当然だろう」</p><p>同姓同名の別人。考えたこともなかった。<code>email</code> は <code>email</code> だと、疑わなかった。</p><p>「犯人はコードのバグではない」ロックさんが赤いマーカーで <code>Customer</code> の周囲に大きく×を書いた。「犯人は<strong>管轄の不在</strong>——Bounded Contextのない統合モデルだ」</p><p>「Bounded Context……」</p><p>「DDDでは、モデルが正しく意味を持つ範囲を**境界付きコンテキスト（Bounded Context）**と呼ぶ。営業にとっての顧客と、配送にとっての顧客と、経理にとっての顧客は、<strong>同じ名前を持つ別の概念だ</strong>。無理に一つにしようとしたから、三人の別人が一つの身体を共有しているような状態になった」</p><p>ホワイトボードに描かれた図を見る。「Sales」「Shipping」「Billing」——最初からそう書いてあった。</p><p>「最初から見えていたんですか」</p><p>「城田から聞いた時点で、問題の構造は見えていた。三つの部門が一つの名前を巡って争っている。管轄争いだよ、ワトソン君」</p><h2 id=境界線を引け>境界線を引け</h2><h3 id=三人の別人に別の住所を>三人の別人に別の住所を</h3><p>「まず、三人の別人にそれぞれ別の住所を与える」</p><p>ロックさんがホワイトボードの新しい区画に、3つの箱を青いマーカーで描いた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Sales::Customer</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(Str Int)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>with</span> <span class=s>&#39;Shared::CustomerIdentity&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>email</span>      <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>phone</span>      <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=s>&#39;&#39;</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>lead_score</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Int</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=mi>0</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>qualify_lead</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>lead_score</span> <span class=o>&gt;=</span> <span class=mi>50</span> <span class=p>?</span> <span class=s>&#39;qualified&#39;</span> <span class=p>:</span> <span class=s>&#39;unqualified&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Shipping::Recipient</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(Str Int)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>with</span> <span class=s>&#39;Shared::CustomerIdentity&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>address</span>      <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>time_slot</span>    <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=s>&#39;&#39;</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>instructions</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=s>&#39;&#39;</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>schedule_delivery</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>time_slot</span>
+</span></span><span class=line><span class=cl>        <span class=p>?</span> <span class=nb>sprintf</span><span class=p>(</span><span class=s>&#39;Deliver to %s during %s&#39;</span><span class=p>,</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>address</span><span class=p>,</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>time_slot</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=p>:</span> <span class=nb>sprintf</span><span class=p>(</span><span class=s>&#39;Deliver to %s (any time)&#39;</span><span class=p>,</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>address</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Billing::Account</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(Str Int Num)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>with</span> <span class=s>&#39;Shared::CustomerIdentity&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>billing_address</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>payment_terms</span>   <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=s>&#39;net30&#39;</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>credit_limit</span>    <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Num</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=mi>0</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>within_credit_limit</span> <span class=p>($self, $amount) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$amount</span> <span class=o>&lt;=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>credit_limit</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>3つのクラスが画面に並んだ。<code>Sales::Customer</code>、<code>Shipping::Recipient</code>、<code>Billing::Account</code>。</p><p>「配送の方は <code>Customer</code> ではなく <code>Recipient</code> なんですね」</p><p>「配送部門にとって重要なのは『誰が買ったか』ではなく『誰が受け取るか』だ。概念が違えば名前も変わる。<strong>名前が正確になることが、境界が正しく引けた証拠だ</strong>」</p><p>たしかに、配送チームのSlackでは「受取人」という表現が多かった。彼らは最初から Customer とは思っていなかったのかもしれない。私が統合と称して、彼らの言葉を奪ってしまったのだ。</p><p>「分けたら重複コードだらけになりませんか？ 名前やIDは全部門で持っているのに」</p><p>「名前が同じだから同じものだと思い込む。それが今回の罠だ」ロックさんが青いマーカーの蓋を閉じた。「営業の顧客と経理の顧客のどこが重複しているかね？ IDと名前だけだろう。残りの20属性はまったく別の情報だ。——共通部分は後で扱う。まず境界を引くことが先だ」</p><h3 id=共有カーネルという最小限の合意>共有カーネルという最小限の合意</h3><p>「共通部分は本当にゼロでいいんですか？ IDの引き回しだけでも面倒ですが」</p><p>「完全にゼロとは言っていない」</p><p>ロックさんが緑のマーカーを手に取った。3つの箱の中央に、小さな丸を描く。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span><span class=lnt>9
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Shared::CustomerIdentity</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo::Role</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(Int Str)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>customer_id</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Int</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>name</span>        <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「これをDDDでは**Shared Kernel（共有カーネル）**と呼ぶ。全コンテキストが共有する最小限のモデルだ。<code>customer_id</code> と <code>name</code> だけ。Perlでは <code>Moo::Role</code> で実装すると、各クラスが <code>with</code> で取り込める」</p><p>各クラスの先頭にある <code>with 'Shared::CustomerIdentity'</code> の一行を見返す。なるほど、これが共有部分か。</p><p>「共有する範囲は<strong>小さければ小さいほどいい</strong>」ロックさんが緑の丸を指した。「ここを変更するには全チームの合意がいる。共有が増えるほど、合意のコストが増え、結局は巨大モデルの二の舞になる」</p><p>「つまり、共有部分を最小化することで、各チームの自律性を最大化する、ということですか」</p><p>「その通り。管轄を分けたのだから、管轄内のことはそれぞれの署で決めればいい。ただし——」</p><h3 id=コンテキストマップ管轄の境界図>コンテキストマップ：管轄の境界図</h3><p>ロックさんがホワイトボードの図を完成させた。</p><p>最初からあの箱と矢印を描いていたのかと思うと、城田さんが問題を伝えた時点で構造が見えていたという話は大げさではなかったのだろう。</p><pre class=mermaid>
+	graph LR
+    SK[&#34;Shared Kernel&lt;br/&gt;(CustomerIdentity:&lt;br/&gt;customer_id + name)&#34;]
+
+    subgraph Sales Context
+        SC[&#34;Sales::Customer&lt;br/&gt;email, phone, lead_score&lt;br/&gt;qualify_lead()&#34;]
+    end
+
+    subgraph Shipping Context
+        SR[&#34;Shipping::Recipient&lt;br/&gt;address, time_slot, instructions&lt;br/&gt;schedule_delivery()&#34;]
+    end
+
+    subgraph Billing Context
+        BA[&#34;Billing::Account&lt;br/&gt;billing_address, payment_terms,&lt;br/&gt;credit_limit&lt;br/&gt;within_credit_limit()&#34;]
+    end
+
+    SC -- &#34;with Role&#34; --&gt; SK
+    SR -- &#34;with Role&#34; --&gt; SK
+    BA -- &#34;with Role&#34; --&gt; SK
+</pre><p>「この図を**Context Map（コンテキストマップ）**と呼ぶ。管轄の境界と、管轄同士の関係を一枚の地図にしたものだ」</p><p>「同じ <code>customer_id</code> で紐付いている。でもオブジェクト参照はしていない」</p><p>「IDで参照する。オブジェクト参照を渡せば、また管轄を超えて手を出す誘惑が生まれる」</p><p>なるほど。考え方は理解した。技術的には筋が通っている。問題は——</p><p>「3チームをどう説得すればいいですか。技術的には理解しましたが、『統合しろ』と言った経営層と、既に統合コードを書いた3チームがいます」</p><p>「コードの問題は解決した。だが——」</p><p>「あとは私の仕事、ですか」</p><p>ロックさんが少しだけ口の端を上げた。笑った、のだと思う。</p><p>「推理は探偵の仕事だが、<strong>判決を下すのは裁判官の仕事だ</strong>。君はPLだろう。各チームに『自分たちの言葉で自分たちのモデルを持てる』と伝えたまえ。それは権限の委譲であって、分裂ではない」</p><p>「境界線の引き方を間違えたら？」</p><p>「このContext Mapだけは全員で合意すること。<strong>管轄の境界線は独断で引くものではない</strong>。だからこそ地図が要る」</p><h3 id=aggregateとの関係門番と管轄>Aggregateとの関係——門番と管轄</h3><p>ふと、以前勉強した概念を思い出した。</p><p>「Aggregateという概念を勉強したことがあります。門番を立てるという話でした。それとの関係は？」</p><p>「いい質問だ」ロックさんがホワイトボードの余白に小さく図を描き足した。「Aggregateは<strong>管轄内</strong>の秩序だ。帳簿係が帳簿の整合性を守る仕組み。Bounded Contextは<strong>管轄そのもの</strong>——どの署がどの事件を担当するかを決める枠組みだ」</p><p>「つまり、スケールが違う」</p><p>「帳簿係を雇っても、管轄が定まっていなければ、三つの署が同じ帳簿に手を出す。それが今回の事件だよ」</p><h2 id=事件の終わり>事件の終わり</h2><p>リファクタリングしたコードでテストを走らせた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>  1
+</span><span class=lnt>  2
+</span><span class=lnt>  3
+</span><span class=lnt>  4
+</span><span class=lnt>  5
+</span><span class=lnt>  6
+</span><span class=lnt>  7
+</span><span class=lnt>  8
+</span><span class=lnt>  9
+</span><span class=lnt> 10
+</span><span class=lnt> 11
+</span><span class=lnt> 12
+</span><span class=lnt> 13
+</span><span class=lnt> 14
+</span><span class=lnt> 15
+</span><span class=lnt> 16
+</span><span class=lnt> 17
+</span><span class=lnt> 18
+</span><span class=lnt> 19
+</span><span class=lnt> 20
+</span><span class=lnt> 21
+</span><span class=lnt> 22
+</span><span class=lnt> 23
+</span><span class=lnt> 24
+</span><span class=lnt> 25
+</span><span class=lnt> 26
+</span><span class=lnt> 27
+</span><span class=lnt> 28
+</span><span class=lnt> 29
+</span><span class=lnt> 30
+</span><span class=lnt> 31
+</span><span class=lnt> 32
+</span><span class=lnt> 33
+</span><span class=lnt> 34
+</span><span class=lnt> 35
+</span><span class=lnt> 36
+</span><span class=lnt> 37
+</span><span class=lnt> 38
+</span><span class=lnt> 39
+</span><span class=lnt> 40
+</span><span class=lnt> 41
+</span><span class=lnt> 42
+</span><span class=lnt> 43
+</span><span class=lnt> 44
+</span><span class=lnt> 45
+</span><span class=lnt> 46
+</span><span class=lnt> 47
+</span><span class=lnt> 48
+</span><span class=lnt> 49
+</span><span class=lnt> 50
+</span><span class=lnt> 51
+</span><span class=lnt> 52
+</span><span class=lnt> 53
+</span><span class=lnt> 54
+</span><span class=lnt> 55
+</span><span class=lnt> 56
+</span><span class=lnt> 57
+</span><span class=lnt> 58
+</span><span class=lnt> 59
+</span><span class=lnt> 60
+</span><span class=lnt> 61
+</span><span class=lnt> 62
+</span><span class=lnt> 63
+</span><span class=lnt> 64
+</span><span class=lnt> 65
+</span><span class=lnt> 66
+</span><span class=lnt> 67
+</span><span class=lnt> 68
+</span><span class=lnt> 69
+</span><span class=lnt> 70
+</span><span class=lnt> 71
+</span><span class=lnt> 72
+</span><span class=lnt> 73
+</span><span class=lnt> 74
+</span><span class=lnt> 75
+</span><span class=lnt> 76
+</span><span class=lnt> 77
+</span><span class=lnt> 78
+</span><span class=lnt> 79
+</span><span class=lnt> 80
+</span><span class=lnt> 81
+</span><span class=lnt> 82
+</span><span class=lnt> 83
+</span><span class=lnt> 84
+</span><span class=lnt> 85
+</span><span class=lnt> 86
+</span><span class=lnt> 87
+</span><span class=lnt> 88
+</span><span class=lnt> 89
+</span><span class=lnt> 90
+</span><span class=lnt> 91
+</span><span class=lnt> 92
+</span><span class=lnt> 93
+</span><span class=lnt> 94
+</span><span class=lnt> 95
+</span><span class=lnt> 96
+</span><span class=lnt> 97
+</span><span class=lnt> 98
+</span><span class=lnt> 99
+</span><span class=lnt>100
+</span><span class=lnt>101
+</span><span class=lnt>102
+</span><span class=lnt>103
+</span><span class=lnt>104
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Test2::V0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Sales::Customer</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Shipping::Recipient</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Billing::Account</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;各コンテキストが独立したモデルを持つ&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$sales</span> <span class=o>=</span> <span class=nn>Sales::Customer</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>customer_id</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>name</span>        <span class=o>=&gt;</span> <span class=s>&#39;Tanaka Corp&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>email</span>       <span class=o>=&gt;</span> <span class=s>&#39;sales@tanaka.com&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>lead_score</span>  <span class=o>=&gt;</span> <span class=mi>80</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$shipping</span> <span class=o>=</span> <span class=nn>Shipping::Recipient</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>customer_id</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>name</span>        <span class=o>=&gt;</span> <span class=s>&#39;Tanaka Corp&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>address</span>     <span class=o>=&gt;</span> <span class=s>&#39;Tokyo, Shibuya 1-2-3&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>time_slot</span>   <span class=o>=&gt;</span> <span class=s>&#39;AM&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$billing</span> <span class=o>=</span> <span class=nn>Billing::Account</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>customer_id</span>     <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>name</span>            <span class=o>=&gt;</span> <span class=s>&#39;Tanaka Corp&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>billing_address</span> <span class=o>=&gt;</span> <span class=s>&#39;Tokyo, Chiyoda 4-5-6&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>credit_limit</span>    <span class=o>=&gt;</span> <span class=mi>1_000_000</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=c1># 同じ customer_id で参照</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span> <span class=nv>$sales</span><span class=o>-&gt;</span><span class=n>customer_id</span><span class=p>,</span>    <span class=mi>1</span><span class=p>,</span> <span class=s>&#39;Sales: customer_id&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span> <span class=nv>$shipping</span><span class=o>-&gt;</span><span class=n>customer_id</span><span class=p>,</span> <span class=mi>1</span><span class=p>,</span> <span class=s>&#39;Shipping: customer_id&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span> <span class=nv>$billing</span><span class=o>-&gt;</span><span class=n>customer_id</span><span class=p>,</span>  <span class=mi>1</span><span class=p>,</span> <span class=s>&#39;Billing: customer_id&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;営業の操作が配送に影響しない&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$sales</span> <span class=o>=</span> <span class=nn>Sales::Customer</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>customer_id</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>name</span>        <span class=o>=&gt;</span> <span class=s>&#39;Tanaka Corp&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>email</span>       <span class=o>=&gt;</span> <span class=s>&#39;sales@tanaka.com&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$shipping</span> <span class=o>=</span> <span class=nn>Shipping::Recipient</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>customer_id</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>name</span>        <span class=o>=&gt;</span> <span class=s>&#39;Tanaka Corp&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>address</span>     <span class=o>=&gt;</span> <span class=s>&#39;Tokyo, Shibuya 1-2-3&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=nv>$sales</span><span class=o>-&gt;</span><span class=n>email</span><span class=p>(</span><span class=s>&#39;new-contact@tanaka.com&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span> <span class=nv>$sales</span><span class=o>-&gt;</span><span class=n>email</span><span class=p>,</span> <span class=s>&#39;new-contact@tanaka.com&#39;</span><span class=p>,</span> <span class=s>&#39;営業のemail変更&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>ok</span> <span class=o>!</span><span class=nv>$shipping</span><span class=o>-&gt;</span><span class=n>can</span><span class=p>(</span><span class=s>&#39;email&#39;</span><span class=p>),</span> <span class=s>&#39;配送モデルにはemail属性がない&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;各コンテキスト固有の属性は他から見えない&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$sales</span> <span class=o>=</span> <span class=nn>Sales::Customer</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>customer_id</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>name</span>        <span class=o>=&gt;</span> <span class=s>&#39;Test&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>email</span>       <span class=o>=&gt;</span> <span class=s>&#39;test@example.com&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>ok</span> <span class=o>!</span><span class=nv>$sales</span><span class=o>-&gt;</span><span class=n>can</span><span class=p>(</span><span class=s>&#39;address&#39;</span><span class=p>),</span>         <span class=s>&#39;Sales には address がない&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>ok</span> <span class=o>!</span><span class=nv>$sales</span><span class=o>-&gt;</span><span class=n>can</span><span class=p>(</span><span class=s>&#39;billing_address&#39;</span><span class=p>),</span> <span class=s>&#39;Sales には billing_address がない&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>ok</span> <span class=o>!</span><span class=nv>$sales</span><span class=o>-&gt;</span><span class=n>can</span><span class=p>(</span><span class=s>&#39;credit_limit&#39;</span><span class=p>),</span>    <span class=s>&#39;Sales には credit_limit がない&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;各コンテキスト固有のメソッドが動作する&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$sales</span> <span class=o>=</span> <span class=nn>Sales::Customer</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>customer_id</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>name</span>        <span class=o>=&gt;</span> <span class=s>&#39;Test&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>email</span>       <span class=o>=&gt;</span> <span class=s>&#39;test@example.com&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>lead_score</span>  <span class=o>=&gt;</span> <span class=mi>80</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span> <span class=nv>$sales</span><span class=o>-&gt;</span><span class=n>qualify_lead</span><span class=p>,</span> <span class=s>&#39;qualified&#39;</span><span class=p>,</span> <span class=s>&#39;リードスコア80 → qualified&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$shipping</span> <span class=o>=</span> <span class=nn>Shipping::Recipient</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>customer_id</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>name</span>        <span class=o>=&gt;</span> <span class=s>&#39;Test&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>address</span>     <span class=o>=&gt;</span> <span class=s>&#39;Tokyo&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>time_slot</span>   <span class=o>=&gt;</span> <span class=s>&#39;AM&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span> <span class=nv>$shipping</span><span class=o>-&gt;</span><span class=n>schedule_delivery</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=s>&#39;Deliver to Tokyo during AM&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=s>&#39;配送スケジュール&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$billing</span> <span class=o>=</span> <span class=nn>Billing::Account</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>customer_id</span>     <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>name</span>            <span class=o>=&gt;</span> <span class=s>&#39;Test&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>billing_address</span> <span class=o>=&gt;</span> <span class=s>&#39;Tokyo&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>credit_limit</span>    <span class=o>=&gt;</span> <span class=mi>500_000</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>ok</span> <span class=nv>$billing</span><span class=o>-&gt;</span><span class=n>within_credit_limit</span><span class=p>(</span><span class=mi>400_000</span><span class=p>),</span>  <span class=s>&#39;与信枠内&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>ok</span> <span class=o>!</span><span class=nv>$billing</span><span class=o>-&gt;</span><span class=n>within_credit_limit</span><span class=p>(</span><span class=mi>600_000</span><span class=p>),</span> <span class=s>&#39;与信枠超過&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;Shared::CustomerIdentity Role の検証&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=n>ok</span> <span class=nn>Sales::Customer</span><span class=o>-&gt;</span><span class=n>does</span><span class=p>(</span><span class=s>&#39;Shared::CustomerIdentity&#39;</span><span class=p>),</span>
+</span></span><span class=line><span class=cl>        <span class=s>&#39;Sales::Customer は Shared::CustomerIdentity を消費&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>ok</span> <span class=nn>Shipping::Recipient</span><span class=o>-&gt;</span><span class=n>does</span><span class=p>(</span><span class=s>&#39;Shared::CustomerIdentity&#39;</span><span class=p>),</span>
+</span></span><span class=line><span class=cl>        <span class=s>&#39;Shipping::Recipient は Shared::CustomerIdentity を消費&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>ok</span> <span class=nn>Billing::Account</span><span class=o>-&gt;</span><span class=n>does</span><span class=p>(</span><span class=s>&#39;Shared::CustomerIdentity&#39;</span><span class=p>),</span>
+</span></span><span class=line><span class=cl>        <span class=s>&#39;Billing::Account は Shared::CustomerIdentity を消費&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>done_testing</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>全テスト通過。営業が <code>email</code> を変更しても配送の通知先に影響しない。先月のインシデントは、このコードでは再現しない。</p><p>「管轄が分かれたのだから、隣の署の書類を勝手に書き換えられないのは当然だよ」</p><p>ロックさんがホワイトボードマーカーのキャップを閉じた。三色のマーカーを並べて置く仕草が、事件の幕引きのように見えた。</p><hr><h2 id=探偵の調査報告書>探偵の調査報告書</h2><div class=table-wrapper><table><thead><tr><th style=text-align:left>容疑（アンチパターン）</th><th style=text-align:left>真実（パターン）</th><th style=text-align:left>証拠（効果）</th></tr></thead><tbody><tr><td style=text-align:left>全部門共有の巨大Customerモデル</td><td style=text-align:left>Bounded Context（境界付きコンテキスト）</td><td style=text-align:left>各部門が独立したモデルを持ち、属性の衝突・副作用を排除</td></tr><tr><td style=text-align:left>DRYの過剰適用（同名属性の無条件統合）</td><td style=text-align:left>Shared Kernel（共有カーネル）</td><td style=text-align:left>共有部分を最小限（ID＋名前）に絞り、各チームの自律性を確保</td></tr><tr><td style=text-align:left>コンテキスト間の境界不在</td><td style=text-align:left>Context Map（コンテキストマップ）</td><td style=text-align:left>コンテキスト間の関係と境界を図示し、チーム間の合意を可視化</td></tr></tbody></table></div><h3 id=推理のステップ>推理のステップ</h3><ol><li>巨大モデルの属性を洗い出し、部門ごとに「本当に必要な属性」を特定する</li><li>「同じ名前だが別の概念」を見つける（営業の email ≠ 配送の通知先メール）</li><li>部門ごとの名前空間（<code>Sales::</code>, <code>Shipping::</code>, <code>Billing::</code>）を切り、独立したモデルクラスを定義する</li><li>全コンテキストが必要とする最小限の共通部分を <code>Moo::Role</code>（Shared Kernel）として切り出す</li><li>Context Mapを描き、コンテキスト間の関係と境界を全チームで合意する</li><li>各コンテキストの操作が他に影響しないことをテストで検証する</li></ol><h3 id=ロックより>ロックより</h3><p>統合は正義だと信じる者は多い。一つにまとめれば効率的だと。だが、意味の異なるものを一つに束ねることは統合ではない。混同だ。</p><p>分けることを恐れたまえな。正しく分けることで、それぞれの言葉が初めて正確に通じるようになる。管轄争いを仲裁するのは、どちらかを吸収することではなく、境界線を引くことだ。</p><p>ワトソン君、君のプロジェクトに必要なのは統合ではない。<strong>地図</strong>だよ。</p><hr><p>コワーキングスペースを出ると、春の夕方の風が頬に当たった。</p><p>ロックさんは先に出て行った。ホワイトボードの図を消さずに。スタッフに怒られるのは私だろうか、と余計な心配が頭をよぎった。</p><p>帰りの電車の中で、窓に映る自分の顔を見ながら考える。</p><p>統合は正義だと思っていた。一つにまとめれば効率的だと。経営層もそう言った。私もそう信じた。</p><p>でも、三人の顧客はそれぞれ別の人間だった。名前が同じだっただけだ。営業にとっての顧客は商談相手。配送にとっての顧客は荷物の受取人。経理にとっての顧客は請求先。同じ「顧客」という言葉の裏に、まったく違う概念が隠れていた。</p><p>分けることは後退ではない。分けることで初めて、それぞれの部門が自分たちの言葉で正確に仕事ができるようになる。</p><p>スマホを取り出した。Slackを開く。3チームのリーダーが集まるチャンネルに、打ち始める。</p><p>「来週、Context Mapの共有ミーティングをやりませんか」</p><p>ロックさんが言った通りだ。管轄の境界線は独断では引けない。でも、境界線があることを知っていれば、議論はできる。</p><p>ホワイトボードの図を写真に撮っておけばよかった、と気づいたのは駅に着いてからだった。</p></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/perl/>Perl</a>
+<a href=/tags/moo/>Moo</a>
+<a href=/tags/bounded-context/>Bounded-Context</a>
+<a href=/tags/god-class/>God-Class</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-detective/>Code-Detective</a>
+<a href=/tags/ddd/>Ddd</a>
+<a href=/tags/context-mapping/>Context-Mapping</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/04/23/070705/><div class=article-image><img src=/public_images/2026/code-detective-entity-value-object/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-entity-value-object/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Entity vs Value Object】二重人格の住所録〜同一性と等価性が交差する日〜</h2></div></a></article><article class=has-image><a href=/2026/03/14/070705/><div class=article-image><img src=/public_images/2026/code-detective-facade-god-class/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-facade-god-class/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Facade】崩壊寸前のワンマン体制〜絡みつくサブシステムの森〜</h2></div></a></article><article class=has-image><a href=/2026/03/05/070705/><div class=article-image><img src=/public_images/2026/code-detective-strategy-god-class/header.png loading=lazy data-key data-hash=/public_images/2026/code-detective-strategy-god-class/header.png></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Strategy】巨大すぎる神の暴走〜終わらないif文からの脱出〜</h2></div></a></article><article class=has-image><a href=/2026/05/27/070705/><div class=article-image><img src=/public_images/2026/code-bartender-god-class/header.webp loading=lazy data-key data-hash=/public_images/2026/code-bartender-god-class/header.webp></div><div class=article-details><h2 class=article-title>コードバーテンダー【God Class】一つの樽にすべてを詰め込んだ禁断のブレンド〜最後のテイスティング〜</h2></div></a></article><article class=has-image><a href=/2026/05/15/070705/><div class=article-image><img src=/public_images/2026/code-detective-bff/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-bff/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Backends for Frontends】最後の依頼〜一つの答えが全員を不満にする夜〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

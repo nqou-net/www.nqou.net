@@ -1,0 +1,264 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="キッチン管理システムで GrillStation・FryStation・DrinkCounter が互いを直接保持し、ステーション追加のたびに全クラスを修正する問題。MediatorパターンをPerlとMooで実装し、全員が KitchenCoordinator だけを知るスター型構造へ直す。"><title>コードシェフの仕込み帳【Mediator】ホール担当〜3つのステーションが互いを直接参照するコードを、全員が仲介役だけを知るスター型構造へ直す〜</title><link rel=canonical href=https://www.nqou.net/2026/06/15/070705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コードシェフの仕込み帳【Mediator】ホール担当〜3つのステーションが互いを直接参照するコードを、全員が仲介役だけを知るスター型構造へ直す〜"><meta property='og:description' content="キッチン管理システムで GrillStation・FryStation・DrinkCounter が互いを直接保持し、ステーション追加のたびに全クラスを修正する問題。MediatorパターンをPerlとMooで実装し、全員が KitchenCoordinator だけを知るスター型構造へ直す。"><meta property='og:url' content='https://www.nqou.net/2026/06/15/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='perl'><meta property='article:tag' content='moo'><meta property='article:tag' content='mediator'><meta property='article:tag' content='n-to-n-coupling'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-chef'><meta property='article:published_time' content='2026-06-15T07:07:05+09:00'><meta property='article:modified_time' content='2026-06-15T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-chef-mediator/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コードシェフの仕込み帳【Mediator】ホール担当〜3つのステーションが互いを直接参照するコードを、全員が仲介役だけを知るスター型構造へ直す〜"><meta name=twitter:description content="キッチン管理システムで GrillStation・FryStation・DrinkCounter が互いを直接保持し、ステーション追加のたびに全クラスを修正する問題。MediatorパターンをPerlとMooで実装し、全員が KitchenCoordinator だけを知るスター型構造へ直す。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-chef-mediator/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-06-15T07:07:05+09:00","datePublished":"2026-06-15T07:07:05+09:00","description":"キッチン管理システムで GrillStation・FryStation・DrinkCounter が互いを直接保持し、ステーション追加のたびに全クラスを修正する問題。MediatorパターンをPerlとMooで実装し、全員が KitchenCoordinator だけを知るスター型構造へ直す。","headline":"コードシェフの仕込み帳【Mediator】ホール担当〜3つのステーションが互いを直接参照するコードを、全員が仲介役だけを知るスター型構造へ直す〜","image":"https://www.nqou.net/public_images/2026/code-chef-mediator/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/06/15/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#この記事で学ぶこと>この記事で学ぶこと</a></li><li><a href=#ステーションを1つ触ると全員に波及する>ステーションを1つ触ると全員に波及する</a></li><li><a href=#ホール担当を立てる>ホール担当を立てる</a><ol><li><a href=#facadeやobserverとの違い>FacadeやObserverとの違い</a></li></ol></li><li><a href=#試食合格>試食合格</a></li><li><a href=#シェフの仕込み工程表>シェフの仕込み工程表</a><ol><li><a href=#工程>工程</a></li><li><a href=#シェフより>シェフより</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/06/15/070705/><img src=/public_images/2026/code-chef-mediator/header.webp loading=lazy alt="Featured image of post コードシェフの仕込み帳【Mediator】ホール担当〜3つのステーションが互いを直接参照するコードを、全員が仲介役だけを知るスター型構造へ直す〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/06/15/070705/>コードシェフの仕込み帳【Mediator】ホール担当〜3つのステーションが互いを直接参照するコードを、全員が仲介役だけを知るスター型構造へ直す〜</a></h2><h3 class=article-subtitle>キッチン管理システムで GrillStation・FryStation・DrinkCounter が互いを直接保持し、ステーション追加のたびに全クラスを修正する問題。MediatorパターンをPerlとMooで実装し、全員が KitchenCoordinator だけを知るスター型構造へ直す。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>15, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 11分</time></div></footer></div></header><section class=article-content><p>昼前の厨房は静かだった。</p><p>シェフが明日の仕込みをしていた。私はそのそばで、野菜の下ごしらえを手伝いながら、包丁の音を聞いていた。</p><p>引き戸が開いた。</p><p>38歳ほどの男性が入ってきた。スーツではなく、きれいなシャツ姿。「紹介いただいた者です」と言った。落ち着いた話し方だった。「キッチン管理のシステムを書いているんですが、設計の問題がありまして——」</p><p>シェフが包丁を置かずに「見せろ」と言った。</p><p>男性がPCをカウンターに置いて開いた。<code>GrillStation</code>・<code>FryStation</code>・<code>DrinkCounter</code>——3つのクラスが並んでいる。</p><p><code>GrillStation</code> の <code>has</code> を見た。<code>fryer</code> と <code>drink_counter</code>。<code>FryStation</code> の <code>has</code> を見た。<code>grill</code> と <code>drink_counter</code>。<code>DrinkCounter</code> の <code>has</code> を見た。<code>grill</code> と <code>fryer</code>。</p><p>「——全員が全員を知っている」と私は言った。</p><h2 id=この記事で学ぶこと>この記事で学ぶこと</h2><p>この記事は、「キッチン管理システムの各ステーションが互いのオブジェクトを直接保持し、ステーションを1つ追加・変更するたびに全クラスを修正しなければならない」という問題を、Mediatorパターンで整理する話です。全員が <code>KitchenCoordinator</code>（仲介役）だけを知るスター型構造へ直します。</p><div class=table-wrapper><table><thead><tr><th>学ぶこと</th><th>ひとことで言うと</th></tr></thead><tbody><tr><td>Mediator パターン</td><td>複数のコンポーネントが互いを直接知っている代わりに、全員が1つの仲介者（Mediator）だけを知る。仲介者がすべての通信を制御する</td></tr><tr><td>n-to-n-coupling</td><td>コンポーネント同士が相互参照している状態。コンポーネント数がNのとき、参照の数は最大N×(N-1)。1つを変えると全員に波及する</td></tr><tr><td>Moo での実装</td><td>MediatorクラスがすべてのコンポーネントをMooの <code>has</code> で保持し、<code>notify</code> メソッドでイベントを受け取って転送する。各コンポーネントは <code>has coordinator</code> だけを持つ</td></tr><tr><td>複雑さの集中</td><td>変更の波及をN対NからN対1に変える。複雑さを消すのではなく、1か所に集める</td></tr></tbody></table></div><p>対象読者は、次のような人を想定しています。</p><ul><li>PerlとMooの基本（<code>has</code>、<code>new</code>）がなんとなく分かる</li><li>クラスを追加したとき、既存のクラスをいくつも修正した経験がある</li></ul><p>技術スタックはPerl / Mooです。コードはすべて手元で動かし、テストが通ることを確認しています。</p><h2 id=ステーションを1つ触ると全員に波及する>ステーションを1つ触ると全員に波及する</h2><p>シェフが「どうなっている？」と男性に聞いた。</p><p>「最初は3つのステーションで動いていました」と男性は言った。「<code>GrillStation</code>（焼き場）と <code>FryStation</code>（揚げ場）と <code>DrinkCounter</code>（ドリンクカウンター）です。今年の春、<code>SaladStation</code>（サラダ場）を追加しようとして——既存の3クラスすべてを修正する羽目になりました。それ自体は仕方ないと思っていたんですが、先月 <code>DrinkCounter</code> の動作を少し変えたとき、<code>GrillStation</code> と <code>FryStation</code> の両方に影響が出て。今はステーションを1つ触るたびに、全員を確認しないといけない状態で」</p><p>コードを見た。Before の構造はこうなっていた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>GrillStation</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>fryer</span>         <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>);</span>   <span class=c1># FryStation を直接参照</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>drink_counter</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>);</span>   <span class=c1># DrinkCounter を直接参照</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>order_ready</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$order_id</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>drink_counter</span><span class=o>-&gt;</span><span class=n>prepare</span><span class=p>(</span><span class=nv>$order_id</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>fryer</span><span class=o>-&gt;</span><span class=n>sync_timing</span><span class=p>(</span><span class=nv>$order_id</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>FryStation</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>grill</span>         <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>);</span>   <span class=c1># GrillStation を直接参照</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>drink_counter</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>);</span>   <span class=c1># DrinkCounter を直接参照</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>order_ready</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$order_id</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>drink_counter</span><span class=o>-&gt;</span><span class=n>prepare</span><span class=p>(</span><span class=nv>$order_id</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>grill</span><span class=o>-&gt;</span><span class=n>reduce_heat</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>DrinkCounter</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>grill</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>);</span>   <span class=c1># GrillStation を直接参照</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>fryer</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>);</span>   <span class=c1># FryStation を直接参照</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>prepare</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$order_id</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>grill</span><span class=o>-&gt;</span><span class=n>check_capacity</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=c1># ドリンク準備</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>シェフが「n-to-n-coupling だ」と言った。「コンポーネントの数がNのとき、参照の数は最大N×(N-1)になる。1つを変えると、それを知っているすべてを確認する必要がある」</p><p>男性が「そうです——まさにそれです」と言った。問題に名前がついた、というような顔をした。</p><p>セットアップのコードも問題を示していた。<code>GrillStation</code> を1つ動かすだけでも、<code>FryStation</code> と <code>DrinkCounter</code> のインスタンスを用意しなければならない。テストすら全員が必要だった。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>my</span> <span class=nv>$grill</span> <span class=o>=</span> <span class=nn>GrillStation</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$fryer</span> <span class=o>=</span> <span class=nn>FryStation</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$drink</span> <span class=o>=</span> <span class=nn>DrinkCounter</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 全員が全員を知る——相互参照をすべて設定する</span>
+</span></span><span class=line><span class=cl><span class=nv>$grill</span><span class=o>-&gt;</span><span class=n>fryer</span><span class=p>(</span><span class=nv>$fryer</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$grill</span><span class=o>-&gt;</span><span class=n>drink_counter</span><span class=p>(</span><span class=nv>$drink</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$fryer</span><span class=o>-&gt;</span><span class=n>grill</span><span class=p>(</span><span class=nv>$grill</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$fryer</span><span class=o>-&gt;</span><span class=n>drink_counter</span><span class=p>(</span><span class=nv>$drink</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$drink</span><span class=o>-&gt;</span><span class=n>grill</span><span class=p>(</span><span class=nv>$grill</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$drink</span><span class=o>-&gt;</span><span class=n>fryer</span><span class=p>(</span><span class=nv>$fryer</span><span class=p>);</span>
+</span></span></code></pre></td></tr></table></div></div><p>このように、それぞれのステーション（クラス）が他のステーションを直接 <code>has</code> で保持し、網の目のように相互参照している状態（N対Nの密結合）をクラス図に表すと以下のようになります。</p><p><img src=/public_images/2026/code-chef-mediator/infographic_1.webp loading=lazy alt="Before: 各ステーションが互いを直接参照し、密結合になっている状態のクラス相関図"></p><p><code>SaladStation</code> を追加するとどうなるか。<code>GrillStation</code> に <code>has saladstation</code> を追加して <code>order_ready</code> で呼び出す。<code>FryStation</code> に <code>has saladstation</code> を追加する。<code>DrinkCounter</code> に <code>has saladstation</code> を追加する。3クラスすべてを修正する。それが n-to-n-coupling の実態だった。</p><h2 id=ホール担当を立てる>ホール担当を立てる</h2><p>シェフがホワイトボードに向かった。</p><p>「全員がコーディネーター——ホール担当だけを知る。ホール担当がすべての連絡を受けて、必要なところへ伝える」</p><p><code>KitchenCoordinator</code> クラスを書いた。全ステーションを <code>has</code> で保持し、<code>notify</code> でイベントを受け取る。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>KitchenCoordinator</span><span class=p>;</span>   <span class=c1># Mediator（ホール担当）</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>grill</span>         <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>fryer</span>         <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>drink_counter</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>notify</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$from</span><span class=p>,</span> <span class=nv>$event</span><span class=p>,</span> <span class=nv>$order_id</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=nv>$event</span> <span class=ow>eq</span> <span class=s>&#39;order_ready&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=nv>$from</span> <span class=ow>eq</span> <span class=s>&#39;grill&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>drink_counter</span><span class=o>-&gt;</span><span class=n>prepare</span><span class=p>(</span><span class=nv>$order_id</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>fryer</span><span class=o>-&gt;</span><span class=n>sync_timing</span><span class=p>(</span><span class=nv>$order_id</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=k>elsif</span> <span class=p>(</span><span class=nv>$from</span> <span class=ow>eq</span> <span class=s>&#39;fry&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>drink_counter</span><span class=o>-&gt;</span><span class=n>prepare</span><span class=p>(</span><span class=nv>$order_id</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>elsif</span> <span class=p>(</span><span class=nv>$event</span> <span class=ow>eq</span> <span class=s>&#39;check_capacity&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>grill</span><span class=o>-&gt;</span><span class=n>current_capacity</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>各ステーションから他ステーションへの参照が消えた。代わりに <code>has coordinator</code> だけが残る。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>GrillStation</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>coordinator</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>   <span class=c1># coordinator だけを知る</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>order_ready</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$order_id</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>coordinator</span><span class=o>-&gt;</span><span class=n>notify</span><span class=p>(</span><span class=s>&#39;grill&#39;</span><span class=p>,</span> <span class=s>&#39;order_ready&#39;</span><span class=p>,</span> <span class=nv>$order_id</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># FryStation・DrinkCounter も同じ構造</span>
+</span></span><span class=line><span class=cl><span class=c1># has coordinator =&gt; (is =&gt; &#39;ro&#39;, required =&gt; 1)</span>
+</span></span><span class=line><span class=cl><span class=c1># sub order_ready（または prepare）で $self-&gt;coordinator-&gt;notify を呼ぶ</span>
+</span></span></code></pre></td></tr></table></div></div><p>構築の順序は coordinator を先に作り、ステーションを coordinator を渡して作り、最後に coordinator にステーションを設定する。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>my</span> <span class=nv>$coord</span> <span class=o>=</span> <span class=nn>KitchenCoordinator</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$grill</span> <span class=o>=</span> <span class=nn>GrillStation</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>coordinator</span> <span class=o>=&gt;</span> <span class=nv>$coord</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$fryer</span> <span class=o>=</span> <span class=nn>FryStation</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>coordinator</span>  <span class=o>=&gt;</span> <span class=nv>$coord</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$drink</span> <span class=o>=</span> <span class=nn>DrinkCounter</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>coordinator</span> <span class=o>=&gt;</span> <span class=nv>$coord</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$coord</span><span class=o>-&gt;</span><span class=n>grill</span><span class=p>(</span><span class=nv>$grill</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$coord</span><span class=o>-&gt;</span><span class=n>fryer</span><span class=p>(</span><span class=nv>$fryer</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$coord</span><span class=o>-&gt;</span><span class=n>drink_counter</span><span class=p>(</span><span class=nv>$drink</span><span class=p>);</span>
+</span></span></code></pre></td></tr></table></div></div><p>このリファクタリングによって、各ステーション間の直接的な参照はすべて消え去り、仲介役である <code>KitchenCoordinator</code> を中心としたスター型（N対1の結合）構造に整理されます。</p><p><img src=/public_images/2026/code-chef-mediator/infographic_2.webp loading=lazy alt="After: KitchenCoordinatorがすべての仲介を行うスター型構造（Mediatorパターン）のクラス図"></p><p>「これで、<code>SaladStation</code> を追加するときは <code>KitchenCoordinator</code> の <code>notify</code> だけを修正すればいい」と私は言った。「既存の3クラスには手を触れない」</p><p>男性が「でも——」と言った。</p><p>「<code>SaladStation</code> を追加したら、結局 <code>KitchenCoordinator</code> を修正する必要がある。それはN対N依存と同じではないですか？」</p><p>私は一拍置いた。</p><p>「違います——ステーションはお互いをもう知らない。焼き場を変えても、揚げ場とドリンクカウンターには影響しない。<code>SaladStation</code> を追加しても、既存のステーションは <code>$self->coordinator->notify(...)</code> を呼ぶだけで——誰が増えたかを知らなくていい。<code>KitchenCoordinator</code> が"誰と誰が話すか"の情報を全部引き受けています。変更は1か所だけです」</p><p>男性が「ああ——なるほど」と言った。既存のステーションに触れなくていいことが腑に落ちた顔をした。</p><p>シェフが「Mediatorパターン」と言った。</p><p>「複数のコンポーネントが互いを直接知っている代わりに、全員が1つの仲介者（Mediator）だけを知る。仲介者がすべての通信を制御する。コンポーネント間の依存がN対NからN対1のスター型に変わる。MooではMediatorクラスが各コンポーネントを <code>has</code> で保持し、<code>notify</code> メソッドがイベントを受け取って転送する」</p><p>男性が「なるほど。では——」と続けた。</p><p>「<code>KitchenCoordinator</code> にロジックが集中しませんか？ステーションが増えるたびに <code>KitchenCoordinator</code> が大きくなっていく——今度は <code>KitchenCoordinator</code> が神オブジェクトになるのでは？」</p><p>私は少し考えた。</p><p>「そうです——複雑さを消しているのではなく、1か所に集めています。N対N直接参照では、変更が全コンポーネントに波及する。Mediatorにすると、変更は <code>KitchenCoordinator</code> だけを変えればいい。それはコントロールしやすい」</p><p>「ただ——どこまで大きくなったら、<code>KitchenCoordinator</code> を分割するべきか——それは、まだ言えません」</p><p>シェフが何も言わなかった。</p><p>男性が「分かりました。確かに、波及を抑えるのが先決ですね。試してみます」と言った。少し考える顔をした。</p><h3 id=facadeやobserverとの違い>FacadeやObserverとの違い</h3><p>同じく「一か所に集める」構造のパターンと混同しやすい。</p><div class=table-wrapper><table><thead><tr><th>パターン</th><th>目的</th><th>依存の向き</th></tr></thead><tbody><tr><td>Facade</td><td>複数サブシステムの窓口を一本化（呼び出し元を簡略化）</td><td>外側から内側へ（一方向）</td></tr><tr><td>Observer</td><td>イベント発行・購読（Pub/Sub）。発行者は購読者の種類を知らない</td><td>発行者→購読者（1対N通知）</td></tr><tr><td>Chain of Responsibility</td><td>複数ハンドラが連鎖して「誰が処理するか」を決める</td><td>順送り</td></tr><tr><td><strong>Mediator</strong></td><td>コンポーネント間の通信を集中制御。N対N依存をスター型に変える</td><td>全員→仲介者→転送先（スター型）</td></tr></tbody></table></div><p>Facadeは「呼び出す側」を簡略化する。Mediatorは「コンポーネント同士の相互参照」をなくす。目的が異なる。Observerは発行者が購読者の数・種類を知らないが、Mediatorでは仲介者が全コンポーネントを知っている（それが集中のトレードオフでもある）。</p><h2 id=試食合格>試食合格</h2><p>テストを走らせた。</p><p>Before（n-to-n-coupling）:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>ok 1 - GrillStation は FryStation を直接保持している
+</span></span><span class=line><span class=cl>ok 2 - GrillStation は DrinkCounter を直接保持している
+</span></span><span class=line><span class=cl>ok 3 - FryStation は GrillStation を直接保持している
+</span></span><span class=line><span class=cl>ok 4 - FryStation は DrinkCounter を直接保持している
+</span></span><span class=line><span class=cl>ok 5 - DrinkCounter は GrillStation を直接保持している
+</span></span><span class=line><span class=cl>ok 6 - DrinkCounter は FryStation を直接保持している
+</span></span><span class=line><span class=cl>ok 7 - GrillStation::order_ready → DrinkCounter::prepare を直接呼ぶ
+</span></span><span class=line><span class=cl>ok 8 - GrillStation::order_ready → FryStation::sync_timing を直接呼ぶ
+</span></span><span class=line><span class=cl>ok 9 - GrillStation に saladstation 属性がない（追加するには修正必要）
+</span></span><span class=line><span class=cl>ok 10 - FryStation に saladstation 属性がない（追加するには修正必要）
+</span></span><span class=line><span class=cl>ok 11 - DrinkCounter に saladstation 属性がない（追加するには修正必要）
+</span></span><span class=line><span class=cl>1..11
+</span></span></code></pre></td></tr></table></div></div><p>テスト9〜11番——3クラスすべてに手を入れなければ <code>SaladStation</code> は追加できない。これが n-to-n-coupling の具体的なコストだ。</p><p>After（Mediatorパターン）:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>ok 1 - GrillStation に fryer 属性がない
+</span></span><span class=line><span class=cl>ok 2 - GrillStation に drink_counter 属性がない
+</span></span><span class=line><span class=cl>ok 3 - GrillStation は coordinator を持つ
+</span></span><span class=line><span class=cl>ok 4 - FryStation に grill 属性がない
+</span></span><span class=line><span class=cl>ok 5 - FryStation に drink_counter 属性がない
+</span></span><span class=line><span class=cl>ok 6 - FryStation は coordinator を持つ
+</span></span><span class=line><span class=cl>ok 7 - DrinkCounter に grill 属性がない
+</span></span><span class=line><span class=cl>ok 8 - DrinkCounter に fryer 属性がない
+</span></span><span class=line><span class=cl>ok 9 - DrinkCounter は coordinator を持つ
+</span></span><span class=line><span class=cl>ok 10 - grill.order_ready → coordinator 経由で DrinkCounter::prepare が呼ばれた
+</span></span><span class=line><span class=cl>ok 11 - coordinator が check_capacity を grill に転送する
+</span></span><span class=line><span class=cl>ok 12 - SaladStation 追加後も grill.order_ready が DrinkCounter に届く
+</span></span><span class=line><span class=cl>ok 13 - SaladStation 追加後 grill.order_ready が SaladStation にも届く
+</span></span><span class=line><span class=cl>ok 14 - GrillStation に salad_station 属性なし（変更不要）
+</span></span><span class=line><span class=cl>ok 15 - FryStation に salad_station 属性なし（変更不要）
+</span></span><span class=line><span class=cl>ok 16 - DrinkCounter に salad_station 属性なし（変更不要）
+</span></span><span class=line><span class=cl>...
+</span></span><span class=line><span class=cl>1..20
+</span></span></code></pre></td></tr></table></div></div><p>全テスト通過、警告なし。</p><p>テスト1〜9番——<code>GrillStation</code>・<code>FryStation</code>・<code>DrinkCounter</code> は <code>coordinator</code> だけを持ち、互いへの直接参照がない。テスト12〜16番——<code>SaladStation</code> を追加した後も既存ステーションは変わらない。<code>GrillStation</code> に <code>salad_station</code> 属性はない。<code>FryStation</code> にも <code>DrinkCounter</code> にもない。<code>KitchenCoordinator</code> だけを変えた。</p><p>男性が「既存のステーションを変えなくていいんですね」と言った。少し表情が明るくなった。</p><p>「そうです。変更が1か所に集まる」と私が言った。</p><hr><h2 id=シェフの仕込み工程表>シェフの仕込み工程表</h2><div class=table-wrapper><table><thead><tr><th>問題（調理ミス）</th><th>技法（パターン）</th><th>効果（仕上がり）</th></tr></thead><tbody><tr><td>コンポーネント同士が互いを直接 <code>has</code> で保持・呼び出し（n-to-n-coupling）。ステーション追加・変更のたびに全コンポーネントを修正する必要がある</td><td>Mediatorパターン：<code>KitchenCoordinator</code> が全ステーションを保持し、<code>notify</code> でイベントを仲介する</td><td>各ステーションは <code>coordinator</code> だけを知る。変更の影響が <code>KitchenCoordinator</code> に集中し、既存ステーションへの波及がなくなる</td></tr></tbody></table></div><h3 id=工程>工程</h3><ol><li>コンポーネント間の参照関係を洗い出す。何が何を <code>has</code> で知っているかをリストアップする</li><li><code>KitchenCoordinator</code>（Mediator）クラスを作る（<code>use Moo</code>）</li><li><code>has grill</code>・<code>has fryer</code>・<code>has drink_counter</code> など、全コンポーネントをMediatorの属性として保持する（<code>is => 'rw'</code>）</li><li><code>notify($from, $event, $order_id)</code> メソッドに、イベントに応じた転送ロジックを集める</li><li>各コンポーネントから他コンポーネントへの直接参照（<code>has fryer</code>・<code>has grill</code> など）を削除する</li><li>代わりに <code>has coordinator => (is => 'ro', required => 1)</code> を追加する</li><li>コンポーネントが他コンポーネントを呼ぶ代わりに <code>$self->coordinator->notify(...)</code> を呼ぶ</li><li>構築の順序: coordinatorを先に作り（ステーション未設定）、ステーションを <code>coordinator</code> を渡して作り（<code>ro</code>/<code>required</code>）、最後にcoordinatorにステーションを設定（<code>rw</code>）</li></ol><h3 id=シェフより>シェフより</h3><p>「ステーションは仕事をするだけでいい。誰に声をかけるかは——コーディネーターが決める。全員が全員を知っている必要はない。声をかける相手が1人なら、追加も変更も、その1人を直せばいい」</p><hr><p>男性が帰った後、シェフが厨房の作業に戻った。</p><p>私は——答えた。「ステーションはお互いをもう知らない。変更は1か所に集まる」。男性は納得してくれた。</p><p>でも、シェフは何も言わなかった。</p><p>昨日の夜は——「お前が答えろ」と言われて、最後まで言えた。シェフが頷いた。今日は——頷かなかった。</p><p>答えを言えることと、シェフが頷くことは、違うことなのかもしれない。</p><p>「どこまで大きくなったら、<code>KitchenCoordinator</code> を分割するべきか」が言えなかった。そこが——足りなかった部分だろうか。それとも——別のどこかが？</p><p>分からなかった。</p></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/perl/>Perl</a>
+<a href=/tags/moo/>Moo</a>
+<a href=/tags/mediator/>Mediator</a>
+<a href=/tags/n-to-n-coupling/>N-to-N-Coupling</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-chef/>Code-Chef</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/06/19/070705/><div class=article-image><img src=/public_images/2026/code-chef-interpreter-pattern/header.webp loading=lazy data-key data-hash=/public_images/2026/code-chef-interpreter-pattern/header.webp></div><div class=article-details><h2 class=article-title>コードシェフの仕込み帳【Interpreter】絡み合うレシピの呪文〜if文の泥沼を抜け出す式ツリーの仕込み〜</h2></div></a></article><article class=has-image><a href=/2026/06/18/190705/><div class=article-image><img src=/public_images/2026/code-chef-singleton-pattern/header.webp loading=lazy data-key data-hash=/public_images/2026/code-chef-singleton-pattern/header.webp></div><div class=article-details><h2 class=article-title>コードシェフの仕込み帳【Singleton】ただ一つの秘伝のタレ〜並列の皿を汚すグローバル依存と器の仕込み〜</h2></div></a></article><article class=has-image><a href=/2026/06/18/070705/><div class=article-image><img src=/public_images/2026/code-chef-flyweight-pattern/header.webp loading=lazy data-key data-hash=/public_images/2026/code-chef-flyweight-pattern/header.webp></div><div class=article-details><h2 class=article-title>コードシェフの仕込み帳【Flyweight】厨房を埋め尽くす伝票の山〜壁の品書きと一鍋のスープ〜</h2></div></a></article><article class=has-image><a href=/2026/06/17/190705/><div class=article-image><img src=/public_images/2026/code-chef-prototype-pattern/header.webp loading=lazy data-key data-hash=/public_images/2026/code-chef-prototype-pattern/header.webp></div><div class=article-details><h2 class=article-title>コードシェフの仕込み帳【Prototype】秘伝 of ベーススープ〜newのたびにかかるコストをcloneで解決する〜</h2></div></a></article><article class=has-image><a href=/2026/06/17/070705/><div class=article-image><img src=/public_images/2026/code-chef-visitor-pattern/header.webp loading=lazy data-key data-hash=/public_images/2026/code-chef-visitor-pattern/header.webp></div><div class=article-details><h2 class=article-title>コードシェフの仕込み帳【Visitor】検査員は厨房に入れない〜食材の定義を汚さずに新しい操作を巡回させる〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

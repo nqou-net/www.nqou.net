@@ -1,0 +1,385 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="隊商の差配役は、四十年、帳面で食ってきた。注文を二つ受け、どちらも正しく記した。書き損じはない。なのに棚卸しで数が合わない——台帳には二つの引き当てが立つのに、蔵の残りは片方しか減っていない。片方の取引が、最初から無かったかのように消える。残りを問う早馬が戻る間に、別の窓口が同じ古い残りを持ち帰り、後から書いた手が先の手を音もなく塗り潰す（Lost Update）。JS が一度に一つしか書かなくても、読んでから書くまでの隙に二人が同じ古い数を握れば、一方の更新は消える。残りの数でなく版を壺に刻み、書き戻す時に読んだ版と今の版を照らして、ぶつかった手だけを読み直させてやり直させる（Optimistic Locking）。消失を決定的に注入した模擬戦で、版が単調に増えるからこそ ABA の往復も見逃さないことまで確かめる TypeScript の契約の物語。"><title>コードテイマー【Optimistic Locking】二人の手が同じ数を書き、一方の更新が静かに消える〜帳に版を刻み、後から来た手にやり直させる〜</title><link rel=canonical href=https://www.nqou.net/2026/07/04/120705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コードテイマー【Optimistic Locking】二人の手が同じ数を書き、一方の更新が静かに消える〜帳に版を刻み、後から来た手にやり直させる〜"><meta property='og:description' content="隊商の差配役は、四十年、帳面で食ってきた。注文を二つ受け、どちらも正しく記した。書き損じはない。なのに棚卸しで数が合わない——台帳には二つの引き当てが立つのに、蔵の残りは片方しか減っていない。片方の取引が、最初から無かったかのように消える。残りを問う早馬が戻る間に、別の窓口が同じ古い残りを持ち帰り、後から書いた手が先の手を音もなく塗り潰す（Lost Update）。JS が一度に一つしか書かなくても、読んでから書くまでの隙に二人が同じ古い数を握れば、一方の更新は消える。残りの数でなく版を壺に刻み、書き戻す時に読んだ版と今の版を照らして、ぶつかった手だけを読み直させてやり直させる（Optimistic Locking）。消失を決定的に注入した模擬戦で、版が単調に増えるからこそ ABA の往復も見逃さないことまで確かめる TypeScript の契約の物語。"><meta property='og:url' content='https://www.nqou.net/2026/07/04/120705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='typescript'><meta property='article:tag' content='optimistic-locking'><meta property='article:tag' content='lost-update'><meta property='article:tag' content='data-race'><meta property='article:tag' content='compare-and-swap'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-tamer'><meta property='article:published_time' content='2026-07-04T12:07:05+09:00'><meta property='article:modified_time' content='2026-07-04T12:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-tamer-optimistic-locking/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コードテイマー【Optimistic Locking】二人の手が同じ数を書き、一方の更新が静かに消える〜帳に版を刻み、後から来た手にやり直させる〜"><meta name=twitter:description content="隊商の差配役は、四十年、帳面で食ってきた。注文を二つ受け、どちらも正しく記した。書き損じはない。なのに棚卸しで数が合わない——台帳には二つの引き当てが立つのに、蔵の残りは片方しか減っていない。片方の取引が、最初から無かったかのように消える。残りを問う早馬が戻る間に、別の窓口が同じ古い残りを持ち帰り、後から書いた手が先の手を音もなく塗り潰す（Lost Update）。JS が一度に一つしか書かなくても、読んでから書くまでの隙に二人が同じ古い数を握れば、一方の更新は消える。残りの数でなく版を壺に刻み、書き戻す時に読んだ版と今の版を照らして、ぶつかった手だけを読み直させてやり直させる（Optimistic Locking）。消失を決定的に注入した模擬戦で、版が単調に増えるからこそ ABA の往復も見逃さないことまで確かめる TypeScript の契約の物語。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-tamer-optimistic-locking/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-07-04T12:07:05+09:00","datePublished":"2026-07-04T12:07:05+09:00","description":"隊商の差配役は、四十年、帳面で食ってきた。注文を二つ受け、どちらも正しく記した。書き損じはない。なのに棚卸しで数が合わない——台帳には二つの引き当てが立つのに、蔵の残りは片方しか減っていない。片方の取引が、最初から無かったかのように消える。残りを問う早馬が戻る間に、別の窓口が同じ古い残りを持ち帰り、後から書いた手が先の手を音もなく塗り潰す（Lost Update）。JS が一度に一つしか書かなくても、読んでから書くまでの隙に二人が同じ古い数を握れば、一方の更新は消える。残りの数でなく版を壺に刻み、書き戻す時に読んだ版と今の版を照らして、ぶつかった手だけを読み直させてやり直させる（Optimistic Locking）。消失を決定的に注入した模擬戦で、版が単調に増えるからこそ ABA の往復も見逃さないことまで確かめる TypeScript の契約の物語。","headline":"コードテイマー【Optimistic Locking】二人の手が同じ数を書き、一方の更新が静かに消える〜帳に版を刻み、後から来た手にやり直させる〜","image":"https://www.nqou.net/public_images/2026/code-tamer-optimistic-locking/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/07/04/120705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#消えた取引>消えた取引</a><ol><li><a href=#四十年書き損じたことはない>四十年、書き損じたことはない</a></li><li><a href=#残りを読んで引いて書き戻す>残りを読んで、引いて、書き戻す</a></li></ol></li><li><a href=#早馬を途中で止める>早馬を、途中で止める</a><ol><li><a href=#順に戻れば数は合う>順に戻れば、数は合う</a></li><li><a href=#同じ刻に同じ数を持ち帰らせる>同じ刻に、同じ数を持ち帰らせる</a></li><li><a href=#読んでから書くまでの隙>読んでから書くまでの、隙</a></li></ol></li><li><a href=#帳に版を刻む>帳に、版を刻む</a><ol><li><a href=#後から来た手にやり直させる>後から来た手に、やり直させる</a></li><li><a href=#数は嘘をつけても版は嘘をつけない>数は嘘をつけても、版は嘘をつけない</a></li><li><a href=#待つかやり直すか>待つか、やり直すか</a></li><li><a href=#やり直しに刻限を>やり直しに、刻限を</a></li></ol></li><li><a href=#数と帳面を照らす>数と帳面を、照らす</a><ol><li><a href=#数の隣に版を置く>数の隣に、版を置く</a></li><li><a href=#-カイナの魔獣契約録tamers-registry>📜 カイナの魔獣契約録（Tamer&rsquo;s Registry）</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/07/04/120705/><img src=/public_images/2026/code-tamer-optimistic-locking/header.webp loading=lazy alt="Featured image of post コードテイマー【Optimistic Locking】二人の手が同じ数を書き、一方の更新が静かに消える〜帳に版を刻み、後から来た手にやり直させる〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/07/04/120705/>コードテイマー【Optimistic Locking】二人の手が同じ数を書き、一方の更新が静かに消える〜帳に版を刻み、後から来た手にやり直させる〜</a></h2><h3 class=article-subtitle>隊商の差配役は、四十年、帳面で食ってきた。注文を二つ受け、どちらも正しく記した。書き損じはない。なのに棚卸しで数が合わない——台帳には二つの引き当てが立つのに、蔵の残りは片方しか減っていない。片方の取引が、最初から無かったかのように消える。残りを問う早馬が戻る間に、別の窓口が同じ古い残りを持ち帰り、後から書いた手が先の手を音もなく塗り潰す（Lost Update）。JS が一度に一つしか書かなくても、読んでから書くまでの隙に二人が同じ古い数を握れば、一方の更新は消える。残りの数でなく版を壺に刻み、書き戻す時に読んだ版と今の版を照らして、ぶつかった手だけを読み直させてやり直させる（Optimistic Locking）。消失を決定的に注入した模擬戦で、版が単調に増えるからこそ ABA の往復も見逃さないことまで確かめる TypeScript の契約の物語。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>04, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 26分</time></div></footer></div></header><section class=article-content><h2 id=消えた取引>消えた取引</h2><p>台帳には、確かに二つ立っている。なのに、蔵の数は、片方しか引かれていない。</p><p>わたしは隊商の差配役だ。街道に点々と宿場を構え、そのどこからでも同じ品を卸せるよう、中央の蔵と、一冊の在庫元帳を預かっている。触媒の壺が幾つ残っているか——それを記すのが、わたしの四十年の仕事だった。注文が来れば、宿場の窓口が蔵に「あと幾つ残っているか」を早馬で問い、戻った数から引いて、引いた後の数を書き戻す。それだけの、素直な帳面だ。</p><p>棚卸しの朝だった。現物の壺と、帳面の残りを照らし合わせていて、手が止まった。今朝、星砂の触媒に、二つの引き当てがあった。一つは三壺、もう一つは五壺。どちらも、この手でちゃんと記した。台帳には、二つとも立っている。だが——蔵の残りは、五壺しか引かれていない。三壺の引き当ては、まるで最初から無かったかのように、数に効いていない。</p><p>魔物使いは、帳場の隅で、わたしの元帳と棚の壺とを、交互に検めていた。広げたままの二つの取引の行を上から下へ読んでは、棚に残る壺の数へ視線を返す。それを幾度も繰り返す。問いも、慰めも、口にしない。ただ、数の出入りを勘定し直しているようだった。</p><p>市を回る連れの口上は、いつも半分が与太だ。&ldquo;勘定の合わぬ蔵を視る、変わった魔物使いが市の外れにいる&rdquo;——その半分に賭けて、商いの外へ使いを出した。お抱えの記帳役に何度検めさせても、原因が掴めなかったからだ。来たのが、カイナと名乗る、この人だった。</p><h3 id=四十年書き損じたことはない>四十年、書き損じたことはない</h3><p>わたしは、自分の帳面を誇りはしない。だが、静かな矜持はある。</p><p>「四十年、この帳面で食ってきました。書き損じたことは、ありません。今朝の二つの引き当ても、両方、この手でちゃんと記した。書き間違いも、書き漏れも、ない」</p><p>ここで、一拍置いた。不可解を、どう差し出せばいいのか、言葉を探した。</p><p>「なのに、片方の取引が、蔵の数に効いていないんです。台帳には、立っている。確かに記した。なのに——最初から無かったように、残りが減っていない。書いたものが、消えるんです」</p><p>どちらの手跡が悪いのか、いくら見ても分からなかった。どちらも、正しく書かれている。正しく書いて、なお消える。勘定家の言うことではないと、自分でも思う。だが、本当に、そうとしか言えなかった。</p><p>カイナは、ようやく口を開いた。わたしの記帳を貶める響きは、なかった。</p><p>「お前の手跡に、間違いは一つもない。二つとも、正しく書かれている。——だが、片方が"なかったこと"になるのは、書いた後じゃない。書く前に、種が蒔かれている。読んでから書くまでの間に、何が起きるか。それを、この目で見てからだ」</p><p>「読んでから、書くまで……?」わたしには、意味が掴めなかった。「早馬が、往って還る、あの間のことですか」</p><h3 id=残りを読んで引いて書き戻す>残りを読んで、引いて、書き戻す</h3><p>わたしは、窓口の手順を写した板を取り出した。難しいことは、何もしていない。だからこそ、ここに穴があるとは、思えなかった。</p><p>「注文が来たら、蔵にあと幾つ残っているか、早馬で問います。残りが戻ったら、注文の数を引いて、引いた後の数を書き戻す。それだけです」</p><p>蔵は遠い。残りを問うのも、書き戻すのも、早馬を出して、戻るのを待つ。その往復を、術式の言葉では <code>read</code> と <code>write</code> と呼ぶのだと、カイナは言った。早馬が戻るのを待つ間、帳場は手を遊ばせない。次の注文が来れば、また別の窓口が、蔵へ早馬を出す。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=c1>// 在庫元帳。蔵の残りを問う／書き戻すのは早馬の往復＝待ちが入る境界。
+</span></span></span><span class=line><span class=cl><span class=kr>export</span> <span class=kr>interface</span> <span class=nx>StockRecord</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=nx>id</span>: <span class=kt>string</span><span class=p>;</span> <span class=c1>// 品（魔法触媒）の識別子
+</span></span></span><span class=line><span class=cl>  <span class=nx>remaining</span>: <span class=kt>number</span><span class=p>;</span> <span class=c1>// 蔵に残っている数
+</span></span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kr>export</span> <span class=kr>interface</span> <span class=nx>LedgerStore</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=nx>read</span><span class=p>(</span><span class=nx>id</span>: <span class=kt>string</span><span class=p>)</span><span class=o>:</span> <span class=nx>Promise</span><span class=p>&lt;</span><span class=nt>StockRecord</span><span class=p>&gt;;</span> <span class=c1>// 残りを問う（早馬・往復）
+</span></span></span><span class=line><span class=cl>  <span class=nx>write</span><span class=p>(</span><span class=nx>record</span>: <span class=kt>StockRecord</span><span class=p>)</span><span class=o>:</span> <span class=nx>Promise</span><span class=p>&lt;</span><span class=nt>void</span><span class=p>&gt;;</span> <span class=c1>// 引いた後の数を書き戻す（早馬・往復）
+</span></span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>read</code> も <code>write</code> も、返ってくるのに間がある。だから <code>Promise</code>——「いずれ返ってくる」という約束で包まれ、その約束を待つのが <code>await</code> だ。窓口の手順は、こうなる。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=c1>// Before: 残りを読み、引いて、書き戻す。読んだ後・書く前の「隙」に他の窓口が割り込む。
+</span></span></span><span class=line><span class=cl><span class=kr>export</span> <span class=kr>async</span> <span class=kd>function</span> <span class=nx>reserveBad</span><span class=p>(</span><span class=nx>store</span>: <span class=kt>LedgerStore</span><span class=p>,</span> <span class=nx>id</span>: <span class=kt>string</span><span class=p>,</span> <span class=nx>qty</span>: <span class=kt>number</span><span class=p>)</span><span class=o>:</span> <span class=nx>Promise</span><span class=p>&lt;</span><span class=nt>void</span><span class=p>&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>record</span> <span class=o>=</span> <span class=k>await</span> <span class=nx>store</span><span class=p>.</span><span class=nx>read</span><span class=p>(</span><span class=nx>id</span><span class=p>);</span> <span class=c1>// ① read（早馬の往復。ここで別の窓口に手番が移る）
+</span></span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>remaining</span> <span class=o>=</span> <span class=nx>record</span><span class=p>.</span><span class=nx>remaining</span> <span class=o>-</span> <span class=nx>qty</span><span class=p>;</span> <span class=c1>// ② 手元の残りから引く
+</span></span></span><span class=line><span class=cl>  <span class=k>await</span> <span class=nx>store</span><span class=p>.</span><span class=nx>write</span><span class=p>({</span> <span class=nx>id</span><span class=p>,</span> <span class=nx>remaining</span> <span class=p>});</span> <span class=c1>// ③ write（自分の握った数で塗る＝前の書き手の更新を見ない）
+</span></span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>カイナは、手順を最後まで追って、低く言った。「読み、引き、書く。一点の曇りもない。——だが、<code>await store.read</code> のところで、早馬が出る。戻るまで、この窓口は手を止める。その間に、巡回は他の窓口へ回る。読んでから書くまでの間に、別の手が、同じ蔵を覗ける」</p><p>わたしは、まだ実感が湧かなかった。一度に一つしか書けないのに、と心の中で繰り返すばかりだった。</p><h2 id=早馬を途中で止める>早馬を、途中で止める</h2><p>「その不整合は、ここで起こせる」とカイナは言った。「二つの注文を流し、早馬を、途中で止めるだけだ」</p><h3 id=順に戻れば数は合う>順に戻れば、数は合う</h3><p>カイナがまず組んだのは、蔵を真似た小さな帳面だった。残りを問えば数を返し、書き戻せば数を改める。本物の蔵と同じ作法で、しかし早馬の往復を、こちらの手で握れる仕掛けだ。</p><p>そして、二つの注文を素直に流した。星砂を三壺引く窓口と、五壺引く窓口。早馬が順に戻れば——一つ目が読んで、引いて、書き終えてから、二つ目が読む——どちらも正しく引けた。十から三で七、七から五で二。残りは二壺。消えない。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=nx>it</span><span class=p>(</span><span class=s2>&#34;早馬が順に戻れば（直列なら）両方とも正しく引かれる（運次第・平時は露見しない）&#34;</span><span class=p>,</span> <span class=kr>async</span> <span class=p>()</span> <span class=o>=&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>ledger</span> <span class=o>=</span> <span class=k>new</span> <span class=nx>GatedLedger</span><span class=p>({</span> <span class=nx>id</span><span class=o>:</span> <span class=s2>&#34;catalyst&#34;</span><span class=p>,</span> <span class=nx>remaining</span>: <span class=kt>10</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=c1>// a を先に完走させてから b を起動する＝直列（read 保留→解放→write 完了の後で b 開始）
+</span></span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>a</span> <span class=o>=</span> <span class=nx>reserveBad</span><span class=p>(</span><span class=nx>ledger</span><span class=p>,</span> <span class=s2>&#34;catalyst&#34;</span><span class=p>,</span> <span class=mi>3</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>  <span class=nx>ledger</span><span class=p>.</span><span class=nx>releaseAllReads</span><span class=p>();</span> <span class=c1>// a の read だけが保留されている
+</span></span></span><span class=line><span class=cl>  <span class=k>await</span> <span class=nx>a</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>b</span> <span class=o>=</span> <span class=nx>reserveBad</span><span class=p>(</span><span class=nx>ledger</span><span class=p>,</span> <span class=s2>&#34;catalyst&#34;</span><span class=p>,</span> <span class=mi>5</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>  <span class=nx>ledger</span><span class=p>.</span><span class=nx>releaseAllReads</span><span class=p>();</span> <span class=c1>// b の read を解放
+</span></span></span><span class=line><span class=cl>  <span class=k>await</span> <span class=nx>b</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=nx>assert</span><span class=p>.</span><span class=nx>equal</span><span class=p>(</span><span class=nx>ledger</span><span class=p>.</span><span class=nx>remaining</span><span class=p>,</span> <span class=mi>2</span><span class=p>);</span> <span class=c1>// 10-3-5=2。直列なら消失しない
+</span></span></span><span class=line><span class=cl>  <span class=nx>assert</span><span class=p>.</span><span class=nx>deepEqual</span><span class=p>(</span><span class=nx>ledger</span><span class=p>.</span><span class=nx>writeLog</span><span class=p>,</span> <span class=p>[</span><span class=mi>7</span><span class=p>,</span> <span class=mi>2</span><span class=p>]);</span> <span class=c1>// a: 10-3=7 / b: 7-5=2（直列ゆえ b は最新の7を読む）
+</span></span></span><span class=line><span class=cl><span class=p>});</span>
+</span></span></code></pre></td></tr></table></div></div><p>カイナは、同じ流しを何度か繰り返した。合うこともあれば——と、ここで初めて、合わないことが混じった。</p><p>「これだ」とカイナは言った。「お前が棚卸しまで掴めなかったのは、これが運任せに紛れるからだ。早馬の還る順しだいで、合うこともある。合わないこともある。だが、運に任せていては、正体は掴めん。消える刻を、こちらで作る」</p><p>（蔵の数や書き戻しの記録を直に覗く窓——<code>remaining</code> や <code>writeLog</code>——は、模擬戦のために添えてある。<code>writeLog</code> は、書き戻された数を順に控える帳面だ。台帳に立った取引を、そのまま並べたものだと思っていい。）</p><h3 id=同じ刻に同じ数を持ち帰らせる>同じ刻に、同じ数を持ち帰らせる</h3><p>「鍵は、早馬だ」とカイナは言った。「残りを問う早馬を、還る途中で止めておく。二つの窓口の早馬を、両方止めて、同じ"十"を持たせてから、揃って還す。そうすれば、二人は必ず、同じ古い数を握る」</p><p>これが、肝だった。本物の蔵では、二つの早馬が同じ刻に同じ数を持ち帰るのは、繁忙のときの、稀な巡り合わせだ。だからこそ、棚卸しまで露れない。カイナは、その稀な巡り合わせを、檻の中で狙って起こした。早馬を二つとも止め、両方に「残り十」を持たせ、それから順に書き戻させる。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=nx>it</span><span class=p>(</span><span class=s2>&#34;二人が同じ残りを読むと、後の書き戻しが先を上書きし一方の引き当てが消える（Lost Update の決定的再現）&#34;</span><span class=p>,</span> <span class=kr>async</span> <span class=p>()</span> <span class=o>=&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>ledger</span> <span class=o>=</span> <span class=k>new</span> <span class=nx>GatedLedger</span><span class=p>({</span> <span class=nx>id</span><span class=o>:</span> <span class=s2>&#34;catalyst&#34;</span><span class=p>,</span> <span class=nx>remaining</span>: <span class=kt>10</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=c1>// 二つの reserveBad を起動 → 両方の read 保留点に到達させる（最悪順序の注入）
+</span></span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>a</span> <span class=o>=</span> <span class=nx>reserveBad</span><span class=p>(</span><span class=nx>ledger</span><span class=p>,</span> <span class=s2>&#34;catalyst&#34;</span><span class=p>,</span> <span class=mi>3</span><span class=p>);</span> <span class=c1>// 窓口A（3引く）
+</span></span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>b</span> <span class=o>=</span> <span class=nx>reserveBad</span><span class=p>(</span><span class=nx>ledger</span><span class=p>,</span> <span class=s2>&#34;catalyst&#34;</span><span class=p>,</span> <span class=mi>5</span><span class=p>);</span> <span class=c1>// 窓口B（5引く）
+</span></span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=c1>// 両方が read で保留中であることを確認（足場の健全性チェック）
+</span></span></span><span class=line><span class=cl>  <span class=nx>assert</span><span class=p>.</span><span class=nx>equal</span><span class=p>(</span><span class=nx>ledger</span><span class=p>.</span><span class=nx>pendingReadCount</span><span class=p>,</span> <span class=mi>2</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=c1>// 同じ残り「10」を、登録順（a→b）で一斉解放＝両者が同じ古い数を握る
+</span></span></span><span class=line><span class=cl>  <span class=nx>ledger</span><span class=p>.</span><span class=nx>releaseAllReads</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>  <span class=k>await</span> <span class=nx>Promise</span><span class=p>.</span><span class=nx>all</span><span class=p>([</span><span class=nx>a</span><span class=p>,</span> <span class=nx>b</span><span class=p>]);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=c1>// 台帳には二取引が両方書かれた（writeLog に7と5が両方立つ）のに、
+</span></span></span><span class=line><span class=cl>  <span class=c1>// 蔵の残りは後勝ち＝5（3引いた取引が&#34;最初から無かったこと&#34;になる）
+</span></span></span><span class=line><span class=cl>  <span class=nx>assert</span><span class=p>.</span><span class=nx>deepEqual</span><span class=p>(</span><span class=nx>ledger</span><span class=p>.</span><span class=nx>writeLog</span><span class=p>,</span> <span class=p>[</span><span class=mi>7</span><span class=p>,</span> <span class=mi>5</span><span class=p>]);</span>
+</span></span><span class=line><span class=cl>  <span class=nx>assert</span><span class=p>.</span><span class=nx>equal</span><span class=p>(</span><span class=nx>ledger</span><span class=p>.</span><span class=nx>remaining</span><span class=p>,</span> <span class=mi>5</span><span class=p>);</span> <span class=c1>// 正しくは10-3-5=2のはずが、5のまま（3引いた取引が消えた）
+</span></span></span><span class=line><span class=cl><span class=p>});</span>
+</span></span></code></pre></td></tr></table></div></div><p>一つ目の窓口は、十から三を引いて、七と書いた。二つ目の窓口は、その七を見ないまま——自分が握った十から五を引いて、五と書いた。蔵の残りは、五。</p><p>わたしは、帳面（<code>writeLog</code>）を覗いた。七と五、二つの書き戻しが、どちらも記されている。確かに、両方とも書かれた。なのに、蔵の残りに効いたのは、後の五だけだった。正しくは、十から三を引き、さらに五を引いて、二壺のはず。それが、五壺のまま。三を引いた取引が、消えていた。台帳に二つ、残りは片方。棚卸しのあのズレが、ここに、狙って起こせる形で立った。</p><p>わたしは、ようやく像を結びかけた。「……二人とも、十を握っていました。一人が七と書いて、もう一人が、その七を見ずに、五で塗った。早馬が、同じ"十"を持ち帰ったから」</p><p>頭の中で、早馬たちが交差して帳面を塗りつぶしていく光景が、一枚の絵になって浮かび上がった。</p><p><img src=/public_images/2026/code-tamer-optimistic-locking/infographic_1.webp loading=lazy alt="Infographic sequence diagram showing double-submission lost update due to await suspension point"></p><h3 id=読んでから書くまでの隙>読んでから書くまでの、隙</h3><p>カイナは、二つの早馬の符牒を、卓に並べた。</p><p>「種は、読んでから書くまでの隙だ。残りを問う早馬が還るまで、巡回は他の窓口へ回る。その隙に、もう一人が同じ古い残りを読む。書くのは一つずつでも、古い数を二人が握ることは、起きる」</p><p>「一度に一つしか書けないなら」とわたしは食い下がった。「なぜ、重なるんです」</p><p>「書く瞬間は、重ならない。お前の言う通り、一つずつだ。だが、消えるのは書く瞬間の衝突じゃない。読んだ数が、書く頃にはもう古い——その隙だ。一つずつ書いても、古い数を二人が握れば、後の手が先の手を、塗り消す」</p><p>ここで、わたしの思い込みが、ひとつ覆った。一度に一つしか書けないから、安全だと思っていた。だが、消えるのは書くときではなく、読んだあの瞬間から、もう種が蒔かれていたのだ。</p><p>カイナは、面白いところだ、と言った。「どちらの窓口の手順も、型の上では一点の曇りもない。残りを読み、引き、書く。型は、&ldquo;数を引き忘れた"とか"品を取り違えた"なら叱る。だが、&ldquo;二人が同じ古い数を読んだ&rdquo;——その重なりは、型のどこにも書かれない。走らせて、二つの早馬が同じ刻に同じ数を持ち帰ったときだけ、立ち上がる」</p><p>二つ以上の処理が、同じ資源を読んで、書き換えて、書き戻す。その手順が重なって、一方の書き込みがもう一方を上書きして消す。これを <strong>Lost Update（ロストアップデート）</strong>——読んで書き戻すまでの隙に割り込まれ、更新が静かに失われる事故——という。そして、読んで・直して・書き戻すこの一連の手順を、<strong>read-modify-write</strong> と呼ぶ。隙が生まれるのは、いつもこの真ん中、読んでから書くまでの間だ。</p><p>「一つ、はっきりさせておく」とカイナは続けた。「前に、別の工房で、二つの錬金釜が、互いの鍵を握ったまま、相手の鍵が空くのを待って、にらみ合って石になったことがある。あれは、動かなくなる獣だった。互いを待って、どちらも前に進めない。——だが、これは逆だ。お前の二つの窓口は、止まらない。両方とも、最後まで走り切る。走り切って、なお、片方が消える。止まる病と、消える病。似て、別の獣だ」</p><p>そう言って、カイナは符牒の一つを指で弾いた。「これは、分裂する妖精だ。一匹に見えて、二匹いる。双子は、互いを見ない。同じ壺の数字を、別々の刻に握って、別々に塗り替える。互いの仕事を、知らないまま」</p><p>平時には、決して露れない。二つの早馬が同じ刻に同じ数を持ち帰った、ちょうどその巡り合わせでだけ、片方が消える。だから、わたしは四十年、書き損じもないのに、棚卸しまで気づけなかった。</p><h2 id=帳に版を刻む>帳に、版を刻む</h2><p>「壺の数字に、版を添える」とカイナは言った。</p><h3 id=後から来た手にやり直させる>後から来た手に、やり直させる</h3><p>「書き換えるたび、版を一つ繰り上げる。零版、一版、二版、と。誰かが書けば、版が進む。残りの数とは別に、書かれた回数の証だ。肝心なのは——版が書かれるたびに、必ず一つ増えること。減ることも、途中を飛ばすこともない。常に、前へ進むだけだ」</p><p>数えるのは滅多にぶつからない、と楽観して、皆に好きに読ませ、好きに書かせる。ただし書き戻す時だけ、版を照らす。この手当てを、<strong>Optimistic Locking（楽観的ロック）</strong>——衝突は稀だと構えて、ぶつかったときだけやり直させる仕組み——という。</p><p>「書き戻すとき、こう検める」とカイナは言った。「自分が読んだのは、何版か。読んだのが零版で、今の壺も零版なら——わたしが読んでから、誰も書いていない。だから、書いてよい。版を一版に繰り上げて。だが、読んだのは零版なのに、今の壺が一版になっていたら——読んでから書くまでの間に、誰かが書いた証拠だ。その時は、書かせない。退いて、読み直して、最新の数から、やり直す」</p><p>この「読んだ版と今の版を照らし、同じときだけ書く」一手を、<strong>compareAndSwap</strong>——読んだときの値と今の値を見比べ、変わっていなければ書き換える操作——という。版が合わなければ、衝突の合図を投げる。版が必ず一つずつ前へ進むからこそ、「読んだ版と今の版が同じ」は「読んでから誰も書いていない」と、ぴたり同じ意味になる。間に誰か一人でも書いていれば、版はもう進んでいて、決して元の数には戻っていないからだ。</p><p>照らすのと書くのは、一続きで行う。照らしてから書き入れるまでの間に、また別の手が割り込めるなら、せっかくの照合が無駄になる。だから、版を確かめて書き換えるこの一手は、途中で割り込ませない、ひとかたまりの所作にする。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=c1>// 版（version）付きの在庫記録。version は書き換えるたび繰り上がる（単調増加）。
+</span></span></span><span class=line><span class=cl><span class=kr>export</span> <span class=kr>interface</span> <span class=nx>VersionedRecord</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=nx>id</span>: <span class=kt>string</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=nx>remaining</span>: <span class=kt>number</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=nx>version</span>: <span class=kt>number</span><span class=p>;</span> <span class=c1>// 書かれた回数の証＝0版→1版→2版…。戻らない
+</span></span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// 版が合わない＝読んでから書くまでに誰かが書いた、という衝突の合図。
+</span></span></span><span class=line><span class=cl><span class=kr>export</span> <span class=kr>class</span> <span class=nx>OptimisticLockError</span> <span class=kr>extends</span> <span class=nb>Error</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=kr>constructor</span><span class=p>(</span><span class=nx>id</span>: <span class=kt>string</span><span class=p>,</span> <span class=nx>expected</span>: <span class=kt>number</span><span class=p>,</span> <span class=nx>actual</span>: <span class=kt>number</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=kr>super</span><span class=p>(</span><span class=sb>`版が合わない（</span><span class=si>${</span><span class=nx>id</span><span class=si>}</span><span class=sb>）: 読んだ版=</span><span class=si>${</span><span class=nx>expected</span><span class=si>}</span><span class=sb>, 今の版=</span><span class=si>${</span><span class=nx>actual</span><span class=si>}</span><span class=sb>`</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>this</span><span class=p>.</span><span class=nx>name</span> <span class=o>=</span> <span class=s2>&#34;OptimisticLockError&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kr>export</span> <span class=kr>interface</span> <span class=nx>VersionedStore</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=nx>read</span><span class=p>(</span><span class=nx>id</span>: <span class=kt>string</span><span class=p>)</span><span class=o>:</span> <span class=nx>Promise</span><span class=p>&lt;</span><span class=nt>VersionedRecord</span><span class=p>&gt;;</span>
+</span></span><span class=line><span class=cl>  <span class=c1>// 読んだ版(expectedVersion)が今の版と一致するときだけ書き、版を繰り上げる。違えば衝突を投げる。
+</span></span></span><span class=line><span class=cl>  <span class=nx>compareAndSwap</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=nx>id</span>: <span class=kt>string</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=nx>expectedVersion</span>: <span class=kt>number</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=nx>next</span><span class=o>:</span> <span class=p>{</span> <span class=nx>remaining</span>: <span class=kt>number</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>  <span class=p>)</span><span class=o>:</span> <span class=nx>Promise</span><span class=p>&lt;</span><span class=nt>VersionedRecord</span><span class=p>&gt;;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>そして、窓口の手順は、こう変わった。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=c1>// After: 読み直し→再計算→版を照らして書く。版違い（衝突）なら最新を読み直してやり直す。
+</span></span></span><span class=line><span class=cl><span class=kr>export</span> <span class=kr>async</span> <span class=kd>function</span> <span class=nx>reserveSafe</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>  <span class=nx>store</span>: <span class=kt>VersionedStore</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>  <span class=nx>id</span>: <span class=kt>string</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>  <span class=nx>qty</span>: <span class=kt>number</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>  <span class=nx>maxRetries</span> <span class=o>=</span> <span class=mi>5</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=k>for</span> <span class=p>(</span><span class=kd>let</span> <span class=nx>attempt</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=nx>attempt</span> <span class=o>&lt;</span> <span class=nx>maxRetries</span><span class=p>;</span> <span class=nx>attempt</span><span class=o>++</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=kr>const</span> <span class=nx>record</span> <span class=o>=</span> <span class=k>await</span> <span class=nx>store</span><span class=p>.</span><span class=nx>read</span><span class=p>(</span><span class=nx>id</span><span class=p>);</span> <span class=c1>// 読み直し（最新の残りと版）。やり直すたび最新を握る
+</span></span></span><span class=line><span class=cl>    <span class=kr>const</span> <span class=nx>remaining</span> <span class=o>=</span> <span class=nx>record</span><span class=p>.</span><span class=nx>remaining</span> <span class=o>-</span> <span class=nx>qty</span><span class=p>;</span> <span class=c1>// 再計算（古い手元値でなく、今読んだ最新値から引く）
+</span></span></span><span class=line><span class=cl>    <span class=k>try</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=c1>// 読んだ版を添えて書く。版が今も一致すれば書けて版が繰り上がる。違えば OptimisticLockError。
+</span></span></span><span class=line><span class=cl>      <span class=k>return</span> <span class=k>await</span> <span class=nx>store</span><span class=p>.</span><span class=nx>compareAndSwap</span><span class=p>(</span><span class=nx>id</span><span class=p>,</span> <span class=nx>record</span><span class=p>.</span><span class=nx>version</span><span class=p>,</span> <span class=p>{</span> <span class=nx>remaining</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span> <span class=k>catch</span> <span class=p>(</span><span class=nx>err</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=k>if</span> <span class=p>(</span><span class=o>!</span><span class=p>(</span><span class=nx>err</span> <span class=k>instanceof</span> <span class=nx>OptimisticLockError</span><span class=p>))</span> <span class=k>throw</span> <span class=nx>err</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>      <span class=c1>// 版違い＝この隙に誰かが書いた。次のループで読み直し、最新値からやり直す。
+</span></span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>  <span class=p>}</span>
+</span></span><span class=line><span class=cl>  <span class=k>throw</span> <span class=k>new</span> <span class=nb>Error</span><span class=p>(</span><span class=sb>`やり直しの上限（</span><span class=si>${</span><span class=nx>maxRetries</span><span class=si>}</span><span class=sb>）に達した: </span><span class=si>${</span><span class=nx>id</span><span class=si>}</span><span class=sb>`</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「変えたのは、書き戻す時の一手だけだ」とカイナは言った。「前は、握った数を、そのまま塗った。今度は、塗る前に版を照らす。読んだ版と、今の版。同じなら塗る、違えば退いて、読み直す。読む・引く・書く、の形は、何も変わっていない」</p><p>ここで、カイナは念を押した。指したのは、ぶつかった後の読み直しのところだ。「肝は、ぶつかったら、必ず読み直すことだ。退いておいて、さっき握った古い数で、また同じものを書こうとしたら——版は照らせても、塗るのは古い計算だ。それでは検めただけで、直していない。やり直すなら、まず今の数を、もう一度読む。それから、引く」</p><p><code>reserveSafe</code> の中で、ぶつかった後にもう一度 <code>store.read</code> を呼び、その新しい <code>record.remaining</code> から引き直しているのは、そのためだった。古い手元の数を握り直すのではなく、最新を読み直す。それでこそ、消えた更新が、次の計算に乗る。</p><p>さあ、と、カイナは同じ檻を組んだ。さっきと寸分同じ注入——二つの早馬を止め、両方に「残り十・零版」を持ち帰らせる。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=nx>it</span><span class=p>(</span><span class=s2>&#34;同じ版を読んでも、後の手は版違いで衝突を検知し読み直してやり直す→両方反映（残り2・版2）&#34;</span><span class=p>,</span> <span class=kr>async</span> <span class=p>()</span> <span class=o>=&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>ledger</span> <span class=o>=</span> <span class=k>new</span> <span class=nx>GatedVersionedLedger</span><span class=p>({</span> <span class=nx>id</span><span class=o>:</span> <span class=s2>&#34;catalyst&#34;</span><span class=p>,</span> <span class=nx>remaining</span>: <span class=kt>10</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>a</span> <span class=o>=</span> <span class=nx>reserveSafe</span><span class=p>(</span><span class=nx>ledger</span><span class=p>,</span> <span class=s2>&#34;catalyst&#34;</span><span class=p>,</span> <span class=mi>3</span><span class=p>);</span> <span class=c1>// 窓口A（3引く）
+</span></span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>b</span> <span class=o>=</span> <span class=nx>reserveSafe</span><span class=p>(</span><span class=nx>ledger</span><span class=p>,</span> <span class=s2>&#34;catalyst&#34;</span><span class=p>,</span> <span class=mi>5</span><span class=p>);</span> <span class=c1>// 窓口B（5引く）
+</span></span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=nx>assert</span><span class=p>.</span><span class=nx>equal</span><span class=p>(</span><span class=nx>ledger</span><span class=p>.</span><span class=nx>pendingReadCount</span><span class=p>,</span> <span class=mi>2</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=c1>// 第1段階: 両者に版0・残10を読ませる（同じ古い版を握らせる＝Before と寸分同じ注入）
+</span></span></span><span class=line><span class=cl>  <span class=nx>ledger</span><span class=p>.</span><span class=nx>releaseAllReads</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>  <span class=k>await</span> <span class=nx>Promise</span><span class=p>.</span><span class=nx>resolve</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>  <span class=k>await</span> <span class=nx>Promise</span><span class=p>.</span><span class=nx>resolve</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>  <span class=k>await</span> <span class=nx>Promise</span><span class=p>.</span><span class=nx>resolve</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>  <span class=k>await</span> <span class=nx>Promise</span><span class=p>.</span><span class=nx>resolve</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=c1>// a の CAS 成功（版0→1・残7）／ b は版違いで衝突→ループ先頭で新たな read を保留している
+</span></span></span><span class=line><span class=cl>  <span class=nx>assert</span><span class=p>.</span><span class=nx>equal</span><span class=p>(</span><span class=nx>ledger</span><span class=p>.</span><span class=nx>pendingReadCount</span><span class=p>,</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>  <span class=nx>assert</span><span class=p>.</span><span class=nx>deepEqual</span><span class=p>(</span><span class=nx>ledger</span><span class=p>.</span><span class=nx>current</span><span class=p>,</span> <span class=p>{</span> <span class=nx>id</span><span class=o>:</span> <span class=s2>&#34;catalyst&#34;</span><span class=p>,</span> <span class=nx>remaining</span>: <span class=kt>7</span><span class=p>,</span> <span class=nx>version</span>: <span class=kt>1</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=c1>// 第2段階: b のリトライ read を解放 → 最新（版1・残7）を読み、7-5=2 で再 CAS 成功（版1→2）
+</span></span></span><span class=line><span class=cl>  <span class=nx>ledger</span><span class=p>.</span><span class=nx>releaseAllReads</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>  <span class=k>await</span> <span class=nx>Promise</span><span class=p>.</span><span class=nx>all</span><span class=p>([</span><span class=nx>a</span><span class=p>,</span> <span class=nx>b</span><span class=p>]);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=nx>assert</span><span class=p>.</span><span class=nx>equal</span><span class=p>(</span><span class=nx>ledger</span><span class=p>.</span><span class=nx>current</span><span class=p>.</span><span class=nx>remaining</span><span class=p>,</span> <span class=mi>2</span><span class=p>);</span> <span class=c1>// 10-3-5=2。両方反映（消失なし）
+</span></span></span><span class=line><span class=cl>  <span class=nx>assert</span><span class=p>.</span><span class=nx>equal</span><span class=p>(</span><span class=nx>ledger</span><span class=p>.</span><span class=nx>current</span><span class=p>.</span><span class=nx>version</span><span class=p>,</span> <span class=mi>2</span><span class=p>);</span> <span class=c1>// 二度書かれた証
+</span></span></span><span class=line><span class=cl><span class=p>});</span>
+</span></span></code></pre></td></tr></table></div></div><p>一つ目の窓口は、読んだ零版が今も零版だったから、七と書けた。版は、一版へ。二つ目の窓口は、読んだのは零版なのに、今の壺は一版になっていた。一つ目が、書いたのだ。だから、衝突。二つ目は退いて、読み直す——今度は、最新の「残り七・一版」を握る。七から五を引いて、二。再び、版を照らす。読んだ一版が今も一版だから、書けた。残りは、二壺。版は、二版へ。</p><p>三を引いた手も、五を引いた手も、どちらも消えなかった。</p><p>版を刻み、弾かれた手が退いて読み直す一連の流動が、今度は整然とした歩みとなって見えた。</p><p><img src=/public_images/2026/code-tamer-optimistic-locking/infographic_2.webp loading=lazy alt="Infographic sequence diagram showing version-based Compare-And-Swap mechanism in Optimistic Locking"></p><p>「これは、運じゃない」とカイナは、念を押すように言った。「後から書こうとした手は、必ず版違いに気づく。零版で読んで、壺が一版なら、間に誰かが書いた——それは数を照らさずとも、版が告げる。気づいたら、必ず読み直す。読み直せば、必ず最新の七を握る。だから、どちらの引き当ても、消えはしない」</p><p>断っておくが、と、カイナは付け加えた。「版が消すのは、読んでから書くまでに割り込まれた、その上書きだ。ぶつかった手は、退いて、やり直す。そのやり直しの間に、もう一度ぶつかることは、ある——次でまた、別の手が書けば。だが、ぶつかるたび版が告げ、読み直すたび最新を握る。だから、いつまでも消えはしない」</p><p>わたしは、ひとつ訊いた。後から来た手を、待たせはしないのか、と。</p><p>「待たせはしない」とカイナは言った。「先に書いた者は、止めない。好きに書かせる。——ぶつかった者にだけ、もう一度、書かせる」</p><h3 id=数は嘘をつけても版は嘘をつけない>数は嘘をつけても、版は嘘をつけない</h3><p>「ですが」とわたしは、勘定家の常識から、口を挟んだ。「版などなくとも、残りの数を照らせばよいのでは。読んだ時が十で、書く時も十なら、誰も触っていない。数が同じなら、無事でしょう」</p><p>カイナは、口で否定しなかった。代わりに、版でなく「残りの数」を照らす照合を、その場で、仮に組んで見せた。本筋では使わない、反証のための、使い捨ての手だ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=c1>// もし版でなく「残りの数」を照らしていたら——（反証用の仮の照合・本筋では使わない）
+</span></span></span><span class=line><span class=cl><span class=c1>//   if (current.remaining !== 読んだときの残り) throw new Error(&#34;衝突&#34;);
+</span></span></span><span class=line><span class=cl><span class=c1>//
+</span></span></span><span class=line><span class=cl><span class=c1>// 壺は10。ある手が3引いて7にし（書ける）、別の手が補充で3足して10に戻す（書ける）。
+</span></span></span><span class=line><span class=cl><span class=c1>// 最初に「10」を読んだ手が、今また「10」を見て――
+</span></span></span><span class=line><span class=cl><span class=c1>//   10 === 10 で「誰も触っていない」と素通しする＝間の二度の書き換えを、まるごと見逃す。
+</span></span></span></code></pre></td></tr></table></div></div><p>「壺が十だった」とカイナは言った。「ある手が三引いて七にし、別の手が、補充で三足して十に戻した。お前が読んだ十と、書こうとする今の十。数は、同じだ。だが、その間に壺は二度、書き換わっている。数だけ照らせば、&ldquo;誰も触っていない"と見える。間に挟まった二つの書き換えを、まるごと見逃す」</p><p>そして、版に戻した。「数は、元に戻れる。十から七、また十へ。だが版は、戻らない。零版、一版、二版、と進むだけだ。同じ手が今読めば、壺は二版。自分が握ったのは、零版。食い違う。だから、版なら——往復しても、必ず気づく。数は嘘をつけても、版は嘘をつけない。照らすのは、数じゃない。版だ」</p><p>値が同じ場所を二度読んだとき、その間に別の手が値を変えて、また元へ戻していても、二度の読みでは見分けられない。この見逃しを <strong>ABA 問題</strong>——値が A から B へ、また A へ戻ると、何も起きなかったように見えてしまう罠——という。版は単調に増えるだけで戻らないから、間の書き換えを構造として見逃さない。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=nx>it</span><span class=p>(</span><span class=s2>&#34;残数が10→7→10と往復しても版は単調増加ゆえ「誰も触っていない」と誤判定しない（ABA）&#34;</span><span class=p>,</span> <span class=kr>async</span> <span class=p>()</span> <span class=o>=&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>ledger</span> <span class=o>=</span> <span class=k>new</span> <span class=nx>GatedVersionedLedger</span><span class=p>({</span> <span class=nx>id</span><span class=o>:</span> <span class=s2>&#34;catalyst&#34;</span><span class=p>,</span> <span class=nx>remaining</span>: <span class=kt>10</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>held</span> <span class=o>=</span> <span class=nx>ledger</span><span class=p>.</span><span class=nx>current</span><span class=p>;</span> <span class=c1>// 最初に版0・残10を読む（手元に保持する想定）
+</span></span></span><span class=line><span class=cl>  <span class=nx>assert</span><span class=p>.</span><span class=nx>equal</span><span class=p>(</span><span class=nx>held</span><span class=p>.</span><span class=nx>version</span><span class=p>,</span> <span class=mi>0</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>  <span class=nx>assert</span><span class=p>.</span><span class=nx>equal</span><span class=p>(</span><span class=nx>held</span><span class=p>.</span><span class=nx>remaining</span><span class=p>,</span> <span class=mi>10</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>await</span> <span class=nx>ledger</span><span class=p>.</span><span class=nx>compareAndSwap</span><span class=p>(</span><span class=s2>&#34;catalyst&#34;</span><span class=p>,</span> <span class=mi>0</span><span class=p>,</span> <span class=p>{</span> <span class=nx>remaining</span>: <span class=kt>7</span> <span class=p>});</span> <span class=c1>// 10→7（版0→1）
+</span></span></span><span class=line><span class=cl>  <span class=k>await</span> <span class=nx>ledger</span><span class=p>.</span><span class=nx>compareAndSwap</span><span class=p>(</span><span class=s2>&#34;catalyst&#34;</span><span class=p>,</span> <span class=mi>1</span><span class=p>,</span> <span class=p>{</span> <span class=nx>remaining</span>: <span class=kt>10</span> <span class=p>});</span> <span class=c1>// 7→10（版1→2・残数だけ往復）
+</span></span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=nx>assert</span><span class=p>.</span><span class=nx>equal</span><span class=p>(</span><span class=nx>ledger</span><span class=p>.</span><span class=nx>current</span><span class=p>.</span><span class=nx>remaining</span><span class=p>,</span> <span class=mi>10</span><span class=p>);</span> <span class=c1>// 値だけ見れば「最初と同じ」に見える
+</span></span></span><span class=line><span class=cl>  <span class=nx>assert</span><span class=p>.</span><span class=nx>equal</span><span class=p>(</span><span class=nx>ledger</span><span class=p>.</span><span class=nx>current</span><span class=p>.</span><span class=nx>version</span><span class=p>,</span> <span class=mi>2</span><span class=p>);</span> <span class=c1>// しかし版は2（間に2度書かれた証）
+</span></span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=c1>// 手元の版0で CAS を叩くと、残数は 10==10 でも版 0≠2 で衝突する（値比較なら見逃す往復を版比較は検知）
+</span></span></span><span class=line><span class=cl>  <span class=k>await</span> <span class=nx>assert</span><span class=p>.</span><span class=nx>rejects</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=p>()</span> <span class=o>=&gt;</span> <span class=nx>ledger</span><span class=p>.</span><span class=nx>compareAndSwap</span><span class=p>(</span><span class=s2>&#34;catalyst&#34;</span><span class=p>,</span> <span class=nx>held</span><span class=p>.</span><span class=nx>version</span><span class=p>,</span> <span class=p>{</span> <span class=nx>remaining</span>: <span class=kt>5</span> <span class=p>}),</span>
+</span></span><span class=line><span class=cl>    <span class=p>(</span><span class=nx>err</span>: <span class=kt>unknown</span><span class=p>)</span> <span class=o>=&gt;</span> <span class=nx>err</span> <span class=k>instanceof</span> <span class=nx>OptimisticLockError</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>  <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>});</span>
+</span></span></code></pre></td></tr></table></div></div><p>版は、ただ一つ繰り上がる数でいい、とカイナは言った。凝った印は要らない。戻らない——それだけが、効く。</p><h3 id=待つかやり直すか>待つか、やり直すか</h3><p>「いっそ」とわたしは、別の手を思いついて訊いた。「片方を待たせて、触らせなければよいのでは。一人が書き終えるまで、もう一人を蔵に入れない。そうすれば、二人が同じ数を読むことも、ない」</p><p>「それも、一つの手だ」とカイナは言った。「さっき話した、鍵で釜を縛る手——一人が鍵を握れば、もう一人は外で待つ。あれを壺に掛ければ、二人が同じ数を読むことは、起きない。ぶつかる前に、待たせる。&ldquo;どうせぶつかる"と構えて、先に締める手だ」</p><p>だが、と、カイナは続けた。「待たせれば、列ができる。ぶつかりが滅多に起きないのに、皆を一列に待たせるのは、惜しい。版を照らす手は、待たせない。皆、好きに読んで、好きに書く。ぶつかった時だけ、やり直す。——ぶつかりが稀なら、こちらが速い。ぶつかりが多いなら、待たせるほうが、無駄がない。どちらが上でもない。お前の蔵で、二人が同じ壺を奪い合うのが、年に何度か。なら、版を照らす手だ」</p><p>待たせて防ぐか、やり直してすり抜けるか。それは、衝突がどれだけ起きるかで選ぶものなのだと、わたしは知った。</p><h3 id=やり直しに刻限を>やり直しに、刻限を</h3><p>「やり直しは、いつまで続くのです」とわたしは訊いた。「ぶつかり続けたら、永遠に?」</p><p>カイナは即答せず、わたしの帳面の隅に、小さく版の数字を書き添えた。</p><p>「やり直しにも、限りを設ける。何度ぶつかっても通らなければ、諦めて、呼び手に返す。さもなくば、運悪くぶつかり続けて、いつまでも書けない手が出る」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=nx>it</span><span class=p>(</span><span class=s2>&#34;衝突が続けばmaxRetriesで諦めて投げる（やり直しに刻限）&#34;</span><span class=p>,</span> <span class=kr>async</span> <span class=p>()</span> <span class=o>=&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>ledger</span> <span class=o>=</span> <span class=k>new</span> <span class=nx>GatedVersionedLedger</span><span class=p>({</span> <span class=nx>id</span><span class=o>:</span> <span class=s2>&#34;catalyst&#34;</span><span class=p>,</span> <span class=nx>remaining</span>: <span class=kt>10</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=c1>// read のたびに内部 version を直接 ++ させる細工＝ CAS が必ず衝突する
+</span></span></span><span class=line><span class=cl>  <span class=nx>ledger</span><span class=p>.</span><span class=nx>setReadHook</span><span class=p>(()</span> <span class=o>=&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=nx>ledger</span><span class=p>.</span><span class=nx>bumpVersionDirectly</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>  <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>attempt</span> <span class=o>=</span> <span class=nx>reserveSafe</span><span class=p>(</span><span class=nx>ledger</span><span class=p>,</span> <span class=s2>&#34;catalyst&#34;</span><span class=p>,</span> <span class=mi>3</span><span class=p>,</span> <span class=mi>3</span><span class=p>);</span> <span class=c1>// maxRetries=3
+</span></span></span><span class=line><span class=cl>  <span class=nx>attempt</span><span class=p>.</span><span class=k>catch</span><span class=p>(()</span> <span class=o>=&gt;</span> <span class=p>{});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=c1>// 保留が立つたび解放する（maxRetries 回ぶん。周回ごとのマイクロタスク段数に依存しない）
+</span></span></span><span class=line><span class=cl>  <span class=k>for</span> <span class=p>(</span><span class=kd>let</span> <span class=nx>i</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=nx>i</span> <span class=o>&lt;</span> <span class=mi>3</span><span class=p>;</span> <span class=nx>i</span><span class=o>++</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>while</span> <span class=p>(</span><span class=nx>ledger</span><span class=p>.</span><span class=nx>pendingReadCount</span> <span class=o>===</span> <span class=mi>0</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=k>await</span> <span class=nx>Promise</span><span class=p>.</span><span class=nx>resolve</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=nx>ledger</span><span class=p>.</span><span class=nx>releaseAllReads</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>  <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>await</span> <span class=nx>assert</span><span class=p>.</span><span class=nx>rejects</span><span class=p>(()</span> <span class=o>=&gt;</span> <span class=nx>attempt</span><span class=p>,</span> <span class=sr>/やり直しの上限/</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>});</span>
+</span></span></code></pre></td></tr></table></div></div><p>「もし大繁盛で、十人が同じ壺を狙えば」とカイナは言った。「皆が一斉に弾かれ、一斉にやり直して、また一斉にぶつかる。その時は、やり直す刻を、少しずつ散らす別の工夫が要る。前に、嵐の中で雷鳥が揃って飛び立って、塔を潰した話があった——あのとき効いた、揺らぎを混ぜる手だ。だが、それはこの蔵の話じゃない」</p><p>ここで、わたしは、最初に口にした疑問を思い出した。「そういえば——わたしは初め、&ldquo;一度に一つしか書けないのに、なぜ重なる"と言いました。一度に一つなら、後から来た方を、はじく札を立てればいいのでは。一つの窓口が、二度書こうとするのを止めるように」</p><p>「前に、一つの転送陣が、連打で同じ荷を二度送った話がある」とカイナは言った。「あれは、一人が二度動くのを止める札だった。一人の手が、一度きりになるように、入口で締める。——だが、今度は逆だ。二人が、それぞれ一度ずつ、正しく動く。一度ずつなら、入口の札は立たない。立てるものが、無い。同じ"重なり"でも、一人の重なりと、二人の重なりは、別の獣だ。一人を止める札では、二人には届かない」</p><p>一人の連打を止める仕組みと、独立した二人の書き手が同じ数を握る競合は、別のものだ。前者は入口で一人を締めればいい。後者は、入口では締められない。だから、書き戻す時に版を照らす。わたしは、ようやく、その違いが腑に落ちた。</p><h2 id=数と帳面を照らす>数と帳面を、照らす</h2><p>模擬戦を、まとめて走らせた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-console data-lang=console><span class=line><span class=cl><span class=gp>$</span> node --test
+</span></span><span class=line><span class=cl><span class=go>▶ Before: reserveBad（無防備な read-modify-write）
+</span></span></span><span class=line><span class=cl><span class=go>  ✔ 早馬が順に戻れば（直列なら）両方とも正しく引かれる（運次第・平時は露見しない）
+</span></span></span><span class=line><span class=cl><span class=go>  ✔ 二人が同じ残りを読むと、後の書き戻しが先を上書きし一方の引き当てが消える（Lost Update の決定的再現）
+</span></span></span><span class=line><span class=cl><span class=go>▶ After: reserveSafe（版照合＋読み直しリトライ）
+</span></span></span><span class=line><span class=cl><span class=go>  ✔ 同じ版を読んでも、後の手は版違いで衝突を検知し読み直してやり直す→両方反映（残り2・版2）
+</span></span></span><span class=line><span class=cl><span class=go>  ✔ 衝突が無ければ（直列）一発で書ける（版が素直に0→1→2へ進む）
+</span></span></span><span class=line><span class=cl><span class=go>  ✔ 残数が10→7→10と往復しても版は単調増加ゆえ「誰も触っていない」と誤判定しない（ABA）
+</span></span></span><span class=line><span class=cl><span class=go>  ✔ 衝突が続けばmaxRetriesで諦めて投げる（やり直しに刻限）
+</span></span></span><span class=line><span class=cl><span class=go>ℹ tests 6
+</span></span></span><span class=line><span class=cl><span class=go>ℹ pass 6
+</span></span></span><span class=line><span class=cl><span class=go>ℹ fail 0
+</span></span></span></code></pre></td></tr></table></div></div><p>六本、すべて緑。Before の窓口は、早馬が順に戻る素直な流しなら両方とも正しく引き、同じ数を二人に握らせた途端、後の書き戻しが先を塗り消した。After の窓口は、まったく同じ注入を流しても、後から来た手が版違いに気づいて読み直し、二つの引き当てが、どちらも残った。</p><p>変えたのは、書き戻す時の一手だけだった。残りを問う早馬も、引く計算も、外から見た「予約する」作法も、Before と After でまるごと同じ。違うのは、塗る前に版を照らすか、照らさずに塗るか。その一点が、消える取引を消した。</p><h3 id=数の隣に版を置く>数の隣に、版を置く</h3><p>蔵の数と、帳面の残りが、もう食い違わなくなった。棚卸しのズレは、消えた。</p><p>「わたしは、書くことばかり見ていました」とわたしは言った。「正しく書けば、正しく残ると。でも——書く前に読んだ数が、書く頃にはもう古いことがある。版は、その"古さ"を、教えてくれる。読んだ時の版と、書く時の版。それが食い違えば、わたしの手元の数は、もう古い。四十年、数だけを信じてきました。数の隣に、版を置くべきだったんですね」</p><p>カイナは、最後に一つだけ、別の帳場の話をした。版が消すのは、読んでから書くまでに割り込まれた、その上書きだけだ、と。待たせて防ぐ手も、しばらくズレを許して後でゆっくり揃える手も、大きな帳場——本物のデータベース——での版の掛け方も、それぞれ別の獣、別の帳場の話だと。詳しくは、また別の機会に、とだけ言い添えた。</p><p>カイナは帳場を出る前に、棚の壺を一つ、手に取った。中の星砂を、灯りに透かして、また戻す。</p><p>「数は、元へ戻る。だが、お前が今日添えた版は、戻らない。——覚えておくのは、それだけでいい」</p><p>それだけ言い残して、カイナは帳場を後にした。勘定で、答えの出ることだけを。</p><p>わたしは、元帳を開いた。星砂の残りの数の隣に、小さく「零」と、版を一つ、書き添えた。これから書き換えるたびに、ここを一つ繰り上げる。インクが乾くのを、しばらく、見ていた。</p><hr><h3 id=-カイナの魔獣契約録tamers-registry>📜 カイナの魔獣契約録（Tamer&rsquo;s Registry）</h3><ul><li><strong>魔獣名（クラス/パターン名）</strong>: ピクシー（分裂する妖精）／ データレース・ロストアップデート（Optimistic Locking＝版の照合で衝突を検知し読み直してやり直す／対：Pessimistic Locking＝事前に締めて待たせる）</li><li><strong>危険度（難易度/バグの影響度）</strong>: ★★★★☆（書き損じも例外も無く、更新が静かに消える。台帳に二取引立つのに残りは片方しか減らず、在庫が実際より多く見える＝幽霊在庫から、やがて売り越し・二重引き当てに化ける。エラーを出さないぶん発覚が遅く、棚卸しまで露れない）</li><li><strong>主な生態（アンチパターンの特徴）</strong>:<ul><li>read→(早馬の往復＝中断点)→modify→write の「読んでから書くまでの隙」に、別フローが同じ古い値を読む。二人とも古い値を握り、後の write が先の write を無音で上書きする（Lost Update）。デッドロックの循環待機（互いを待って止まる・liveness）と異なり、両フローは止まらず完走して、なお一方が消える（safety）</li><li>JS はシングルスレッドで「書く瞬間」は重ならないが、消失は書く瞬間でなく「読んだ値が書く頃には古い」隙に宿る。一度に一つ書いても、古い値を二人が握れば消える</li><li>害はタイミング依存。早馬（I/O）が順に戻れば（直列）露見せず、同じ刻に同じ値を持ち帰った時だけ消える＝棚卸しまで気づけない</li></ul></li><li><strong>契約のポイント（設計の要点）</strong>:<ul><li>Optimistic Locking＝レコードに version（単調増加）を持たせ、書き戻し時に compareAndSwap（読んだ version＝現在 version のときだけ書き、version を繰り上げる）。不一致＝衝突＝間に誰かが書いた証拠ゆえ書かせない</li><li>読み直しリトライ＝衝突したら最新値を読み直して再計算し再 CAS（古い手元値の再送は、検知だけで直さない誤実装）。maxRetries で高競合の無限ループを防ぐ</li><li>1:1 の単一差分＝Before（store.write で無検証上書き）→ After（store.compareAndSwap で版照合＋for ループの読み直しリトライ）。read→modify の骨格と外部窓口は不変、差分は「書き戻しを版照合にし、衝突時に読み直す」のみ</li><li>なぜ値でなく版か（ABA）＝値（remaining）は 10→7→10 と往復しうるが version は戻らない。値比較は往復を見逃すが、版比較は単調増加ゆえ間の更新を構造として検知</li></ul></li><li><strong>契約外事項（保証しないこと）</strong>:<ul><li>Pessimistic Locking（鍵／Mutex）は別の賭け方＝事前に締めて待たせる。衝突が稀なら楽観が速く、頻繁なら悲観／待ち行列が無駄が少ない（優劣でなく衝突頻度で選ぶ）。ABA は楽観に特有で、悲観には無い</li><li>リトライストームは高競合で多発＝やり直す刻を散らす Jitter（揺らぎ）で対称を破る。本話の最小形は version＋maxRetries に絞り、深入りしない</li><li>再入ガード（単一書き手の連打を止める札）では防げない＝独立した二人が各一度ずつ書く競合には届かない</li><li>結果整合性は逆の設計思想＝「今すぐ揃える」楽観ロックに対し「ズレを許して後で揃える」。別の獣の領分</li><li>本話はアプリ層の最小形（in-memory＋version）。実 DB（<code>WHERE version=?</code>・条件付き書き込み）への一般化は接続のみ</li></ul></li><li><strong>現在のステータス</strong>: 🟢 壺に版を刻み、版の照合で「読んでから誰かが書いたか」を検知、ぶつかった手だけ読み直してやり直させ、更新の消失を構造から排除した契約成立（衝突は事後検知・先着は止めない）／待たせる悲観ロック・高競合の揺らぎ・結果整合性は別の獣として後日。型で消せぬ同時更新の競合を、版の照合で律する一手が、また加わった</li></ul></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/typescript/>Typescript</a>
+<a href=/tags/optimistic-locking/>Optimistic-Locking</a>
+<a href=/tags/lost-update/>Lost-Update</a>
+<a href=/tags/data-race/>Data-Race</a>
+<a href=/tags/compare-and-swap/>Compare-and-Swap</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-tamer/>Code-Tamer</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/07/05/170705/><div class=article-image><img src=/public_images/2026/code-tamer-graceful-shutdown-abyss-null/header.webp loading=lazy data-key data-hash=/public_images/2026/code-tamer-graceful-shutdown-abyss-null/header.webp></div><div class=article-details><h2 class=article-title>コードテイマー【Graceful Shutdown】終いを急ぐ獣が、還らぬ客と開いた鍵を闇に残す〜受け入れを閉ざし、皆を還してから己を閉じる〜</h2></div></a></article><article class=has-image><a href=/2026/07/05/120705/><div class=article-image><img src=/public_images/2026/code-tamer-bulkhead/header.webp loading=lazy data-key data-hash=/public_images/2026/code-tamer-bulkhead/header.webp></div><div class=article-details><h2 class=article-title>コードテイマー【Bulkhead】汲み上げの大食らいが船中の魔力を飲み干し、守りの防壁が飢えて落ちる〜魔力槽を機能ごとに隔て、守りの取り分を絶やさない〜</h2></div></a></article><article class=has-image><a href=/2026/07/05/070705/><div class=article-image><img src=/public_images/2026/code-tamer-circuit-breaker/header.webp loading=lazy data-key data-hash=/public_images/2026/code-tamer-circuit-breaker/header.webp></div><div class=article-details><h2 class=article-title>コードテイマー【Circuit Breaker】倒れた一匹を見捨てられず、群れごと魔力が枯れ果てる〜倒れた相手への鎖を断ち、頃合いを見て繋ぎ直す〜</h2></div></a></article><article class=has-image><a href=/2026/07/04/170705/><div class=article-image><img src=/public_images/2026/code-tamer-eventual-consistency/header.webp loading=lazy data-key data-hash=/public_images/2026/code-tamer-eventual-consistency/header.webp></div><div class=article-details><h2 class=article-title>コードテイマー【Eventual Consistency】取りこぼした叫びのあと、その階層だけが古いまま黙り込む〜叫びと巡回の二本を版で束ね、遅れても必ず追いつかせる〜</h2></div></a></article><article class=has-image><a href=/2026/07/04/070705/><div class=article-image><img src=/public_images/2026/code-tamer-invalid-state-machine/header.webp loading=lazy data-key data-hash=/public_images/2026/code-tamer-invalid-state-machine/header.webp></div><div class=article-details><h2 class=article-title>コードテイマー【State Machine】氷の貌のまま、獣は炎を吐いて自壊する〜札を足さず、貌をただ一つに畳む〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

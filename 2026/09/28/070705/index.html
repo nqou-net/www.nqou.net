@@ -1,0 +1,309 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="既存の在庫クラスはコンストラクタで帳簿ファイルを開くため、テストの中で組み立てられない。判定ロジックを芽生やしクラス（Sprout Class）として別に起こし、既存クラスからは委譲するだけにします。"><title>テストで組み立てられないクラスへの機能追加は、新しいクラスを別に起こす【Sprout Class】</title><link rel=canonical href=https://www.nqou.net/2026/09/28/070705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="テストで組み立てられないクラスへの機能追加は、新しいクラスを別に起こす【Sprout Class】"><meta property='og:description' content="既存の在庫クラスはコンストラクタで帳簿ファイルを開くため、テストの中で組み立てられない。判定ロジックを芽生やしクラス（Sprout Class）として別に起こし、既存クラスからは委譲するだけにします。"><meta property='og:url' content='https://www.nqou.net/2026/09/28/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='legacy-code'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='perl'><meta property='article:tag' content='sprout-class'><meta property='article:tag' content='untestable-constructor'><meta property='article:tag' content='code-carpenter'><meta property='article:published_time' content='2026-09-28T07:07:05+09:00'><meta property='article:modified_time' content='2026-09-28T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-carpenter-sprout-class-new-member/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="テストで組み立てられないクラスへの機能追加は、新しいクラスを別に起こす【Sprout Class】"><meta name=twitter:description content="既存の在庫クラスはコンストラクタで帳簿ファイルを開くため、テストの中で組み立てられない。判定ロジックを芽生やしクラス（Sprout Class）として別に起こし、既存クラスからは委譲するだけにします。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-carpenter-sprout-class-new-member/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-09-28T07:07:05+09:00","datePublished":"2026-09-28T07:07:05+09:00","description":"既存の在庫クラスはコンストラクタで帳簿ファイルを開くため、テストの中で組み立てられない。判定ロジックを芽生やしクラス（Sprout Class）として別に起こし、既存クラスからは委譲するだけにします。","headline":"テストで組み立てられないクラスへの機能追加は、新しいクラスを別に起こす【Sprout Class】","image":"https://www.nqou.net/public_images/2026/code-carpenter-sprout-class-new-member/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/09/28/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#第1幕-検分--蔵の前まだ何も決まっていない>第1幕: 検分 ── 蔵の前、まだ何も決まっていない</a></li><li><a href=#第2幕-手が入らない--ナギ自身の気づき>第2幕: 手が入らない ── ナギ自身の気づき</a></li><li><a href=#第3幕-手立て--母屋の外に離れを起こす>第3幕: 手立て ── 母屋の外に、離れを起こす</a></li><li><a href=#第4幕-検め--新しく起こす所は誰が決めるか>第4幕: 検め ── 新しく起こす所は、誰が決めるか</a></li><li><a href=#普請控>普請控</a></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/09/28/070705/><img src=/public_images/2026/code-carpenter-sprout-class-new-member/header.webp loading=lazy alt="Featured image of post テストで組み立てられないクラスへの機能追加は、新しいクラスを別に起こす【Sprout Class】"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/09/28/070705/>テストで組み立てられないクラスへの機能追加は、新しいクラスを別に起こす【Sprout Class】</a></h2><h3 class=article-subtitle>既存の在庫クラスはコンストラクタで帳簿ファイルを開くため、テストの中で組み立てられない。判定ロジックを芽生やしクラス（Sprout Class）として別に起こし、既存クラスからは委譲するだけにします。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>28, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 19分</time></div></footer></div></header><section class=article-content><h2 id=第1幕-検分--蔵の前まだ何も決まっていない>第1幕: 検分 ── 蔵の前、まだ何も決まっていない</h2><p>蔵の前は、表とも台所とも違う空気だった。土壁のひんやりした感触が、少し離れていても分かる。分厚い引き戸には錠前が下がっていて、開け閉てのたびに、蝶番がわずかに軋む音がした。朝のうちはまだ日が当たらず、土の匂いだけが濃く残っている場所だった。</p><p>通り庭を抜けて蔵まで来る道は、三十年のあいだに数え切れないほど歩いてきた。荷を担いだ人がすれ違うだけの、あの細い土間の先に、この蔵はある。以前、通り庭の床下でどこまで響くかを見立てたときのことを、ふと思い出した。あのときは荷の流れる経路の話だったが、今日はその先の、荷が最後に落ち着く場所の話だった。</p><p>クロベさんとナギさんは、もうそこにいた。ゆうべのうちに、台所の一件（それが芽生やしメソッドの話だったと知ったのは、あとになってからだ）の続きを、蔵の前で片付けていたらしい。私が近づくと、二人ともこちらへ顔を向けた。今日は、私のほうから用件を持ってきていた。</p><p>「店主が、蔵に新しい区分を設けたいと仰っていて」</p><p>私は、聞いてきたままを口にした。近ごろ、荷の届き方が少し変わってきている。生鮮のものと日用品のものが、同じ荷にまとめて届くことが増えたのだという。今の帳面には、品目ごとに「生鮮」か「日用品」かの区分しかない。だから、そういう荷をどう扱えばいいのか、帳面を見ただけでは分からない。店主は、それを「混載」という新しい区分として、蔵の帳面に加えたいと言っていた。</p><p>「それだけなら、簡単そうですね」</p><p>ナギさんが、聞き終わるより先に言った。</p><p>「前と同じように、<code>Kura::Ledger</code>に新しいメソッドを足せばいいですよね」</p><p><code>Kura::Ledger</code>というのは、蔵の帳面を扱っている今のクラスの名前だった。品物の名前を渡すと、帳面に記された区分を返してくれる。ナギさんの頭の中では、もう昨日の続きが動いているようだった。新しい処理を、そのクラスの中に新しく書き足すだけ――昨日、台所で覚えたばかりのやり方だ。</p><p>クロベさんは、すぐには頷かなかった。ナギさんの顔を見て、静かに問い返した。</p><p>「そのメソッドを確かめるには、何が要りますか」</p><p>ナギさんが、一瞬止まった。答えを急ぐでもなく、かといって黙り込むでもなく、自分の中で何かを組み立て直しているような間だった。</p><p>「……テスト、ですよね。<code>Kura::Ledger</code>を作って、新しいメソッドを呼んで」</p><p>「作る、というのは」</p><p>クロベさんが、また問い返した。答えを教えるふうではなく、ナギさん自身に確かめさせるふうに、私には聞こえた。</p><p>そこで、いったん間が空いた。まだ、誰も答えを出していない。</p><h2 id=第2幕-手が入らない--ナギ自身の気づき>第2幕: 手が入らない ── ナギ自身の気づき</h2><p>ナギさんは、自分の言葉に自分で応えるように、画面に向かった。</p><p>「<code>Kura::Ledger</code>を、作ってみます」</p><p>そう言って、蔵の帳面を扱うライブラリの隅に、短い一行を書いた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>my</span> <span class=nv>$ledger</span> <span class=o>=</span> <span class=nn>Kura::Ledger</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>引数を何も渡さない、ただ作るだけの一行だ。動かしてみると、すぐに画面が返してきた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>Use of uninitialized value $path in open at lib/Kura/Ledger.pm line 11.
+</span></span><span class=line><span class=cl>Use of uninitialized value $path in concatenation (.) or string at lib/Kura/Ledger.pm line 11.
+</span></span><span class=line><span class=cl>帳簿ファイルを開けません:  (No such file or directory) at lib/Kura/Ledger.pm line 11.
+</span></span></code></pre></td></tr></table></div></div><p>ナギさんは、しばらくその文字を見ていた。</p><p>「……あ。蔵の帳簿を開かないと、そもそも作れないんですね」</p><p>自分で言ってから、少し驚いたような顔をした。前回の台所の一件では、新しいメソッドを試すのに、道具箱以外は何も要らなかった。今度は違う。<code>Kura::Ledger</code>を一つ作るだけで、実在する帳簿ファイルが要る。</p><p>クロベさんが、そこで言葉を継いだ。</p><p>「<code>Kura::Ledger</code>を一つ作るだけで、本物の帳簿ファイルが要ります。新しいメソッドを確かめようとするたび、そのファイルを毎回用意しなければなりません」</p><p>「昨日は、そんなことをしなくても、新しいsubだけをすぐに試せました」</p><p>ナギさんが言った。昨日との違いを、自分の言葉でなぞっているようだった。</p><p>「昨日の<code>Delivery::calc_fee</code>は、それ自体は重さも距離も、ただの数字を受け取るだけの関数でした。今日の<code>Kura::Ledger</code>は違います。作るという行為そのものが、外にある本物のファイルを開きに行きます」</p><p>クロベさんは、そこで一度言葉を区切った。</p><p>「これは、読みにくいから直しにくい、という重さではありません。対象そのものが、そもそもテストの土俵に乗らない、という重さです。昨日使った芽生やしメソッドは、対象がテストの土俵に乗っていることを前提にしています。この壁の前では、その手順は成り立ちません」</p><p>「土俵に乗らない、というのは、動かないということですか」</p><p>ナギさんが訊いた。今の<code>die</code>を見たばかりの言葉としては、無理もない問いだった。</p><p>「動かなくはありません。試すたびに、本物の帳簿ファイルを用意すれば、動きます。ですが、新しいメソッドを一つ試すたびに、本物と同じ形のファイルを毎回こしらえるのは、割に合いません。テストというのは、気軽に何度も動かせてこそ意味があります」</p><p>私は、それを聞きながら、今の蔵の戸を思い浮かべていた。毎朝、私が開け閉てしているあの重い戸だ。実在するものを、毎回きちんと開かなければ動かない――そういう重さには、心当たりがあった。</p><p>「今の蔵には、置けないんですね」</p><p>私は、確かめるように言った。今の<code>Kura::Ledger</code>の中に、新しい判定を置くという話ではない、ということが、ようやく飲み込めてきたところだった。</p><p>クロベさんは、私の言葉にゆっくりと頷いた。そして、静かに言い切った。</p><p>「置き場所が無いのなら、探すだけ無駄です」</p><p>それだけだった。次にどうするのかは、まだ言わない。ナギさんも、私も、その先を待つしかなかった。</p><h2 id=第3幕-手立て--母屋の外に離れを起こす>第3幕: 手立て ── 母屋の外に、離れを起こす</h2><p>クロベさんは、<code>Kura::Ledger</code>のコンストラクタを開いて、上から順に目で追った。指でなぞる仕草はしなかった。文字を追う目だけが、ゆっくりと動いていた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>sub</span> <span class=nf>new</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$class</span><span class=p>,</span> <span class=nv>%args</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$path</span> <span class=o>=</span> <span class=nv>$args</span><span class=p>{</span><span class=n>ledger_file</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=nb>open</span> <span class=k>my</span> <span class=nv>$fh</span><span class=p>,</span> <span class=s>&#39;&lt;&#39;</span><span class=p>,</span> <span class=nv>$path</span>
+</span></span><span class=line><span class=cl>        <span class=ow>or</span> <span class=nb>die</span> <span class=s>&#34;帳簿ファイルを開けません: $path ($!)&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>%categories</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>while</span> <span class=p>(</span><span class=k>my</span> <span class=nv>$line</span> <span class=o>=</span> <span class=sr>&lt;$fh&gt;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=nb>chomp</span> <span class=nv>$line</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>next</span> <span class=k>unless</span> <span class=nb>length</span> <span class=nv>$line</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=p>(</span><span class=nv>$item</span><span class=p>,</span> <span class=nv>$category</span><span class=p>)</span> <span class=o>=</span> <span class=nb>split</span> <span class=sr>/\t/</span><span class=p>,</span> <span class=nv>$line</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=nb>die</span> <span class=s>&#34;帳簿の書式が壊れています: $line&#34;</span>
+</span></span><span class=line><span class=cl>            <span class=k>unless</span> <span class=nb>defined</span> <span class=nv>$item</span> <span class=o>&amp;&amp;</span> <span class=nb>defined</span> <span class=nv>$category</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$categories</span><span class=p>{</span><span class=nv>$item</span><span class=p>}</span> <span class=o>=</span> <span class=nv>$category</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=nb>close</span> <span class=nv>$fh</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nb>bless</span> <span class=p>{</span> <span class=n>categories</span> <span class=o>=&gt;</span> <span class=o>\</span><span class=nv>%categories</span> <span class=p>},</span> <span class=nv>$class</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「これは、帳簿ファイルの書式が壊れていないかを、読み込みの都度検めています」</p><p>クロベさんが言った。</p><p>「だから、軽々しくは動かせない、ということですか」</p><p>私が訊くと、クロベさんは頷いた。</p><p>「これを手抜きだとは思わないでください。この検めがあるから、書式の壊れた帳簿を、そのまま黙って読み込んでしまうことがない。今日まで、それを支えてきました。ただ、支えているものが重いという事実は変わりません」</p><p>過去にどうしてこうなったのかを、クロベさんは言わなかった。今、何を支えているかだけを口にしていた。</p><p>「今日入れたいのは、混載かどうかの判定です。これは、帳簿ファイルの中身とは別の話です。品目ごとの区分さえ分かれば、判定そのものは成り立ちます」</p><p>クロベさんは、そこで正式な名前を口にした。</p><p>「対象のクラスが、テストの土俵に妥当な時間で乗らないとき――今日のように、作るだけで外の資源が要る場合などです――追加する処理を新しい独立したクラスとして別に起こし、既存のクラスからは、そのクラスを使うだけにする――これを、芽生やしクラス（Sprout Class）と言います」</p><p>「入らないものは、母屋の中には据えられません。外に、離れを起こす――それだけの話です」</p><p>「昨日の、芽生やしメソッドと似ていますね」</p><p>ナギさんが言った。</p><p>「似ています。名前も、考え方も。違うのは、置き場所です。昨日の根継ぎ――大工の呼び名で言えば芽生やしメソッドのことですが――は、母屋の中の、腐った所だけを切って新材を継ぐ。既存クラスの内側に、新しい処理を足します。今日のは、母屋の中に置き場所そのものが無い。だから、外に新しく起こすしかありません」</p><p>私は、二つの技法の違いを、野帳に書き分けた。中に足すか、外に起こすか。それだけの違いが、これほど大きな判断を分けるとは思わなかった。</p><p>野帳の文字だけでは足りない気がして、二つの図を並べて描いてみた。</p><p><img src=/public_images/2026/code-carpenter-sprout-class-new-member/infographic_1.webp loading=lazy alt=構造対比図。左半分は前話の根継ぎ（芽生やしメソッド）—母屋Kura::Ledgerの箱に、新設subの小さな箱が直接繋がっている。右半分は今話の離れ（芽生やしクラス）—母屋Kura::Ledgerの箱から離れた位置に、独立したKura::CategoryJudgeの箱があり、classify_shipmentという矢印だけで繋がっている></p><p>内側に足す線と、外側に建てる線。同じ紙の上に並べると、違いは一目で分かった。</p><p>「まず、新しいクラスから起こします。名前は<code>Kura::CategoryJudge</code>。実ファイルには一切触れず、区分の一覧だけを受け取ります」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Kura::CategoryJudge</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>new</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$class</span><span class=p>,</span> <span class=nv>%args</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$categories</span> <span class=o>=</span> <span class=nv>$args</span><span class=p>{</span><span class=n>categories</span><span class=p>}</span> <span class=o>||</span> <span class=o>[]</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nb>bless</span> <span class=p>{</span> <span class=n>categories</span> <span class=o>=&gt;</span> <span class=nv>$categories</span> <span class=p>},</span> <span class=nv>$class</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>judge</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>%seen</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=k>my</span> <span class=nv>$category</span> <span class=p>(</span><span class=nv>@</span><span class=p>{</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>categories</span><span class=p>}</span> <span class=p>})</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>next</span> <span class=k>if</span> <span class=nv>$category</span> <span class=ow>eq</span> <span class=s>&#39;未分類&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$seen</span><span class=p>{</span><span class=nv>$category</span><span class=p>}</span> <span class=o>=</span> <span class=mi>1</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>@distinct</span> <span class=o>=</span> <span class=nb>keys</span> <span class=nv>%seen</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=s>&#39;未分類&#39;</span>    <span class=k>if</span> <span class=nv>@distinct</span> <span class=o>==</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$distinct</span><span class=p>[</span><span class=mi>0</span><span class=p>]</span> <span class=k>if</span> <span class=nv>@distinct</span> <span class=o>==</span> <span class=mi>1</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=s>&#39;混載&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「これだけなら、蔵を開けなくても試せますね」</p><p>ナギさんが、気づいたように言った。コンストラクタが受け取るのは、プレーンな配列だけだ。ファイルハンドルも、帳簿ファイルの場所そのものも、どこにも渡していない。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Test::More</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>lib</span> <span class=s>&#39;lib&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Kura::CategoryJudge</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;単一区分のみなら、その区分をそのまま返す&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$judge</span> <span class=o>=</span> <span class=nn>Kura::CategoryJudge</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>categories</span> <span class=o>=&gt;</span> <span class=p>[</span><span class=s>&#39;生鮮&#39;</span><span class=p>,</span> <span class=s>&#39;生鮮&#39;</span><span class=p>]);</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span><span class=p>(</span><span class=nv>$judge</span><span class=o>-&gt;</span><span class=n>judge</span><span class=p>,</span> <span class=s>&#39;生鮮&#39;</span><span class=p>,</span> <span class=s>&#39;同じ区分だけが並べば、その区分をそのまま返す&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;複数の区分が混ざれば、混載と判定する&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$judge</span> <span class=o>=</span> <span class=nn>Kura::CategoryJudge</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>categories</span> <span class=o>=&gt;</span> <span class=p>[</span><span class=s>&#39;生鮮&#39;</span><span class=p>,</span> <span class=s>&#39;日用品&#39;</span><span class=p>]);</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span><span class=p>(</span><span class=nv>$judge</span><span class=o>-&gt;</span><span class=n>judge</span><span class=p>,</span> <span class=s>&#39;混載&#39;</span><span class=p>,</span> <span class=s>&#39;異なる区分が混ざれば混載と判定する&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;未分類だけなら未分類のまま&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$judge</span> <span class=o>=</span> <span class=nn>Kura::CategoryJudge</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>categories</span> <span class=o>=&gt;</span> <span class=p>[</span><span class=s>&#39;未分類&#39;</span><span class=p>,</span> <span class=s>&#39;未分類&#39;</span><span class=p>]);</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span><span class=p>(</span><span class=nv>$judge</span><span class=o>-&gt;</span><span class=n>judge</span><span class=p>,</span> <span class=s>&#39;未分類&#39;</span><span class=p>,</span> <span class=s>&#39;未分類しか無ければ未分類のまま返す&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;未分類が混ざっても、実在区分が1つなら混載にしない&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$judge</span> <span class=o>=</span> <span class=nn>Kura::CategoryJudge</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>categories</span> <span class=o>=&gt;</span> <span class=p>[</span><span class=s>&#39;生鮮&#39;</span><span class=p>,</span> <span class=s>&#39;未分類&#39;</span><span class=p>]);</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span><span class=p>(</span><span class=nv>$judge</span><span class=o>-&gt;</span><span class=n>judge</span><span class=p>,</span> <span class=s>&#39;生鮮&#39;</span><span class=p>,</span> <span class=s>&#39;未分類は区分の1つとして数えないので、実在区分が1つなら混載にならない&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>done_testing</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>動かしてみると、四つとも一度で通った。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>ok 1 - 単一区分のみなら、その区分をそのまま返す
+</span></span><span class=line><span class=cl>ok 2 - 複数の区分が混ざれば、混載と判定する
+</span></span><span class=line><span class=cl>ok 3 - 未分類だけなら未分類のまま
+</span></span><span class=line><span class=cl>ok 4 - 未分類が混ざっても、実在区分が1つなら混載にしない
+</span></span><span class=line><span class=cl>1..4
+</span></span></code></pre></td></tr></table></div></div><p>「未分類が混ざっても、混載にしない、というのは」</p><p>私が訊いた。</p><p>「未分類は、区分が無いという意味です。区分の一つとして数えてしまうと、生鮮の品目に、区分の無い品目が一つ混ざっただけで混載になってしまいます。それは、今回店主が言っている混載とは違います」</p><p>言われてみれば、その通りだった。区分が無いことと、別の区分であることは、同じではない。</p><p>「次は、<code>category_for</code>の今の振る舞いを書き取っておきます。前と同じ要領です」</p><p>クロベさんが言った。ナギさんが、「ああ、あれですね」と、短く応えた。<code>category_for</code>そのものは、短い関数だった。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>sub</span> <span class=nf>category_for</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$item</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>categories</span><span class=p>}{</span><span class=nv>$item</span><span class=p>}</span> <span class=sr>//</span> <span class=s>&#39;未分類&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「これは、渡された品目名を、さっき読み込んだ区分の一覧から引くだけです。帳簿に無い品目なら、未分類を返します」</p><p>クロベさんが言った。中身そのものは、確かに単純だった。重いのは、この関数ではなく、その前段にある<code>new</code>のほうだ。今回は、帳簿ファイルという実在のものを使う都合上、まずその中身を決めておく必要があった。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>大根	生鮮
+</span></span><span class=line><span class=cl>鰹節	生鮮
+</span></span><span class=line><span class=cl>茶碗	日用品
+</span></span><span class=line><span class=cl>醤油	日用品
+</span></span></code></pre></td></tr></table></div></div><p>このような、品目と区分をタブで区切った帳簿ファイル（フィクスチャ）を、テスト専用に一つ用意した。実際に蔵にある帳簿と同じ形式だが、テストのためだけに使う、決まった中身のものだ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Test::More</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>lib</span> <span class=s>&#39;lib&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Kura::Ledger</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;生鮮の品目&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$ledger</span> <span class=o>=</span> <span class=nn>Kura::Ledger</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>ledger_file</span> <span class=o>=&gt;</span> <span class=s>&#39;t/fixtures/kura_ledger.tsv&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span><span class=p>(</span><span class=nv>$ledger</span><span class=o>-&gt;</span><span class=n>category_for</span><span class=p>(</span><span class=s>&#39;大根&#39;</span><span class=p>),</span> <span class=s>&#39;生鮮&#39;</span><span class=p>,</span> <span class=s>&#39;帳簿にある生鮮の品目は生鮮を返す&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;日用品の品目&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$ledger</span> <span class=o>=</span> <span class=nn>Kura::Ledger</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>ledger_file</span> <span class=o>=&gt;</span> <span class=s>&#39;t/fixtures/kura_ledger.tsv&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span><span class=p>(</span><span class=nv>$ledger</span><span class=o>-&gt;</span><span class=n>category_for</span><span class=p>(</span><span class=s>&#39;茶碗&#39;</span><span class=p>),</span> <span class=s>&#39;日用品&#39;</span><span class=p>,</span> <span class=s>&#39;帳簿にある日用品の品目は日用品を返す&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;帳簿に無い品目は未分類&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$ledger</span> <span class=o>=</span> <span class=nn>Kura::Ledger</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>ledger_file</span> <span class=o>=&gt;</span> <span class=s>&#39;t/fixtures/kura_ledger.tsv&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span><span class=p>(</span><span class=nv>$ledger</span><span class=o>-&gt;</span><span class=n>category_for</span><span class=p>(</span><span class=s>&#39;炭&#39;</span><span class=p>),</span> <span class=s>&#39;未分類&#39;</span><span class=p>,</span> <span class=s>&#39;帳簿に記載の無い品目は未分類を返す&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>done_testing</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>三つとも通った。この時点で、<code>Kura::Ledger</code>にはまだ、一行も手を入れていない。</p><p>「最後に、<code>Kura::Ledger</code>へ、呼び出しを足します」</p><p>クロベさんは、まずファイルの先頭近く、<code>use warnings;</code>の下に一行だけ加えた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>use</span> <span class=nn>Kura::CategoryJudge</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>そのうえで、<code>new</code>と<code>category_for</code>はそのままに、末尾に新しいメソッドを一つ書き加えた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>sub</span> <span class=nf>classify_shipment</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>@items</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>@categories</span> <span class=o>=</span> <span class=nb>map</span> <span class=p>{</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>category_for</span><span class=p>(</span><span class=nv>$_</span><span class=p>)</span> <span class=p>}</span> <span class=nv>@items</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nn>Kura::CategoryJudge</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>categories</span> <span class=o>=&gt;</span> <span class=o>\</span><span class=nv>@categories</span><span class=p>)</span><span class=o>-&gt;</span><span class=n>judge</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「先頭の<code>use</code>が一行と、末尾に新しいメソッドが一つ。それだけです」</p><p>「<code>new</code>も、<code>category_for</code>も、そのままですね」</p><p>私が確かめるように言うと、クロベさんは頷いた。</p><p>「変えていません。新しい責務を、<code>Kura::Ledger</code>に増やしてもいません。品目を区分に変えて、<code>Kura::CategoryJudge</code>に渡す――それだけの窓口を、一つ増やしただけです」</p><p>「昨日の根継ぎとは、また違うんですね」</p><p>ナギさんが言った。</p><p>「違います。昨日は、同じクラスの中に、新しいsubを一本足しました。今日は、判定そのものを、まったく別のクラスに任せています。<code>Kura::Ledger</code>がしているのは、品目を区分に変えて、渡す、という橋渡しだけです」</p><p>私は、そこで一つ気になっていたことを口にした。</p><p>「これは、<code>Kura</code>とは、また別のものなんですか」</p><p>蔵には、以前から<code>Kura</code>という名前のパッケージがあった。品物を確保するときに使う、窓口のようなものだ。中身は、確保した品物を覚えておく変数と、それを扱う手続きがあるだけで、今日の<code>Kura::Ledger</code>のような、作るという手順はなかったと記憶している。</p><p>「別のものです」</p><p>クロベさんが答えた。</p><p>「<code>Kura</code>は、品物を蔵の中に確保する窓口です。<code>Kura::Ledger</code>は、蔵の帳面をつける係です。同じ蔵という場所を扱いますが、役目が違います。窓口を、帳面つけの係に書き換えたわけではありません」</p><p>蔵には、品物を出し入れする窓口とは別に、帳面をつける係がある――というだけの話らしい。私は、それを自分の言葉に直して、野帳の隅に書き留めた。<code>classify_shipment</code>をどの経路から呼ぶようにするかは、今日の話にはまだ出てこなかった。それはまた、別に決めることなのだろう。</p><p>野帳の最後に、今日起こしたものと、触らなかったものを描き分けておいた。</p><p><img src=/public_images/2026/code-carpenter-sprout-class-new-member/infographic_2.webp loading=lazy alt=Kura::Ledgerクラスの委譲図。左の枠内、灰色破線のnew（ledger_file）とcategory_for（item）は触っていない要素、黒い実線のclassify_shipmentは今日足した窓口。右の枠内、Kura::CategoryJudgeのnewとjudge()はともに新規。classify_shipmentから区分の配列を渡してKura::CategoryJudgeへ矢印が伸びている></p><p>灰色の線が触らなかった所、黒い線が今日建てた所。見比べれば、どこに何を足したのか迷わなかった。</p><h2 id=第4幕-検め--新しく起こす所は誰が決めるか>第4幕: 検め ── 新しく起こす所は、誰が決めるか</h2><p>三つの検めを、順番にもう一度動かした。</p><p>まず、既存の<code>category_for</code>の書き取りを、そのままもう一度動かした。三つとも、変わらず通った。<code>classify_shipment</code>を足す前と後で、既存の振る舞いは何も変わっていない。</p><p>次に、新しく足した<code>classify_shipment</code>そのものを確かめた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Test::More</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>lib</span> <span class=s>&#39;lib&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Kura::Ledger</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;生鮮どうしの荷は混載にならない&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$ledger</span> <span class=o>=</span> <span class=nn>Kura::Ledger</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>ledger_file</span> <span class=o>=&gt;</span> <span class=s>&#39;t/fixtures/kura_ledger.tsv&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span><span class=p>(</span><span class=nv>$ledger</span><span class=o>-&gt;</span><span class=n>classify_shipment</span><span class=p>(</span><span class=s>&#39;大根&#39;</span><span class=p>,</span> <span class=s>&#39;鰹節&#39;</span><span class=p>),</span> <span class=s>&#39;生鮮&#39;</span><span class=p>,</span> <span class=s>&#39;生鮮の品目だけの荷は生鮮のまま、混載にならない&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;生鮮と日用品が同じ荷に入れば混載&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$ledger</span> <span class=o>=</span> <span class=nn>Kura::Ledger</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>ledger_file</span> <span class=o>=&gt;</span> <span class=s>&#39;t/fixtures/kura_ledger.tsv&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span><span class=p>(</span><span class=nv>$ledger</span><span class=o>-&gt;</span><span class=n>classify_shipment</span><span class=p>(</span><span class=s>&#39;大根&#39;</span><span class=p>,</span> <span class=s>&#39;茶碗&#39;</span><span class=p>),</span> <span class=s>&#39;混載&#39;</span><span class=p>,</span> <span class=s>&#39;異なる区分の品目が同じ荷に混ざれば混載と判定する&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;品目が一件も無い荷は未分類のまま&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$ledger</span> <span class=o>=</span> <span class=nn>Kura::Ledger</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>ledger_file</span> <span class=o>=&gt;</span> <span class=s>&#39;t/fixtures/kura_ledger.tsv&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span><span class=p>(</span><span class=nv>$ledger</span><span class=o>-&gt;</span><span class=n>classify_shipment</span><span class=p>,</span> <span class=s>&#39;未分類&#39;</span><span class=p>,</span> <span class=s>&#39;品目を1件も渡さなければ、区分の集合が空になり未分類を返す&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>done_testing</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>三つとも通った。</p><p>「三つだけで、いいんですか」</p><p>私は、少し不安になって訊いた。</p><p>「<code>category_for</code>が、それぞれの品目を正しい区分に変えることは、さっきの書き取りで確かめてあります。<code>Kura::CategoryJudge</code>が、区分の組み合わせから正しく判定を出すことも、単体のテストで確かめてあります。<code>classify_shipment</code>がしているのは、品目を区分に変えて渡す、という橋渡しだけです。橋渡しがきちんと動いていることと、荷が空だったときに未分類のまま壊れずに済むこと、この二つさえ示せれば、判定のあらゆる組み合わせをここでもう一度確かめ直す必要はありません」</p><p>言われてみれば、確かに、それぞれ別のところで確かめたものを、もう一度重ねて確かめる必要はない。橋渡しの部分と、その境目にある空の荷だけを確かめれば足りるということだった。</p><p>「保証するのは、ここまでです」</p><p>クロベさんが、区切るように言った。</p><p>「今の<code>category_for</code>の振る舞いは変わっていません。混載かどうかの判定も、確かめてあります。保証しないのは、区分の判定を、もっと細かくするという話です。今日の<code>Kura::CategoryJudge</code>が背負っているのは、区分が一つか、複数かを見るだけの、単純な判定です。もし今後、混載の中でも生鮮の割合によって扱いを変える、という話が来れば、この単純な判定では足りなくなります」</p><p>「今日は、<code>Kura::Ledger</code>の重さそのものには触れていないんですね」</p><p>私が言うと、クロベさんは頷いた。</p><p>「触れていません。帳簿ファイルを開く、あの重さ自体を軽くする話は、今日の範囲ではありません。今日は、重さに手を付けず、新しい判定だけを外に置く話でした」</p><p>クロベさんは、そこで少し声を落として、続けた。</p><p>「一つだけ、正直に言っておきます。新しい部材を起こすたび、今まで一つの中にあったはずの仕事が、あちこちに散らばります。それが正しいこともあれば、ただ今はそうするしかない、というだけのこともあります。今日のこれも、そのどちらかは、しばらく経ってみないと分かりません」</p><p>技法の効き目だけを語られると思っていたので、その一言は少し意外だった。だが、嘘や誇張のない言い方だとも思えた。</p><p>「じゃあ、新しいクラスは、無闇に増やさないほうがいいんですか」</p><p>ナギさんが訊いた。</p><p>「無闇に、とは言いません。今日みたいに、母屋の中に置き場所が無いと分かったときは、迷わず外に起こせばいい。ただ、それを毎回の癖のようにはしないでください。外に起こした数が増えるほど、どこに何があるかを、誰かが覚えていなければならなくなります」</p><p>蔵の前には、いつのまにか日が差し込み始めていた。土壁の匂いも、朝のうちより少し和らいで感じられる。ナギさんは道具箱――今日は画面だけだったが――を片付け、クロベさんは腕を組んで、しばらく<code>Kura::Ledger</code>の画面を見ていた。</p><p>私は帳場に戻ると、いつもより急いで野帳を開いた。今日は、答えより先に、自分の問いのほうを書き付けておきたかった。</p><p>新しく起こす所は、誰が決めるんですか。</p><p>そう書いてから、クロベさんの言葉を思い出した。置き場所そのものは、今日みたいに、外に建てるしかない場合が分かれば、あとは好きに決めていい。</p><p>新しく起こすものの置き場所を自分で決めてよい。</p><p>そう書いてから、少し手が止まった。今日クロベさんが示してくれた「入るか入らないかの見極め」――コンストラクタが実ファイルに触れるかどうか――は、まだ自分の言葉にしきれていないと感じた。それは、次に自分で見極めるときの課題として、心のどこかに置いておくことにした。</p><p>窓の外で、蔵の戸が軋む音がした。誰かが、今日もあの重い戸を開け閉てしているのだろう。</p><p>クロベさんは、まだ画面のほうを向いたまま、独り言のように言った。</p><p>「今日は、外に一つ起こしただけです。多く起こしすぎれば、それも見通しを悪くします」</p><p>それだけだった。褒めるでもなく、念を押すでもない一言だった。私は野帳を閉じ、表紙の上に手を重ねた。中に足すか、外に起こすか――今日初めて自分で分けたその線が、この一冊の中で、確かに一つ増えていた。</p><hr><h2 id=普請控>普請控</h2><ul><li><strong>見立て</strong>: 店主から、蔵に生鮮と日用品が混ざって届く荷（混載）のための新しい品目区分を設けたいという要望が来た。既存の蔵の帳簿クラス（<code>Kura::Ledger</code>）は実際の帳簿ファイルを開いて書式を検めるコンストラクタを持ち、テストの中で気軽に組み立てられなかった</li><li><strong>手を入れた所</strong>: 芽生やしクラス（Sprout Class）を使い、新しい区分の判定ロジックを、実ファイルに一切触れない独立したクラス<code>Kura::CategoryJudge</code>として起こし、単独でテストした。<code>Kura::Ledger</code>へは、委譲メソッド<code>classify_shipment</code>を一つ、<code>use</code>の一行と合わせて足した</li><li><strong>触っていない所</strong>: <code>Kura::Ledger</code>のコンストラクタそのもの（帳簿ファイルを開いて書式を検める重さ）。<code>category_for</code>の中身。区分の判定をさらに細かくする（生鮮の割合で扱いを変える等）かどうかの判断</li><li><strong>次の工程へ送ること</strong>: コンストラクタが実ファイルに触れるかどうかという、今日の見極めそのものを、次はどう自分の言葉にするか</li><li><strong>私が引き受けたこと</strong>: 新しく起こすものの置き場所（新しい判定を既存クラスの中に置くか、外の新しいクラスに起こすか）を自分で決めてよい</li></ul></section><footer class=article-footer><section class=article-tags><a href=/tags/legacy-code/>Legacy-Code</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/perl/>Perl</a>
+<a href=/tags/sprout-class/>Sprout-Class</a>
+<a href=/tags/untestable-constructor/>Untestable-Constructor</a>
+<a href=/tags/code-carpenter/>Code-Carpenter</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/10/03/070705/><div class=article-image><img src=/public_images/2026/code-carpenter-method-object-long-sub/header.webp loading=lazy data-key data-hash=/public_images/2026/code-carpenter-method-object-long-sub/header.webp></div><div class=article-details><h2 class=article-title>数百行の関数の「途中だけ」をテストしたい。関数をクラスへ移して段ごとに割る【Break Out Method Object】</h2></div></a></article><article class=has-image><a href=/2026/10/02/070705/><div class=article-image><img src=/public_images/2026/code-carpenter-instance-delegator-silent-rename/header.webp loading=lazy data-key data-hash=/public_images/2026/code-carpenter-instance-delegator-silent-rename/header.webp></div><div class=article-details><h2 class=article-title>関数名を揃えたらモックが効かなくなった。テストは緑のまま本物が動く罠【Introduce Instance Delegator】</h2></div></a></article><article class=has-image><a href=/2026/10/01/070705/><div class=article-image><img src=/public_images/2026/code-carpenter-parameterize-constructor-nameless-dependency/header.webp loading=lazy data-key data-hash=/public_images/2026/code-carpenter-parameterize-constructor-nameless-dependency/header.webp></div><div class=article-details><h2 class=article-title>コンストラクタが本番の帳簿ファイルを開いてしまうクラスを、テストできる形にする【Parameterize Constructor】</h2></div></a></article><article class=has-image><a href=/2026/09/30/070705/><div class=article-image><img src=/public_images/2026/code-carpenter-extract-override-imported-copy/header.webp loading=lazy data-key data-hash=/public_images/2026/code-carpenter-extract-override-imported-copy/header.webp></div><div class=article-details><h2 class=article-title>テストのたびに外部 API を叩いてしまうコードを、サブクラスで差し替える【Extract and Override Call】</h2></div></a></article><article class=has-image><a href=/2026/09/29/070705/><div class=article-image><img src=/public_images/2026/code-carpenter-wrap-method-many-callers/header.webp loading=lazy data-key data-hash=/public_images/2026/code-carpenter-wrap-method-many-callers/header.webp></div><div class=article-details><h2 class=article-title>呼び出し元を1行も変えずに、全箇所へログを仕込む【Wrap Method】</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

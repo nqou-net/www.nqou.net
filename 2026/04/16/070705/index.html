@@ -1,0 +1,588 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="与信審査の条件が12箇所に散在しルール変更時に更新漏れが発生する問題を、Specificationパターンで条件をオブジェクト化し演算子オーバーロードで宣言的に合成するリファクタリング事例"><title>コード探偵ロックの事件簿【Specification】十二の証言〜散在するif文が隠した真犯人〜</title><link rel=canonical href=https://www.nqou.net/2026/04/16/070705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コード探偵ロックの事件簿【Specification】十二の証言〜散在するif文が隠した真犯人〜"><meta property='og:description' content="与信審査の条件が12箇所に散在しルール変更時に更新漏れが発生する問題を、Specificationパターンで条件をオブジェクト化し演算子オーバーロードで宣言的に合成するリファクタリング事例"><meta property='og:url' content='https://www.nqou.net/2026/04/16/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='perl'><meta property='article:tag' content='moo'><meta property='article:tag' content='specification-pattern'><meta property='article:tag' content='shotgun-surgery'><meta property='article:tag' content='scattered-conditional'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-detective'><meta property='article:published_time' content='2026-04-16T07:07:05+09:00'><meta property='article:modified_time' content='2026-04-16T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-detective-specification/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コード探偵ロックの事件簿【Specification】十二の証言〜散在するif文が隠した真犯人〜"><meta name=twitter:description content="与信審査の条件が12箇所に散在しルール変更時に更新漏れが発生する問題を、Specificationパターンで条件をオブジェクト化し演算子オーバーロードで宣言的に合成するリファクタリング事例"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-detective-specification/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-04-16T07:07:05+09:00","datePublished":"2026-04-16T07:07:05+09:00","description":"与信審査の条件が12箇所に散在しルール変更時に更新漏れが発生する問題を、Specificationパターンで条件をオブジェクト化し演算子オーバーロードで宣言的に合成するリファクタリング事例","headline":"コード探偵ロックの事件簿【Specification】十二の証言〜散在するif文が隠した真犯人〜","image":"https://www.nqou.net/public_images/2026/code-detective-specification/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/04/16/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#雑居ビルの三階>雑居ビルの三階</a></li><li><a href=#散在する指紋>散在する指紋</a></li><li><a href=#証言者に名前を与える>証言者に名前を与える</a></li><li><a href=#判決文の読み上げ>判決文の読み上げ</a></li><li><a href=#法廷の秩序>法廷の秩序</a></li><li><a href=#階段を降りながら>階段を降りながら</a></li><li><a href=#探偵の調査報告書>探偵の調査報告書</a><ol><li><a href=#推理のステップ>推理のステップ</a></li><li><a href=#ロックより>ロックより</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/04/16/070705/><img src=/public_images/2026/code-detective-specification/header.webp loading=lazy alt="Featured image of post コード探偵ロックの事件簿【Specification】十二の証言〜散在するif文が隠した真犯人〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/04/16/070705/>コード探偵ロックの事件簿【Specification】十二の証言〜散在するif文が隠した真犯人〜</a></h2><h3 class=article-subtitle>与信審査の条件が12箇所に散在しルール変更時に更新漏れが発生する問題を、Specificationパターンで条件をオブジェクト化し演算子オーバーロードで宣言的に合成するリファクタリング事例</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>16, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 14分</time></div></footer></div></header><section class=article-content><h2 id=雑居ビルの三階>雑居ビルの三階</h2><p>Slackの匿名メッセージを、僕はもう三回読み返していた。</p><blockquote><p>条件分岐の設計で詰まってるなら、雑居ビルの三階。変な看板の探偵事務所。腕は確か。</p></blockquote><p>先月のインシデントから2週間。与信審査の信用スコア閾値を700から650に変更したとき、12箇所あるif文のうち3箇所を直し漏れた。本番環境で正規の顧客にローンが組めないと通報が入り、ホットフィックスを当てるまでの4時間、上長の表情は氷点下だった。</p><p>「全条件を一覧できるようにしろ。二度目はない」</p><p>その命令から2週間、僕は何も進んでいない。grepで条件を洗い出すことはできたが、12箇所の条件を「一覧できるように」する設計が思いつかなかった。共通関数に切り出すか。でもコンテキストが違うから引数が爆発する。定数にまとめるか。閾値だけまとめても条件の構造が散在している問題は解決しない。</p><p>だから今、僕はこのビルの階段を上っている。</p><p>三階の廊下の突き当たりに、すりガラスのドアがあった。「レガシー・コード・インベスティゲーション」と書かれた看板が、蛍光灯の明かりで妙に浮きあがっている。探偵事務所。コードの。本当にここでいいのだろうか。</p><p>ドアを開けた。</p><p>まず目に入ったのは、壁一面に貼られたコードのプリントアウトだった。A4用紙が20枚以上、画鋲で留められ、赤い糸で結ばれている。刑事ドラマの捜査ボードそのものだ。デスクの上にはモニターが3台、飲みかけのエナジードリンクの缶がいくつか散乱し、排熱で室温が妙に高い。</p><p>その奥に男がいた。コートを着たまま、赤い糸のひとつをつまんで眺めていた。</p><p>「12件か」</p><p>僕はまだ何も言っていない。</p><p>「条件分岐の散在で来たのだろう。12は勘だがね。与信系のレガシーコードでは、よくある数だ」</p><p>男が振り返った。鋭い目が、僕のノートPCのロゴを一瞥した。</p><p>「レガシー・コード・インベスティゲーション所長、ロック。——座りたまえ、ワトソン君」</p><p>「……僕には名前があるんですが」</p><p>ロックさんはすでにモニターに向き直っていた。</p><h2 id=散在する指紋>散在する指紋</h2><p>「コードを見せたまえ」</p><p>促されるままノートPCを開き、与信審査システムのリポジトリを見せた。ロックさんは画面を覗き込み、ターミナルで何かを打ち始めた。</p><p>「<code>grep -rn 'credit_score' src/</code> と。——ほう、14件。そのうち条件判定に使われているのが12件。残り2件は代入だ」</p><p>「はい。信用スコアの閾値判定が12箇所に散らばっています。<code>CreditAssessor</code>、<code>ReportGenerator</code>、APIコントローラ、バッチ処理……全部微妙にコンテキストが違うので、共通関数にまとめきれなくて」</p><p>ロックさんが僕のコードの一つを指さした。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>CreditAssessor</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>assess</span> <span class=p>($self, $customer) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>unless</span> <span class=p>(</span><span class=nv>$customer</span><span class=o>-&gt;</span><span class=n>is_active</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=p>{</span> <span class=n>approved</span> <span class=o>=&gt;</span> <span class=mi>0</span><span class=p>,</span> <span class=n>reason</span> <span class=o>=&gt;</span> <span class=s>&#39;inactive account&#39;</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>unless</span> <span class=p>(</span><span class=nv>$customer</span><span class=o>-&gt;</span><span class=n>credit_score</span> <span class=o>&gt;</span> <span class=mi>700</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=p>{</span> <span class=n>approved</span> <span class=o>=&gt;</span> <span class=mi>0</span><span class=p>,</span> <span class=n>reason</span> <span class=o>=&gt;</span> <span class=s>&#39;low credit score&#39;</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=nv>$customer</span><span class=o>-&gt;</span><span class=n>has_overdue_payments</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=p>{</span> <span class=n>approved</span> <span class=o>=&gt;</span> <span class=mi>0</span><span class=p>,</span> <span class=n>reason</span> <span class=o>=&gt;</span> <span class=s>&#39;overdue payments exist&#39;</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>{</span> <span class=n>approved</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span> <span class=n>reason</span> <span class=o>=&gt;</span> <span class=s>&#39;all checks passed&#39;</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「これが本丸の <code>CreditAssessor</code> だね。ではレポート生成側は」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>ReportGenerator</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>eligible_customers</span> <span class=p>($self, @customers) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nb>grep</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$_</span><span class=o>-&gt;</span><span class=n>is_active</span>
+</span></span><span class=line><span class=cl>        <span class=o>&amp;&amp;</span> <span class=nv>$_</span><span class=o>-&gt;</span><span class=n>credit_score</span> <span class=o>&gt;</span> <span class=mi>700</span>
+</span></span><span class=line><span class=cl>        <span class=o>&amp;&amp;</span> <span class=o>!</span><span class=nv>$_</span><span class=o>-&gt;</span><span class=n>has_overdue_payments</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span> <span class=nv>@customers</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「同じ条件が別の場所にも書かれている。そしてAPIコントローラ側はこうなっている、と」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># APIコントローラ — 先月の更新漏れ箇所</span>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>handle_application</span> <span class=p>($self, $customer) {</span>
+</span></span><span class=line><span class=cl>    <span class=c1># 閾値が700→650に変更されたのに、ここだけ古い値のまま</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=nv>$customer</span><span class=o>-&gt;</span><span class=n>credit_score</span> <span class=o>&gt;</span> <span class=mi>700</span> <span class=o>&amp;&amp;</span> <span class=nv>$customer</span><span class=o>-&gt;</span><span class=n>is_active</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=c1># ...</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>ロックさんが椅子の背にもたれた。</p><p>「12人の証言者が、それぞれ別の法廷で勝手に証言している。しかも——3人の証言内容が食い違っている。閾値が700のままの箇所が残っているわけだ」</p><p>「はい。先月のインシデントがまさにそれです」</p><p>「Shotgun Surgery。散弾銃手術の典型だね。弾は12発、命中したのは9発。残り3発は壁に当たって跳弾した。跳弾した弾が、顧客に当たった」</p><p>言い方は大げさだったが、事実関係は正確だった。</p><p>「grepで全箇所を見つけて直す、では答えになりませんよね。次にルールが変わったとき、また同じことが起きます」</p><p>「その通りだ、ワトソン君。証言者を一人ずつ追いかけるのは捜査員の仕事ではない。<strong>証言者を法廷に集めて、一枚の判決文にまとめる</strong>のが探偵の仕事だ」</p><p>「僕には名前が——」</p><p>「さて、本題に入ろう」</p><p>完全に無視された。……もういいです。</p><h2 id=証言者に名前を与える>証言者に名前を与える</h2><p>ロックさんが壁の捜査ボードから紙を一枚はがし、白い面を上にしてデスクに置いた。</p><p>「まず基本的な問いだ。<code>$customer->credit_score > 700</code> という条件は、何者だね」</p><p>「……条件式です。if文の中の」</p><p>「それは形式だ。<strong>意味</strong>を聞いている。このコードが表現しているビジネスルールは何だ」</p><p>「『信用スコアが基準値を超えていること』……ですか」</p><p>「そうだ。ならば<strong>名前を付けたまえ</strong>。証拠品番号のまま法廷に出してはいけない。証言者の名前を呼ぶのだ」</p><p>ロックさんがペンを取り、紙に書き始めた。</p><p>「<code>GoodCreditSpec</code>。これが証言者の名前だ。Specification パターン——条件をオブジェクトにする」</p><p>「条件をオブジェクトにする、ですか。if文をクラスでラップしただけじゃないですか。何が嬉しいんですか」</p><p>ロックさんの目が光った。待っていた質問だ、とでも言いたげに。</p><p>「名前が付くのだよ、ワトソン君。<code>$credit_score > 700</code> はただの証拠品番号だ。12箇所に散在していても、grepでは同一のルールだとわからない。だが <code>GoodCreditSpec</code> は<strong>証言者の名前</strong>だ。名前があれば、いつでも、どこからでも、法廷に呼び出せる」</p><p>ロックさんがコードを書き始めた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Specification</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo::Role</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>overload</span>
+</span></span><span class=line><span class=cl>    <span class=s>&#39;&amp;&#39;</span> <span class=o>=&gt;</span> <span class=o>\&amp;</span><span class=n>and_spec</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=s>&#39;|&#39;</span> <span class=o>=&gt;</span> <span class=o>\&amp;</span><span class=n>or_spec</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=s>&#39;!&#39;</span> <span class=o>=&gt;</span> <span class=o>\&amp;</span><span class=n>not_spec</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=s>&#39;bool&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=mi>1</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=n>fallback</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>requires</span> <span class=s>&#39;is_satisfied_by&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>and_spec</span> <span class=p>($self, $other, @) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nn>Specification::And</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>left</span> <span class=o>=&gt;</span> <span class=nv>$self</span><span class=p>,</span> <span class=n>right</span> <span class=o>=&gt;</span> <span class=nv>$other</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>or_spec</span> <span class=p>($self, $other, @) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nn>Specification::Or</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>left</span> <span class=o>=&gt;</span> <span class=nv>$self</span><span class=p>,</span> <span class=n>right</span> <span class=o>=&gt;</span> <span class=nv>$other</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>not_spec</span> <span class=p>($self, @) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nn>Specification::Not</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>spec</span> <span class=o>=&gt;</span> <span class=nv>$self</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<code>Specification</code> ロール。Moo::Roleで定義する。これを <code>with</code> したクラスは、<code>is_satisfied_by</code> メソッドを持つ証言者になる」</p><p>「<code>requires 'is_satisfied_by'</code> ……これはインターフェースですか」</p><p>「そうだ。Javaの <code>interface</code> に相当する。このロールを持つ者は必ず <code>is_satisfied_by</code> で真偽を答えなければならない。証言台に立つ資格だ」</p><p>「<code>use overload</code> の部分は……」</p><p>「後で見せる。まずは証言者を作ろう」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Spec::ActiveCustomer</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>with</span> <span class=s>&#39;Specification&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>is_satisfied_by</span> <span class=p>($self, $customer) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$customer</span><span class=o>-&gt;</span><span class=n>is_active</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Spec::GoodCredit</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>with</span> <span class=s>&#39;Specification&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>threshold</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=mi>650</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>is_satisfied_by</span> <span class=p>($self, $customer) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$customer</span><span class=o>-&gt;</span><span class=n>credit_score</span> <span class=o>&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>threshold</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Spec::NoOverdue</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>with</span> <span class=s>&#39;Specification&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>is_satisfied_by</span> <span class=p>($self, $customer) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=o>!</span><span class=nv>$customer</span><span class=o>-&gt;</span><span class=n>has_overdue_payments</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<code>ActiveCustomerSpec</code>、<code>GoodCreditSpec</code>、<code>NoOverdueSpec</code>。3人の証言者が、それぞれひとつの条件だけを担当する」</p><p>「ここで質問なんですが」</p><p>僕は手を挙げた。</p><p>「12箇所のif文を全部これで置き換えられることは、どうやって保証するんですか。名前を付けたからって、旧い条件式が自動で消えるわけじゃないですよね」</p><p>ロックさんが薄く笑った。</p><p>「良い疑いだ。12の証言者を法廷に立たせれば、一人ずつ <code>is_satisfied_by</code> で尋問できる。そして——」</p><p>画面に1行を書いた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>my</span> <span class=nv>@eligible</span> <span class=o>=</span> <span class=nb>grep</span> <span class=p>{</span> <span class=nv>$spec</span><span class=o>-&gt;</span><span class=n>is_satisfied_by</span><span class=p>(</span><span class=nv>$_</span><span class=p>)</span> <span class=p>}</span> <span class=nv>@customers</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「旧いif文をこの1行に置き換えたとき、テストが通るかどうかが証明になる。grepは1行だが、<strong>その中で証言しているのは仕様オブジェクトだ</strong>。嘘をついている者——バグ——がいれば、テストが炙り出す」</p><h2 id=判決文の読み上げ>判決文の読み上げ</h2><p>「ここからが本番だ」</p><p>ロックさんが <code>overload</code> の話に戻った。</p><p>「3人の証言者は揃った。だが裁判では、個々の証言を組み合わせて判決を下す。AND、OR、NOT——合成だ」</p><p>まず合成クラスが画面に現れた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Specification::And</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>with</span> <span class=s>&#39;Specification&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>left</span>  <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>right</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>is_satisfied_by</span> <span class=p>($self, $candidate) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>left</span><span class=o>-&gt;</span><span class=n>is_satisfied_by</span><span class=p>(</span><span class=nv>$candidate</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=o>&amp;&amp;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>right</span><span class=o>-&gt;</span><span class=n>is_satisfied_by</span><span class=p>(</span><span class=nv>$candidate</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Specification::Or</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>with</span> <span class=s>&#39;Specification&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>left</span>  <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>right</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>is_satisfied_by</span> <span class=p>($self, $candidate) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>left</span><span class=o>-&gt;</span><span class=n>is_satisfied_by</span><span class=p>(</span><span class=nv>$candidate</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=o>||</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>right</span><span class=o>-&gt;</span><span class=n>is_satisfied_by</span><span class=p>(</span><span class=nv>$candidate</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Specification::Not</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>with</span> <span class=s>&#39;Specification&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>spec</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>is_satisfied_by</span> <span class=p>($self, $candidate) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=o>!</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>spec</span><span class=o>-&gt;</span><span class=n>is_satisfied_by</span><span class=p>(</span><span class=nv>$candidate</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<code>Specification::And</code> は2つの仕様を受け取り、両方が真のときだけ真を返す。<code>Or</code> と <code>Not</code> も同様だ。これらも <code>Specification</code> ロールを持っているから、合成した結果をさらに合成できる」</p><p>「Composite パターンですね」</p><p>「その通り。そして先ほどの <code>use overload</code> だ。Perlの <code>&</code>、<code>|</code>、<code>!</code> 演算子をオーバーロードすることで、こう書ける——」</p><p>ロックさんが画面に一行を打った。そして椅子から立ち上がり、芝居がかった口調で読み上げた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>my</span> <span class=nv>$eligible</span> <span class=o>=</span> <span class=nn>Spec::ActiveCustomer</span><span class=o>-&gt;</span><span class=k>new</span>
+</span></span><span class=line><span class=cl>    <span class=o>&amp;</span> <span class=nn>Spec::GoodCredit</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>threshold</span> <span class=o>=&gt;</span> <span class=mi>650</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=o>&amp;</span> <span class=nn>Spec::NoOverdue</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<strong>『被告は、活動中であり、信用良好であり、延滞していない場合に限り、与信を認める』</strong>——判決文の読み上げだ、ワトソン君」</p><p>正直に言えば、少し感心した。コードが自然言語のように読める。だが僕はもう少し掘りたかった。</p><p>「条件ごとにクラスを作るということは、12箇所分だと数十個のクラスが必要になりませんか。クラスの爆発が心配なんですが」</p><p>「12の証言者には12の名前が必要だ。だが全員が法廷に個別出廷するわけではない。合成がある。<code>$active & $good_credit & !$overdue</code> ——判決文は3人の証言から1行で書ける。12の条件のうち重複しているものは1つにまとまるから、実際のクラス数はもっと少ない」</p><p>「なるほど……でも <code>&</code> と <code>|</code> って、ビット演算と紛らわしくないですか。コードレビューで混乱しそうです」</p><p>「では比較したまえ。判決文が <code>->and_spec()->and_spec()->or_spec()->not_spec()</code> のメソッドチェーンになるのと、<code>$a & $b | !$c</code> になるのと。裁判長はどちらを読みたいかな」</p><p>メソッドチェーンの方が冗長なのは確かだった。演算子オーバーロードは <code>use overload</code> で定義されており、ビット演算とは文脈が違う。仕様オブジェクト同士の演算だとわかっていれば、混乱は起きないだろう。</p><p>「では、この仕様オブジェクトを使って <code>CreditAssessor</code> をリファクタリングする」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>CreditAssessor</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(ConsumerOf)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>spec</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>isa</span>      <span class=o>=&gt;</span> <span class=n>ConsumerOf</span><span class=p>[</span><span class=s>&#39;Specification&#39;</span><span class=p>],</span>
+</span></span><span class=line><span class=cl>    <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>assess</span> <span class=p>($self, $customer) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>spec</span><span class=o>-&gt;</span><span class=n>is_satisfied_by</span><span class=p>(</span><span class=nv>$customer</span><span class=p>))</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=p>{</span> <span class=n>approved</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span> <span class=n>reason</span> <span class=o>=&gt;</span> <span class=s>&#39;all checks passed&#39;</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>{</span> <span class=n>approved</span> <span class=o>=&gt;</span> <span class=mi>0</span><span class=p>,</span> <span class=n>reason</span> <span class=o>=&gt;</span> <span class=s>&#39;credit check failed&#39;</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<code>CreditAssessor</code> はもう条件を知らない。仕様オブジェクトに<strong>尋問を委ねる</strong>だけだ。閾値が変わっても、<code>CreditAssessor</code> 自体は一切修正しない。<code>GoodCredit->new(threshold => 650)</code> の部分を変えれば、12箇所すべてに反映される」</p><p>「<code>ReportGenerator</code> も同じ仕様を受け取るようにすれば……」</p><p>「そうだ。同じ判決文を使う。Single Source of Truth。条件の定義は一箇所、それを参照する場所は何箇所あっても構わない」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>ReportGenerator</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(ConsumerOf)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>spec</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>isa</span>      <span class=o>=&gt;</span> <span class=n>ConsumerOf</span><span class=p>[</span><span class=s>&#39;Specification&#39;</span><span class=p>],</span>
+</span></span><span class=line><span class=cl>    <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>eligible_customers</span> <span class=p>($self, @customers) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nb>grep</span> <span class=p>{</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>spec</span><span class=o>-&gt;</span><span class=n>is_satisfied_by</span><span class=p>(</span><span class=nv>$_</span><span class=p>)</span> <span class=p>}</span> <span class=nv>@customers</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「先月のインシデントでは、<code>ApiController</code> だけ閾値が700のまま残っていた。この設計なら——」</p><p>「<code>ApiController</code> も同じ <code>$eligible</code> を受け取る。閾値は <code>Spec::GoodCredit</code> の <code>threshold</code> 属性に集約されているから、変更は一箇所。跳弾は起きない」</p><p>クラス構造を整理すると、こうなる。</p><pre class=mermaid>
+	classDiagram
+    class Specification {
+        &lt;&lt;Role&gt;&gt;
+        +is_satisfied_by(candidate) bool
+        +and_spec(other) Specification::And
+        +or_spec(other) Specification::Or
+        +not_spec() Specification::Not
+    }
+
+    class Specification_And {
+        +left: Specification
+        +right: Specification
+        +is_satisfied_by(candidate) bool
+    }
+
+    class Specification_Or {
+        +left: Specification
+        +right: Specification
+        +is_satisfied_by(candidate) bool
+    }
+
+    class Specification_Not {
+        +spec: Specification
+        +is_satisfied_by(candidate) bool
+    }
+
+    class Spec_ActiveCustomer {
+        +is_satisfied_by(customer) bool
+    }
+
+    class Spec_GoodCredit {
+        +threshold: Int
+        +is_satisfied_by(customer) bool
+    }
+
+    class Spec_NoOverdue {
+        +is_satisfied_by(customer) bool
+    }
+
+    class CreditAssessor {
+        +spec: Specification
+        +assess(customer) HashRef
+    }
+
+    Specification &lt;|.. Specification_And
+    Specification &lt;|.. Specification_Or
+    Specification &lt;|.. Specification_Not
+    Specification &lt;|.. Spec_ActiveCustomer
+    Specification &lt;|.. Spec_GoodCredit
+    Specification &lt;|.. Spec_NoOverdue
+
+    CreditAssessor --&gt; Specification
+</pre><h2 id=法廷の秩序>法廷の秩序</h2><p>「では確認だ。テストを回そう」</p><p>ロックさんがテストコードを画面に映した。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span><span class=lnt>51
+</span><span class=lnt>52
+</span><span class=lnt>53
+</span><span class=lnt>54
+</span><span class=lnt>55
+</span><span class=lnt>56
+</span><span class=lnt>57
+</span><span class=lnt>58
+</span><span class=lnt>59
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>use</span> <span class=nn>Test::More</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># --- 各仕様クラスの独立テスト ---</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;ActiveCustomerSpec&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$spec</span> <span class=o>=</span> <span class=nn>Spec::ActiveCustomer</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>ok</span><span class=p>(</span><span class=nv>$spec</span><span class=o>-&gt;</span><span class=n>is_satisfied_by</span><span class=p>(</span><span class=nn>MockCustomer</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>is_active</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>)),</span>
+</span></span><span class=line><span class=cl>        <span class=s>&#39;アクティブ顧客は満たす&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>ok</span><span class=p>(</span><span class=o>!</span><span class=nv>$spec</span><span class=o>-&gt;</span><span class=n>is_satisfied_by</span><span class=p>(</span><span class=nn>MockCustomer</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>is_active</span> <span class=o>=&gt;</span> <span class=mi>0</span><span class=p>)),</span>
+</span></span><span class=line><span class=cl>        <span class=s>&#39;非アクティブ顧客は満たさない&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;GoodCreditSpec&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$spec</span> <span class=o>=</span> <span class=nn>Spec::GoodCredit</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>threshold</span> <span class=o>=&gt;</span> <span class=mi>650</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>ok</span><span class=p>(</span><span class=nv>$spec</span><span class=o>-&gt;</span><span class=n>is_satisfied_by</span><span class=p>(</span><span class=nn>MockCustomer</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>credit_score</span> <span class=o>=&gt;</span> <span class=mi>700</span><span class=p>)),</span>
+</span></span><span class=line><span class=cl>        <span class=s>&#39;700 &gt; 650 で満たす&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>ok</span><span class=p>(</span><span class=o>!</span><span class=nv>$spec</span><span class=o>-&gt;</span><span class=n>is_satisfied_by</span><span class=p>(</span><span class=nn>MockCustomer</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>credit_score</span> <span class=o>=&gt;</span> <span class=mi>650</span><span class=p>)),</span>
+</span></span><span class=line><span class=cl>        <span class=s>&#39;650 は 650 を超えないので満たさない&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># --- 演算子オーバーロードによる合成テスト ---</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;演算子合成&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$eligible</span> <span class=o>=</span> <span class=nn>Spec::ActiveCustomer</span><span class=o>-&gt;</span><span class=k>new</span>
+</span></span><span class=line><span class=cl>        <span class=o>&amp;</span> <span class=nn>Spec::GoodCredit</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>threshold</span> <span class=o>=&gt;</span> <span class=mi>650</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=o>&amp;</span> <span class=nn>Spec::NoOverdue</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>ok</span><span class=p>(</span><span class=nv>$eligible</span><span class=o>-&gt;</span><span class=n>is_satisfied_by</span><span class=p>(</span><span class=nn>MockCustomer</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>is_active</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span> <span class=n>credit_score</span> <span class=o>=&gt;</span> <span class=mi>700</span><span class=p>,</span> <span class=n>has_overdue_payments</span> <span class=o>=&gt;</span> <span class=mi>0</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>)),</span> <span class=s>&#39;全条件クリア&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>ok</span><span class=p>(</span><span class=o>!</span><span class=nv>$eligible</span><span class=o>-&gt;</span><span class=n>is_satisfied_by</span><span class=p>(</span><span class=nn>MockCustomer</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>is_active</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span> <span class=n>credit_score</span> <span class=o>=&gt;</span> <span class=mi>600</span><span class=p>,</span> <span class=n>has_overdue_payments</span> <span class=o>=&gt;</span> <span class=mi>0</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>)),</span> <span class=s>&#39;スコア不足で不合格&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># --- 閾値のSingle Source of Truth ---</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;閾値が一箇所で管理される&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$eligible</span> <span class=o>=</span> <span class=nn>Spec::ActiveCustomer</span><span class=o>-&gt;</span><span class=k>new</span>
+</span></span><span class=line><span class=cl>        <span class=o>&amp;</span> <span class=nn>Spec::GoodCredit</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>threshold</span> <span class=o>=&gt;</span> <span class=mi>650</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=o>&amp;</span> <span class=nn>Spec::NoOverdue</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$assessor</span>  <span class=o>=</span> <span class=nn>CreditAssessor</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>spec</span> <span class=o>=&gt;</span> <span class=nv>$eligible</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$generator</span> <span class=o>=</span> <span class=nn>ReportGenerator</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>spec</span> <span class=o>=&gt;</span> <span class=nv>$eligible</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$customer</span> <span class=o>=</span> <span class=nn>MockCustomer</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>credit_score</span> <span class=o>=&gt;</span> <span class=mi>680</span><span class=p>,</span> <span class=n>is_active</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span> <span class=n>has_overdue_payments</span> <span class=o>=&gt;</span> <span class=mi>0</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>is</span><span class=p>(</span><span class=nv>$assessor</span><span class=o>-&gt;</span><span class=n>assess</span><span class=p>(</span><span class=nv>$customer</span><span class=p>)</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>approved</span><span class=p>},</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=s>&#39;CreditAssessor: 680 &gt; 650 で承認&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>@list</span> <span class=o>=</span> <span class=nv>$generator</span><span class=o>-&gt;</span><span class=n>eligible_customers</span><span class=p>(</span><span class=nv>$customer</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span><span class=p>(</span><span class=nb>scalar</span><span class=p>(</span><span class=nv>@list</span><span class=p>),</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=s>&#39;ReportGenerator: 同じ仕様で同じ結果&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>done_testing</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>テストを実行する。画面が一瞬スクロールして——全てグリーン。</p><p>「12の証言者が法廷に揃い、判決文が一枚にまとまった。閾値の変更は <code>GoodCredit->new(threshold => ...)</code> の1箇所を変えれば、全てのAssessorとGeneratorに反映される」</p><p>僕は画面を見つめていた。なるほど、とは思う。だが理屈でわかることと、自分の手で書けることは別だ。</p><p>「さて——」</p><p>ロックさんが突然、キーボードから手を離し、椅子を引いた。</p><p>「腕試しだ、ワトソン君。 <strong>『VIP顧客かつ年間購入額100万円以上、ただし反社チェック未完了は除外』</strong> の判決文を書いてみたまえ」</p><p>「……僕がですか」</p><p>「証言者の作り方は見た。合成の仕方も見た。あとは書くだけだ」</p><p>ロックさんが腕を組んで壁にもたれた。</p><p>僕はキーボードに手を置いた。まず証言者を定義する。VIP顧客。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Spec::VipCustomer</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>with</span> <span class=s>&#39;Specification&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>is_satisfied_by</span> <span class=p>($self, $customer) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$customer</span><span class=o>-&gt;</span><span class=n>is_vip</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>次に、年間購入額。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Spec::HighPurchase</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>with</span> <span class=s>&#39;Specification&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>threshold</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=mi>1_000_000</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>is_satisfied_by</span> <span class=p>($self, $customer) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$customer</span><span class=o>-&gt;</span><span class=n>annual_purchase</span> <span class=o>&gt;=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>threshold</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>そしてコンプライアンスチェック。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Spec::ComplianceChecked</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>with</span> <span class=s>&#39;Specification&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>is_satisfied_by</span> <span class=p>($self, $customer) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$customer</span><span class=o>-&gt;</span><span class=n>compliance_checked</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>合成する。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>my</span> <span class=nv>$vip_eligible</span> <span class=o>=</span> <span class=nn>Spec::VipCustomer</span><span class=o>-&gt;</span><span class=k>new</span>
+</span></span><span class=line><span class=cl>    <span class=o>&amp;</span> <span class=nn>Spec::HighPurchase</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>threshold</span> <span class=o>=&gt;</span> <span class=mi>1_000_000</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=o>&amp;</span> <span class=nn>Spec::ComplianceChecked</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>テストを書く。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;VIP適格判定&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=n>ok</span><span class=p>(</span><span class=nv>$vip_eligible</span><span class=o>-&gt;</span><span class=n>is_satisfied_by</span><span class=p>(</span><span class=nn>MockCustomer</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>is_vip</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span> <span class=n>annual_purchase</span> <span class=o>=&gt;</span> <span class=mi>1_500_000</span><span class=p>,</span> <span class=n>compliance_checked</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>)),</span> <span class=s>&#39;全条件クリアのVIP&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>ok</span><span class=p>(</span><span class=o>!</span><span class=nv>$vip_eligible</span><span class=o>-&gt;</span><span class=n>is_satisfied_by</span><span class=p>(</span><span class=nn>MockCustomer</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>is_vip</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span> <span class=n>annual_purchase</span> <span class=o>=&gt;</span> <span class=mi>500_000</span><span class=p>,</span> <span class=n>compliance_checked</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>)),</span> <span class=s>&#39;VIPだが購入額不足&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>ok</span><span class=p>(</span><span class=o>!</span><span class=nv>$vip_eligible</span><span class=o>-&gt;</span><span class=n>is_satisfied_by</span><span class=p>(</span><span class=nn>MockCustomer</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>is_vip</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span> <span class=n>annual_purchase</span> <span class=o>=&gt;</span> <span class=mi>1_500_000</span><span class=p>,</span> <span class=n>compliance_checked</span> <span class=o>=&gt;</span> <span class=mi>0</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>)),</span> <span class=s>&#39;VIPだがコンプラ未完了&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span></code></pre></td></tr></table></div></div><p>テストを実行した。グリーン。</p><p>ロックさんが壁から背を離した。画面を一瞥して、短く言った。</p><p>「……悪くないね」</p><p>それだけだった。それだけで十分だった。</p><h2 id=階段を降りながら>階段を降りながら</h2><p>帰り支度をしながら、ふと訊いた。</p><p>「この Specification パターンは、GoFの23パターンには入っていないんですか」</p><p>「入っていない。Eric EvansのDDD——ドメイン駆動設計の文脈で体系化されたパターンだ。だが構造としてはCompositeとStrategyの合成だ。GoFの血は流れている」</p><p>「なるほど」</p><p>「ただし万能ではない。証言者にする価値があるのは、ビジネスルールとして名前を持つべき条件だけだ。<code>x > 0</code> のような自明なガードをいちいちクラスにする必要はない。判決文に書くべき証言と、廊下の立ち話を区別することだ」</p><p>事務所のドアを閉め、薄暗い階段を降りた。</p><p>Slackに匿名で書いてくれた誰かのことを思い出した。「腕は確か」。確かに、そうだった。</p><p>12箇所に散らばっていた条件は、今は名前を持つ仕様オブジェクトになった。閾値が変わっても、変更は一箇所。判決文は一枚。</p><p>階段の踊り場で、僕は小さく呟いた。</p><p>「判決文か……」</p><p>いつか僕も、Slackで誰かを案内できるかもしれない。</p><hr><h2 id=探偵の調査報告書>探偵の調査報告書</h2><div class=table-wrapper><table><thead><tr><th style=text-align:left>容疑（アンチパターン）</th><th style=text-align:left>真実（パターン）</th><th style=text-align:left>証拠（効果）</th></tr></thead><tbody><tr><td style=text-align:left>散在するif文（Shotgun Surgery）</td><td style=text-align:left>Specification パターン（条件のオブジェクト化）</td><td style=text-align:left>ルール変更が1箇所で完結する</td></tr><tr><td style=text-align:left>ルールの重複・矛盾（DRY違反）</td><td style=text-align:left>Single Source of Truth（仕様クラスに集約）</td><td style=text-align:left>更新漏れによるインシデントが防止される</td></tr><tr><td style=text-align:left>条件の複雑化（Conditional Complexity）</td><td style=text-align:left>AND/OR/NOT合成による宣言的記述</td><td style=text-align:left>コードがビジネスルールとして読める</td></tr><tr><td style=text-align:left>テスト困難性（条件式の分離不可）</td><td style=text-align:left>仕様クラスの独立ユニットテスト</td><td style=text-align:left>各条件を個別に検証できる</td></tr></tbody></table></div><h3 id=推理のステップ>推理のステップ</h3><ol><li><strong>証言者の洗い出し</strong>: <code>grep</code> でコードベース全体の条件判定を検索し、散在するビジネスルールと重複を特定する</li><li><strong>名前を与える</strong>: 各条件に仕様クラス名を付ける。<code>Spec::ActiveCustomer</code>、<code>Spec::GoodCredit</code> など、ドメインの語彙で命名する</li><li><strong>Specification ロールの定義</strong>: <code>Moo::Role</code> で <code>requires 'is_satisfied_by'</code> のロールを作り、<code>and_spec</code>/<code>or_spec</code>/<code>not_spec</code> メソッドを提供する</li><li><strong>演算子オーバーロード</strong>: <code>use overload</code> で <code>&</code>、<code>|</code>、<code>!</code> をオーバーロードし、宣言的な合成構文を実現する</li><li><strong>合成クラスの実装</strong>: <code>Specification::And</code>、<code>Specification::Or</code>、<code>Specification::Not</code> の3つの合成クラスを作る</li><li><strong>利用側の書き換え</strong>: 旧いif文を <code>$spec->is_satisfied_by($customer)</code> に置き換え、仕様オブジェクトは外部からDIで渡す</li><li><strong>テスト</strong>: 各仕様クラスを独立してテストし、合成結果もテストする</li></ol><h3 id=ロックより>ロックより</h3><p>条件が散在しているとき、真犯人はif文ではない。if文に名前を与えなかった我々自身だ。</p><p>名前のない証言者は法廷に立てない。名前のない条件は管理できない。12箇所に散らばった<code>credit_score > 700</code>は、12の匿名の証言だ。匿名の証言は食い違い、食い違いはインシデントを招く。</p><p>名前を与え、法廷に集め、一枚の判決文にまとめたまえ。そうすれば二度と跳弾は起きない。</p></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/perl/>Perl</a>
+<a href=/tags/moo/>Moo</a>
+<a href=/tags/specification-pattern/>Specification-Pattern</a>
+<a href=/tags/shotgun-surgery/>Shotgun-Surgery</a>
+<a href=/tags/scattered-conditional/>Scattered-Conditional</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-detective/>Code-Detective</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/03/07/070705/><div class=article-image><img src=/public_images/2026/code-detective-observer-shotgun-surgery/header.png loading=lazy data-key data-hash=/public_images/2026/code-detective-observer-shotgun-surgery/header.png></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Observer】連続爆破の真犯人〜1箇所直すと3箇所壊れる呪い〜</h2></div></a></article><article class=has-image><a href=/2026/05/15/070705/><div class=article-image><img src=/public_images/2026/code-detective-bff/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-bff/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Backends for Frontends】最後の依頼〜一つの答えが全員を不満にする夜〜</h2></div></a></article><article class=has-image><a href=/2026/05/14/070705/><div class=article-image><img src=/public_images/2026/code-detective-api-gateway/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-api-gateway/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【API Gateway】窓口のない捜査本部〜マイクロサービスに個別に会いに行く悲劇〜</h2></div></a></article><article class=has-image><a href=/2026/05/13/070705/><div class=article-image><img src=/public_images/2026/code-detective-strangler-fig/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-strangler-fig/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Strangler Fig】外壁に伸びる蔓〜全面更改が新旧を窒息させる夜〜</h2></div></a></article><article class=has-image><a href=/2026/05/12/070705/><div class=article-image><img src=/public_images/2026/code-detective-anti-corruption-layer/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-anti-corruption-layer/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Anti-Corruption Layer】越境伝票の怪〜外様の略語が捜査本部を汚す夜〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

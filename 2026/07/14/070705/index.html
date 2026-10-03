@@ -1,0 +1,386 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="庭師リンは、意匠板の操作が直接データを書き換えるだけで取り消せず、大胆な配置換えを試せずにいた。見習い魔術師ルークは操作の記録を一つの型にまとめようとして歪みに気づき、Kotlinで操作をCommandオブジェクトに実体化し、undo/redoを実現する。"><title>コードウィザード【Command】怖くて、もう石ひとつ動かせない〜一手ずつを呪符に変え、いつでも巻き戻せるようにする〜</title><link rel=canonical href=https://www.nqou.net/2026/07/14/070705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コードウィザード【Command】怖くて、もう石ひとつ動かせない〜一手ずつを呪符に変え、いつでも巻き戻せるようにする〜"><meta property='og:description' content="庭師リンは、意匠板の操作が直接データを書き換えるだけで取り消せず、大胆な配置換えを試せずにいた。見習い魔術師ルークは操作の記録を一つの型にまとめようとして歪みに気づき、Kotlinで操作をCommandオブジェクトに実体化し、undo/redoを実現する。"><meta property='og:url' content='https://www.nqou.net/2026/07/14/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='kotlin'><meta property='article:tag' content='command'><meta property='article:tag' content='procedural-mutation'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-wizard'><meta property='article:published_time' content='2026-07-14T07:07:05+09:00'><meta property='article:modified_time' content='2026-07-14T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-wizard-command-undo/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コードウィザード【Command】怖くて、もう石ひとつ動かせない〜一手ずつを呪符に変え、いつでも巻き戻せるようにする〜"><meta name=twitter:description content="庭師リンは、意匠板の操作が直接データを書き換えるだけで取り消せず、大胆な配置換えを試せずにいた。見習い魔術師ルークは操作の記録を一つの型にまとめようとして歪みに気づき、Kotlinで操作をCommandオブジェクトに実体化し、undo/redoを実現する。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-wizard-command-undo/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-07-14T07:07:05+09:00","datePublished":"2026-07-14T07:07:05+09:00","description":"庭師リンは、意匠板の操作が直接データを書き換えるだけで取り消せず、大胆な配置換えを試せずにいた。見習い魔術師ルークは操作の記録を一つの型にまとめようとして歪みに気づき、Kotlinで操作をCommandオブジェクトに実体化し、undo/redoを実現する。","headline":"コードウィザード【Command】怖くて、もう石ひとつ動かせない〜一手ずつを呪符に変え、いつでも巻き戻せるようにする〜","image":"https://www.nqou.net/public_images/2026/code-wizard-command-undo/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/07/14/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#動かした石は二度と戻らない>動かした石は、二度と戻らない</a></li><li><a href=#名より先に仕組みの評判>名より先に、仕組みの評判</a></li><li><a href=#一つにまとめておけば>一つに、まとめておけば</a></li><li><a href=#この折り目と同じだ>この折り目と、同じだ</a></li><li><a href=#操作そのものを一枚の呪符に>操作そのものを、一枚の呪符に</a></li><li><a href=#紙の庭に石を置いて>紙の庭に、石を置いて</a></li><li><a href=#怖くなくなった意匠板>怖くなくなった、意匠板</a></li><li><a href=#試しに大胆に動かしてみる>試しに、大胆に動かしてみる</a><ol><li><a href=#-見習い魔術師ルークの魔導書メモlukes-spellbook-notes>📖 見習い魔術師ルークの魔導書メモ（Luke&rsquo;s Spellbook Notes）</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/07/14/070705/><img src=/public_images/2026/code-wizard-command-undo/header.webp loading=lazy alt="Featured image of post コードウィザード【Command】怖くて、もう石ひとつ動かせない〜一手ずつを呪符に変え、いつでも巻き戻せるようにする〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/07/14/070705/>コードウィザード【Command】怖くて、もう石ひとつ動かせない〜一手ずつを呪符に変え、いつでも巻き戻せるようにする〜</a></h2><h3 class=article-subtitle>庭師リンは、意匠板の操作が直接データを書き換えるだけで取り消せず、大胆な配置換えを試せずにいた。見習い魔術師ルークは操作の記録を一つの型にまとめようとして歪みに気づき、Kotlinで操作をCommandオブジェクトに実体化し、undo/redoを実現する。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>14, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 18分</time></div></footer></div></header><section class=article-content><h2 id=動かした石は二度と戻らない>動かした石は、二度と戻らない</h2><p>うちはリン。庭師をやっている。石を組み、灯籠を据え、植木を配し、依頼された庭の姿を仕上げるのが仕事だ。</p><p>いきなり本物の庭に手を入れるわけじゃない。まずは「意匠板」——石や灯籠や植木を模した符を、盤の上で動かしたり消したりして、実際に据える前に配置を試すための道具を使う。頭の中の思いつきを、盤の上で先に確かめる。それが、うちの仕事のやり方だった。</p><p>ところがこの意匠板、動かす・消すの操作が、盤のデータをその場で直に書き換えるだけの作りになっている。一度動かした石も、消した灯籠も、二度と元の位置・元の姿には戻らない。取り消しも、やり直しも、履歴も、何も無い。</p><p>頭の中では「もっとこう配置したら映えるのに」と分かっていても、うちはいつからか、大胆な配置換えを試すのをやめてしまっていた。戻せない恐れが、先に立つ。腕は落ちてないはずなのに、うちの手がけた庭は、いつからか似たり寄ったりになっていた。</p><p>先日、決定打があった。ある由緒ある庭で、代々受け継がれてきた灯籠を一つ、意匠板の上で「試しに」動かしてみたことがある。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-kotlin data-lang=kotlin><span class=line><span class=cl><span class=c1>// 庭の意匠板に置く一つひとつの符（石・灯籠・植木）。位置は val（一度置いたら書き換えない）
+</span></span></span><span class=line><span class=cl><span class=k>data</span> <span class=k>class</span> <span class=nc>Shape</span><span class=p>(</span><span class=k>val</span> <span class=py>id</span><span class=p>:</span> <span class=n>String</span><span class=p>,</span> <span class=k>val</span> <span class=py>kind</span><span class=p>:</span> <span class=n>String</span><span class=p>,</span> <span class=k>val</span> <span class=py>x</span><span class=p>:</span> <span class=n>Int</span><span class=p>,</span> <span class=k>val</span> <span class=py>y</span><span class=p>:</span> <span class=n>Int</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// 意匠板：符の配置を直に持つ。動かす・消す操作が、盤のデータをその場で書き換えるだけ
+</span></span></span><span class=line><span class=cl><span class=k>class</span> <span class=nc>GardenBoard</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>private</span> <span class=k>val</span> <span class=py>shapes</span> <span class=p>=</span> <span class=n>mutableMapOf</span><span class=p>&lt;</span><span class=n>String</span><span class=p>,</span> <span class=n>Shape</span><span class=p>&gt;()</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>fun</span> <span class=nf>place</span><span class=p>(</span><span class=n>shape</span><span class=p>:</span> <span class=n>Shape</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>shapes</span><span class=p>[</span><span class=n>shape</span><span class=p>.</span><span class=n>id</span><span class=p>]</span> <span class=p>=</span> <span class=n>shape</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>fun</span> <span class=nf>move</span><span class=p>(</span><span class=n>id</span><span class=p>:</span> <span class=n>String</span><span class=p>,</span> <span class=n>dx</span><span class=p>:</span> <span class=n>Int</span><span class=p>,</span> <span class=n>dy</span><span class=p>:</span> <span class=n>Int</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>val</span> <span class=py>current</span> <span class=p>=</span> <span class=n>shapes</span><span class=p>[</span><span class=n>id</span><span class=p>]</span> <span class=o>?:</span> <span class=k>return</span>
+</span></span><span class=line><span class=cl>        <span class=n>shapes</span><span class=p>[</span><span class=n>id</span><span class=p>]</span> <span class=p>=</span> <span class=n>current</span><span class=p>.</span><span class=n>copy</span><span class=p>(</span><span class=n>x</span> <span class=p>=</span> <span class=n>current</span><span class=p>.</span><span class=n>x</span> <span class=p>+</span> <span class=n>dx</span><span class=p>,</span> <span class=n>y</span> <span class=p>=</span> <span class=n>current</span><span class=p>.</span><span class=n>y</span> <span class=p>+</span> <span class=n>dy</span><span class=p>)</span>   <span class=c1>// 上書きしたら、元の位置はもう覚えていない
+</span></span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>fun</span> <span class=nf>remove</span><span class=p>(</span><span class=n>id</span><span class=p>:</span> <span class=n>String</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>shapes</span><span class=p>.</span><span class=n>remove</span><span class=p>(</span><span class=n>id</span><span class=p>)</span>   <span class=c1>// 消したら、消した符の姿はどこにも残らない
+</span></span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>fun</span> <span class=nf>shapeAt</span><span class=p>(</span><span class=n>id</span><span class=p>:</span> <span class=n>String</span><span class=p>):</span> <span class=n>Shape</span><span class=p>?</span> <span class=p>=</span> <span class=n>shapes</span><span class=p>[</span><span class=n>id</span><span class=p>]</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>data class</code> は、値をひとまとまりに運ぶための器だ。<code>copy()</code> は、一部だけ変えた新しい姿を作る書き方——今回なら、<code>x</code>と<code>y</code>だけを変えた新しい<code>Shape</code>を作って、そのまま盤に置き直している。</p><p>問題は、その置き直し方にある。<code>move</code>も<code>remove</code>も、盤のデータをその場で直接書き換えるだけで、「動かす前」「消す前」の姿をどこにも控えていない。一度上書きしたら、元の値はもう覚えていない——それだけのことだ。</p><p>あの灯籠を試しに動かした後、うちは思ったより見栄えが悪く、元の位置に戻そうとした。だが盤には、元の位置を覚えている仕組みが無い。うちは自分の記憶と控えのスケッチだけを頼りに、位置を勘で逆算して打ち返した。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-kotlin data-lang=kotlin><span class=line><span class=cl><span class=k>val</span> <span class=py>original</span> <span class=p>=</span> <span class=n>Shape</span><span class=p>(</span><span class=s2>&#34;lantern-01&#34;</span><span class=p>,</span> <span class=s2>&#34;灯籠&#34;</span><span class=p>,</span> <span class=mi>10</span><span class=p>,</span> <span class=mi>5</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=n>board</span><span class=p>.</span><span class=n>place</span><span class=p>(</span><span class=n>original</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>board</span><span class=p>.</span><span class=n>move</span><span class=p>(</span><span class=s2>&#34;lantern-01&#34;</span><span class=p>,</span> <span class=mi>3</span><span class=p>,</span> <span class=mi>0</span><span class=p>)</span>     <span class=c1>// 試しに動かす → (13, 5)
+</span></span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// 元に戻したいが、盤のどこにも「動かす前は (10, 5) だった」という記録は無い。
+</span></span></span><span class=line><span class=cl><span class=c1>// うちは自分の記憶とスケッチを頼りに、逆算して打ち返すしかない
+</span></span></span><span class=line><span class=cl><span class=n>board</span><span class=p>.</span><span class=n>move</span><span class=p>(</span><span class=s2>&#34;lantern-01&#34;</span><span class=p>,</span> <span class=p>-</span><span class=mi>3</span><span class=p>,</span> <span class=p>-</span><span class=mi>1</span><span class=p>)</span>   <span class=c1>// 記憶違いで、縦のずれを勘違いしたまま打ち返してしまう
+</span></span></span></code></pre></td></tr></table></div></div><p>盤は「間違っている」とは一切教えてくれない。淡々と、間違った位置を返すだけだ。据えてから、依頼主に「前より心持ち右に寄っている気がする」と指摘され、うちは冷や汗をかいた。幸い大事には至らなかったが、二度とやりたくない。</p><h2 id=名より先に仕組みの評判>名より先に、仕組みの評判</h2><p>花市場に集う庭師仲間うちで、ここのところ、ある噂を耳にしていた。</p><p>「丘のアカデミーの見習いが、何かを直したらしい」。ただし、その見習いの名前より先に、直した中身のほうが先に伝わっていた。「切れ味のいい魔法を使えるようになった、って話じゃない。&ldquo;やり直しがきく"仕組みを作ったらしい」。</p><p>うちは、その言い回しに引っかかった。名前より先に、成果の中身が伝わってくる。よほどのことなのか、あるいはただの尾ひれか。どちらにせよ、一度見ておく価値はありそうだった。うちは道具を仕舞い、アカデミーの丘を上った。</p><p>工房は、本棚と、宙にふわふわ浮かぶ光の粒でいっぱいだった。うちは物珍しさよりも、まず部屋の隅にちらりと目をやった。白髪の年寄りが一人、椅子に座っている。庭仕事とは縁のなさそうな、隠居の爺さんだろう——それだけ思って、うちはすぐに目を逸らした。</p><p>肝心の見習いは、机のほうにいた。一枚の護符を、几帳面に一つ折っては、指先でそっと元の折り目まで開き戻し、寸分違わず同じ形に戻るかを確かめてから、また折り直す、ということを飽きずに繰り返している。</p><p>「……戻せる形のまま、進めているか」</p><p>そう独りごちながら。うちが声をかけると、護符を置いて顔を上げた。</p><p>「あ……意匠板の、ご相談ですか」</p><p>これが噂の見習いか。派手なところは、どこにも無い。</p><p>うちは、意匠板の写しと、灯籠のずれの一件を語った。ルーク——と名乗ったその見習いは、写しをじっと見て、静かに言った。</p><p>「これは……一度上書きしたら、元の値はもう、どこにも残っていませんね。動かす前、消す前の姿を、盤がまるで覚えていない」</p><p>「そうなんだよ」とうちは頷いた。「だから、うちは怖くて、大胆には動かせねえ」</p><p>ルークが名付けたところによると、これは<strong>取り消し・履歴のできない手続き的操作</strong>——操作が盤のデータを直接書き換えるだけで、元へ戻る道がどこにも用意されていない作り、なんだそうだ。</p><p>「一度動かしたら、もう後戻りはできねえんだ」。うちの言葉を、ルークは黙って受け止めていた。</p><h2 id=一つにまとめておけば>一つに、まとめておけば</h2><p>ルークは写しをしばらく見つめてから、うちに向かってでなく、低く独りごちた。</p><p>「この手順……逐一控えておけば、あとから読み解いて、戻す分岐を書けば済む」</p><p>宣言というより、静かな見積もりだった。うちは机の端から、それをちらりと見ているだけだった。</p><p>ルークは、操作の記録を一つの型にまとめ始めた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-kotlin data-lang=kotlin><span class=line><span class=cl><span class=c1>// ルーク（独り言）「この手順……逐一控えておけば、あとから読み解いて、戻す分岐を書けば済む」
+</span></span></span><span class=line><span class=cl><span class=k>data</span> <span class=k>class</span> <span class=nc>ActionLog</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=k>val</span> <span class=py>type</span><span class=p>:</span> <span class=n>String</span><span class=p>,</span>              <span class=c1>// &#34;MOVE&#34; / &#34;DELETE&#34; / &#34;ADD&#34; ……操作の種類が増えるたび、この型に足していくことになる
+</span></span></span><span class=line><span class=cl>    <span class=k>val</span> <span class=py>id</span><span class=p>:</span> <span class=n>String</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=k>val</span> <span class=py>dx</span><span class=p>:</span> <span class=n>Int</span><span class=p>?</span> <span class=p>=</span> <span class=k>null</span><span class=p>,</span> <span class=k>val</span> <span class=py>dy</span><span class=p>:</span> <span class=n>Int</span><span class=p>?</span> <span class=p>=</span> <span class=k>null</span><span class=p>,</span>       <span class=c1>// MOVE でしか使わない
+</span></span></span><span class=line><span class=cl>    <span class=k>val</span> <span class=py>removedShape</span><span class=p>:</span> <span class=n>Shape</span><span class=p>?</span> <span class=p>=</span> <span class=k>null</span><span class=p>,</span>                 <span class=c1>// DELETE でしか使わない
+</span></span></span><span class=line><span class=cl>    <span class=c1>// ADD 用の情報も、この先また別のフィールドとして足すことになる……
+</span></span></span><span class=line><span class=cl><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>fun</span> <span class=nf>undo</span><span class=p>(</span><span class=n>log</span><span class=p>:</span> <span class=n>ActionLog</span><span class=p>,</span> <span class=n>board</span><span class=p>:</span> <span class=n>GardenBoard</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>when</span> <span class=p>(</span><span class=n>log</span><span class=p>.</span><span class=n>type</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=s2>&#34;MOVE&#34;</span> <span class=o>-&gt;</span> <span class=n>board</span><span class=p>.</span><span class=n>move</span><span class=p>(</span><span class=n>log</span><span class=p>.</span><span class=n>id</span><span class=p>,</span> <span class=p>-(</span><span class=n>log</span><span class=p>.</span><span class=n>dx</span> <span class=o>?:</span> <span class=mi>0</span><span class=p>),</span> <span class=p>-(</span><span class=n>log</span><span class=p>.</span><span class=n>dy</span> <span class=o>?:</span> <span class=mi>0</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>        <span class=s2>&#34;DELETE&#34;</span> <span class=o>-&gt;</span> <span class=n>log</span><span class=p>.</span><span class=n>removedShape</span><span class=o>?.</span><span class=n>let</span> <span class=p>{</span> <span class=n>board</span><span class=p>.</span><span class=n>place</span><span class=p>(</span><span class=k>it</span><span class=p>)</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=c1>// &#34;ADD&#34; -&gt; まだ書けていない……
+</span></span></span><span class=line><span class=cl>        <span class=k>else</span> <span class=o>-&gt;</span> <span class=p>{}</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>移動の巻き戻しは書けた。削除の巻き戻しも、消した符を覚えておけば書けた。だが、追加の巻き戻しを書こうとして、ルークの手が止まった。</p><p>「追加の巻き戻しは、消すだけでいいのに……この記録の型には、もう使わない場所が、いくつも空いている」</p><p><code>dx</code>・<code>dy</code>・<code>removedShape</code>——操作の種類によっては、<code>null</code>のまま残る場所が目立ってくる。移動の記録には削除の情報が要らず、削除の記録には移動の情報が要らない。それでも同じ一つの型に収めようとするから、使わない場所が空いたままになる。</p><p>ルークの手が止まったのを見て、うちの中で、あの半日の冷や汗がふっと蘇った。</p><p>（……やっぱり、そう簡単にはいかないのか）</p><p>声には出さない。ただ、期待した分だけ、肩が強張るのを感じた。</p><p>隅の年寄りは、あいかわらずそこに座っていた。小さな砂時計を手に取り、無言でひっくり返しては、また戻す、ということを繰り返している。うちにはそれが、暇つぶしの手すさびに見えた。何をしているのかは、気にも留めなかった。</p><h2 id=この折り目と同じだ>この折り目と、同じだ</h2><p>ルークは、書きかけの記録から手を離した。机の端に置いていた、さっき折っていたあの護符を、ふと取り上げる。指先でゆっくり、元の折り目まで開き戻してみせながら、低く呟いた。</p><p>「……この折り目と、同じだ」</p><p>うちには、何のことか分からなかった。ルークは続けた。</p><p>「一つの記録に、全部の操作の"戻し方"を詰め込もうとしていた。でも、移動を戻すのに要る情報と、削除を戻すのに要る情報は、そもそも形が違う」</p><p>そこで、ルークは少し考えるように間を置いた。</p><p>「前に別のご依頼で、&ldquo;巨大な分岐"を見たことがあります。あのときは、あり得る状態の組み合わせを、一つ残らず先回りして潰そうとして、失敗しました。でも、今度のこれは違う。組み合わせを網羅しようとしているんじゃない。一つの入れ物に、形の違う戻し方を、無理に詰め込もうとして歪んでいるんです」</p><p>うちには魔術のことは分からないが、その口ぶりからは、似たような壁に二度目にぶつかっているんじゃない、ということだけは伝わってきた。</p><p>「操作ごとに、戻すための情報の形が違うなら……」ルークが呟く。「操作そのものを、それぞれ自分で戻せる一つの実体にすればいい。この護符みたいに、一つひとつが、自分の折り目を、自分で覚えていればいい」</p><p>誰にも急かされたわけじゃない。ルークは、自分で手を止めて、自分で気づいたようだった。</p><h2 id=操作そのものを一枚の呪符に>操作そのものを、一枚の呪符に</h2><p>ルークは、新しい設計に取りかかった。</p><p>「一つひとつの操作を、実行も、取り消しもできる形にします」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-kotlin data-lang=kotlin><span class=line><span class=cl><span class=c1>// 操作そのものを、実行(execute)も取り消し(undo)もできる一つの実体にする
+</span></span></span><span class=line><span class=cl><span class=k>interface</span> <span class=nc>Command</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>fun</span> <span class=nf>execute</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>    <span class=k>fun</span> <span class=nf>undo</span><span class=p>()</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>interface</code>——「こう呼べばこう応える」という約束の形だ。今回は、<code>execute</code>（実行する）と<code>undo</code>（取り消す）という、二つの口を持つ約束にした。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-kotlin data-lang=kotlin><span class=line><span class=cl><span class=k>class</span> <span class=nc>MoveCommand</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=k>private</span> <span class=k>val</span> <span class=py>board</span><span class=p>:</span> <span class=n>GardenBoard</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=k>private</span> <span class=k>val</span> <span class=py>id</span><span class=p>:</span> <span class=n>String</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=k>private</span> <span class=k>val</span> <span class=py>dx</span><span class=p>:</span> <span class=n>Int</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=k>private</span> <span class=k>val</span> <span class=py>dy</span><span class=p>:</span> <span class=n>Int</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>)</span> <span class=p>:</span> <span class=n>Command</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>override</span> <span class=k>fun</span> <span class=nf>execute</span><span class=p>()</span> <span class=p>=</span> <span class=n>board</span><span class=p>.</span><span class=n>move</span><span class=p>(</span><span class=n>id</span><span class=p>,</span> <span class=n>dx</span><span class=p>,</span> <span class=n>dy</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=k>override</span> <span class=k>fun</span> <span class=nf>undo</span><span class=p>()</span> <span class=p>=</span> <span class=n>board</span><span class=p>.</span><span class=n>move</span><span class=p>(</span><span class=n>id</span><span class=p>,</span> <span class=p>-</span><span class=n>dx</span><span class=p>,</span> <span class=p>-</span><span class=n>dy</span><span class=p>)</span>   <span class=c1>// 自分の増分だけを知っていればよい
+</span></span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>class</span> <span class=nc>DeleteCommand</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=k>private</span> <span class=k>val</span> <span class=py>board</span><span class=p>:</span> <span class=n>GardenBoard</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=k>private</span> <span class=k>val</span> <span class=py>id</span><span class=p>:</span> <span class=n>String</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>)</span> <span class=p>:</span> <span class=n>Command</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>private</span> <span class=k>var</span> <span class=py>removed</span><span class=p>:</span> <span class=n>Shape</span><span class=p>?</span> <span class=p>=</span> <span class=k>null</span>   <span class=c1>// 消す前の姿を、自分でこっそり覚えておく
+</span></span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>override</span> <span class=k>fun</span> <span class=nf>execute</span><span class=p>()</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>removed</span> <span class=p>=</span> <span class=n>board</span><span class=p>.</span><span class=n>remove</span><span class=p>(</span><span class=n>id</span><span class=p>)</span>       <span class=c1>// remove は「消した中身」をそのまま返してくれる（無ければ null）
+</span></span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>override</span> <span class=k>fun</span> <span class=nf>undo</span><span class=p>()</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>removed</span><span class=o>?.</span><span class=n>let</span> <span class=p>{</span> <span class=n>board</span><span class=p>.</span><span class=n>place</span><span class=p>(</span><span class=k>it</span><span class=p>)</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>class</span> <span class=nc>AddCommand</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=k>private</span> <span class=k>val</span> <span class=py>board</span><span class=p>:</span> <span class=n>GardenBoard</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=k>private</span> <span class=k>val</span> <span class=py>shape</span><span class=p>:</span> <span class=n>Shape</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>)</span> <span class=p>:</span> <span class=n>Command</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>override</span> <span class=k>fun</span> <span class=nf>execute</span><span class=p>()</span> <span class=p>=</span> <span class=n>board</span><span class=p>.</span><span class=n>place</span><span class=p>(</span><span class=n>shape</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=k>override</span> <span class=k>fun</span> <span class=nf>undo</span><span class=p>()</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>board</span><span class=p>.</span><span class=n>remove</span><span class=p>(</span><span class=n>shape</span><span class=p>.</span><span class=n>id</span><span class=p>)</span>   <span class=c1>// 追加の逆は、ただ消すだけ
+</span></span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「移動なら、動かした分だけ。削除なら、消した姿だけ。それぞれが、自分の戻し方に要る情報だけを持ちます。他の操作のことは、何も知らなくていい」</p><p>操作そのものを、実行も取り消しもできる一つの実体にする——これが<strong>Command</strong>、操作をオブジェクトとして表現し、実行だけでなく取り消しも扱えるようにする定石だ、とルークは言った。</p><p>うちは、さっきの空いた場所だらけの記録を思い出した。「なるほどな……一つにまとめようとするから、余計な空きができる。それぞれが自分のことだけ覚えてりゃ、余計な場所は要らないってことか」</p><p>「はい」</p><p><code>DeleteCommand</code>の<code>remove</code>について、ルークが付け加えた。「盤の<code>remove</code>も、このタイミングで書き換えました。消した中身を、そのまま返すようにしたんです」。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-kotlin data-lang=kotlin><span class=line><span class=cl><span class=c1>// GardenBoard.remove を書き換え：消した中身を、そのまま返すようにする
+</span></span></span><span class=line><span class=cl><span class=k>fun</span> <span class=nf>remove</span><span class=p>(</span><span class=n>id</span><span class=p>:</span> <span class=n>String</span><span class=p>):</span> <span class=n>Shape</span><span class=p>?</span> <span class=p>=</span> <span class=n>shapes</span><span class=p>.</span><span class=n>remove</span><span class=p>(</span><span class=n>id</span><span class=p>)</span>   <span class=c1>// 消した中身をそのまま返してくれる（無ければ null）
+</span></span></span></code></pre></td></tr></table></div></div><p>「前は、消したら何も返さない作りでした。消す前にわざわざ確認しにいかなくて済むように、<code>MutableMap</code>の<code>remove</code>が持っている、消した値をそのまま返してくれる——無ければ<code>null</code>だ、という性質を、そのまま活かす形にしました」</p><p>一つ、うちには気になることがあった。</p><p>「庭の"全体の写し"を、動かすたびごっそり取っておけば、よくないのか。一手ごとに、盤ぜんぶの姿を保存しておくとか」</p><p>ルークは首を振った。</p><p>「写しを毎回まるごと取ると、庭が大きくなるほど写しが重くなりますし……それに、&ldquo;何をしたか"という記録そのものが消えてしまいます。操作そのものを覚えておけば、軽いですし、&ldquo;何をしたか"も一緒に残ります」</p><p>なるほど、とうちは思った。全部を丸ごと保存しておくやり方と、やったことだけを覚えておくやり方は、似ているようで違う。</p><p>続けて、ルークは操作を積んでおく係を書いた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-kotlin data-lang=kotlin><span class=line><span class=cl><span class=c1>// 使った操作を積み、戻す・やり直すを管理する係
+</span></span></span><span class=line><span class=cl><span class=k>class</span> <span class=nc>CommandHistory</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>private</span> <span class=k>val</span> <span class=py>undoStack</span> <span class=p>=</span> <span class=n>ArrayDeque</span><span class=p>&lt;</span><span class=n>Command</span><span class=p>&gt;()</span>
+</span></span><span class=line><span class=cl>    <span class=k>private</span> <span class=k>val</span> <span class=py>redoStack</span> <span class=p>=</span> <span class=n>ArrayDeque</span><span class=p>&lt;</span><span class=n>Command</span><span class=p>&gt;()</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>fun</span> <span class=nf>execute</span><span class=p>(</span><span class=n>command</span><span class=p>:</span> <span class=n>Command</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>command</span><span class=p>.</span><span class=n>execute</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>        <span class=n>undoStack</span><span class=p>.</span><span class=n>addLast</span><span class=p>(</span><span class=n>command</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=n>redoStack</span><span class=p>.</span><span class=n>clear</span><span class=p>()</span>   <span class=c1>// 新しい一手をしたら、やり直し履歴は捨てる
+</span></span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>fun</span> <span class=nf>undo</span><span class=p>()</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>val</span> <span class=py>command</span> <span class=p>=</span> <span class=n>undoStack</span><span class=p>.</span><span class=n>removeLastOrNull</span><span class=p>()</span> <span class=o>?:</span> <span class=k>return</span>   <span class=c1>// 履歴が空なら、何もしない
+</span></span></span><span class=line><span class=cl>        <span class=n>command</span><span class=p>.</span><span class=n>undo</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>        <span class=n>redoStack</span><span class=p>.</span><span class=n>addLast</span><span class=p>(</span><span class=n>command</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>fun</span> <span class=nf>redo</span><span class=p>()</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>val</span> <span class=py>command</span> <span class=p>=</span> <span class=n>redoStack</span><span class=p>.</span><span class=n>removeLastOrNull</span><span class=p>()</span> <span class=o>?:</span> <span class=k>return</span>
+</span></span><span class=line><span class=cl>        <span class=n>command</span><span class=p>.</span><span class=n>execute</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>        <span class=n>undoStack</span><span class=p>.</span><span class=n>addLast</span><span class=p>(</span><span class=n>command</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>ArrayDeque</code>は、後に積んだものから先に取り出せる、一列の入れ物だ。<code>addLast</code>が積む、<code>removeLastOrNull</code>が、直近に積んだものを取り出す——ただし、中身が空なら<code>null</code>が返る。</p><p>「積んだものが無かったら、どうなる」とうちは訊いた。</p><p>「<code>removeLastOrNull</code>は、積んだものが無ければ<code>null</code>を返します。<code>?: return</code>——<code>null</code>だったら、そのときは何もせず帰る、という書き方です。&ldquo;魔力が空かもしれない"を先に認めておく、というのと同じ考え方です」</p><p>「一度戻したものを、またやり直せるのか」</p><p>「はい。<code>redo</code>用にも別に積んでおきます。ただし、戻した後に新しい操作をしたら、やり直し履歴は捨てます。一度枝分かれした先の"もしも"を、また辿れてしまうと、庭の姿がどっちつかずになりますから」</p><p>ルークが呪文を書き終えると、机の上には何枚もの呪符と、それらを収める魔導書のような履歴管理の入れ物が整然と並んでいました。
+うちは腕を組み、頭の中でそのつながりを反芻してみます。</p><p>「……なるほどな。全体の流れがようやく見えてきたぞ。うちが操作をするたびに、この履歴管理の魔導書が呪符を預かり、戻すときはその呪符自身に元に戻す術を実行させる。そしてすべての呪符は、うちの意匠板を裏で操作している……こういうことかい？」</p><p>「はい、その通りです」ルークは誇らしげに頷き、一枚の羊皮紙にその関係図を描き出してみせました。</p><p><img src=/public_images/2026/code-wizard-command-undo/infographic_1.webp loading=lazy alt=Commandパターンの構造設計図。CommandHistoryがCommandの履歴を管理し、MoveCommand、DeleteCommand、AddCommandがCommandインターフェースを実装してGardenBoardを操作する関係を示すクラス図></p><p>「こうして見ると、実に綺麗だな」とうちはため息をつきました。「魔導書は呪符の共通の約束（インターフェース）しか知らないから、これから新しい操作が増えても、魔導書そのものを書き換える必要がないってわけだ」</p><h2 id=紙の庭に石を置いて>紙の庭に、石を置いて</h2><p>「本物の庭に石を置く前に」とルークは言った。「結界の中に紙の庭を敷いて、一手ずつ確かめます」</p><p>模擬詠唱——本番の前に、安全な形で試しに動かして確かめる作法だ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-kotlin data-lang=kotlin><span class=line><span class=cl><span class=c1>// 1. MoveCommand の execute/undo: 動かした後にundoすると、元の座標に正確に戻る
+</span></span></span><span class=line><span class=cl><span class=k>val</span> <span class=py>board1</span> <span class=p>=</span> <span class=n>GardenBoard</span><span class=p>()</span>
+</span></span><span class=line><span class=cl><span class=n>board1</span><span class=p>.</span><span class=n>place</span><span class=p>(</span><span class=n>Shape</span><span class=p>(</span><span class=s2>&#34;lantern-01&#34;</span><span class=p>,</span> <span class=s2>&#34;灯籠&#34;</span><span class=p>,</span> <span class=mi>10</span><span class=p>,</span> <span class=mi>5</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>val</span> <span class=py>moveCmd</span> <span class=p>=</span> <span class=n>MoveCommand</span><span class=p>(</span><span class=n>board1</span><span class=p>,</span> <span class=s2>&#34;lantern-01&#34;</span><span class=p>,</span> <span class=mi>3</span><span class=p>,</span> <span class=mi>0</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=n>moveCmd</span><span class=p>.</span><span class=n>execute</span><span class=p>()</span>
+</span></span><span class=line><span class=cl><span class=n>assertEquals</span><span class=p>(</span><span class=n>Shape</span><span class=p>(</span><span class=s2>&#34;lantern-01&#34;</span><span class=p>,</span> <span class=s2>&#34;灯籠&#34;</span><span class=p>,</span> <span class=mi>13</span><span class=p>,</span> <span class=mi>5</span><span class=p>),</span> <span class=n>board1</span><span class=p>.</span><span class=n>shapeAt</span><span class=p>(</span><span class=s2>&#34;lantern-01&#34;</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>moveCmd</span><span class=p>.</span><span class=n>undo</span><span class=p>()</span>
+</span></span><span class=line><span class=cl><span class=n>assertEquals</span><span class=p>(</span><span class=n>Shape</span><span class=p>(</span><span class=s2>&#34;lantern-01&#34;</span><span class=p>,</span> <span class=s2>&#34;灯籠&#34;</span><span class=p>,</span> <span class=mi>10</span><span class=p>,</span> <span class=mi>5</span><span class=p>),</span> <span class=n>board1</span><span class=p>.</span><span class=n>shapeAt</span><span class=p>(</span><span class=s2>&#34;lantern-01&#34;</span><span class=p>))</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<code>assertEquals</code>は、動かした後の姿が、狙いどおりかを照らします。動かして<code>(13, 5)</code>、戻して、ちゃんと<code>(10, 5)</code>に正確に戻ることを確かめました」</p><p>続けて、削除の巻き戻し。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-kotlin data-lang=kotlin><span class=line><span class=cl><span class=c1>// 2. DeleteCommand の execute/undo: 消した後にundoすると、消す前と寸分同じ Shape が復元される
+</span></span></span><span class=line><span class=cl><span class=k>val</span> <span class=py>board2</span> <span class=p>=</span> <span class=n>GardenBoard</span><span class=p>()</span>
+</span></span><span class=line><span class=cl><span class=k>val</span> <span class=py>originalStone</span> <span class=p>=</span> <span class=n>Shape</span><span class=p>(</span><span class=s2>&#34;stone-01&#34;</span><span class=p>,</span> <span class=s2>&#34;石&#34;</span><span class=p>,</span> <span class=mi>2</span><span class=p>,</span> <span class=mi>2</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=n>board2</span><span class=p>.</span><span class=n>place</span><span class=p>(</span><span class=n>originalStone</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>val</span> <span class=py>deleteCmd</span> <span class=p>=</span> <span class=n>DeleteCommand</span><span class=p>(</span><span class=n>board2</span><span class=p>,</span> <span class=s2>&#34;stone-01&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=n>deleteCmd</span><span class=p>.</span><span class=n>execute</span><span class=p>()</span>
+</span></span><span class=line><span class=cl><span class=n>assertEquals</span><span class=p>(</span><span class=k>null</span><span class=p>,</span> <span class=n>board2</span><span class=p>.</span><span class=n>shapeAt</span><span class=p>(</span><span class=s2>&#34;stone-01&#34;</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>deleteCmd</span><span class=p>.</span><span class=n>undo</span><span class=p>()</span>
+</span></span><span class=line><span class=cl><span class=n>assertEquals</span><span class=p>(</span><span class=n>originalStone</span><span class=p>,</span> <span class=n>board2</span><span class=p>.</span><span class=n>shapeAt</span><span class=p>(</span><span class=s2>&#34;stone-01&#34;</span><span class=p>))</span>
+</span></span></code></pre></td></tr></table></div></div><p>「消す前の姿を、消す前とまったく同じ形で戻す。うちの、あの灯籠のときの悩みに、そのまま応えます」</p><p>うちは、あの日のことを思い出しながら、その一行を目で追った。勘で逆算する必要が、もう無い。</p><p>さらに、複数の操作を重ねてから戻す検め。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-kotlin data-lang=kotlin><span class=line><span class=cl><span class=c1>// 3. 任意の操作列のundo/redo: 移動→削除→追加、の順に実行した後、
+</span></span></span><span class=line><span class=cl><span class=c1>//    3回undoすると元の状態に戻り、3回redoすると再び同じ結果になる
+</span></span></span><span class=line><span class=cl><span class=k>val</span> <span class=py>board3</span> <span class=p>=</span> <span class=n>GardenBoard</span><span class=p>()</span>
+</span></span><span class=line><span class=cl><span class=n>board3</span><span class=p>.</span><span class=n>place</span><span class=p>(</span><span class=n>Shape</span><span class=p>(</span><span class=s2>&#34;tree-01&#34;</span><span class=p>,</span> <span class=s2>&#34;植木&#34;</span><span class=p>,</span> <span class=mi>1</span><span class=p>,</span> <span class=mi>1</span><span class=p>))</span>
+</span></span><span class=line><span class=cl><span class=n>board3</span><span class=p>.</span><span class=n>place</span><span class=p>(</span><span class=n>Shape</span><span class=p>(</span><span class=s2>&#34;stone-02&#34;</span><span class=p>,</span> <span class=s2>&#34;石&#34;</span><span class=p>,</span> <span class=mi>5</span><span class=p>,</span> <span class=mi>5</span><span class=p>))</span>
+</span></span><span class=line><span class=cl><span class=k>val</span> <span class=py>addedLantern</span> <span class=p>=</span> <span class=n>Shape</span><span class=p>(</span><span class=s2>&#34;lantern-02&#34;</span><span class=p>,</span> <span class=s2>&#34;灯籠&#34;</span><span class=p>,</span> <span class=mi>20</span><span class=p>,</span> <span class=mi>20</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>val</span> <span class=py>history</span> <span class=p>=</span> <span class=n>CommandHistory</span><span class=p>()</span>
+</span></span><span class=line><span class=cl><span class=n>history</span><span class=p>.</span><span class=n>execute</span><span class=p>(</span><span class=n>MoveCommand</span><span class=p>(</span><span class=n>board3</span><span class=p>,</span> <span class=s2>&#34;tree-01&#34;</span><span class=p>,</span> <span class=mi>4</span><span class=p>,</span> <span class=p>-</span><span class=mi>1</span><span class=p>))</span>
+</span></span><span class=line><span class=cl><span class=n>history</span><span class=p>.</span><span class=n>execute</span><span class=p>(</span><span class=n>DeleteCommand</span><span class=p>(</span><span class=n>board3</span><span class=p>,</span> <span class=s2>&#34;stone-02&#34;</span><span class=p>))</span>
+</span></span><span class=line><span class=cl><span class=n>history</span><span class=p>.</span><span class=n>execute</span><span class=p>(</span><span class=n>AddCommand</span><span class=p>(</span><span class=n>board3</span><span class=p>,</span> <span class=n>addedLantern</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// 3回undoで初期状態に戻る
+</span></span></span><span class=line><span class=cl><span class=n>history</span><span class=p>.</span><span class=n>undo</span><span class=p>();</span> <span class=n>history</span><span class=p>.</span><span class=n>undo</span><span class=p>();</span> <span class=n>history</span><span class=p>.</span><span class=n>undo</span><span class=p>()</span>
+</span></span><span class=line><span class=cl><span class=n>assertEquals</span><span class=p>(</span><span class=n>Shape</span><span class=p>(</span><span class=s2>&#34;tree-01&#34;</span><span class=p>,</span> <span class=s2>&#34;植木&#34;</span><span class=p>,</span> <span class=mi>1</span><span class=p>,</span> <span class=mi>1</span><span class=p>),</span> <span class=n>board3</span><span class=p>.</span><span class=n>shapeAt</span><span class=p>(</span><span class=s2>&#34;tree-01&#34;</span><span class=p>))</span>
+</span></span><span class=line><span class=cl><span class=n>assertEquals</span><span class=p>(</span><span class=n>Shape</span><span class=p>(</span><span class=s2>&#34;stone-02&#34;</span><span class=p>,</span> <span class=s2>&#34;石&#34;</span><span class=p>,</span> <span class=mi>5</span><span class=p>,</span> <span class=mi>5</span><span class=p>),</span> <span class=n>board3</span><span class=p>.</span><span class=n>shapeAt</span><span class=p>(</span><span class=s2>&#34;stone-02&#34;</span><span class=p>))</span>
+</span></span><span class=line><span class=cl><span class=n>assertEquals</span><span class=p>(</span><span class=k>null</span><span class=p>,</span> <span class=n>board3</span><span class=p>.</span><span class=n>shapeAt</span><span class=p>(</span><span class=s2>&#34;lantern-02&#34;</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// 3回redoで操作後の状態に戻る
+</span></span></span><span class=line><span class=cl><span class=n>history</span><span class=p>.</span><span class=n>redo</span><span class=p>();</span> <span class=n>history</span><span class=p>.</span><span class=n>redo</span><span class=p>();</span> <span class=n>history</span><span class=p>.</span><span class=n>redo</span><span class=p>()</span>
+</span></span><span class=line><span class=cl><span class=n>assertEquals</span><span class=p>(</span><span class=n>Shape</span><span class=p>(</span><span class=s2>&#34;tree-01&#34;</span><span class=p>,</span> <span class=s2>&#34;植木&#34;</span><span class=p>,</span> <span class=mi>5</span><span class=p>,</span> <span class=mi>0</span><span class=p>),</span> <span class=n>board3</span><span class=p>.</span><span class=n>shapeAt</span><span class=p>(</span><span class=s2>&#34;tree-01&#34;</span><span class=p>))</span>
+</span></span><span class=line><span class=cl><span class=n>assertEquals</span><span class=p>(</span><span class=k>null</span><span class=p>,</span> <span class=n>board3</span><span class=p>.</span><span class=n>shapeAt</span><span class=p>(</span><span class=s2>&#34;stone-02&#34;</span><span class=p>))</span>
+</span></span><span class=line><span class=cl><span class=n>assertEquals</span><span class=p>(</span><span class=n>addedLantern</span><span class=p>,</span> <span class=n>board3</span><span class=p>.</span><span class=n>shapeAt</span><span class=p>(</span><span class=s2>&#34;lantern-02&#34;</span><span class=p>))</span>
+</span></span></code></pre></td></tr></table></div></div><p>「移動して、削除して、追加して。3回戻せば、最初の庭にきっちり戻ります。3回やり直せば、また同じ庭に」</p><p>異常系も、二つ検めた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span><span class=lnt>9
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-kotlin data-lang=kotlin><span class=line><span class=cl><span class=c1>// 4. 履歴が空のときのundoが安全に何もしない(異常系): 例外を投げず、盤の状態が変わらない
+</span></span></span><span class=line><span class=cl><span class=k>val</span> <span class=py>board4</span> <span class=p>=</span> <span class=n>GardenBoard</span><span class=p>()</span>
+</span></span><span class=line><span class=cl><span class=k>val</span> <span class=py>untouched</span> <span class=p>=</span> <span class=n>Shape</span><span class=p>(</span><span class=s2>&#34;rock-01&#34;</span><span class=p>,</span> <span class=s2>&#34;石&#34;</span><span class=p>,</span> <span class=mi>0</span><span class=p>,</span> <span class=mi>0</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=n>board4</span><span class=p>.</span><span class=n>place</span><span class=p>(</span><span class=n>untouched</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>val</span> <span class=py>emptyHistory</span> <span class=p>=</span> <span class=n>CommandHistory</span><span class=p>()</span>
+</span></span><span class=line><span class=cl><span class=n>emptyHistory</span><span class=p>.</span><span class=n>undo</span><span class=p>()</span>   <span class=c1>// 何も積んでいない状態でundoを呼んでも、何もしない
+</span></span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>assertEquals</span><span class=p>(</span><span class=n>untouched</span><span class=p>,</span> <span class=n>board4</span><span class=p>.</span><span class=n>shapeAt</span><span class=p>(</span><span class=s2>&#34;rock-01&#34;</span><span class=p>))</span>
+</span></span></code></pre></td></tr></table></div></div><p>「積んだものが無いときに戻そうとしても、何も壊れません」</p><p>そして——戻した後に新しい一手をすれば、捨てた"もしも"はもう辿れないことも確かめた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-kotlin data-lang=kotlin><span class=line><span class=cl><span class=c1>// 5. undo後に新しい操作を実行するとredo履歴が破棄される
+</span></span></span><span class=line><span class=cl><span class=k>val</span> <span class=py>board5</span> <span class=p>=</span> <span class=n>GardenBoard</span><span class=p>()</span>
+</span></span><span class=line><span class=cl><span class=n>board5</span><span class=p>.</span><span class=n>place</span><span class=p>(</span><span class=n>Shape</span><span class=p>(</span><span class=s2>&#34;stone-03&#34;</span><span class=p>,</span> <span class=s2>&#34;石&#34;</span><span class=p>,</span> <span class=mi>0</span><span class=p>,</span> <span class=mi>0</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>val</span> <span class=py>history5</span> <span class=p>=</span> <span class=n>CommandHistory</span><span class=p>()</span>
+</span></span><span class=line><span class=cl><span class=n>history5</span><span class=p>.</span><span class=n>execute</span><span class=p>(</span><span class=n>MoveCommand</span><span class=p>(</span><span class=n>board5</span><span class=p>,</span> <span class=s2>&#34;stone-03&#34;</span><span class=p>,</span> <span class=mi>5</span><span class=p>,</span> <span class=mi>0</span><span class=p>))</span>   <span class=c1>// A実行 → (5,0)
+</span></span></span><span class=line><span class=cl><span class=n>history5</span><span class=p>.</span><span class=n>undo</span><span class=p>()</span>                                            <span class=c1>// undo → (0,0)、redoにAが積まれている
+</span></span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>history5</span><span class=p>.</span><span class=n>execute</span><span class=p>(</span><span class=n>MoveCommand</span><span class=p>(</span><span class=n>board5</span><span class=p>,</span> <span class=s2>&#34;stone-03&#34;</span><span class=p>,</span> <span class=mi>0</span><span class=p>,</span> <span class=mi>7</span><span class=p>))</span>    <span class=c1>// 新しい操作Bを実行 → redoのAは破棄 → (0,7)
+</span></span></span><span class=line><span class=cl><span class=n>assertEquals</span><span class=p>(</span><span class=n>Shape</span><span class=p>(</span><span class=s2>&#34;stone-03&#34;</span><span class=p>,</span> <span class=s2>&#34;石&#34;</span><span class=p>,</span> <span class=mi>0</span><span class=p>,</span> <span class=mi>7</span><span class=p>),</span> <span class=n>board5</span><span class=p>.</span><span class=n>shapeAt</span><span class=p>(</span><span class=s2>&#34;stone-03&#34;</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>history5</span><span class=p>.</span><span class=n>redo</span><span class=p>()</span>   <span class=c1>// 破棄されたAは再適用されない → 状態はBのまま
+</span></span></span><span class=line><span class=cl><span class=n>assertEquals</span><span class=p>(</span><span class=n>Shape</span><span class=p>(</span><span class=s2>&#34;stone-03&#34;</span><span class=p>,</span> <span class=s2>&#34;石&#34;</span><span class=p>,</span> <span class=mi>0</span><span class=p>,</span> <span class=mi>7</span><span class=p>),</span> <span class=n>board5</span><span class=p>.</span><span class=n>shapeAt</span><span class=p>(</span><span class=s2>&#34;stone-03&#34;</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>history5</span><span class=p>.</span><span class=n>redo</span><span class=p>()</span>   <span class=c1>// もう一度呼んでも状態は変化しない(redoが実際に空であることの確認)
+</span></span></span><span class=line><span class=cl><span class=n>assertEquals</span><span class=p>(</span><span class=n>Shape</span><span class=p>(</span><span class=s2>&#34;stone-03&#34;</span><span class=p>,</span> <span class=s2>&#34;石&#34;</span><span class=p>,</span> <span class=mi>0</span><span class=p>,</span> <span class=mi>7</span><span class=p>),</span> <span class=n>board5</span><span class=p>.</span><span class=n>shapeAt</span><span class=p>(</span><span class=s2>&#34;stone-03&#34;</span><span class=p>))</span>
+</span></span></code></pre></td></tr></table></div></div><p>「一度戻した後に、別の一手をすれば、捨てたやり直し先は、二度と戻ってきません。何度<code>redo</code>を呼んでも、盤の姿は変わらないままです」</p><p>結界の中の模擬詠唱は、すべて、狙いどおりに通った。</p><h2 id=怖くなくなった意匠板>怖くなくなった、意匠板</h2><p>書き直された意匠板を、うちは受け取った。石も灯籠も、動かす・消すが、それぞれ戻せる一つの実体になっている。</p><p>「……これなら、思い切って動かしても、平気なのか」</p><p>「はい」とルーク。「動かしても、消しても、一手ずつ、確実に戻せます」</p><p>うちは、あの由緒ある灯籠を勘で戻した半日を思い出した。「勘で戻す必要が、もう無いんだな」</p><p>念のため、うちは念を押した。「これで、うちがどんな配置を試しても、絶対に大丈夫なのか」</p><p>ルークは正直に答えた。「戻す・やり直すが、ちゃんと動くことは確かめました。ただ、それぞれの操作の"戻し方"を、僕が間違えて書けば、その一手はやはり正しく戻りません。何でも自動で直る魔法、ではないんです」</p><p>「……なるほどな」とうちは笑った。「戻れる仕組みがある、ってだけで、十分だよ」</p><h2 id=試しに大胆に動かしてみる>試しに、大胆に動かしてみる</h2><p>うちは、少し迷ってから切り出した。「試しに、うちの手でやってみていいか」</p><p>意匠板の上で、これまで避けてきた大胆な配置換えを試す。最初の一手は、指先がまだ少し強張っていて、動かす手が一瞬迷った。だが、undoで戻せることを確かめると、二手目からは迷いが薄れていく。もう一段大胆にして、またundo。最後に、これまでで一番気に入った並びに、redoで戻す。</p><p>「……こんなに、気軽に試せるとは思わなかった」</p><p>指の強張りは、いつのまにか消えていた。</p><p>帰り支度をしながら、うちはふと、隅の年寄りに目をやった。あいかわらず、砂時計をひっくり返しては戻す、それだけをやっている。ルークに何を言うでもない。</p><p>工房を出る間際、ルークがその年寄りに軽く声をかけるのが、うちの耳に届いた。</p><p>「お師匠さま、また」</p><p>……お師匠さま。うちは、そこで初めて腑に落ちた。ああ、道理で。あの隠居の爺さんだと思っていた年寄りは、名の知れた大魔術師だったらしい。ルークが最後まで、誰の助けも借りず、自分の手だけで戻ってきた理由が、少し分かった気がした。</p><p>作業小屋へ戻ったうちは、まず意匠板の新しい仕組みを試しに動かしてみた。動かして、消して、戻して、またやり直して。手が、自然と大胆になっている自分に気づく。</p><p>——戻せる、というだけで、うちはこんなに自由になれるのか。</p><p>似たり寄ったりだった庭に、今度はうちの気に入った並びを、一つ足してみよう。</p><hr><h3 id=-見習い魔術師ルークの魔導書メモlukes-spellbook-notes>📖 見習い魔術師ルークの魔導書メモ（Luke&rsquo;s Spellbook Notes）</h3><ul><li><strong>修復した呪文（クラス/モジュール名）</strong>: <code>Command</code>（<code>execute</code>/<code>undo</code>の約束）、<code>MoveCommand</code>/<code>DeleteCommand</code>/<code>AddCommand</code>（各操作の実体）、<code>CommandHistory</code>（undo/redoの履歴係）</li><li><strong>乱れの要因（アンチパターンの課題）</strong>:<ul><li>意匠板の<code>move</code>/<code>remove</code>が、盤のデータをその場で直接書き換えるだけで、動かす前・消す前の姿をどこにも控えていなかった。取り消し・履歴・再実行の仕組みが一切無く、依頼人（リン）は毎回、自分の記憶を頼りに逆算して手作業で戻すしかなく、実際に一度、勘で戻した位置がずれて依頼主に指摘された。</li></ul></li><li><strong>過剰設計の反省（背伸びの過ち）</strong>:<ul><li>操作の記録を一つの型（<code>ActionLog</code>）にまとめ、undo時に種類ごとの分岐で読み解けばいいと考え始めた。だが操作ごとに巻き戻しに必要な情報の"形"がまるで違うため、一つの記録型に無理に詰め込むと、使わないフィールドがどんどん増えて歪んでいくことに、自分で気づいて手を止めた。以前の"巨大な分岐"は、状態の組み合わせを網羅しようとして失敗したが、今回はそれとは別種——一つの入れ物に、形の違う戻し方を詰め込もうとする歪みだった。</li></ul></li><li><strong>魔術の定石（学んだ設計パターン）</strong>:<ul><li>Command。操作そのものを<code>execute</code>/<code>undo</code>を持つ一つの実体にし、各操作が自分の巻き戻しに必要な情報だけを持つようにした。履歴はundo用・redo用の2本のスタックで管理し、戻した後に新しい操作をすればやり直し履歴を捨てる、という定石も併せて実装した。</li></ul></li><li><strong>模擬詠唱の記録（検証のポイント）</strong>:<ul><li>各Commandのexecute/undoが正確に戻ること、任意の操作列をundo/redoできること、履歴が空のときのundoが安全に何もしないこと、undo後に新しい操作をするとredo履歴が破棄され、繰り返しredoを呼んでも状態が変化しないことを確認した。</li></ul></li><li><strong>ちなみに</strong>:<ul><li>今回のように「何をしたか」を覚えておくやり方をCommandと呼ぶ。一方、「状態そのもの」を丸ごと保存しておいて後で戻す考え方はMementoと呼ばれる別の定石で、何を戻すか＝Command、どう戻すか＝Memento、と役割が違う。undo/redoの履歴は、2本のスタックでなく、1本のリストとインデックスで管理するやり方でもよい。</li></ul></li><li><strong>リンの手が覚えたこと</strong>（今回、師匠マグナスは終始無言で、砂時計をひっくり返すばかりだった。だから、これは師の格言ではなく、うちがこの日持ち帰った一言）:<ul><li><em>「戻せる、というだけで、うちはこんなに自由になれるのか。」</em></li></ul></li></ul></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/kotlin/>Kotlin</a>
+<a href=/tags/command/>Command</a>
+<a href=/tags/procedural-mutation/>Procedural-Mutation</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-wizard/>Code-Wizard</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/07/17/070705/><div class=article-image><img src=/public_images/2026/code-wizard-kiss-composition/header.webp loading=lazy data-key data-hash=/public_images/2026/code-wizard-kiss-composition/header.webp></div><div class=article-details><h2 class=article-title>コードウィザード【KISS】一番小さな魔法で、足りる〜盛る誘惑を自ら退け、学んだ判断を過不足なく選んで組む〜</h2></div></a></article><article class=has-image><a href=/2026/07/16/070705/><div class=article-image><img src=/public_images/2026/code-wizard-facade-responsibility/header.webp loading=lazy data-key data-hash=/public_images/2026/code-wizard-facade-responsibility/header.webp></div><div class=article-details><h2 class=article-title>コードウィザード【Facade】分けたのに、もっと絡まった〜手順で切る誘惑を退け、責務で分けてFacadeの窓口で隠す〜</h2></div></a></article><article class=has-image><a href=/2026/07/15/070705/><div class=article-image><img src=/public_images/2026/code-wizard-yagni-template-method/header.webp loading=lazy data-key data-hash=/public_images/2026/code-wizard-yagni-template-method/header.webp></div><div class=article-details><h2 class=article-title>コードウィザード【YAGNI】その拡張性、まだ誰も頼んでいない〜二つの帳面の重複をTemplate Methodで一本化し、抽象化は差分が育ってから〜</h2></div></a></article><article class=has-image><a href=/2026/07/13/070705/><div class=article-image><img src=/public_images/2026/code-wizard-adapter-weather-api/header.webp loading=lazy data-key data-hash=/public_images/2026/code-wizard-adapter-weather-api/header.webp></div><div class=article-details><h2 class=article-title>コードウィザード【Adapter】外部の観測所は作り変えられないのに、無理に一つの親から継承させようとして行き詰まる〜継承をやめ、間に立つ変換役を挟んで共通の約束に翻訳する〜</h2></div></a></article><article class=has-image><a href=/2026/07/12/070705/><div class=article-image><img src=/public_images/2026/code-wizard-sealed-class-state/header.webp loading=lazy data-key data-hash=/public_images/2026/code-wizard-sealed-class-state/header.webp></div><div class=article-details><h2 class=article-title>コードウィザード【State】却下したはずの許可証が、承認済みの顔をして棚に並んでいた〜印を増やすのをやめ、許可証の姿そのものを型で決め直す〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

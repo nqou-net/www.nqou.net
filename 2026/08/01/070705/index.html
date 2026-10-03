@@ -1,0 +1,337 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="船外センサーが通知先を直接呼び出す密結合で、新設区画だけ警報が届かない事故に。購読者の名簿へ一斉通知するObserverパターンで、通知先の増減がセンサー無改変になる設計をRubyで解説します。"><title>コードナビゲーター【Observer】鳴らない警報と太った結び目〜購読で張り替える補給線〜</title><link rel=canonical href=https://www.nqou.net/2026/08/01/070705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コードナビゲーター【Observer】鳴らない警報と太った結び目〜購読で張り替える補給線〜"><meta property='og:description' content="船外センサーが通知先を直接呼び出す密結合で、新設区画だけ警報が届かない事故に。購読者の名簿へ一斉通知するObserverパターンで、通知先の増減がセンサー無改変になる設計をRubyで解説します。"><meta property='og:url' content='https://www.nqou.net/2026/08/01/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='ruby'><meta property='article:tag' content='observer'><meta property='article:tag' content='tight-coupling'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-navigator'><meta property='article:published_time' content='2026-08-01T07:07:05+09:00'><meta property='article:modified_time' content='2026-08-01T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-navigator-observer-ship-alerts/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コードナビゲーター【Observer】鳴らない警報と太った結び目〜購読で張り替える補給線〜"><meta name=twitter:description content="船外センサーが通知先を直接呼び出す密結合で、新設区画だけ警報が届かない事故に。購読者の名簿へ一斉通知するObserverパターンで、通知先の増減がセンサー無改変になる設計をRubyで解説します。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-navigator-observer-ship-alerts/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-08-01T07:07:05+09:00","datePublished":"2026-08-01T07:07:05+09:00","description":"船外センサーが通知先を直接呼び出す密結合で、新設区画だけ警報が届かない事故に。購読者の名簿へ一斉通知するObserverパターンで、通知先の増減がセンサー無改変になる設計をRubyで解説します。","headline":"コードナビゲーター【Observer】鳴らない警報と太った結び目〜購読で張り替える補給線〜","image":"https://www.nqou.net/public_images/2026/code-navigator-observer-ship-alerts/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/08/01/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#第1幕-異変鳴らなかった一区画>第1幕 異変——鳴らなかった一区画</a></li><li><a href=#第2幕-解析改修の年表と三度目の開腹>第2幕 解析——改修の年表と、三度目の開腹</a></li><li><a href=#第3幕-引き直し名簿と張り替えられた補給線>第3幕 引き直し——名簿と、張り替えられた補給線</a></li><li><a href=#第4幕-模擬航走全数の網と鳴らない平常>第4幕 模擬航走——全数の網と、鳴らない平常</a><ol><li><a href=#-オリオール号-航海日誌navigators-log>🚀 オリオール号 航海日誌（Navigator&rsquo;s Log）</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/08/01/070705/><img src=/public_images/2026/code-navigator-observer-ship-alerts/header.webp loading=lazy alt="Featured image of post コードナビゲーター【Observer】鳴らない警報と太った結び目〜購読で張り替える補給線〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/08/01/070705/>コードナビゲーター【Observer】鳴らない警報と太った結び目〜購読で張り替える補給線〜</a></h2><h3 class=article-subtitle>船外センサーが通知先を直接呼び出す密結合で、新設区画だけ警報が届かない事故に。購読者の名簿へ一斉通知するObserverパターンで、通知先の増減がセンサー無改変になる設計をRubyで解説します。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>01, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 26分</time></div></footer></div></header><section class=article-content><h2 id=第1幕-異変鳴らなかった一区画>第1幕 異変——鳴らなかった一区画</h2><p>月に一度、この船には全区画の警報を鳴らす朝がある。</p><p>総員警報演習。船外で何かがあったとき——微小デブリの群れに突っ込むとか、放射線の嵐に巻かれるとか——船外センサーの警報が全区画に届いて、各持ち場が持ち場の対処を取る。その通り道が生きているかどうかを、月に一度、試験信号で確かめる。それだけの行事だ。派手なことは何も起きない。起きないことを確かめるための演習だから、それでいい。</p><p>点呼表の機関室の欄には、俺の名前がある。ダグ。この恒星間貨物船〈オリオール号〉で機関を見て、二十年と少しになる。演習の朝の機関士の仕事は単純で、定刻にサイレンが鳴ったら、警報盤の点灯を確認し、主機出力を絞る手順を実際に一通り演じてみせる。それを何十回とやってきた。正直に言えば退屈な行事だ。だが省いていい行事だとは、一度も思ったことがない。警報ってのは、鳴らない日のためにある。鳴るべき日にちゃんと鳴ると分かっているから、鳴らない日を安心して過ごせる。</p><p>定刻。船内にサイレンが立ち上がった。</p><p>機関室の警報盤が点く。「船外異常・危険度8・訓練」の表示。俺は手順どおり、主機出力を巡航の三割まで絞る操作を確認する。ここまでは、いつもどおり。</p><p>演習の応答には二系統ある。ブリッジや医務室みたいに人が詰めている持ち場は、艦内無線で口頭の応答を返す。人のいない区画は、警報を受け取った装置が受達信号を管制盤へ自動で返す。管制盤の一覧が全部明るくなれば、演習は終わりだ。</p><p>無線が順に流れる。ブリッジ、応答よし。医務室、応答よし。機関室——俺だ——応答よし。</p><p>管制盤の一覧で、一つだけ暗い欄があった。</p><p>農産貨物区画。受達信号が、返っていない。</p><p>もう一度試験信号が流れた。サイレンは船中で鳴っている。だが管制盤のあの欄だけは、暗いままだった。</p><p>言っておくと、農産貨物区画というのは今航海前に増設したばかりの新入りだ。生鮮品輸送の受注が取れて、水耕栽培棚と低温槽を積んだ区画を貨物甲板の一角に組んだ。区画には人が常駐しない。船外で何かあれば、警報を受けて通風弁を閉じ、栽培棚を固定する——そういう対処が決まっている。その警報が、届いていない。</p><p>そして、もう一つ言っておかなきゃならないことがある。あの区画の増設工事で、電装と配管を引いたのは、俺だ。</p><p>警報線の敷設も、スピーカーの取り付けも、受達信号の返し線も、全部俺の手だ。演習記録に「農産区画・警報不達」と書かれれば、真っ先に検分されるのは俺の配線ということになる。誰かに言われるまでもない。俺が俺を最初に疑った。</p><p>演習が終わってすぐ、工具箱を提げて農産区画へ降りた。栽培棚の緑の匂いと、低温槽の乾いた冷気の中で、端子盤を開ける。テスターを当てる。警報線、導通よし。電圧よし。端子の締め付け、緩みなし。スピーカーは単体試験なら鳴る——区画の試験ボタンを押せば、ちゃんと音が出る。受達信号の返し線も生きている。</p><p>つまり、こういうことだ。鳴らせば、鳴る。鳴らす側が、鳴らしていない。</p><p>配線は容疑者から外れた。残る容疑者は一つしかない。船外センサーの警報を各区画へ配っている、手続きプログラムだ。俺はテスターを工具箱に戻し、蓋を閉めた。ハードの潔白を確かめてから行く。それが機関士の筋の通し方ってもんだ。</p><p>星図室へ上がると、うちの航法士は床に演習記録の写しを広げていた。</p><p>ミラ。〈オリオール号〉の航路を一手に引いている変わり者だ。床が定位置で、机はほとんど物置になっている。俺が戸口に立つと、顔も上げずに言った。</p><p>「農産区画、静かだったね。配線から見るか、プログラムから見るか、賭けてたところ」</p><p>「配線は俺がいま見てきた。導通も電圧もスピーカーも生きてる。プログラムだ」</p><p>賭けの答え合わせはそれで済んだらしい。ミラは演習記録から顔を上げて、投影機に手を伸ばした。</p><h2 id=第2幕-解析改修の年表と三度目の開腹>第2幕 解析——改修の年表と、三度目の開腹</h2><p>投影に浮かんだのは、船外センサーの警報処理だった。ただし、今朝の演習で動いていた版——つまり、事故を起こした当のコードだ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=c1># 事故当時の警報処理（今朝の演習で動いていた版）</span>
+</span></span><span class=line><span class=cl><span class=k>class</span> <span class=nc>HullSensor</span>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>initialize</span><span class=p>(</span><span class=n>engine_room</span><span class=p>,</span> <span class=n>bridge</span><span class=p>,</span> <span class=n>infirmary</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@engine_room</span> <span class=o>=</span> <span class=n>engine_room</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@bridge</span>      <span class=o>=</span> <span class=n>bridge</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@infirmary</span>   <span class=o>=</span> <span class=n>infirmary</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>detect</span><span class=p>(</span><span class=n>reading</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=k>unless</span> <span class=n>reading</span><span class=o>.</span><span class=n>dangerous?</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>alert</span> <span class=o>=</span> <span class=no>Alert</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=ss>kind</span><span class=p>:</span> <span class=n>reading</span><span class=o>.</span><span class=n>kind</span><span class=p>,</span> <span class=ss>level</span><span class=p>:</span> <span class=n>reading</span><span class=o>.</span><span class=n>level</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@engine_room</span><span class=o>.</span><span class=n>throttle_down</span><span class=p>(</span><span class=n>alert</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@bridge</span><span class=o>.</span><span class=n>post_warning</span><span class=p>(</span><span class=n>alert</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@infirmary</span><span class=o>.</span><span class=n>open_triage</span><span class=p>(</span><span class=n>alert</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p>機関屋でも、コードくらいは読む。<code>detect</code> が警報処理の本体で、センサーの観測値 <code>reading</code> を受け取る。観測値が危険域でなければ何もせずに引き返し、危険なら警報 <code>alert</code> を作って、機関室、ブリッジ、医務室——三つの部署を順に呼び出す。<code>reading</code> や <code>alert</code> は、こういう小さな入れ物だ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=c1># センサーの観測値。事象名と危険度（0〜10）を持つ</span>
+</span></span><span class=line><span class=cl><span class=k>class</span> <span class=nc>SensorReading</span>
+</span></span><span class=line><span class=cl>  <span class=kp>attr_reader</span> <span class=ss>:kind</span><span class=p>,</span> <span class=ss>:level</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>initialize</span><span class=p>(</span><span class=ss>kind</span><span class=p>:,</span> <span class=ss>level</span><span class=p>:)</span>
+</span></span><span class=line><span class=cl>    <span class=k>raise</span> <span class=no>ArgumentError</span><span class=p>,</span> <span class=s2>&#34;kind must not be empty&#34;</span> <span class=k>if</span> <span class=n>kind</span><span class=o>.</span><span class=n>nil?</span> <span class=o>||</span> <span class=n>kind</span><span class=o>.</span><span class=n>empty?</span>
+</span></span><span class=line><span class=cl>    <span class=k>raise</span> <span class=no>ArgumentError</span><span class=p>,</span> <span class=s2>&#34;level must be within 0..10: </span><span class=si>#{</span><span class=n>level</span><span class=si>}</span><span class=s2>&#34;</span> <span class=k>unless</span> <span class=p>(</span><span class=mi>0</span><span class=o>..</span><span class=mi>10</span><span class=p>)</span><span class=o>.</span><span class=n>cover?</span><span class=p>(</span><span class=n>level</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=vi>@kind</span> <span class=o>=</span> <span class=n>kind</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@level</span> <span class=o>=</span> <span class=n>level</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>dangerous?</span>
+</span></span><span class=line><span class=cl>    <span class=n>level</span> <span class=o>&gt;=</span> <span class=mi>7</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 発報された警報。センサーが観測値から作って各部署へ配る</span>
+</span></span><span class=line><span class=cl><span class=k>class</span> <span class=nc>Alert</span>
+</span></span><span class=line><span class=cl>  <span class=kp>attr_reader</span> <span class=ss>:kind</span><span class=p>,</span> <span class=ss>:level</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>initialize</span><span class=p>(</span><span class=ss>kind</span><span class=p>:,</span> <span class=ss>level</span><span class=p>:)</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@kind</span> <span class=o>=</span> <span class=n>kind</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@level</span> <span class=o>=</span> <span class=n>level</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>attr_reader</code> は持ち物を外から読めるようにする書き方、<code>raise ArgumentError</code> はおかしな値をその場で弾く門番、名前付きで渡す引数の書き方も含めて、このへんは前にミラから教わった型のままだ。<code>(0..10).cover?(level)</code> だけ初見だったから訊いたら、<code>0..10</code> は「0から10まで」という範囲そのものを表す Ruby の値（範囲オブジェクト）で、<code>cover?</code> は「その範囲に収まっているか」の問い合わせだという。危険度は10段階、7以上が危険域。今朝の試験信号は危険度8だから、<code>detect</code> は間違いなく本体まで進んでいる。</p><p>で、肝心の農産区画はどこにいるのかというと——どこにもいない。</p><p>呼び出しは三つ。機関室、ブリッジ、医務室。四つ目が無い。増設工事のとき、配線は引かれたが、この手続きへの追記が漏れた。それだけの話だった。原因としては、あっけないくらい単純だ。</p><p>「探す手間もなかったでしょ」とミラは言った。「でもね、今日の話は『なぜ漏れたか』じゃないの。『なぜ漏れる形なのか』のほう」</p><p>ミラは投影の脇に、このコードの改修履歴を呼び出した。そして年表でも読み上げるみたいに、順にさかのぼっていった。</p><p>就航時。警報の通知先は機関室とブリッジの、二つだけだった。センサーが二つの部署を直接呼ぶ。それだけの素直な作りで、必要十分だった。</p><p>数年前。長距離航路の医療要件が変わって、医務室が通知先に加わった。センサーの手続きに三行目の呼び出しが書き足された。当時としては最小の変更だ。</p><p>そして今回。農産貨物区画。四つ目の追記——が、漏れた。</p><p>「就航のとき、知らせる先は二つしかなかった。二本の糸なら、直に結ぶのが一番強いの。医務室のときも、同じ流儀で一行足すのが一番小さい直し方だった。三度目の追記で、初めて漏れた。よく二回持った、って読むべきよ」</p><p>責める調子は、どこにもなかった。前に別の一件でも思ったが、うちの航法士は昔のコードを悪く言わない。書かれた当時の条件をまず数えて、それから今の条件と見比べる。変わったのはコードじゃなくて、船の運用のほうだ——通知先が「増え続けるもの」になった。</p><p>応急の処置——現場の言い方ならホットフィックスだ——は一分で終わった。ミラは呼び出しを一行と、生成時に受け取る引数を一つ、書き足した。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=c1># 応急修正後の警報処理（掲載時点の現行版）</span>
+</span></span><span class=line><span class=cl><span class=k>class</span> <span class=nc>HullSensor</span>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>initialize</span><span class=p>(</span><span class=n>engine_room</span><span class=p>,</span> <span class=n>bridge</span><span class=p>,</span> <span class=n>infirmary</span><span class=p>,</span> <span class=n>farm_bay</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@engine_room</span> <span class=o>=</span> <span class=n>engine_room</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@bridge</span>      <span class=o>=</span> <span class=n>bridge</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@infirmary</span>   <span class=o>=</span> <span class=n>infirmary</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@farm_bay</span>    <span class=o>=</span> <span class=n>farm_bay</span> <span class=c1># ← 今回のホットフィックスで追加</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>detect</span><span class=p>(</span><span class=n>reading</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=k>unless</span> <span class=n>reading</span><span class=o>.</span><span class=n>dangerous?</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>alert</span> <span class=o>=</span> <span class=no>Alert</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=ss>kind</span><span class=p>:</span> <span class=n>reading</span><span class=o>.</span><span class=n>kind</span><span class=p>,</span> <span class=ss>level</span><span class=p>:</span> <span class=n>reading</span><span class=o>.</span><span class=n>level</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@engine_room</span><span class=o>.</span><span class=n>throttle_down</span><span class=p>(</span><span class=n>alert</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@bridge</span><span class=o>.</span><span class=n>post_warning</span><span class=p>(</span><span class=n>alert</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@infirmary</span><span class=o>.</span><span class=n>open_triage</span><span class=p>(</span><span class=n>alert</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@farm_bay</span><span class=o>.</span><span class=n>seal_vents</span><span class=p>(</span><span class=n>alert</span><span class=p>)</span> <span class=c1># ← 同上。この1行が漏れていた</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p>試験信号を流すと、管制盤の農産区画の欄に、今度は受達の応答灯が点いた。これで演習記録には「復旧」と書ける。</p><p>ちなみに呼ばれる側の部署は、それぞれこういうクラスだ。機関室のものを見せてもらった。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=c1># 機関室。警報を受けると主機出力を絞る</span>
+</span></span><span class=line><span class=cl><span class=k>class</span> <span class=nc>EngineRoom</span>
+</span></span><span class=line><span class=cl>  <span class=kp>attr_reader</span> <span class=ss>:journal</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>initialize</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@journal</span> <span class=o>=</span> <span class=o>[]</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>throttle_down</span><span class=p>(</span><span class=n>alert</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@journal</span> <span class=o>&lt;&lt;</span> <span class=s2>&#34;機関室: </span><span class=si>#{</span><span class=n>alert</span><span class=o>.</span><span class=n>kind</span><span class=si>}</span><span class=s2>警報。主機出力を巡航30%まで絞り、衝撃に備える&#34;</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>journal</code> は当直記録——どの警報を受けて何をしたかを書き溜めていく記録の束で、あとで挙動を検分するのはこの記録を読む形になる。ブリッジも医務室も農産区画も同じ形のクラスだが、受け口の名前だけが違う。ブリッジは <code>post_warning</code>、医務室は <code>open_triage</code>、農産区画は <code>seal_vents</code>。部署ごとに「警報を受けたときの動詞」で名前がついている。</p><p>さて、復旧はした。したのだが、ミラは投影を消さなかった。代わりに床の星図を隅に寄せて、物入れから妙なものを出してきた。木の杭と、糸巻きだ。</p><p>床の真ん中に、杭が一本打たれた——打つといっても床は鋼板だから、磁石の台座でくっつける。「これがセンサー」。その周りに、四本。「機関室、ブリッジ、医務室、農産区画」。それから糸巻きの糸を、センサーの杭から各部署の杭へ、一本ずつ張っていく。俺は黙って農産区画の杭を持たされて、位置決めを手伝った。この人の思考は、手を動かしながらでないと出てこないことがある。長い付き合いで知っている。</p><p>四本目を張り終えると、床の上に小さな補給網ができていた。センサーの杭を見ると、糸の結び目が四つ、団子になって重なっている。各部署の杭は、それぞれ一本の糸が結ばれているだけで、すっきりしたものだ。</p><p>「補給線はね、張った数だけ船を縛るの」とミラは言った。「見て。太るのはいつも、真ん中のこの子。こういう結び方を、密結合っていうの。知らせる側と受け手が直に固く結ばれてて、結び足すにもほどくにも、真ん中の結び目を触るしかない」</p><p>言われて、コードを見直す。なるほど、絵のとおりだった。通知先が一つ増えるたびに、センサーの側では三つのことが起きる。生成時の引数が一つ増える。抱える持ち物（インスタンス変数）が一本増える。<code>detect</code> の呼び出しが一行増える。そして呼び出すためには、その部署の受け口の名前——<code>seal_vents</code> だの <code>open_triage</code> だの——をセンサーが覚えなきゃならない。受け手の側は何も変わらない。変わるのはいつも、知らせる側だ。</p><p>床の糸模型と投影のコードを、機関士の癖で一枚の系統図に重ねて写し取ってみた。今朝の事故は、この絵の欠けた一本だ。</p><p><img src=/public_images/2026/code-navigator-observer-ship-alerts/infographic_1.webp loading=lazy alt=Beforeの密結合構造図。船外センサーが機関室・ブリッジ・医務室を別名メソッドで直接呼び出し、農産貨物区画への呼び出しだけが欠けて警報不達となり、部署が増えるたびセンサー側の修正が必要になることを示す></p><p>「模擬航走で、今朝の沈黙を残しておくね」</p><p>模擬航走——実機を使わず、手続きに試験の入力だけ食わせて答えを検分する、いつもの試験航行だ。ミラが書いたのは、「危険な観測値を一発流したら、四つの部署ぜんぶの当直記録に何か書かれているはず」という一括の照合だった。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=c1># 一斉通知の一括照合: 全部署が警報を受け取ったか</span>
+</span></span><span class=line><span class=cl><span class=k>def</span> <span class=nf>test_all_departments_notified_in_a_single_sweep</span>
+</span></span><span class=line><span class=cl>  <span class=vi>@sensor</span><span class=o>.</span><span class=n>detect</span><span class=p>(</span><span class=no>SensorReading</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=ss>kind</span><span class=p>:</span> <span class=s2>&#34;放射線&#34;</span><span class=p>,</span> <span class=ss>level</span><span class=p>:</span> <span class=mi>9</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=o>[</span><span class=vi>@engine_room</span><span class=p>,</span> <span class=vi>@bridge</span><span class=p>,</span> <span class=vi>@infirmary</span><span class=p>,</span> <span class=vi>@farm_bay</span><span class=o>].</span><span class=n>each</span> <span class=k>do</span> <span class=o>|</span><span class=n>dept</span><span class=o>|</span>
+</span></span><span class=line><span class=cl>    <span class=n>refute_empty</span> <span class=n>dept</span><span class=o>.</span><span class=n>journal</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>refute_empty</code> は Minitest（Ruby に標準で付いてくるテストの道具。これも前に教わった）の照合の一つで、「空っぽではないはずだ」という答え合わせだ。逆の <code>assert_empty</code> なら「空っぽのはずだ」になる。四部署を配列に並べて、一件ずつ取り出しては記録を検める。</p><p>これを、応急修正の前の——今朝の演習で動いていた版に当てる。警報が鳴った。結果盤に赤が一つ。機関室は緑、ブリッジも医務室も緑。農産区画だけが赤。当直記録が空のままだ。</p><p>見ていて、嫌な気分になったのは、赤のせいじゃない。赤の出方のせいだ。</p><p>Ruby の間違いは航行中にしか鳴らない——動的型付けの言語では、書き間違いは書いた時点では黙っていて、動かした瞬間に初めてエラーになる。それは前に教わって、腹に入れてある。だが今回のはもっとタチが悪い。呼び出しが「無い」ことは、動かしたって鳴らないのだ。書いていないコードは、実行されないだけで、エラーにもならない。三部署への通知は正常に済んで、手続きは何食わぬ顔で終わる。沈黙だけが症状。だから増設の検収も演習前の点検も、素通りした。全数を突き合わせるこの照合みたいな網か、今朝みたいな全数の演習か——どっちかが無ければ、誰にも気づけない。</p><p>俺は床の糸模型を見下ろした。太った結び目を見ているうちに、口から出た。</p><p>「なあ。次に区画が増えたら、また同じことをやるのか。杭を打って、真ん中の結び目をほどいて、結び直して。受け手が増えるたびに、知らせる側の腹を開けるのか」</p><p>言いながら、頭の中にあったのは機関室の配電盤だった。</p><p>「俺の配電盤なら、絶対にやらない形だぞ、これは。機関室の母線——太い幹の給電線のことだが——に機器を増設するとき、発電機側の何かを書き換えたりしない。新しい機器のほうがブレーカーを持って、母線に繋ぎに来るんだ。発電機は誰が繋がったかなんて知らん。知らないまま、全員に電気が行く」</p><p>ぼやきのつもりだった。うちの区画の増設で、なんで毎回センサーの腹を開けるんだ、という愚痴だ。だが、糸を巻き取ろうとしていたミラの手が、止まった。</p><p>「ダグ、いまの、そのまま名前のついた航法術」</p><p>ミラは太った結び目を外し始めた。</p><p>「知らせる側は、受け手を知らなくていい。受け手の側が、名簿に載りに来ればいい」</p><h2 id=第3幕-引き直し名簿と張り替えられた補給線>第3幕 引き直し——名簿と、張り替えられた補給線</h2><p>引き直しは二段でやる、とミラは言った。一段目だけ見ると意味が分からないはずだから、途中で分かった気にならないこと——先にそう釘を刺された。</p><p>一段目。四つの部署の受け口を、同じ名前に揃える。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=c1># 機関室。受け口を update に統一（対処の中身と記帳の文言はそのまま）</span>
+</span></span><span class=line><span class=cl><span class=k>class</span> <span class=nc>EngineRoom</span>
+</span></span><span class=line><span class=cl>  <span class=kp>attr_reader</span> <span class=ss>:journal</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>initialize</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@journal</span> <span class=o>=</span> <span class=o>[]</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>update</span><span class=p>(</span><span class=n>alert</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@journal</span> <span class=o>&lt;&lt;</span> <span class=s2>&#34;機関室: </span><span class=si>#{</span><span class=n>alert</span><span class=o>.</span><span class=n>kind</span><span class=si>}</span><span class=s2>警報。主機出力を巡航30%まで絞り、衝撃に備える&#34;</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>throttle_down</code> が <code>update</code> になった。中身は一文字も変わっていない。ブリッジの <code>post_warning</code> も、医務室の <code>open_triage</code> も、農産区画の <code>seal_vents</code> も、全部 <code>update</code> に。やることは元のまま、名前だけの統一だ。</p><p>俺は素直に引っかかった。</p><p>「待て。名前を揃えただけで、何が変わる。センサーはまだ四人の顔を覚えたままだろう。引数も四つ、持ち物も四本。呼び出す名前が四種類から一種類になっただけだ」</p><p>「そう。まだ何も変わってない」</p><p>あっさり認めた。</p><p>「名前を揃えるのは、疎結合——結びつきを緩くすること——じゃないの。ここで満足しちゃう引き直しが、実際よくあるんだけど。揃えたのは、次の一手のため。受け口の名前がバラバラのままだと、名簿にできないのよ。名簿ってものはね、載ってる全員に同じ声で呼びかけられるから、名簿なの」</p><p>そして二段目。センサーの腹から、四人の顔が消えた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=c1># 船外センサーの警報処理。センサーは購読者の名簿を一つ持つだけ</span>
+</span></span><span class=line><span class=cl><span class=k>class</span> <span class=nc>HullSensor</span>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>initialize</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@subscribers</span> <span class=o>=</span> <span class=o>[]</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>subscribe</span><span class=p>(</span><span class=n>subscriber</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@subscribers</span> <span class=o>&lt;&lt;</span> <span class=n>subscriber</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>unsubscribe</span><span class=p>(</span><span class=n>subscriber</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@subscribers</span><span class=o>.</span><span class=n>delete</span><span class=p>(</span><span class=n>subscriber</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>detect</span><span class=p>(</span><span class=n>reading</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=k>unless</span> <span class=n>reading</span><span class=o>.</span><span class=n>dangerous?</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>alert</span> <span class=o>=</span> <span class=no>Alert</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=ss>kind</span><span class=p>:</span> <span class=n>reading</span><span class=o>.</span><span class=n>kind</span><span class=p>,</span> <span class=ss>level</span><span class=p>:</span> <span class=n>reading</span><span class=o>.</span><span class=n>level</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=vi>@subscribers</span><span class=o>.</span><span class=n>each</span> <span class=p>{</span> <span class=o>|</span><span class=n>subscriber</span><span class=o>|</span> <span class=n>subscriber</span><span class=o>.</span><span class=n>update</span><span class=p>(</span><span class=n>alert</span><span class=p>)</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p>生成時の引数が、無くなった。抱えるのは <code>@subscribers</code>——購読者の名簿だ。購読というのは新聞のそれと同じで、「知らせが出たら受け取る」側として名簿に載ること。名簿の実体は、ただの配列が一本だけ。<code>subscribe</code> は名簿の末尾に一件書き足す受付で、<code>unsubscribe</code> は名簿から消す受付だ。<code>delete</code> は配列から指定した値そのものを取り除く Ruby の書き方で、これが「名簿から名前を消す」にそのまま対応する。</p><p><code>detect</code> の中はどうなったかというと、<code>@subscribers.each { |subscriber| subscriber.update(alert) }</code>——名簿を上から順にめくって、載っている全員に <code>update</code> の声をかける。それだけだ。<code>each do 〜 end</code> で一件ずつ取り出す書き方は前の寄港手続きの一件でも出てきたが、今回の <code>{ }</code> はその一行版で、中身が短いときはこう畳んで書く。<code>|subscriber|</code> が「いまめくった一件」の呼び名だ。</p><p>「で、誰が名簿に載るのか。それを決めるのは——」ミラは投影を切り替えた。「センサーじゃないの。ここ」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=c1># 船の起動手順（組み立て）。誰が名簿に載るかは、センサーの外で決まる</span>
+</span></span><span class=line><span class=cl><span class=c1># （各部署は engine_room = EngineRoom.new のように、ここまでに生成済みとする）</span>
+</span></span><span class=line><span class=cl><span class=n>sensor</span> <span class=o>=</span> <span class=no>HullSensor</span><span class=o>.</span><span class=n>new</span>
+</span></span><span class=line><span class=cl><span class=n>sensor</span><span class=o>.</span><span class=n>subscribe</span><span class=p>(</span><span class=n>engine_room</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=n>sensor</span><span class=o>.</span><span class=n>subscribe</span><span class=p>(</span><span class=n>bridge</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=n>sensor</span><span class=o>.</span><span class=n>subscribe</span><span class=p>(</span><span class=n>infirmary</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=n>sensor</span><span class=o>.</span><span class=n>subscribe</span><span class=p>(</span><span class=n>farm_bay</span><span class=p>)</span>
+</span></span></code></pre></td></tr></table></div></div><p>船の起動手順——各系統のオブジェクトを作って組み合わせる、立ち上げの場所だ。そこで各部署が、順に <code>subscribe</code> しに来る。センサーは受け付けるだけ。誰が来たかを詮索しない。</p><p>「見て。センサーのファイル、もうどこにも『機関室』の文字が無いの」</p><p>言われて、さっきのセンサーのコードをもう一度上から下まで読んだ。本当に無い。機関室も、ブリッジも、医務室も、農産区画も。<code>engine_room</code> という変数名すら無い。あるのは <code>subscriber</code>——購読者、という顔の見えない呼び名だけだ。検索をかけたって一件も出てこないだろう。結びつきが緩くなったというのは、こういう風に物として確かめられるものなのか、と妙なところで感心した。</p><p>床の模型も、張り替えられた。センサーの杭から伸びていた四本の糸が、全部外される。代わりにセンサーの杭には、小さな札が一枚ぶら下がった——連絡名簿、とミラは呼んだ。それから各部署の杭から、部署の側が糸を持ってきて、名簿に名前を書いて結んでいく。機関室が一本。ブリッジが一本。医務室、農産区画。出来上がった網は、糸の本数だけなら前と同じ四本だ。だが結び目の意味が違う。糸を張る作業は全部、受け手の側の杭から始まっている。真ん中の杭は、もう太らない。太るのは名簿の行数だけで、行が増えても、センサーの腹は開かない。</p><p>張り替えの済んだ床の網を、配電盤の裏に貼っておく配線図の体裁で起こしておく。糸の始点が、全部ひっくり返っているのが分かるはずだ。</p><p><img src=/public_images/2026/code-navigator-observer-ship-alerts/infographic_2.webp loading=lazy alt=Afterの疎結合構造図。各部署がsubscribeでセンサーの購読者名簿に自分から登録しに来て、センサーは名簿に載った全員へ統一受け口updateで一斉同報するだけとなり、通知先の増減がセンサー無改変で済むことを示す></p><p>一つ確認しておいた。この名簿、センサーが持ってていいのか。どこか中立の管制局みたいなところが預かる形も、ありそうなもんだが。</p><p>「名簿を預かる局を別に立てる流儀もあるよ。出版・購読——Pub-Sub って呼ばれる、もっと大掛かりな形。でもそれは、船団規模の話。知らせる側と受け手が別々の船にいるような距離なら、間に局を挟む価値がある。船内なら、センサーが自分で名簿を持てば足りるの」</p><p>なお、名簿に載る資格の話は、もう聞かなくても分かった。四つの部署は親も型も何も共有していない。ただ全員が <code>update</code> の呼びかけに応えられる——航路計算機の一件で教わった、血筋より規格、というあの流儀だ。名簿は血統書じゃない。呼びかけに応えるなら、載れる。</p><p>ミラは名簿の札を軽く叩いて、こちらを向いた。</p><p>「この『知らせる側は名簿へ一斉に声をかけるだけ、受け手が自分で名簿に載りに来る』航法術を、Observer っていうの。Observer——発生源の状態変化を、登録された購読者の一覧へ自動で知らせて、発生源と受け手の結びつきを緩くする設計パターン。観測者、って意味ね。受け手のほうが主役の名前なの。知らせる声は、届く先を数えなくていいの」</p><p>それから、機関屋として訊いておくべきことを訊いた。引っかかっていたのだ。部品をまるごと差し替える航法術——航路計算機のときの Strategy——と、これは何が違うのか。どっちも「本体が中身を知らない」って話だろう。</p><p>「いい線。違いは三つ」ミラは指を折った。「一つ、差し込み口の形。あっちは本体が部品を一つ受け取って、仕事をそれに任せる。挿さるのは常に一枚。こっちは名簿だから、何人でも載る。一対一の交換と、一対多の同報。二つ、決まるタイミング。あっちは出航前の組み立てで一つ選んだら、その航海はそれで行く。こっちは航行中でも名簿の出入りができる。三つ、向き。あっちは本体が部品に『これやって』って頼む。こっちはセンサーが『起きたぞ』って知らせるだけ。受けて何をするかは、各部署が自分の持ち場で決める。機関室は主機を絞る、医務室は処置台を出す——センサーはそれを知らないし、指図もしない」</p><p>どっちが上等という話ではなく、揃える相手が違うのだ、と締めた。交換したいなら部品の形を揃える。同報したいなら受け口の名前を揃える。</p><p>そこでミラは、張り替えの済んだ糸模型の真ん中に、すとんと座り込んだ。あぐらの膝が機関室の糸を跨いでいる。物入れから乾パンの包みと蜂蜜の瓶が出てきて、乾パンに蜂蜜が、たっぷりかかった。齧る音がする。うちの航法士の主食だ。説明の切れ目にこれが始まるということは、大きな話は済んだということでもある。</p><p>俺は名簿の札の横に立ったまま、さっきの配電盤の絵をもう一度、口に出して確かめた。</p><p>「発電機は、誰が繋がったか知らない。知らないまま、全員に電気が行く。——で、うちのセンサーも、そうなった」</p><p>ミラは蜂蜜を舐めながら頷いた。答え合わせは、それで済んだ。</p><p>済んだところへ、内線が鳴った。医務室からだった。用件を聞いて、俺は少し笑ってしまった。あんまり出来のいい教材が飛び込んできたからだ。——受信端末の定期整備で、明朝まで警報回線から外れたい、という定例の届け。</p><p>「なあ、これ、前の形だったらどうしてた」</p><p>「センサーのコードから医務室の呼び出しを一時的に消して、整備が明けたら書き戻す——なんて改修を、そのたびにやる船はないから」とミラは乾パンを置いた。「実際には医務室側で端末の電源を落として、届く警報を握り潰してた。センサーは知らないまま、外れてる相手に声をかけ続けるわけ」</p><p>「新しい形なら」</p><p>「一手。<code>sensor.unsubscribe(infirmary)</code>。整備が明けたら <code>sensor.subscribe(infirmary)</code> で戻す。センサーのコードは触らない。再起動も要らない。名簿の行が一晩だけ減って、また増えるだけ」</p><p>ミラはその場で、模擬航走にその筋書きを書き足した——引き直した版はまだ模擬の上にしかいない。実機の警報系に載せ替えるのは、模擬航走が全部通ってからだ。試しもしていない航路で船を飛ばさないのは、警報系でも同じである。航路計算機の一件は、出航前にどの部品を選ぶかという話だった。名簿は、航海の途中で書き換えられる。同じ「本体を触らない」でも、効く場面がまるで違う——それが指折りの二つ目、決まるタイミングの差ってやつの、いちばん分かりやすい姿だった。</p><h2 id=第4幕-模擬航走全数の網と鳴らない平常>第4幕 模擬航走——全数の網と、鳴らない平常</h2><p>模擬航走の束を、ミラは順に流していった。</p><p>先頭は、約束の確認だ。同じ観測値の並び——危険度8の隕石、危険度6の微振動、危険度9の放射線——を、応急修正済みの現行版と、引き直した名簿版の両方に食わせる。そして部署ごとに、当直記録が一字一句同じであることを照合する。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=k>def</span> <span class=nf>test_engine_room_before_and_after_produce_identical_journal</span>
+</span></span><span class=line><span class=cl>  <span class=c1># 現行版・名簿版それぞれのセンサーに四部署を組み付けてある。</span>
+</span></span><span class=line><span class=cl>  <span class=c1># before_dept / after_dept は、どちらもここでは機関室</span>
+</span></span><span class=line><span class=cl>  <span class=vi>@readings</span><span class=o>.</span><span class=n>each</span> <span class=k>do</span> <span class=o>|</span><span class=n>reading</span><span class=o>|</span>
+</span></span><span class=line><span class=cl>    <span class=n>before_sensor</span><span class=o>.</span><span class=n>detect</span><span class=p>(</span><span class=n>reading</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=n>after_sensor</span><span class=o>.</span><span class=n>detect</span><span class=p>(</span><span class=n>reading</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=n>assert_equal</span> <span class=n>before_dept</span><span class=o>.</span><span class=n>journal</span><span class=p>,</span> <span class=n>after_dept</span><span class=o>.</span><span class=n>journal</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p>現行版と名簿版はどちらも <code>HullSensor</code> という同じ名前だから、試験では別々のファイルに分けて、名前がぶつからない形で読み込んで同居させてある——自分で再現するときは、そこだけ気をつけるところだ。機関室、ブリッジ、医務室、農産区画。四部署とも緑。構造は変わった、挙動は変わっていない。引き直しの約束は、まず数字で示す——このへんの順序の律儀さは、いつもどおりだ。</p><p>ここで一つ、設計の側の話を聞いた。この照合、部署ごとに別々の記録を突き合わせている。四部署の記録を一本に混ぜて突き合わせれば一本で済むのに、なぜ分けるのか。</p><p>「混ぜると、順序が写り込むから。いまの名簿は配列だから、実は登録した順に声がかかってる。でもそれは、たまたまそうなってるだけ。名簿の実装を変えれば変わっていい部分なの。順序は約束——契約に入れない。だから試験も、順序が写り込まない形で書く。機関室の記録は機関室の記録とだけ突き合わせる」</p><p>順序をあてにした瞬間、名簿の並び替え一つで壊れる設計になる。「医務室より先に機関室へ」みたいな順序が本当に要るなら、それはこの航法術の外で、別に設計する話だそうだ。</p><p>次。さっきの一括照合——全部署の記録が空でないこと——を名簿版に当てる。全部緑。今朝、農産区画の欄だけを空にしたあの網は、これからも張りっぱなしにする。網にかかる種類の事故が構造ごと消えたのは確かだが、網を畳む理由にはならない。名簿への載せ忘れという新しい忘れ方は、残っているからだ。</p><p>それから境界。危険度6の観測値では、誰の記録も増えない——鳴らないことも仕様のうちだから、鳴らない側もちゃんと検分する。7で発報。全員に届く。</p><p>実行時の出入り。医務室を名簿から外して警報を流すと、医務室の記録だけが増えず、他の三部署には届く。戻して流せば、また届く。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=k>def</span> <span class=nf>test_unsubscribed_department_does_not_receive_the_next_alert</span>
+</span></span><span class=line><span class=cl>  <span class=vi>@sensor</span><span class=o>.</span><span class=n>unsubscribe</span><span class=p>(</span><span class=vi>@infirmary</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=vi>@sensor</span><span class=o>.</span><span class=n>detect</span><span class=p>(</span><span class=no>SensorReading</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=ss>kind</span><span class=p>:</span> <span class=s2>&#34;隕石&#34;</span><span class=p>,</span> <span class=ss>level</span><span class=p>:</span> <span class=mi>8</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=n>assert_empty</span> <span class=vi>@infirmary</span><span class=o>.</span><span class=n>journal</span>
+</span></span><span class=line><span class=cl>  <span class=n>refute_empty</span> <span class=vi>@engine_room</span><span class=o>.</span><span class=n>journal</span>
+</span></span><span class=line><span class=cl>  <span class=n>refute_empty</span> <span class=vi>@bridge</span><span class=o>.</span><span class=n>journal</span>
+</span></span><span class=line><span class=cl>  <span class=n>refute_empty</span> <span class=vi>@farm_bay</span><span class=o>.</span><span class=n>journal</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p>そして、次の増設の予行演習。<code>update</code> に応えられるだけの小さな新区画クラスをその場で書いて、<code>subscribe</code> する。それだけで、次の警報から届く。センサーも、既存の四部署も、一文字も触らない。</p><p>「次の増設のときは、杭とブレーカーだけ持ってくればいいわけだ」と俺は言った。「母線側の工事は、もう無い」</p><p>門番の検分は軽く流す——事象名が空の観測値、危険度11やマイナスの観測値は、入れ物を作った時点で <code>ArgumentError</code> に弾かれる。いつもの型だ。</p><p>結果盤は、全21本、84項目、全灯緑。ミラは全部の緑を確かめてから、警報系の手続きを名簿版に載せ替えた。実機に載るのは、模擬航走を通り切った後。その順序が逆になったことは、この船では一度もない。</p><p>締める前に、保証できないことを聞いておいた。うまい話を鵜呑みにしない程度の分別は、二十年で身についている。</p><p>「三つある」とミラは言った。「一つ。順序はさっき言ったとおり、契約にしない。順序が要る関係を名簿に持ち込まないこと。二つ。外し忘れ。整備どころか、区画ごと廃止になった部署を <code>unsubscribe</code> し忘れると、名簿に載ったまま残り続けるの。誰も読まない当直記録に、警報が積もり続ける。廃区画に補給便が通い続けるのと同じ。Ruby だと、もう要らないオブジェクトが名簿から参照されてる限り消せない——メモリの上でも生き残り続ける、っていう実害もある。名簿は、載せる手続きと同じくらい、降ろす手続きを運用に組み込むこと」</p><p>「三つ目は」</p><p>「名簿の途中で、誰かが倒れたら。さっきダグが聞いたでしょ、端末が死んでたらどうなるって。いまの素朴な <code>each</code> はね、名簿の途中の一人が例外——<code>ArgumentError</code> で見た、実行をその場で止めるあのエラーの仲間——を投げると、そこで止まる。後ろに載ってる部署には、警報が届かない。全員への到達をどうしても保証したいなら、一人の失敗を拾って先へ進む手当てを、別に書くことになる。今回の設計は、そこまでは守らない」</p><p>守っていないものを守っていると言わないのが、この人の設計の信用の張り方だ。俺としては、三つ目は近いうちに宿題になる気がしたが、今日のところは線の内側で十分だった。</p><p>最後に、ミラが道具棚の話を一つくれた。この名簿、実は Ruby が標準で用意しているのだという。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-ruby data-lang=ruby><span class=line><span class=cl><span class=nb>require</span> <span class=s2>&#34;observer&#34;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 同じセンサーを、標準ライブラリの名簿で書くと</span>
+</span></span><span class=line><span class=cl><span class=k>class</span> <span class=nc>HullSensor</span>
+</span></span><span class=line><span class=cl>  <span class=kp>include</span> <span class=no>Observable</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=k>def</span> <span class=nf>detect</span><span class=p>(</span><span class=n>reading</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=k>unless</span> <span class=n>reading</span><span class=o>.</span><span class=n>dangerous?</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>changed</span>
+</span></span><span class=line><span class=cl>    <span class=n>notify_observers</span><span class=p>(</span><span class=no>Alert</span><span class=o>.</span><span class=n>new</span><span class=p>(</span><span class=ss>kind</span><span class=p>:</span> <span class=n>reading</span><span class=o>.</span><span class=n>kind</span><span class=p>,</span> <span class=ss>level</span><span class=p>:</span> <span class=n>reading</span><span class=o>.</span><span class=n>level</span><span class=p>))</span>
+</span></span><span class=line><span class=cl>  <span class=k>end</span>
+</span></span><span class=line><span class=cl><span class=k>end</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>require</code> はライブラリを読み込んで使えるようにする宣言。<code>include Observable</code> の <code>include</code> は、モジュール——メソッドの詰め合わせ——をクラスに混ぜ込んで、自前で書かずに使えるようにする Ruby の仕組み（ミックスインと呼ぶ）だ。これで <code>add_observer</code>・<code>delete_observer</code>——さっき自前で書いた <code>subscribe</code>・<code>unsubscribe</code> に当たる受付——が、書かずに手に入る。<code>notify_observers</code> が一斉の声かけで、その前の <code>changed</code> は「本当に変わったときだけ知らせる」ための変更フラグ。フラグを立ててから知らせる二段構えで、無駄な同報を抑える仕掛けまで付いてくる。裏返すと、<code>changed</code> を立て忘れたまま <code>notify_observers</code> を呼んでも、エラーは出ない。黙って、何も通知されないだけだ。呼んでいないコードが鳴らないのと同じ顔の沈黙が、ここにも棲んでいる——使うなら、そこは覚えておいたほうがいい。</p><p>一つだけ注意がある。gem というのは Ruby のライブラリの配布単位のことで、Bundler は、プロジェクトが使う gem を一覧表——Gemfile——で管理する道具だ。Ruby 3.4 から、この <code>observer</code> は bundled gem という扱いに変わった。同梱はされているが、Bundler で依存を管理している船——プロジェクトなら、Gemfile に <code>gem "observer"</code> と一筆書かないと載ってこない。標準といっても、黙ってそこにいてくれる度合いは、少し下がっている。</p><p>「で、なんで今日はこれを使わなかったんだ。書かずに済むなら、それが一番だろう」</p><p>「名簿の仕組みが手のひらに載る大きさのうちに、一度自分で作っておくと、道具のほうを使うときに何が起きてるか読めるの。配列一本と <code>each</code> 一行——今日の名簿の中身は、それで全部だった。あれを知ってれば、<code>add_observer</code> の裏で何が起きてるかは、もう見当がつくでしょ」</p><p>翌朝、臨時の再演習が組まれた。</p><p>定刻。サイレンが立ち上がる。機関室の警報盤が点き、俺は主機出力を絞る手順を型どおりに踏む。無線が流れる。ブリッジ、応答よし。医務室、応答よし——整備明けの端末で、名簿に戻った上での応答だ。そして管制盤の、昨日まで暗かった欄。</p><p>農産貨物区画。受達、よし。</p><p>演習終了の号令で、サイレンが切れた。警報盤が消灯して、機関室にはいつもの機関音だけが戻ってくる。主機の低い唸り。循環器の規則正しい呼吸。俺は計器の前に立ったまま、消えた警報盤をしばらく見ていた。</p><p>警報は、鳴らない日のためにある。鳴るべき日に、全区画で鳴る——それが今朝、確かめられた。だからこの静けさは、昨日までの静けさと同じ音をしていて、中身が違う。昨日までのは、確かめていない静けさだった。今日のは、確かめた上の静けさだ。機関士が枕を高くして寝られるのは、後のほうだけである。</p><p>星図室には、何も言わなかった。次に名簿の行が増える日まで、この件はもう、俺の当直記録の外だ。</p><hr><h3 id=-オリオール号-航海日誌navigators-log>🚀 オリオール号 航海日誌（Navigator&rsquo;s Log）</h3><ul><li><strong>航法術（パターン名）</strong>: Observer（発生源の状態変化を、登録された購読者の一覧へ一斉に知らせ、発生源と受け手を疎結合にする設計）</li><li><strong>発生事象（症状）</strong>: 月例の総員警報演習で、新設の農産貨物区画だけ警報が届かず受達信号が返らない。配線は正常、手続きプログラム側の呼び出し追記漏れ</li><li><strong>原因（旧航路の問題）</strong>: センサーが通知先の顔ぶれと受け口の名前を直接抱え込み、受け手が増えるたびセンサー側の修正を強いる密結合。追記漏れは「呼んでいない」だけなので実行時エラーにもならず、沈黙だけが症状になる</li><li><strong>処置（引き直しの要点）</strong>: 受け口を共通の <code>update</code> に統一した上で、購読者の名簿（配列）をセンサーに一本持たせ、登録はセンサーの外（船の起動手順）へ。受け手の増減は名簿の出入りだけになり、センサーは無改変のまま航行中でも顔ぶれを変えられる</li><li><strong>保証外事項</strong>: 通知の順序は契約にしない（登録順はたまたま。順序依存の対処は別設計）／購読解除の失念は名簿に残り続ける（不要オブジェクトの延命を含む）／購読者の一人が例外を投げると素朴な <code>each</code> では後続に届かない（全数到達の保証は別の手当て）</li><li><strong>模擬航走結果</strong>: 全21テスト・84アサーション（照合の項目数）、全灯緑（四部署の挙動一致・一斉通知の一括照合・危険度の境界・実行時の購読の出入り・新購読者の無改変追加・門番）</li><li><strong>次の針路</strong>: 生鮮品の受注が続けば冷蔵区画の増設案あり。そのときは名簿に一行——センサーの腹は、もう開けない</li></ul></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/ruby/>Ruby</a>
+<a href=/tags/observer/>Observer</a>
+<a href=/tags/tight-coupling/>Tight-Coupling</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-navigator/>Code-Navigator</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/08/19/070705/><div class=article-image><img src=/public_images/2026/code-gardener-pest-alert-observer/header.webp loading=lazy data-key data-hash=/public_images/2026/code-gardener-pest-alert-observer/header.webp></div><div class=article-details><h2 class=article-title>コードガーデナー【Observer】害虫を見つけるたび、知らせる相手をコードに書き足す〜検知は、誰に知らせるかまで背負わなくていい〜</h2></div></a></article><article class=has-image><a href=/2026/08/10/070705/><div class=article-image><img src=/public_images/2026/code-navigator-composite-cargo-hold/header.webp loading=lazy data-key data-hash=/public_images/2026/code-navigator-composite-cargo-hold/header.webp></div><div class=article-details><h2 class=article-title>コードナビゲーター【Composite】船倉、箱の中の箱〜重さを尋ねる相手は、1つでいいの〜</h2></div></a></article><article class=has-image><a href=/2026/08/09/070705/><div class=article-image><img src=/public_images/2026/code-navigator-value-object-coordinates/header.webp loading=lazy data-key data-hash=/public_images/2026/code-navigator-value-object-coordinates/header.webp></div><div class=article-details><h2 class=article-title>コードナビゲーター【Value Object】航路計算室、混ざる数字たち〜数字は、単位を着てないと、混ざるの〜</h2></div></a></article><article class=has-image><a href=/2026/08/08/070705/><div class=article-image><img src=/public_images/2026/code-navigator-null-object-missing-sensor/header.webp loading=lazy data-key data-hash=/public_images/2026/code-navigator-null-object-missing-sensor/header.webp></div><div class=article-details><h2 class=article-title>コードナビゲーター【Null Object】欠測センサーの見張り所〜"ない"を、"何もしない"で置くの〜</h2></div></a></article><article class=has-image><a href=/2026/08/07/070705/><div class=article-image><img src=/public_images/2026/code-navigator-facade-preflight-check/header.webp loading=lazy data-key data-hash=/public_images/2026/code-navigator-facade-preflight-check/header.webp></div><div class=article-details><h2 class=article-title>コードナビゲーター【Facade】出航前点検、ブリッジに漏れた四系統の作法〜入口は一つでも、部屋は四つ残る〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

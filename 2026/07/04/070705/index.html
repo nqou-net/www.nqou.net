@@ -1,0 +1,438 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="王宮の防衛術式が、味方を撃った。引き継いだ術師は、矛盾が露れるたびに札（boolean フラグ）を一枚ずつ足して塞いできた——どの一枚も、その時は正しかった。だが「待機中」の札と「発動中」の札は別々に立ち、ある中断の手順が両方を灯したまま残す。待機の貌をしたまま、術式は前を横切った味方へ放たれる。札を増やすほど、ありえぬ貌は倍々に増える（n枚で2のn乗通り）。札で数えるのをやめ、貌をただ一つの型に畳めば（Discriminated Union＋状態遷移）、「待機中かつ発動中」はそもそも書けなくなる。実行時のifで弾くのでなく、コンパイル時に存在を消す。新しい貌を足したとき道の描き漏らしを型が止める（never網羅検査）TypeScriptの契約の物語。"><title>コードテイマー【State Machine】氷の貌のまま、獣は炎を吐いて自壊する〜札を足さず、貌をただ一つに畳む〜</title><link rel=canonical href=https://www.nqou.net/2026/07/04/070705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コードテイマー【State Machine】氷の貌のまま、獣は炎を吐いて自壊する〜札を足さず、貌をただ一つに畳む〜"><meta property='og:description' content="王宮の防衛術式が、味方を撃った。引き継いだ術師は、矛盾が露れるたびに札（boolean フラグ）を一枚ずつ足して塞いできた——どの一枚も、その時は正しかった。だが「待機中」の札と「発動中」の札は別々に立ち、ある中断の手順が両方を灯したまま残す。待機の貌をしたまま、術式は前を横切った味方へ放たれる。札を増やすほど、ありえぬ貌は倍々に増える（n枚で2のn乗通り）。札で数えるのをやめ、貌をただ一つの型に畳めば（Discriminated Union＋状態遷移）、「待機中かつ発動中」はそもそも書けなくなる。実行時のifで弾くのでなく、コンパイル時に存在を消す。新しい貌を足したとき道の描き漏らしを型が止める（never網羅検査）TypeScriptの契約の物語。"><meta property='og:url' content='https://www.nqou.net/2026/07/04/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='typescript'><meta property='article:tag' content='state-machine'><meta property='article:tag' content='discriminated-union'><meta property='article:tag' content='invalid-state'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-tamer'><meta property='article:published_time' content='2026-07-04T07:07:05+09:00'><meta property='article:modified_time' content='2026-07-04T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-tamer-invalid-state-machine/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コードテイマー【State Machine】氷の貌のまま、獣は炎を吐いて自壊する〜札を足さず、貌をただ一つに畳む〜"><meta name=twitter:description content="王宮の防衛術式が、味方を撃った。引き継いだ術師は、矛盾が露れるたびに札（boolean フラグ）を一枚ずつ足して塞いできた——どの一枚も、その時は正しかった。だが「待機中」の札と「発動中」の札は別々に立ち、ある中断の手順が両方を灯したまま残す。待機の貌をしたまま、術式は前を横切った味方へ放たれる。札を増やすほど、ありえぬ貌は倍々に増える（n枚で2のn乗通り）。札で数えるのをやめ、貌をただ一つの型に畳めば（Discriminated Union＋状態遷移）、「待機中かつ発動中」はそもそも書けなくなる。実行時のifで弾くのでなく、コンパイル時に存在を消す。新しい貌を足したとき道の描き漏らしを型が止める（never網羅検査）TypeScriptの契約の物語。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-tamer-invalid-state-machine/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-07-04T07:07:05+09:00","datePublished":"2026-07-04T07:07:05+09:00","description":"王宮の防衛術式が、味方を撃った。引き継いだ術師は、矛盾が露れるたびに札（boolean フラグ）を一枚ずつ足して塞いできた——どの一枚も、その時は正しかった。だが「待機中」の札と「発動中」の札は別々に立ち、ある中断の手順が両方を灯したまま残す。待機の貌をしたまま、術式は前を横切った味方へ放たれる。札を増やすほど、ありえぬ貌は倍々に増える（n枚で2のn乗通り）。札で数えるのをやめ、貌をただ一つの型に畳めば（Discriminated Union＋状態遷移）、「待機中かつ発動中」はそもそも書けなくなる。実行時のifで弾くのでなく、コンパイル時に存在を消す。新しい貌を足したとき道の描き漏らしを型が止める（never網羅検査）TypeScriptの契約の物語。","headline":"コードテイマー【State Machine】氷の貌のまま、獣は炎を吐いて自壊する〜札を足さず、貌をただ一つに畳む〜","image":"https://www.nqou.net/public_images/2026/code-tamer-invalid-state-machine/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/07/04/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#待機の貌のまま撃った>待機の貌のまま、撃った</a><ol><li><a href=#札はどれも当時は正しかった>札は、どれも当時は正しかった</a></li><li><a href=#三つの札で状態を数える>三つの札で、状態を数える</a></li></ol></li><li><a href=#札を足すほどありえぬ貌が増える>札を足すほど、ありえぬ貌が増える</a><ol><li><a href=#札が一枚なら食い違う場所が無い>札が一枚なら、食い違う場所が無い</a></li><li><a href=#僕が足した札が新しい穴を開けた>僕が足した札が、新しい穴を開けた</a></li><li><a href=#足す方向は終わらない>足す方向は、終わらない</a></li></ol></li><li><a href=#札で数えず貌をひとつに畳む>札で数えず、貌をひとつに畳む</a><ol><li><a href=#足すな畳め>足すな、畳め</a></li><li><a href=#ありえぬ貌は書けない>ありえぬ貌は、書けない</a></li><li><a href=#同じ手順を畳んで通す>同じ手順を、畳んで通す</a></li><li><a href=#畳んであれば安全に増やせる>畳んであれば、安全に増やせる</a></li></ol></li><li><a href=#貌を確かめる>貌を、確かめる</a><ol><li><a href=#盤から札が消える>盤から、札が消える</a></li><li><a href=#-カイナの魔獣契約録tamers-registry>📜 カイナの魔獣契約録（Tamer&rsquo;s Registry）</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/07/04/070705/><img src=/public_images/2026/code-tamer-invalid-state-machine/header.webp loading=lazy alt="Featured image of post コードテイマー【State Machine】氷の貌のまま、獣は炎を吐いて自壊する〜札を足さず、貌をただ一つに畳む〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/07/04/070705/>コードテイマー【State Machine】氷の貌のまま、獣は炎を吐いて自壊する〜札を足さず、貌をただ一つに畳む〜</a></h2><h3 class=article-subtitle>王宮の防衛術式が、味方を撃った。引き継いだ術師は、矛盾が露れるたびに札（boolean フラグ）を一枚ずつ足して塞いできた——どの一枚も、その時は正しかった。だが「待機中」の札と「発動中」の札は別々に立ち、ある中断の手順が両方を灯したまま残す。待機の貌をしたまま、術式は前を横切った味方へ放たれる。札を増やすほど、ありえぬ貌は倍々に増える（n枚で2のn乗通り）。札で数えるのをやめ、貌をただ一つの型に畳めば（Discriminated Union＋状態遷移）、「待機中かつ発動中」はそもそも書けなくなる。実行時のifで弾くのでなく、コンパイル時に存在を消す。新しい貌を足したとき道の描き漏らしを型が止める（never網羅検査）TypeScriptの契約の物語。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>04, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 28分</time></div></footer></div></header><section class=article-content><h2 id=待機の貌のまま撃った>待機の貌のまま、撃った</h2><p>盤は「待機」と灯っていた。なのについさっき、術式は前を横切った警備兵へ放った。</p><p>僕は王宮の防衛術式を預かっている。石壁に埋め込まれた巨大な迎撃機構で、結界に触れた敵影を捉えると、自ら構え、魔力を充填し、発動する。先代の宮廷術師が遺したものを、僕が引き継いだ。仕様書は、半分も揃っていなかった。</p><p>人払いされた制御室は、静かだった。負傷した警備兵は、もう運ばれた後だ。盤の表面には、状態を示す札のランプがずらりと並んでいる。その一番上——「待機」の札が、今も静かに灯っている。待機。撃たない、という意味の札だ。それが灯ったまま、術式は味方を撃った。</p><p>魔物使いは、もう盤の前にいた。灯った札と、僕が握りしめた手控え——術式が受けた合図の履歴——とを、黙って見比べている。すぐには何も言わない。</p><p>「先代が、書庫に書き遺していたんです」と僕は言った。それが唯一の縁だった。「&ldquo;手に負えぬ獣は、魔物使いのカイナを頼れ。あれは力でなく、契約で獣を鎮める"と。……あなたが、そのカイナですか」</p><p>カイナと名乗ったその人は、手控えから目を上げずにうなずいた。王宮お抱えの術師たちは、誰もこの盤を直せなかった。だから僕は、宮廷の外へ手を伸ばした。</p><p>言い添えておくべきことが、もう一つあった。「この防衛術式は、王宮を囲う古い結界の一部なんです。近頃、その結界全体が……時折、軋むような音を立てる。術式の不調も、そのせいかもしれないと」。だがカイナは、その話には深く立ち入らなかった。今日の獣は、目の前の盤にいる。</p><h3 id=札はどれも当時は正しかった>札は、どれも当時は正しかった</h3><p>僕は術式を誇れなかった。むしろ、怯えていた。</p><p>「待機中は、撃たないはずなんです。そのための札を、僕が足したんですから。なのに——盤は"待機"と灯ったまま、撃った」</p><p>カイナは黙って続きを促した。僕は言葉を選びながら、引き継いでからのことを話した。</p><p>「先代の術式は、時々おかしな振る舞いをしました。撃つべきでない時に構え、構えるべき時に黙る。原因が露れるたびに、僕は札を足してきたんです。&ldquo;こういう時は撃たない"と一枚、また一枚。……どれも、その時の事故はちゃんと止まりました。だから、正しいと思っていた。でも、足すほど、別のところがおかしくなる気がして。僕が、どこかで掛け違えたんでしょうか」</p><p>確信はなかった。あるのは、自分の積み上げを信じきれない不安だけだ。</p><p>カイナは、ようやく口を開いた。札を貶める響きは、なかった。</p><p>「お前の札は、どれも当時は正しく効いた。一枚ずつ見れば、間違いは無い。——だが、札は足すほど掛け合わさる。三枚あれば、灯り方は二の三乗で八通り。お前が守りたいのは、そのうち四通りだけだろう」</p><p>「八通り……?」僕には意味が掴めなかった。「札は、ただ立てているだけです。それぞれ、上げるか下げるか、それだけの」</p><p>「その"それだけ"が、三つ集まる。上げ下げの組み合わせが、八つになる」</p><h3 id=三つの札で状態を数える>三つの札で、状態を数える</h3><p>僕は防衛術式を写した板を取り出した。難しいことはしていない。だからこそ、穴があるとは思えなかった。</p><p>まず、術式が受け取る合図——イベントを説明した。起動、充填、発動、中断、冷却。この五つだけだ。中断の合図は、構えを解いて待機へ戻すためのもの。攻撃そのものを取り消す、外からの取り決めだと思ってくれていい。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=c1>// 防衛術式の共通の作法：合図（イベント）を一つ受けて、内部の状態を一段進める。
+</span></span></span><span class=line><span class=cl><span class=kr>export</span> <span class=kr>type</span> <span class=nx>WardEvent</span> <span class=o>=</span>
+</span></span><span class=line><span class=cl>  <span class=o>|</span> <span class=p>{</span> <span class=kr>type</span><span class=o>:</span> <span class=s2>&#34;arm&#34;</span><span class=p>;</span> <span class=nx>target</span>: <span class=kt>string</span> <span class=p>}</span> <span class=c1>// 標的を指定して起動（待機→構え）
+</span></span></span><span class=line><span class=cl>  <span class=o>|</span> <span class=p>{</span> <span class=kr>type</span><span class=o>:</span> <span class=s2>&#34;charge&#34;</span> <span class=p>}</span> <span class=c1>// 魔力を一段、充填する
+</span></span></span><span class=line><span class=cl>  <span class=o>|</span> <span class=p>{</span> <span class=kr>type</span><span class=o>:</span> <span class=s2>&#34;fire&#34;</span> <span class=p>}</span> <span class=c1>// 発動（攻撃）
+</span></span></span><span class=line><span class=cl>  <span class=o>|</span> <span class=p>{</span> <span class=kr>type</span><span class=o>:</span> <span class=s2>&#34;abort&#34;</span> <span class=p>}</span> <span class=c1>// 中断（構えを解いて待機へ戻す合図）
+</span></span></span><span class=line><span class=cl>  <span class=o>|</span> <span class=p>{</span> <span class=kr>type</span><span class=o>:</span> <span class=s2>&#34;cool&#34;</span> <span class=p>};</span> <span class=c1>// 冷却が一段進む
+</span></span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kr>export</span> <span class=kr>interface</span> <span class=nx>Ward</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=nx>send</span><span class=p>(</span><span class=nx>event</span>: <span class=kt>WardEvent</span><span class=p>)</span><span class=o>:</span> <span class=k>void</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=c1>// 「今この瞬間、術式が放つ標的」。null なら撃たない。外から安全を問う唯一の窓口。
+</span></span></span><span class=line><span class=cl>  <span class=nx>currentShot</span><span class=p>()</span><span class=o>:</span> <span class=kt>string</span> <span class=o>|</span> <span class=kc>null</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「状態は、三つの札で管理しています」と僕は言った。「待機、構え、発動。起動の合図で構えに入り、充填が満ちたら発動。中断の合図で、待機に戻す。……戻している、つもりです」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span><span class=lnt>51
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=c1>// Before: 状態を独立した boolean 札で管理する。各札は引き継ぎ後、事故が出るたびに一枚ずつ足された。
+</span></span></span><span class=line><span class=cl><span class=kr>export</span> <span class=kr>class</span> <span class=nx>FlagWard</span> <span class=kr>implements</span> <span class=nx>Ward</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=kr>private</span> <span class=nx>standby</span>: <span class=kt>boolean</span><span class=p>;</span> <span class=c1>// 待機中（最後に足した安全札）。盤の表示ランプと arm 受理ガードに使う——だが currentShot は見ない
+</span></span></span><span class=line><span class=cl>  <span class=kr>private</span> <span class=nx>charging</span>: <span class=kt>boolean</span><span class=p>;</span> <span class=c1>// 構え＝充填中
+</span></span></span><span class=line><span class=cl>  <span class=kr>private</span> <span class=nx>firing</span>: <span class=kt>boolean</span><span class=p>;</span> <span class=c1>// 発動中
+</span></span></span><span class=line><span class=cl>  <span class=kr>private</span> <span class=nx>charge</span>: <span class=kt>number</span><span class=p>;</span> <span class=c1>// 充填量
+</span></span></span><span class=line><span class=cl>  <span class=kr>private</span> <span class=nx>target</span>: <span class=kt>string</span> <span class=o>|</span> <span class=kc>null</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=kr>constructor</span><span class=p>()</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>this</span><span class=p>.</span><span class=nx>standby</span> <span class=o>=</span> <span class=kc>true</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>this</span><span class=p>.</span><span class=nx>charging</span> <span class=o>=</span> <span class=kc>false</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>this</span><span class=p>.</span><span class=nx>firing</span> <span class=o>=</span> <span class=kc>false</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>this</span><span class=p>.</span><span class=nx>charge</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>this</span><span class=p>.</span><span class=nx>target</span> <span class=o>=</span> <span class=kc>null</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=nx>send</span><span class=p>(</span><span class=nx>event</span>: <span class=kt>WardEvent</span><span class=p>)</span><span class=o>:</span> <span class=k>void</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>switch</span> <span class=p>(</span><span class=nx>event</span><span class=p>.</span><span class=kr>type</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=k>case</span> <span class=s2>&#34;arm&#34;</span><span class=o>:</span>
+</span></span><span class=line><span class=cl>        <span class=k>this</span><span class=p>.</span><span class=nx>target</span> <span class=o>=</span> <span class=nx>event</span><span class=p>.</span><span class=nx>target</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>this</span><span class=p>.</span><span class=nx>charging</span> <span class=o>=</span> <span class=kc>true</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>this</span><span class=p>.</span><span class=nx>standby</span> <span class=o>=</span> <span class=kc>false</span><span class=p>;</span> <span class=c1>// 起動したので待機を下ろす
+</span></span></span><span class=line><span class=cl>        <span class=k>break</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>      <span class=k>case</span> <span class=s2>&#34;charge&#34;</span><span class=o>:</span>
+</span></span><span class=line><span class=cl>        <span class=k>this</span><span class=p>.</span><span class=nx>charge</span><span class=o>++</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>break</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>      <span class=k>case</span> <span class=s2>&#34;fire&#34;</span><span class=o>:</span>
+</span></span><span class=line><span class=cl>        <span class=k>this</span><span class=p>.</span><span class=nx>firing</span> <span class=o>=</span> <span class=kc>true</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>this</span><span class=p>.</span><span class=nx>charging</span> <span class=o>=</span> <span class=kc>false</span><span class=p>;</span> <span class=c1>// 発動に移る
+</span></span></span><span class=line><span class=cl>        <span class=k>break</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>      <span class=k>case</span> <span class=s2>&#34;abort&#34;</span><span class=o>:</span>
+</span></span><span class=line><span class=cl>        <span class=c1>// 「構えを解いて待機へ」のつもりで書いた。だが発動中(firing)の中断は想定しておらず、
+</span></span></span><span class=line><span class=cl>        <span class=c1>// firing の札を下ろし忘れている。＝引き継ぎ後、最後に足した standby との掛け違い。
+</span></span></span><span class=line><span class=cl>        <span class=k>this</span><span class=p>.</span><span class=nx>standby</span> <span class=o>=</span> <span class=kc>true</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>this</span><span class=p>.</span><span class=nx>charging</span> <span class=o>=</span> <span class=kc>false</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>this</span><span class=p>.</span><span class=nx>charge</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>break</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>      <span class=k>case</span> <span class=s2>&#34;cool&#34;</span><span class=o>:</span>
+</span></span><span class=line><span class=cl>        <span class=k>this</span><span class=p>.</span><span class=nx>firing</span> <span class=o>=</span> <span class=kc>false</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>this</span><span class=p>.</span><span class=nx>standby</span> <span class=o>=</span> <span class=kc>true</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>this</span><span class=p>.</span><span class=nx>target</span> <span class=o>=</span> <span class=kc>null</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>break</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>  <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=nx>currentShot</span><span class=p>()</span><span class=o>:</span> <span class=kt>string</span> <span class=o>|</span> <span class=kc>null</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=c1>// 撃つ判定は firing の札だけを見る（standby は外への合図・arm ガード用で、ここでは見ない）。
+</span></span></span><span class=line><span class=cl>    <span class=c1>// standby と firing が両立すると、盤は「待機」と灯るのに firing が標的を返す＝待機の貌のまま撃つ。
+</span></span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=k>this</span><span class=p>.</span><span class=nx>firing</span> <span class=o>?</span> <span class=k>this</span><span class=p>.</span><span class=nx>target</span> : <span class=kt>null</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>僕は、最後の <code>currentShot</code> を指して言った。「外の誰かが"今、撃つのか"を問うときは、ここを見ます。撃つかどうかは、発動の札——firing が立っているかどうか、それだけで決める」</p><p>「待機の札は」とカイナが訊いた。「ここでは、見ないのか」</p><p>「ええ。待機の札は、盤に"待機中"と表示して、警備兵に安全を知らせるためのものです。あとは、起動の合図を受け付けてよいかの見張りに。撃つ判定そのものには——」</p><p>言いかけて、僕は黙った。撃つ判定は firing だけを見る。待機の札は、別の場所で使う。同じ「状態」のはずなのに、二つの札は、別々のところを指している。その食い違いに、その時の僕は、まだ名前をつけられなかった。</p><h2 id=札を足すほどありえぬ貌が増える>札を足すほど、ありえぬ貌が増える</h2><p>「あの一撃には、ちゃんと筋がある」とカイナは言った。「合図を、ある順で送れば、必ずあの貌が現れる。その順を、ここで、こちらの手で組む」</p><h3 id=札が一枚なら食い違う場所が無い>札が一枚なら、食い違う場所が無い</h3><p>カイナがまず組んだのは、合図を一つずつ手で送る仕掛けだった。</p><p>「この術式に渡す合図を、こちらが順に決める。一つ送って、状態を一段進める。また一つ送る。実際には一瞬も待たない。合図の並びだけを、こちらで作る」</p><p>これは大事なところだった。術式の <code>send</code> は、合図を一つ受けて状態を進めるだけだ。時計の針も、外からの割り込みも、ここには無い。だから模擬戦では、合図の列をそのまま順に流せばいい。実時間はゼロ。同じ列を流せば、何度やっても、行き着く貌はただ一つに定まる。結果は、時の運に左右されない。状態は、合図の並びだけで決まる。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=c1>// 模擬戦の道具：events を順に send するだけの同期の手番。実時間も乱れも無い＝決定的。
+</span></span></span><span class=line><span class=cl><span class=kr>export</span> <span class=kd>function</span> <span class=nx>drive</span><span class=p>(</span><span class=nx>ward</span>: <span class=kt>Ward</span><span class=p>,</span> <span class=nx>events</span>: <span class=kt>WardEvent</span><span class=p>[])</span><span class=o>:</span> <span class=k>void</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=k>for</span> <span class=p>(</span><span class=kr>const</span> <span class=nx>event</span> <span class=k>of</span> <span class=nx>events</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=nx>ward</span><span class=p>.</span><span class=nx>send</span><span class=p>(</span><span class=nx>event</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>  <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「お前の術式は、並行も、まぐれも無い」とカイナは言った。「合図の順番だけで、貌が決まる。なら、順番を、こちらで握ればいい」</p><p>そう言って、カイナはまず札の少なかった頃へ巻き戻した。「引き継いだ当初、お前の術式に、撃つ判定を司る札は firing 一枚だった。素直な事故の列を流してみろ。起動、充填二度、発動」</p><p>僕は合図を流した。起動で構えに入り、充填が二段で満ち、発動。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=nx>it</span><span class=p>(</span><span class=s2>&#34;札が firing 一枚相当なら矛盾の起きる場所が無い（素直な術式）&#34;</span><span class=p>,</span> <span class=p>()</span> <span class=o>=&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>ward</span> <span class=o>=</span> <span class=k>new</span> <span class=nx>FlagWard</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>  <span class=c1>// abort を挟まない素直な事故列（起動・充填満・発動）。
+</span></span></span><span class=line><span class=cl>  <span class=c1>// standby=false のまま firing=true に至り、二つの札は食い違わない＝矛盾は起きない。
+</span></span></span><span class=line><span class=cl>  <span class=nx>drive</span><span class=p>(</span><span class=nx>ward</span><span class=p>,</span> <span class=p>[</span>
+</span></span><span class=line><span class=cl>    <span class=p>{</span> <span class=kr>type</span><span class=o>:</span> <span class=s2>&#34;arm&#34;</span><span class=p>,</span> <span class=nx>target</span><span class=o>:</span> <span class=s2>&#34;ally&#34;</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=p>{</span> <span class=kr>type</span><span class=o>:</span> <span class=s2>&#34;charge&#34;</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=p>{</span> <span class=kr>type</span><span class=o>:</span> <span class=s2>&#34;charge&#34;</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=p>{</span> <span class=kr>type</span><span class=o>:</span> <span class=s2>&#34;fire&#34;</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>  <span class=p>]);</span>
+</span></span><span class=line><span class=cl>  <span class=nx>assert</span><span class=p>.</span><span class=nx>equal</span><span class=p>(</span><span class=nx>ward</span><span class=p>.</span><span class=nx>isFiring</span><span class=p>(),</span> <span class=kc>true</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>  <span class=nx>assert</span><span class=p>.</span><span class=nx>equal</span><span class=p>(</span><span class=nx>ward</span><span class=p>.</span><span class=nx>isStandby</span><span class=p>(),</span> <span class=kc>false</span><span class=p>);</span> <span class=c1>// 札は一致したまま＝矛盾の起きる場所が無い
+</span></span></span><span class=line><span class=cl><span class=p>});</span>
+</span></span></code></pre></td></tr></table></div></div><p>（盤の札を直に読む観測窓——<code>isStandby()</code>・<code>isFiring()</code> など——は、模擬戦のために添えてある。盤のランプを覗くのと同じことだ。）</p><p>「起動した時点で、待機の札は下りる」とカイナは言った。「だから発動に至っても、待機と発動が同時に灯ることはない。札が、撃つ判定を司る一枚だけなら——矛盾の起きる場所が、そもそも無い」</p><p>「やがて、撃つ前の"構え"を区別したくて、charging を足したんです」と僕は言った。「でも、それも単独では、おかしくならなかった」</p><p>「ああ。矛盾は、最後の一枚を足したときに開く」カイナは僕を見た。「お前が引き継いで、最後に足した札。盤に"待機中"と示すための standby。あれが、何をしているか——お前自身の手で、辿ってみろ」</p><h3 id=僕が足した札が新しい穴を開けた>僕が足した札が、新しい穴を開けた</h3><p>カイナが指したのは、<code>abort</code> の処理だった。中断の合図を受けたとき、待機の札を灯す——僕が、最後に書き足した一行だ。</p><p>「同じ事故の手順を、今度は中断まで流す」とカイナは言った。「起動、充填二度、発動。そして、発動の直後に——&ldquo;やはり撃つな"の中断」</p><p>僕は合図を流した。自分の手で、一つずつ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=nx>it</span><span class=p>(</span><span class=s2>&#34;\&#34;待機中は撃たない\&#34;安全札(standby)を足すと、同じ事故列でstandby×firingが両立する新たな矛盾が開く&#34;</span><span class=p>,</span> <span class=p>()</span> <span class=o>=&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>ward</span> <span class=o>=</span> <span class=k>new</span> <span class=nx>FlagWard</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>  <span class=c1>// 起動・充填満・発動・直後の中断（やはり撃つな、の差し込み）。
+</span></span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>accident</span> <span class=o>=</span> <span class=p>[</span>
+</span></span><span class=line><span class=cl>    <span class=p>{</span> <span class=kr>type</span><span class=o>:</span> <span class=s2>&#34;arm&#34;</span> <span class=kr>as</span> <span class=kr>const</span><span class=p>,</span> <span class=nx>target</span><span class=o>:</span> <span class=s2>&#34;ally&#34;</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=p>{</span> <span class=kr>type</span><span class=o>:</span> <span class=s2>&#34;charge&#34;</span> <span class=kr>as</span> <span class=kr>const</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=p>{</span> <span class=kr>type</span><span class=o>:</span> <span class=s2>&#34;charge&#34;</span> <span class=kr>as</span> <span class=kr>const</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=p>{</span> <span class=kr>type</span><span class=o>:</span> <span class=s2>&#34;fire&#34;</span> <span class=kr>as</span> <span class=kr>const</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=p>{</span> <span class=kr>type</span><span class=o>:</span> <span class=s2>&#34;abort&#34;</span> <span class=kr>as</span> <span class=kr>const</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>  <span class=p>];</span>
+</span></span><span class=line><span class=cl>  <span class=nx>drive</span><span class=p>(</span><span class=nx>ward</span><span class=p>,</span> <span class=nx>accident</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>  <span class=c1>// abort ハンドラは standby=true にするが、firing を下ろし忘れている＝矛盾の再現。
+</span></span></span><span class=line><span class=cl>  <span class=nx>assert</span><span class=p>.</span><span class=nx>equal</span><span class=p>(</span><span class=nx>ward</span><span class=p>.</span><span class=nx>isStandby</span><span class=p>(),</span> <span class=kc>true</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>  <span class=nx>assert</span><span class=p>.</span><span class=nx>equal</span><span class=p>(</span><span class=nx>ward</span><span class=p>.</span><span class=nx>isFiring</span><span class=p>(),</span> <span class=kc>true</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>});</span>
+</span></span></code></pre></td></tr></table></div></div><p>盤を見て、僕は凍りついた。「待機」のランプと、「発動」のランプが、両方灯ったまま、消えない。</p><p>中断の合図は、待機の札を灯した。書いたとおりに。だが——発動の札を、下ろしていなかった。僕は、発動中の中断を、想定していなかった。中断とは、構えている最中に来るものだと思い込んでいた。だから <code>abort</code> の処理は、待機を灯し、構えを解き、充填を空にする。発動の札には、指一本触れていない。</p><p>「currentShot を、見てみろ」とカイナが言った。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=nx>it</span><span class=p>(</span><span class=s2>&#34;その矛盾状態でcurrentShot()が標的を返す（待機の貌のまま味方を撃つ再現）&#34;</span><span class=p>,</span> <span class=p>()</span> <span class=o>=&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>ward</span> <span class=o>=</span> <span class=k>new</span> <span class=nx>FlagWard</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>accident</span> <span class=o>=</span> <span class=p>[</span>
+</span></span><span class=line><span class=cl>    <span class=p>{</span> <span class=kr>type</span><span class=o>:</span> <span class=s2>&#34;arm&#34;</span> <span class=kr>as</span> <span class=kr>const</span><span class=p>,</span> <span class=nx>target</span><span class=o>:</span> <span class=s2>&#34;ally&#34;</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=p>{</span> <span class=kr>type</span><span class=o>:</span> <span class=s2>&#34;charge&#34;</span> <span class=kr>as</span> <span class=kr>const</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=p>{</span> <span class=kr>type</span><span class=o>:</span> <span class=s2>&#34;charge&#34;</span> <span class=kr>as</span> <span class=kr>const</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=p>{</span> <span class=kr>type</span><span class=o>:</span> <span class=s2>&#34;fire&#34;</span> <span class=kr>as</span> <span class=kr>const</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=p>{</span> <span class=kr>type</span><span class=o>:</span> <span class=s2>&#34;abort&#34;</span> <span class=kr>as</span> <span class=kr>const</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>  <span class=p>];</span>
+</span></span><span class=line><span class=cl>  <span class=nx>drive</span><span class=p>(</span><span class=nx>ward</span><span class=p>,</span> <span class=nx>accident</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>  <span class=c1>// 盤は「待機」と灯っている（isStandby() === true）のに、currentShot は firing を見て標的を返す。
+</span></span></span><span class=line><span class=cl>  <span class=nx>assert</span><span class=p>.</span><span class=nx>equal</span><span class=p>(</span><span class=nx>ward</span><span class=p>.</span><span class=nx>isStandby</span><span class=p>(),</span> <span class=kc>true</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>  <span class=nx>assert</span><span class=p>.</span><span class=nx>equal</span><span class=p>(</span><span class=nx>ward</span><span class=p>.</span><span class=nx>currentShot</span><span class=p>(),</span> <span class=s2>&#34;ally&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>});</span>
+</span></span></code></pre></td></tr></table></div></div><p>待機の札が灯っているのに、<code>currentShot</code> は標的を返した。味方の名を。</p><p>「……僕が、たった今、足したんです」と僕は言った。声が掠れた。「この矛盾を。安全を示すために足した札が、別の札と食い違って、新しい穴を開けた」</p><p>カイナは静かだった。「お前の害の正体は、これだ。同じ"状態"を、別々の札が、別々の場所で見ている。盤は standby を見て"待機"と灯す。撃つ判定は firing を見て標的を返す。二つが食い違ったとき——盤は安全を掲げ、術式は引き金を引く。横切った警備兵は、盤の"待機"を信じていた」</p><p>カイナは、盤から視線を落としたまま、手元の羊皮紙に素早くインクを走らせた。
+「お前が頭の中で繋ぎ合わせた合図の流れは、こうだ。実時間はなく、ただ順序だけが獣の歩みを決めている」
+彼が描いたのは、我々が犯した過ちの、あまりにも無慈悲な順序だった。</p><p><img src=/public_images/2026/code-tamer-invalid-state-machine/infographic_1.webp loading=lazy alt="Infographic sequence diagram showing a race condition bug where inconsistent state flags (standby=true and firing=true simultaneously) cause an accidental target lock in a magical defense system"></p><p>「盤が安全を示す『待機』の貌をしているのに、術式の奥深くでは『発動』の魔力で滾ったまま放置されている」と、カイナは言った。「その二つが同時に立ち上がるなど、お前も、お前の先代も考えなかった。だから、発動中の割り込みというたった一つの隙間に、この歪みが落ち込んだ」</p><p>この害は、平時には決して露れない。中断が、発動の最中に差し込まれた、ちょうどこの一続きの手順でだけ、二枚が灯る。だから先代も、僕も、長いこと見つけられなかった。</p><h3 id=足す方向は終わらない>足す方向は、終わらない</h3><p>カイナは盤の札を、指でゆっくりなぞった。</p><p>「三枚の札は、灯り方が八通りある。standby だけ、charging だけ、firing だけ——お前が守りたいのは、この"どれか一枚だけ灯る"四通りだ。残る四通り——二枚灯る、三枚灯る、一枚も灯らない——は、起きてはいけない貌だ」</p><p>そして、物差しの話をした。「前に、別の山で、狭い通路に一度に通す数を絞る門番を立てたことがある。あれが数えたのは"今、何頭が通路を占めているか&rdquo;——同時の数、いわば場所だ。配水の井戸では、器に"一続きの刻に何杯通ったか"を数えさせた——流量、いわば時間だ。だが、ここは場所でも時間でもない」</p><p>カイナは札の列を指した。「お前は、貌を、札の掛け算で数えている。札が n 枚なら、灯り方は二の n 乗。一枚足すたび、ありえぬ貌は倍に増える。守りたい"どれか一枚だけ"の掟は、札が増えるほど破れやすくなる。お前は、増える穴を、後から塞いでいた」</p><p>僕は、ようやく腑に落ちた。自責が、理解に変わっていく。</p><p>「だから……終わらなかったのか」僕は呟いた。「塞ぐたびに札が増えて、増えるほど別の組み合わせが生まれて。札を足すほど、ありえぬ貌が倍々に膨れていた。僕は、その膨れていく穴を、ずっと後から追いかけていただけだ」</p><p>複数の独立した boolean を別々に持つと、その組み合わせの大半が無効な状態になる。この、状態の数の膨れ上がりが、僕の盤を蝕んでいた正体だった。</p><h2 id=札で数えず貌をひとつに畳む>札で数えず、貌をひとつに畳む</h2><h3 id=足すな畳め>足すな、畳め</h3><p>「直し方は、もう一枚札を足すことじゃない」とカイナは言った。「足すな、畳め。札を一枚増やすたびに掛け算が膨らむなら、掛け算そのものをやめればいい」</p><p>「畳む……?」</p><p>「札で"待機か否か・構えか否か・発動か否か"を別々に数えるのを、やめる。貌そのものを、ただ一つにする。待機の貌、構えの貌、発動の貌、鎮まりの貌——術式は、そのどれか一つだけを、常に持つ。札を何枚上げても、獣の貌はひとつだ。なら、最初から貌をひとつだけ持たせればいい」</p><p>カイナは、それを TypeScript でどう刻むかを示した。</p><p>「取りうる貌を、ただ並べるんじゃない。それぞれの貌に名札を一つ付ける——どの貌かを示す判別子だ。そして、その貌でだけ持つ持ち物を、貌と一緒に束ねる。待機の貌に"標的"は無い。標的を持つのは、構えと発動の貌だけだ」</p><p>カイナが刻もうとしていたのは、<strong>Discriminated Union（判別可能なユニオン型）</strong>——取りうる貌を、それぞれの判別子（kind）と持ち物ごと束ねて並べた型だった。</p><h3 id=ありえぬ貌は書けない>ありえぬ貌は、書けない</h3><p>カイナが刻んだ型は、これだ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span><span class=lnt>9
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=kr>const</span> <span class=nx>REQUIRED</span> <span class=o>=</span> <span class=mi>2</span><span class=p>;</span> <span class=c1>// 発動に要る充填量
+</span></span></span><span class=line><span class=cl><span class=kr>const</span> <span class=nx>COOLDOWN</span> <span class=o>=</span> <span class=mi>2</span><span class=p>;</span> <span class=c1>// 冷却の段数
+</span></span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// 貌は「名札 kind ＋ その貌でだけ持つ持ち物」を一つに束ねた直和。ありえぬ組み合わせは、ここに書けない。
+</span></span></span><span class=line><span class=cl><span class=kr>export</span> <span class=kr>type</span> <span class=nx>WardState</span> <span class=o>=</span>
+</span></span><span class=line><span class=cl>  <span class=o>|</span> <span class=p>{</span> <span class=nx>kind</span><span class=o>:</span> <span class=s2>&#34;standby&#34;</span> <span class=p>}</span> <span class=c1>// 待機：標的を持たない
+</span></span></span><span class=line><span class=cl>  <span class=o>|</span> <span class=p>{</span> <span class=nx>kind</span><span class=o>:</span> <span class=s2>&#34;charging&#34;</span><span class=p>;</span> <span class=nx>target</span>: <span class=kt>string</span><span class=p>;</span> <span class=nx>charge</span>: <span class=kt>number</span> <span class=p>}</span> <span class=c1>// 構え：標的と充填量を持つ
+</span></span></span><span class=line><span class=cl>  <span class=o>|</span> <span class=p>{</span> <span class=nx>kind</span><span class=o>:</span> <span class=s2>&#34;firing&#34;</span><span class=p>;</span> <span class=nx>target</span>: <span class=kt>string</span> <span class=p>}</span> <span class=c1>// 発動：標的を持つ
+</span></span></span><span class=line><span class=cl>  <span class=o>|</span> <span class=p>{</span> <span class=nx>kind</span><span class=o>:</span> <span class=s2>&#34;cooldown&#34;</span><span class=p>;</span> <span class=nx>remaining</span>: <span class=kt>number</span> <span class=p>};</span> <span class=c1>// 鎮まり：残り段数を持つ
+</span></span></span></code></pre></td></tr></table></div></div><p>「待機の貌は、<code>{ kind: "standby" }</code> だけだ」とカイナは言った。「標的を持つ枠が、無い。だから——<code>{ kind: "standby", target: "味方" }</code> と書こうとしても、書けない。&ldquo;待機中なのに標的を持つ"という貌は、この型の語彙に、存在しない」</p><p>僕は、それが何を意味するか、ゆっくり理解した。さっきの矛盾——盤は待機、なのに標的を返す——は、<code>standby</code> の札と <code>firing</code> の札が別々に立てたから起きた。だが貌をひとつに畳めば、「待機の貌」が標的を持つことは、書きようがない。</p><p>「八通りのうち、ありえぬ四通りを、後から弾くんじゃない」とカイナは続けた。「畳めば、四つの正しい貌しか、最初から書けない。残りは、消える」</p><p>カイナは、札三枚の掛け算を**直積（product type）<strong>と呼んだ。二の三乗で、八通りを生む数え方だ。畳んだ後の四つの貌は、そのどれか一つ——こちらは</strong>直和（sum type）**だという。掛け算で膨れるのを、足し算で必要な分だけに畳む。ありえぬ組み合わせは、型に書けないから、存在しない。</p><p>次に、カイナは状態を進める術式を刻んだ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=c1>// 今の貌とイベントから、次の貌を返す純粋・同期関数。許される移ろいだけを刻む。
+</span></span></span><span class=line><span class=cl><span class=kr>export</span> <span class=kd>function</span> <span class=nx>transition</span><span class=p>(</span><span class=nx>state</span>: <span class=kt>WardState</span><span class=p>,</span> <span class=nx>event</span>: <span class=kt>WardEvent</span><span class=p>)</span><span class=o>:</span> <span class=nx>WardState</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=k>switch</span> <span class=p>(</span><span class=nx>state</span><span class=p>.</span><span class=nx>kind</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>case</span> <span class=s2>&#34;standby&#34;</span><span class=o>:</span>
+</span></span><span class=line><span class=cl>      <span class=c1>// 待機に許されるのは「起動」だけ。fire も abort もここでは意味を持たない＝貌を変えない。
+</span></span></span><span class=line><span class=cl>      <span class=k>return</span> <span class=nx>event</span><span class=p>.</span><span class=kr>type</span> <span class=o>===</span> <span class=s2>&#34;arm&#34;</span>
+</span></span><span class=line><span class=cl>        <span class=o>?</span> <span class=p>{</span> <span class=nx>kind</span><span class=o>:</span> <span class=s2>&#34;charging&#34;</span><span class=p>,</span> <span class=nx>target</span>: <span class=kt>event.target</span><span class=p>,</span> <span class=nx>charge</span>: <span class=kt>0</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=o>:</span> <span class=nx>state</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>case</span> <span class=s2>&#34;charging&#34;</span><span class=o>:</span>
+</span></span><span class=line><span class=cl>      <span class=k>if</span> <span class=p>(</span><span class=nx>event</span><span class=p>.</span><span class=kr>type</span> <span class=o>===</span> <span class=s2>&#34;charge&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=p>{</span> <span class=nx>kind</span><span class=o>:</span> <span class=s2>&#34;charging&#34;</span><span class=p>,</span> <span class=nx>target</span>: <span class=kt>state.target</span><span class=p>,</span> <span class=nx>charge</span>: <span class=kt>state.charge</span> <span class=o>+</span> <span class=mi>1</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>      <span class=k>if</span> <span class=p>(</span><span class=nx>event</span><span class=p>.</span><span class=kr>type</span> <span class=o>===</span> <span class=s2>&#34;fire&#34;</span> <span class=o>&amp;&amp;</span> <span class=nx>state</span><span class=p>.</span><span class=nx>charge</span> <span class=o>&gt;=</span> <span class=nx>REQUIRED</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=p>{</span> <span class=nx>kind</span><span class=o>:</span> <span class=s2>&#34;firing&#34;</span><span class=p>,</span> <span class=nx>target</span>: <span class=kt>state.target</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>      <span class=k>if</span> <span class=p>(</span><span class=nx>event</span><span class=p>.</span><span class=kr>type</span> <span class=o>===</span> <span class=s2>&#34;abort&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=p>{</span> <span class=nx>kind</span><span class=o>:</span> <span class=s2>&#34;standby&#34;</span> <span class=p>};</span> <span class=c1>// 構えの中断は、まだ撃っていないので待機へ直帰できる
+</span></span></span><span class=line><span class=cl>      <span class=k>return</span> <span class=nx>state</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>case</span> <span class=s2>&#34;firing&#34;</span><span class=o>:</span>
+</span></span><span class=line><span class=cl>      <span class=c1>// 発動してしまった術式は、待機へ直帰させない。中断も冷却を経て鎮める＝暴れ立てを直に止めない。
+</span></span></span><span class=line><span class=cl>      <span class=k>if</span> <span class=p>(</span><span class=nx>event</span><span class=p>.</span><span class=kr>type</span> <span class=o>===</span> <span class=s2>&#34;cool&#34;</span> <span class=o>||</span> <span class=nx>event</span><span class=p>.</span><span class=kr>type</span> <span class=o>===</span> <span class=s2>&#34;abort&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=p>{</span> <span class=nx>kind</span><span class=o>:</span> <span class=s2>&#34;cooldown&#34;</span><span class=p>,</span> <span class=nx>remaining</span>: <span class=kt>COOLDOWN</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>      <span class=k>return</span> <span class=nx>state</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>case</span> <span class=s2>&#34;cooldown&#34;</span><span class=o>:</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=k>if</span> <span class=p>(</span><span class=nx>event</span><span class=p>.</span><span class=kr>type</span> <span class=o>!==</span> <span class=s2>&#34;cool&#34;</span><span class=p>)</span> <span class=k>return</span> <span class=nx>state</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>      <span class=kr>const</span> <span class=nx>remaining</span> <span class=o>=</span> <span class=nx>state</span><span class=p>.</span><span class=nx>remaining</span> <span class=o>-</span> <span class=mi>1</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>      <span class=k>return</span> <span class=nx>remaining</span> <span class=o>&lt;=</span> <span class=mi>0</span> <span class=o>?</span> <span class=p>{</span> <span class=nx>kind</span><span class=o>:</span> <span class=s2>&#34;standby&#34;</span> <span class=p>}</span> <span class=o>:</span> <span class=p>{</span> <span class=nx>kind</span><span class=o>:</span> <span class=s2>&#34;cooldown&#34;</span><span class=p>,</span> <span class=nx>remaining</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>default</span><span class=o>:</span>
+</span></span><span class=line><span class=cl>      <span class=k>return</span> <span class=nx>exhaustiveGuard</span><span class=p>(</span><span class=nx>state</span><span class=p>);</span> <span class=c1>// 新しい貌を足して道を描き忘れると、ここでコンパイルエラー
+</span></span></span><span class=line><span class=cl>  <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// 撃つ標的は「今の貌」だけで決まる。firing の貌のときだけ標的を持つ＝待機の貌は標的を返しようがない。
+</span></span></span><span class=line><span class=cl><span class=kr>export</span> <span class=kd>function</span> <span class=nx>currentShot</span><span class=p>(</span><span class=nx>state</span>: <span class=kt>WardState</span><span class=p>)</span><span class=o>:</span> <span class=kt>string</span> <span class=o>|</span> <span class=kc>null</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=k>return</span> <span class=nx>state</span><span class=p>.</span><span class=nx>kind</span> <span class=o>===</span> <span class=s2>&#34;firing&#34;</span> <span class=o>?</span> <span class=nx>state.target</span> : <span class=kt>null</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>transition</code> は、今の貌とイベントを受け取り、次の貌を返す。<strong>純粋関数</strong>——同じ入力には必ず同じ出力を返し、外の何も書き換えない関数だ。許される移ろいだけを、この地図に刻む。</p><p>充填の閾値 <code>REQUIRED</code> と冷却の段数 <code>COOLDOWN</code> を、どちらも 2 に置いた。事故の手順が充填を二度送るのは、この閾値に揃えてある——二段で満ちて、発動へ移る。発動の貌での中断も、冷却を二段経て、待機へ戻る。題材を最小の刻みに絞るための値で、「二で満ち、二で鎮まる」を物差しにした（その値が術式として妥当かどうかは、型の守る話ではない。後でカイナが触れる）。</p><p>「肝は、ここだ」とカイナは <code>firing</code> の分岐を指した。「発動してしまった術式は、中断が来ても、待機へ直帰させない。冷却の貌を経て、鎮める。だから——&ldquo;待機の貌のまま発動が残る"という道が、地図のどこにも引かれていない。引かれていない道は、辿りつけない」</p><p><code>currentShot</code> も変わった。もう札を見ない。今の貌だけを見る。firing の貌のときだけ標的を持つ。待機の貌は、標的を返しようがない。同じ「状態」を別々の札が別々に見る、あの食い違いは、貌をひとつに畳んだことで、根元から消えた。</p><p>貌を一つに畳む型（Discriminated Union）と、許される移ろいだけを刻む関数（transition）。この二つが組み合わさったものを、<strong>有限状態マシン（State Machine）</strong>——取りうる状態と、状態の間で許された移り変わりだけを定めた仕組み——という。地図にすると、こうだ。</p><p>カイナが指先で示したのは、防衛術式が進むべき、もう一つの盤面――新しい地図だった。それは、かつて僕が足し算で増やし続けた迷路とは異なり、簡潔で、どこか美しさすら感じさせる一本の小径に似ていた。</p><p><img src=/public_images/2026/code-tamer-invalid-state-machine/infographic_2.webp loading=lazy alt="Infographic state transition diagram showing a safe State Machine architecture preventing invalid states in a magical defense system using TypeScript’s type system"></p><p>「standby の貌には target の枠がない。つまり、待機の貌でいる限り、標的を捕らえること自体が許されない」
+カイナの指先が、地図の standby を指した。
+「『待機の貌のまま撃つ』というあり得ぬ事態は、この型という契約の上で、そもそも存在を許されていないんだ」</p><h3 id=同じ手順を畳んで通す>同じ手順を、畳んで通す</h3><p>「同じ事故の手順を、今度はこの地図で畳む」とカイナは言った。</p><p>純粋関数は、貌を畳むのに <code>reduce</code> を使える。初めの貌——待機——に、合図を一つずつ食わせて、次の貌、その次の貌、と畳んでいく。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=nx>it</span><span class=p>(</span><span class=s2>&#34;同じ事故の手順を流しても「待機の貌のまま発動」へ到達しない（firingのabortはcooldownへ着地）&#34;</span><span class=p>,</span> <span class=p>()</span> <span class=o>=&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>accident</span>: <span class=kt>WardEvent</span><span class=p>[]</span> <span class=o>=</span> <span class=p>[</span>
+</span></span><span class=line><span class=cl>    <span class=p>{</span> <span class=kr>type</span><span class=o>:</span> <span class=s2>&#34;arm&#34;</span><span class=p>,</span> <span class=nx>target</span><span class=o>:</span> <span class=s2>&#34;ally&#34;</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=p>{</span> <span class=kr>type</span><span class=o>:</span> <span class=s2>&#34;charge&#34;</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=p>{</span> <span class=kr>type</span><span class=o>:</span> <span class=s2>&#34;charge&#34;</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=p>{</span> <span class=kr>type</span><span class=o>:</span> <span class=s2>&#34;fire&#34;</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=p>{</span> <span class=kr>type</span><span class=o>:</span> <span class=s2>&#34;abort&#34;</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>  <span class=p>];</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>final</span>: <span class=kt>WardState</span> <span class=o>=</span> <span class=nx>accident</span><span class=p>.</span><span class=nx>reduce</span><span class=p>(</span><span class=nx>transition</span><span class=p>,</span> <span class=p>{</span> <span class=nx>kind</span><span class=o>:</span> <span class=s2>&#34;standby&#34;</span> <span class=p>}</span> <span class=kr>as</span> <span class=nx>WardState</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>  <span class=c1>// 発動済みの abort は待機へ直帰せず、鎮まり（cooldown）を経る＝「待機の貌のまま発動」という道が無い。
+</span></span></span><span class=line><span class=cl>  <span class=nx>assert</span><span class=p>.</span><span class=nx>equal</span><span class=p>(</span><span class=nx>final</span><span class=p>.</span><span class=nx>kind</span><span class=p>,</span> <span class=s2>&#34;cooldown&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>  <span class=nx>assert</span><span class=p>.</span><span class=nx>equal</span><span class=p>(</span><span class=nx>currentShot</span><span class=p>(</span><span class=nx>final</span><span class=p>),</span> <span class=kc>null</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>});</span>
+</span></span></code></pre></td></tr></table></div></div><p>待機から始め、起動で構えへ、充填二度で満ち、発動で firing の貌へ。そして中断——発動の貌での中断は、待機へ直帰せず、鎮まりの貌へ落ちる。行き着いた貌は <code>cooldown</code>。<code>currentShot</code> は、firing の貌でないから、<code>null</code>。</p><p>「待機の貌のまま撃つ、という道が、地図に無い」とカイナは言った。「だから、どう合図を並べても、そこへは辿りつけない」</p><p>カイナは続けて、別の入り方も試した。待機の貌に、いきなり発動の合図——地図に道の無い、許されない入力——を送ってみる。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=nx>it</span><span class=p>(</span><span class=s2>&#34;許されない移ろいは貌を変えない（standbyでfireは無視される）&#34;</span><span class=p>,</span> <span class=p>()</span> <span class=o>=&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>state</span>: <span class=kt>WardState</span> <span class=o>=</span> <span class=p>{</span> <span class=nx>kind</span><span class=o>:</span> <span class=s2>&#34;standby&#34;</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>next</span> <span class=o>=</span> <span class=nx>transition</span><span class=p>(</span><span class=nx>state</span><span class=p>,</span> <span class=p>{</span> <span class=kr>type</span><span class=o>:</span> <span class=s2>&#34;fire&#34;</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>  <span class=nx>assert</span><span class=p>.</span><span class=nx>deepEqual</span><span class=p>(</span><span class=nx>next</span><span class=p>,</span> <span class=p>{</span> <span class=nx>kind</span><span class=o>:</span> <span class=s2>&#34;standby&#34;</span> <span class=p>});</span> <span class=c1>// 道の無い入力は、貌をそのままにする
+</span></span></span><span class=line><span class=cl><span class=p>});</span>
+</span></span></code></pre></td></tr></table></div></div><p>待機の貌は、発動の合図を受けても、待機のままだった。地図に引かれていない移ろいは、ただ無視される——例外も投げず、貌も変えず。<code>transition</code> は純粋関数だから、同じ貌に同じ合図を与えれば、必ず同じ次の貌になる。たまたまこの順で通ったのではない。引いた道だけが通れる地図は、合図をどう並べ替えても、引かれていない道へは入り込ませない。「待機の貌のまま発動」は、ある一つの事故列でたまたま避けられたのではなく、どの合図列からも、構造として辿りつけない。</p><p>僕は、ほっとしかけた。だがカイナは、もう一段、見せるものがあると言った。</p><p>「ここまでは、走らせて確かめた。合図を流し、行き着いた貌を見た。だが、これは"実行時に弾いた"わけじゃない。<code>transition</code> の中に、矛盾を弾く if は、一つも無い。ありえぬ貌へ向かう道を、最初から引かなかっただけだ。——そして、もう一段、深いところで、型が守っている」</p><p>カイナは、新しい板にこう書いた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=kr>import</span> <span class=kr>type</span> <span class=p>{</span> <span class=nx>WardState</span> <span class=p>}</span> <span class=kr>from</span> <span class=s2>&#34;./state-machine.ts&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// 「待機の貌に標的を持たせる」は型として書けないことの固定。
+</span></span></span><span class=line><span class=cl><span class=c1>// @ts-expect-error 待機の貌(standby)はtargetを持たない＝「待機中なのに標的を撃つ」が型として書けない
+</span></span></span><span class=line><span class=cl><span class=kr>const</span> <span class=nx>bad</span>: <span class=kt>WardState</span> <span class=o>=</span> <span class=p>{</span> <span class=nx>kind</span><span class=o>:</span> <span class=s2>&#34;standby&#34;</span><span class=p>,</span> <span class=nx>target</span><span class=o>:</span> <span class=s2>&#34;ally&#34;</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=k>void</span> <span class=nx>bad</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<code>@ts-expect-error</code> は、&ldquo;次の行は型エラーになるはずだ"という指示だ」とカイナは言った。「待機の貌に標的を持たせる——<code>{ kind: "standby", target: "ally" }</code>。これは型として書けないから、コンパイラが弾く。その弾きを、<code>@ts-expect-error</code> が受け止める」</p><p>ここで、術式の検めには二つの層があることを、はっきりさせておかねばならない。模擬戦——<code>node --test</code>——は、術式を実際に走らせて、振る舞いを確かめる。だが、走らせるとき、TypeScript の型の検めは行われない。型は剥がされ、ただの JavaScript として動く。だから「待機の貌に標的を持たせると書けない」ことは、<code>node --test</code> では確かめられない。それを守るのは、もう一つの層——コンパイル時の型検査、<code>tsc</code> だ。</p><p>「実行時に if で弾くのと、コンパイル時に書けなくするのは、別のことだ」とカイナは言った。「if で弾くなら、その if を通り抜ける道を、誰かがいつか書ける。だが、型に書けないものは、走らせる前に消える。<code>tsc</code> を通した瞬間に、弾かれる。ありえぬ貌は、本番の盤に乗る前に、消えている」</p><p>そして、この <code>@ts-expect-error</code> の妙を、カイナは付け加えた。「この指示には、裏の番もある。もし将来、誰かが型をゆるめて——待機の貌にも標的を持てるようにしてしまったら。その行は、もう型エラーにならない。すると <code>@ts-expect-error</code> は"期待した弾きが来ない"と見なされ、今度はそれ自体がコンパイルエラーになる。ありえぬ貌の排除がゆるんだら、この一行が、すぐに気づかせる」</p><h3 id=畳んであれば安全に増やせる>畳んであれば、安全に増やせる</h3><p>「これから、新しい構えが要るときは?」と僕は訊いた。これが、ずっと怖かったことだ。「また札を——いえ、また貌を足して、矛盾が増えませんか?」</p><p>「貌を一つ足すなら、地図に新しい道を引く」とカイナは言った。「引き忘れた道があれば——型が、見張る」</p><p>カイナは、仮の話だと断って、こう書いた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=c1>// もし「過熱（overheated）」という貌を足したら——
+</span></span></span><span class=line><span class=cl><span class=c1>// type WardState = ... | { kind: &#34;overheated&#34;; until: number };
+</span></span></span><span class=line><span class=cl><span class=c1>// transition の switch に case &#34;overheated&#34; を描き忘れると、
+</span></span></span><span class=line><span class=cl><span class=c1>// default の exhaustiveGuard(state) で、state が never に収まらず、コンパイラが弾く。
+</span></span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kd>function</span> <span class=nx>exhaustiveGuard</span><span class=p>(</span><span class=nx>x</span>: <span class=kt>never</span><span class=p>)</span><span class=o>:</span> <span class=kt>never</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=k>throw</span> <span class=k>new</span> <span class=nb>Error</span><span class=p>(</span><span class=sb>`未処理の貌: </span><span class=si>${</span><span class=nx>JSON</span><span class=p>.</span><span class=nx>stringify</span><span class=p>(</span><span class=nx>x</span><span class=p>)</span><span class=si>}</span><span class=sb>`</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<code>transition</code> の switch は、最後を <code>exhaustiveGuard(state)</code> で閉じている」とカイナは説明した。「すべての貌を処理し終えた後に残る型は、<code>never</code>——何も残らない、という型のはずだ。<code>exhaustiveGuard</code> は、<code>never</code> だけを受け取る関数。だから、もし貌を一つ足したのに、その貌の道を描き忘れると、残りが <code>never</code> に収まらず、ここで型エラーになる」</p><p>switch を <code>never</code> で閉じ、貌の取りこぼしをコンパイル時に弾くこの仕掛けを、**網羅性検査（exhaustiveness checking）**という。<code>never</code> は、すべての型に代入できるが、<code>never</code> に代入できるのは <code>never</code> だけ、という性質を持つ。その性質を使って「全部の貌を処理し終えたら、残るのは <code>never</code> のはず」を、コンパイラに突きつける。</p><p>「足すたびに掛け算が膨らんだ札とは、逆だ」とカイナは言った。「畳んであれば、貌を足しても、増えるのは"道を引く手間"だけ。引き忘れれば、型が止める。お前が増やすのを、型が見張る。——畳んで初めて、安全に増やせる」</p><h2 id=貌を確かめる>貌を、確かめる</h2><p>模擬戦と、型の検め。二つの層を、まとめて走らせた。</p><p>まず、実際に走らせる模擬戦。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-console data-lang=console><span class=line><span class=cl><span class=gp>$</span> node --test
+</span></span><span class=line><span class=cl><span class=go>▶ After: 状態マシン（transition＋Discriminated Union）
+</span></span></span><span class=line><span class=cl><span class=go>  ✔ 同じ事故の手順を流しても「待機の貌のまま発動」へ到達しない（firingのabortはcooldownへ着地）
+</span></span></span><span class=line><span class=cl><span class=go>  ✔ currentShotはfiringの貌のときだけ標的を返す（standby/charging/cooldownはnull）
+</span></span></span><span class=line><span class=cl><span class=go>  ✔ 許されない移ろいは貌を変えない（standbyでfireは無視される）
+</span></span></span><span class=line><span class=cl><span class=go>▶ Before: フラグ札（standby/charging/firing）
+</span></span></span><span class=line><span class=cl><span class=go>  ✔ 札が firing 一枚相当なら矛盾の起きる場所が無い（素直な術式）
+</span></span></span><span class=line><span class=cl><span class=go>  ✔ &#34;待機中は撃たない&#34;安全札(standby)を足すと、同じ事故列でstandby×firingが両立する新たな矛盾が開く
+</span></span></span><span class=line><span class=cl><span class=go>  ✔ その矛盾状態でcurrentShot()が標的を返す（待機の貌のまま味方を撃つ再現）
+</span></span></span><span class=line><span class=cl><span class=go>ℹ tests 6
+</span></span></span><span class=line><span class=cl><span class=go>ℹ pass 6
+</span></span></span><span class=line><span class=cl><span class=go>ℹ fail 0
+</span></span></span></code></pre></td></tr></table></div></div><p>六本、すべて緑。Before の盤は、札が食い違わない素直な列なら矛盾を起こさず、同じ事故の列に中断を差し込んだ途端、待機と発動を両立させて味方を撃った。After の地図は、そっくり同じ事故の列を流しても、待機の貌のまま発動へは至らず、許されない移ろいは貌を変えなかった。</p><p>そして、走らせる前の検め。型が、ありえぬ貌を書けなくしていることを確かめる。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-console data-lang=console><span class=line><span class=cl><span class=gp>$</span> tsc --noEmit
+</span></span><span class=line><span class=cl><span class=gp>$</span> <span class=nb>echo</span> <span class=nv>$?</span>
+</span></span><span class=line><span class=cl><span class=go>0
+</span></span></span></code></pre></td></tr></table></div></div><p>何も言わずに、通った。<code>tsc</code> は、間違いを見つけたときだけ口を開く。黙って通ったのは、ありえぬ貌——待機の貌に標的を持たせる一行——が、ちゃんと型エラーになり、<code>@ts-expect-error</code> がそれを受け止めたからだ。もしその排除がゆるんで——誰かが待機の貌にも標的を持てるようにしてしまったら——<code>@ts-expect-error</code> は受け止める弾きを失って宙に浮き、その途端、この exit は 0 でなくなる。</p><p>Before は、走らせて初めて事故が露れた。After は、走らせるより前に、ありえぬ貌が消えている。これが、二つの層の違いだ。</p><p>唯一の差分は、状態の数え方だけだった。受け取る合図も、流す事故の列も、外から問う窓口 <code>currentShot</code> も、Before と After で一つも違わない。変えたのは、独立した札の掛け算（直積）を、判別子ひとつの貌（直和）に畳んだこと。それだけが、ありえぬ貌を消した。</p><h3 id=盤から札が消える>盤から、札が消える</h3><p>防衛術式が、待機の貌のときは、決して撃たなくなった。盤を見ると——もう、並んだ札は無い。灯るのは、ただ一つ。「今の貌」だけだ。</p><p>「僕は、増える穴を、後から追いかけていました」と僕は言った。「畳んでしまえば、穴の開く場所そのものが、無い。……これからは、足すんじゃなく、畳んでから、増やせる」</p><p>先代の遺産を、増改築で歪めてしまった負い目が、初めて少しだけ、前を向いた。</p><p>「次に構えを増やすときは」と僕は続けた。「まず、地図を描きます。どの貌から、どの貌へ、どの合図で移れるのか。引き忘れたら、型が止めてくれる」</p><p>カイナはうなずいて、最後に一つだけ、別の鎖の話をした。「貌ごとに"振る舞い"そのものまで分けて持たせたいなら、別の作法もある。状態ごとの処理を、貌ごとの部品に閉じる——そういう設計だ。だが今日の獣の病は、振る舞いの置き場所じゃない。ありえぬ貌が、書けてしまうことだった。だからまず、貌を畳んだ。それで足りた」</p><p>カイナは制御室を出る前に、一度だけ、結界の軋む方を見た。</p><p>「貌が一つに定まらず、ありえぬ形に崩れていく。——この獣の病は、この術式だけのものか」</p><p>僕は、問い返せなかった。ただ、遠くで軋む結界の音と、たった今まで盤を蝕んでいた矛盾とが、どこかで重なる予感だけが、後に残った。</p><p>それから、もう一つ、カイナは断っておくと言った。「この地図が消したのは、ありえぬ貌だ。だが、地図に引いた道そのものが、術式として正しいか——たとえば、充填がいくつ満ちたら発動してよいのか——それは、型の守る話じゃない。お前が決めることだ。それに、合図が一つずつ順に届くなら、この地図は寸分たがわず畳む。だが、複数の手元から同時に合図が届くようになったら——それは、また別の獣だ」</p><p>その「別の獣」が何なのか、その時の僕は知らなかった。ただ、貌を一つに畳んだこの術式が、もう待機の貌のまま味方を撃つことはない。それだけは、確かだった。</p><hr><h3 id=-カイナの魔獣契約録tamers-registry>📜 カイナの魔獣契約録（Tamer&rsquo;s Registry）</h3><ul><li><strong>魔獣名（クラス/パターン名）</strong>: 千変の変幻獣カメレオン（氷の貌のまま炎を吐く矛盾状態）／ 不正状態の暴走（State Machine＋Discriminated Union＝貌をひとつに畳む／独立 boolean フラグの直積＝ありえぬ状態の組合せ爆発）</li><li><strong>危険度（難易度/バグの影響度）</strong>: ★★★★★（データ破壊ではなく安全性の崩壊。盤は「待機」と灯ったまま発動が残り、無害と信じて前を横切った味方を撃つ。矛盾形態のまま魔力が暴走すれば、術式そのものが焼き切れて自壊する）</li><li><strong>主な生態（アンチパターンの特徴）</strong>:<ul><li>状態を独立した boolean フラグ（standby/charging/firing）の直積で数えると、n 枚で 2 の n 乗通りの組合せが生まれ、その大半（3枚なら8通り中4通り）がありえぬ無効状態になる。塞ぐために札を足すほど、無効な組合せは倍々に膨れる</li><li>害の機序は「同じ"状態"を、別々の札が、別々の場所で参照して食い違う」こと。standby は盤の表示ランプと arm 受理ガードに使われ、撃つ判定 currentShot は firing だけを見る。両者が別管理ゆえ standby=true かつ firing=true が成立すると、盤は「待機」と灯るのに標的を返す</li><li>中断（abort）が発動（firing）の最中に差し込まれた一続きの手順でだけ二枚が灯る。平時・構え中には露れず、再現条件が手順依存ゆえデバッグが難しい</li></ul></li><li><strong>契約のポイント（設計の要点）</strong>:<ul><li>Discriminated Union＝貌に判別子 <code>kind</code> を一つ付け、その貌でだけ持つ持ち物を束ねた直和。<code>standby</code> に <code>target</code> の枠が無く「待機中なのに標的を持つ」が型として書けない＝ありえぬ組合せを型の語彙から排除（直積2^n → 直和の必要な貌だけに畳む）</li><li><code>transition(state, event)</code>＝今の貌と合図から次の貌を返す純粋・同期関数。許される移ろいだけを刻み、「待機の貌のまま発動」へ至る道を地図に引かない＝到達不能。<code>currentShot</code> も札でなく今の貌だけを見る</li><li>二層検証：<code>node --test</code>（実行時）で事故列が矛盾へ到達しないことを、<code>tsc --noEmit</code>（コンパイル時）でありえぬ貌が書けないことを守る。Node のネイティブ実行は型を剥がすため、型の保証は tsc が担う</li><li>never 網羅性検査＝<code>switch (state.kind)</code> を <code>exhaustiveGuard(x: never)</code> で閉じる。新しい貌を足して道を描き忘れると残りが never に収まらずコンパイルエラー＝増改築の番人（畳んで初めて安全に増やせる）</li><li>1:1 の単一差分：同一 <code>WardEvent</code>・同一の事故列・同一の外部窓口 <code>currentShot</code> を保ち、差分は状態の数え方（独立 boolean の直積 → 判別子ひとつの直和）のみ。無関係なバグ修正を混ぜていない</li></ul></li><li><strong>契約外事項（保証しないこと）</strong>:<ul><li>合図が一つずつ順に届く前提で畳む。複数の手元から同時に合図が届く並行入力・状態の分散同期は守備範囲外＝別の獣（データレース／楽観ロック）の領分</li><li>型はありえぬ貌を消すが、正しい貌から正しい貌への道そのものが業務的に妥当か（例：充填閾値が適切か）は保証しない。道の妥当性は別</li><li>過剰符号化への戒め：充填量や冷却残りまで全て型パラメータへ符号化しようとしない。目的は不正状態の排除であって、あらゆる細部の型表現化ではない（<code>charge: number</code> は値で持ってよい）</li><li>GoF State パターン（状態ごとの振る舞いをオブジェクトにカプセル化）とは焦点が違う。本話は「ありえぬ貌が書けてしまう」ことを型で消す方＝FSM＋Discriminated Union</li></ul></li><li><strong>現在のステータス</strong>: 🟢 貌をひとつに畳み、許される移ろいだけを地図に刻んで「待機の貌のまま発動」を型から消した契約成立（実行時の if でなくコンパイル時に存在を消す）／合図の並行到着・状態の分散同期は別の獣として後日。同時の数（門番）・流量（器）に続き、状態空間の妥当性で、暴走を律する物差しがまた一つ揃った</li></ul></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/typescript/>Typescript</a>
+<a href=/tags/state-machine/>State-Machine</a>
+<a href=/tags/discriminated-union/>Discriminated-Union</a>
+<a href=/tags/invalid-state/>Invalid-State</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-tamer/>Code-Tamer</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/07/05/170705/><div class=article-image><img src=/public_images/2026/code-tamer-graceful-shutdown-abyss-null/header.webp loading=lazy data-key data-hash=/public_images/2026/code-tamer-graceful-shutdown-abyss-null/header.webp></div><div class=article-details><h2 class=article-title>コードテイマー【Graceful Shutdown】終いを急ぐ獣が、還らぬ客と開いた鍵を闇に残す〜受け入れを閉ざし、皆を還してから己を閉じる〜</h2></div></a></article><article class=has-image><a href=/2026/07/05/120705/><div class=article-image><img src=/public_images/2026/code-tamer-bulkhead/header.webp loading=lazy data-key data-hash=/public_images/2026/code-tamer-bulkhead/header.webp></div><div class=article-details><h2 class=article-title>コードテイマー【Bulkhead】汲み上げの大食らいが船中の魔力を飲み干し、守りの防壁が飢えて落ちる〜魔力槽を機能ごとに隔て、守りの取り分を絶やさない〜</h2></div></a></article><article class=has-image><a href=/2026/07/05/070705/><div class=article-image><img src=/public_images/2026/code-tamer-circuit-breaker/header.webp loading=lazy data-key data-hash=/public_images/2026/code-tamer-circuit-breaker/header.webp></div><div class=article-details><h2 class=article-title>コードテイマー【Circuit Breaker】倒れた一匹を見捨てられず、群れごと魔力が枯れ果てる〜倒れた相手への鎖を断ち、頃合いを見て繋ぎ直す〜</h2></div></a></article><article class=has-image><a href=/2026/07/04/170705/><div class=article-image><img src=/public_images/2026/code-tamer-eventual-consistency/header.webp loading=lazy data-key data-hash=/public_images/2026/code-tamer-eventual-consistency/header.webp></div><div class=article-details><h2 class=article-title>コードテイマー【Eventual Consistency】取りこぼした叫びのあと、その階層だけが古いまま黙り込む〜叫びと巡回の二本を版で束ね、遅れても必ず追いつかせる〜</h2></div></a></article><article class=has-image><a href=/2026/07/04/120705/><div class=article-image><img src=/public_images/2026/code-tamer-optimistic-locking/header.webp loading=lazy data-key data-hash=/public_images/2026/code-tamer-optimistic-locking/header.webp></div><div class=article-details><h2 class=article-title>コードテイマー【Optimistic Locking】二人の手が同じ数を書き、一方の更新が静かに消える〜帳に版を刻み、後から来た手にやり直させる〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

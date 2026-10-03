@@ -1,0 +1,381 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="フォールバックが主経路と同じDB依存で障害を増幅するアンチパターンを解剖し、FallbackChain（CachedValue→DefaultValue→GracefulDegradation）で外部依存ゼロのフォールバック設計をPerl/Mooで実装。"><title>コード探偵ロックの事件簿【Fallback Pattern】最後の砦〜優雅に壊れる技術〜</title><link rel=canonical href=https://www.nqou.net/2026/05/04/070705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コード探偵ロックの事件簿【Fallback Pattern】最後の砦〜優雅に壊れる技術〜"><meta property='og:description' content="フォールバックが主経路と同じDB依存で障害を増幅するアンチパターンを解剖し、FallbackChain（CachedValue→DefaultValue→GracefulDegradation）で外部依存ゼロのフォールバック設計をPerl/Mooで実装。"><meta property='og:url' content='https://www.nqou.net/2026/05/04/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='perl'><meta property='article:tag' content='moo'><meta property='article:tag' content='fallback-pattern'><meta property='article:tag' content='db-fallback'><meta property='article:tag' content='resilience'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-detective'><meta property='article:published_time' content='2026-05-04T07:07:05+09:00'><meta property='article:modified_time' content='2026-05-04T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-detective-fallback/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コード探偵ロックの事件簿【Fallback Pattern】最後の砦〜優雅に壊れる技術〜"><meta name=twitter:description content="フォールバックが主経路と同じDB依存で障害を増幅するアンチパターンを解剖し、FallbackChain（CachedValue→DefaultValue→GracefulDegradation）で外部依存ゼロのフォールバック設計をPerl/Mooで実装。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-detective-fallback/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-05-04T07:07:05+09:00","datePublished":"2026-05-04T07:07:05+09:00","description":"フォールバックが主経路と同じDB依存で障害を増幅するアンチパターンを解剖し、FallbackChain（CachedValue→DefaultValue→GracefulDegradation）で外部依存ゼロのフォールバック設計をPerl/Mooで実装。","headline":"コード探偵ロックの事件簿【Fallback Pattern】最後の砦〜優雅に壊れる技術〜","image":"https://www.nqou.net/public_images/2026/code-detective-fallback/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/05/04/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#事件の発端--自分の手で壊した防衛線>事件の発端 — 自分の手で壊した防衛線</a></li><li><a href=#現場検証--フォールバックの指紋>現場検証 — フォールバックの指紋</a><ol><li><a href=#時系列の解剖>時系列の解剖</a></li><li><a href=#amazon-2001年の教訓>Amazon 2001年の教訓</a></li><li><a href=#避けるべきか避けられないか>避けるべきか、避けられないか</a></li><li><a href=#技術者だけで決めない>技術者だけで決めない</a></li></ol></li><li><a href=#推理披露--フォールバックチェーンの設計>推理披露 — フォールバックチェーンの設計</a><ol><li><a href=#fallbackchainの構造>FallbackChainの構造</a></li><li><a href=#fallbackchainの実装>FallbackChainの実装</a></li><li><a href=#各戦略の実装>各戦略の実装</a></li><li><a href=#fallbackchainの統合>FallbackChainの統合</a></li><li><a href=#防衛線の4層構成>防衛線の4層構成</a></li></ol></li><li><a href=#解決--安全なフォールバックの証明>解決 — 安全なフォールバックの証明</a></li><li><a href=#事件の余韻--問いかける資格>事件の余韻 — 問いかける資格</a></li><li><a href=#探偵の調査報告書>探偵の調査報告書</a><ol><li><a href=#推理のステップ>推理のステップ</a></li><li><a href=#ロックより>ロックより</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/05/04/070705/><img src=/public_images/2026/code-detective-fallback/header.webp loading=lazy alt="Featured image of post コード探偵ロックの事件簿【Fallback Pattern】最後の砦〜優雅に壊れる技術〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/05/04/070705/>コード探偵ロックの事件簿【Fallback Pattern】最後の砦〜優雅に壊れる技術〜</a></h2><h3 class=article-subtitle>フォールバックが主経路と同じDB依存で障害を増幅するアンチパターンを解剖し、FallbackChain（CachedValue→DefaultValue→GracefulDegradation）で外部依存ゼロのフォールバック設計をPerl/Mooで実装。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>04, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 19分</time></div></footer></div></header><section class=article-content><h2 id=事件の発端--自分の手で壊した防衛線>事件の発端 — 自分の手で壊した防衛線</h2><p>金曜の夜21時。自宅のリビング。ダイニングテーブルにノートPCを置いて、ビデオ通話アプリを開いた。</p><p>連絡先リストからロックさんの名前を選ぶ。少し迷って、発信ボタンを押した。</p><p>2コール目で応答があった。</p><p>画面に映ったロックさんは——いつものツイードジャケットではなく、黒のカーディガンだった。背景には壁一面の本棚と、棚に3台並んだヴィンテージキーボード。窓の外に夜景が小さく見える。</p><p><em>……事務所じゃない。ここがロックさんの家なのか。</em></p><p>「夜分に何事だ、ワトソン君」</p><p>「すみません、夜遅くに。——今日のインシデントの件で、相談したいことがあります。緊急ではないんですが、今日中に理解しておきたくて」</p><p>ロックさんがカメラ越しに私の顔を見た。何かに気づいた顔をして、それから短く言った。</p><p>「画面を見せたまえ」</p><p>画面共有を開始した。Grafanaのインシデントタイムライン。</p><p>「CB + Retry + Timeout、全部正常です。……ただ、<strong>私が追加したフォールバックが</strong>、問題を起こしました」</p><p>ロックさんは黙っている。</p><p>タイムラインを指差した。水曜14:00、在庫照会APIのレスポンスタイム上昇。14:03、DB接続プールのアクティブ接続急増。14:05、在庫DBのCPU使用率100%。14:06、配送料計算APIも応答不能。14:08、注文処理全面停止。</p><p>「30分間の全面停止です。……CB回の3時間よりは短いですが、<strong>CBを入れた後の想定停止時間は30秒</strong>でした。それが30分」</p><p>「在庫照会APIの遅延が、DBまで波及している。——ワトソン君、在庫照会のフォールバック処理を見せてくれ」</p><p>コードエディタに切り替えた。少し間が空いた。</p><p>声が小さくなる。</p><p>「前回のセッションの後、CachedValueフォールバックを実装しました。ロックさんが教えてくれた通りに。——ただ、それだけでは足りなくて……」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>InventoryClient</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(InstanceOf Object)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>timeout_wrapper</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Object</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>fallback_cache</span>  <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Object</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>http_client</span>     <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Object</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>inventory_db</span>    <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Object</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>  <span class=c1># ← 私が追加した</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>check</span> <span class=p>($self, $product_id) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$result</span> <span class=o>=</span> <span class=nb>eval</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>timeout_wrapper</span><span class=o>-&gt;</span><span class=n>execute</span><span class=p>(</span><span class=k>sub</span> <span class=p>($connect_to, $read_to) {</span>
+</span></span><span class=line><span class=cl>            <span class=k>my</span> <span class=nv>$res</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>http_client</span><span class=o>-&gt;</span><span class=n>get</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>                <span class=s>&#34;http://inventory-api.internal/stock/$product_id&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>                <span class=p>{</span> <span class=n>timeout</span> <span class=o>=&gt;</span> <span class=nv>$read_to</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>            <span class=p>);</span>
+</span></span><span class=line><span class=cl>            <span class=nb>die</span> <span class=s>&#34;Inventory API error: $res-&gt;{status}&#34;</span> <span class=k>unless</span> <span class=nv>$res</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>success</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>            <span class=k>return</span> <span class=nv>$res</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>content</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>        <span class=p>});</span>
+</span></span><span class=line><span class=cl>    <span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$err</span> <span class=o>=</span> <span class=vg>$@</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=nv>$err</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=c1># フォールバック1: キャッシュ</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$cached</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>fallback_cache</span><span class=o>-&gt;</span><span class=n>get</span><span class=p>(</span><span class=nv>$product_id</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=nb>defined</span> <span class=nv>$cached</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=k>return</span> <span class=nv>$cached</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=c1># フォールバック2: DB直接クエリ（私が追加した）</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$db_result</span> <span class=o>=</span> <span class=nb>eval</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>inventory_db</span><span class=o>-&gt;</span><span class=n>selectrow_hashref</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>                <span class=s>&#34;SELECT stock_quantity FROM inventory WHERE product_id = ?&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>                <span class=nb>undef</span><span class=p>,</span> <span class=nv>$product_id</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=p>};</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=nv>$db_result</span> <span class=o>&amp;&amp;</span> <span class=o>!</span><span class=vg>$@</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=k>return</span> <span class=p>{</span> <span class=n>stock</span> <span class=o>=&gt;</span> <span class=nv>$db_result</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>stock_quantity</span><span class=p>},</span> <span class=n>source</span> <span class=o>=&gt;</span> <span class=s>&#39;db_fallback&#39;</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=nb>die</span> <span class=s>&#34;All fallbacks failed: $err&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>fallback_cache</span><span class=o>-&gt;</span><span class=n>update</span><span class=p>(</span><span class=nv>$product_id</span><span class=p>,</span> <span class=nv>$result</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$result</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>ロックさんがコードを静かに読んでいる。<code>inventory_db</code> の行で指が止まった。</p><p>「……<code>inventory_db</code>。在庫DBへの直接接続だ」</p><h2 id=現場検証--フォールバックの指紋>現場検証 — フォールバックの指紋</h2><p>「新商品にはキャッシュがないんです。タイムアウト後にCachedValueを見ても何も返らない。PMから"新商品だけ注文できない"と言われて——」</p><p>「ワトソン君、あの時の私の言葉を覚えているか」</p><p>黙った。3秒。</p><p>「……&ldquo;在庫照会APIが遅延している原因がDB負荷だったら？ フォールバックが主経路と同じ障害源を叩くことになる&rdquo;」</p><p>「覚えていた」</p><p>「覚えていました。……でも、これは違うと思ったんです。キャッシュミスの問題で、DB負荷の問題じゃない。だからDBに直接クエリしても——」</p><p>「——DB負荷が原因の遅延が来るまでは、問題なく動いた」</p><p>「……はい。火曜のデプロイから水曜の14時まで、完璧に動いていました。新商品の注文も通るようになって、PMにも喜ばれました。——水曜の午後に在庫DBのバキューム処理が走って負荷が上がり、在庫照会APIが遅延を始めた瞬間に——」</p><p>「——全インスタンスのフォールバックが、同じDBを叩いた」</p><p>「……はい」</p><p>沈黙。</p><p>ロックさんの声のトーンが穏やかだった。責めていない。</p><p>「ワトソン君。それはフォールバックの設計が間違っていたのではない。フォールバックという選択肢を<strong>技術だけで決めた</strong>ことが問題だ」</p><h3 id=時系列の解剖>時系列の解剖</h3><p>「時系列を整理しよう。水曜14:00に何が起きた」</p><p>「在庫DBのバキューム処理が開始。CPU負荷が上昇。在庫照会APIの応答が遅延開始。——ここまでは前回と同じです。タイムアウトが1.5秒で切れて、CBの失敗カウントが進む」</p><p>「そこまではTimeoutとCBが設計通りに動いている。——14:03に何が変わった」</p><p>「タイムアウトが発火した後のフォールバックです。CachedValueがキャッシュヒットしたリクエストは問題なし。しかしキャッシュミスのリクエスト——新商品、TTL切れの商品——が、DBに直接クエリを送りました」</p><p>「何インスタンスだ」</p><p>「10インスタンスです。各インスタンスのタイムアウト後のフォールバックが、全て同じDBに接続しました」</p><p>「10インスタンスが、バキューム処理で既に負荷の高いDBに、SELECTを送り込んだ。——在庫照会APIもそのDBを使っている」</p><p>「……在庫照会APIの負荷 + フォールバックの負荷で、DBが完全にロックしました」</p><p>「そしてそのDBは在庫照会APIだけのものではない」</p><p>「……配送料計算APIも同じDBクラスタを参照しています。配送料計算も在庫テーブルの重量情報を使っているので」</p><p>「**フォールバックが、在庫照会の障害を配送料計算に伝播させた。**フォールバックなしなら、在庫照会のタイムアウト→CBがOpen→在庫照会だけ一時停止。他のサービスは無傷。——フォールバックを入れたことで、爆発半径が広がった」</p><p>メモを取った。手が少し震えていた。</p><p>「……フォールバックが、障害を増幅した」</p><h3 id=amazon-2001年の教訓>Amazon 2001年の教訓</h3><p>「2001年のAmazonで、まったく同じことが起きた」</p><p>「……？」</p><p>「Amazonの小売サイトで、配送速度の表示機能にキャッシュレイヤーを追加した。キャッシュ障害時のフォールバックとして、DBへの直接クエリを入れた。——キャッシュが全て同時に障害を起こしたとき、全WebサーバーがDBに直接アクセスし、DBが完全ロック。配送速度の表示ができないだけで済むはずが、サイト全体がダウンし、フルフィルメントセンターが全停止した。部分障害がサイト全体停止に拡大した」</p><p>「……まさに今日の私と同じ構造です」</p><p>「<strong>フォールバックが主経路と同じリソースに依存していると、フォールバック自体が障害になる。</strong>——AWSはこの教訓から、分散システムにおけるフォールバックを<strong>ほぼ全面的に避けるべき</strong>と主張している」</p><h3 id=避けるべきか避けられないか>避けるべきか、避けられないか</h3><p>「AWSは"フォールバックは避けるべきだ"と言っている、と聞いたことがあります。……今回の件を見ると、その通りなんじゃないかと」</p><p>ロックさんが珍しく少し間を置いた。カーディガンの袖を直す動作。</p><p>「AWSの主張は正しい。分散システムにおいて、フォールバックは障害を増幅するリスクがある。テストが困難で、潜在バグの温床で、バイモーダル動作を生む」</p><p>「バイモーダル動作？」</p><p>「システムが2つのモードを持つことだ。<strong>通常モード</strong>と<strong>障害モード</strong>。通常モードのコードは毎日実行され、十分にテストされている。障害モードのコード——フォールバック——は<strong>最も混沌とした瞬間にだけ実行される。テストが不十分な経路が、最悪のタイミングで初めて動く</strong>」</p><p>「……今日のDBフォールバックがまさにそうです。火曜にデプロイして、水曜に初めて本番で動いて——壊れました」</p><p>「しかし、AWSの記事はもう少し先まで言っている。&ldquo;フォールバックをフェイルオーバーに変換せよ"と。つまり、フォールバックを"障害時にだけ動くコード"にするな。両方の経路を常時動かせ。——だが、それが常にできるか？」</p><p>「……新商品の在庫情報がない場合に、&ldquo;常時動くフェイルオーバー"は作れません。データがそもそも存在しないので」</p><p>「そう。AWSの助言は<strong>同等品質で代替できる冗長系がある場合</strong>に最も有効だ。<strong>品質を落とすことでしか対応できない場合</strong>——エラーを返すか、古い情報を返すか、&ldquo;わかりません"と表示するか——は、フォールバックの領域だ。避けられない」</p><p>「フォールバックは避けるべきだけど、避けられない場面がある——」</p><p>「<strong>避けられないなら、毒を薬に変えるルールが要る</strong>」</p><h3 id=技術者だけで決めない>技術者だけで決めない</h3><p>「技術だけで決めた、というのは——PMに相談すべきだったということですか？」</p><p>「ワトソン君。この <code>inventory_db</code> のフォールバックは、<strong>在庫情報が取れなかったとき、DBから値を取って返す</strong>。——つまり、在庫切れかもしれない商品を"在庫あり"と返す可能性がある。これは技術の判断か？」</p><p>「……ビジネスの判断です」</p><p>「<strong>&ldquo;古い在庫情報を返してよいか&rdquo;。&ldquo;在庫確認なしで注文を受け付けてよいか&rdquo;。&ldquo;在庫不明のとき画面にどう表示するか&rdquo;。</strong>——全てビジネス判断だ。コードで解決できる問題ではない。PMが決めるべきことだ」</p><p>「……前回の3つのルール。フォールバック経路が主経路と同じリソースに依存しない。定期的にテストする。主経路より単純にする。それは技術のルールでした。でも——」</p><p>「4つ目のルールだ。<strong>フォールバックで何を犠牲にするかは、技術者が決めない</strong>」</p><h2 id=推理披露--フォールバックチェーンの設計>推理披露 — フォールバックチェーンの設計</h2><h3 id=fallbackchainの構造>FallbackChainの構造</h3><p>ロックさんが画面共有を自分に切り替えた。テキストエディタを開き、構造を描き始める。ビデオ通話越しのペアプログラミングだ。</p><p>「フォールバックは単一の代替手段ではない。**優先度付きのチェーンだ。**Strategy パターンで各戦略をカプセル化し、Chain of Responsibility で優先順に試行する」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>FallbackChain
+</span></span><span class=line><span class=cl>├── 戦略1: CachedValue（インメモリキャッシュ）
+</span></span><span class=line><span class=cl>│   └── 主経路との独立性: ✓（メモリ上のデータ。外部依存なし）
+</span></span><span class=line><span class=cl>├── 戦略2: DefaultValue（静的デフォルト値）
+</span></span><span class=line><span class=cl>│   └── 主経路との独立性: ✓（ハードコードまたはローカル設定ファイル。外部依存なし）
+</span></span><span class=line><span class=cl>├── 戦略3: GracefulDegradation（機能縮退）
+</span></span><span class=line><span class=cl>│   └── 主経路との独立性: ✓（在庫確認を省略して注文仮受付。外部呼び出し自体を行わない）
+</span></span><span class=line><span class=cl>└── 全て失敗: エラー返却
+</span></span></code></pre></td></tr></table></div></div><p>「……3段階とも、在庫DBに依存していない」</p><p>「**それがルールだ。各戦略が、主経路と独立した障害源——あるいは外部依存自体を持たない。**DBフォールバックの何が間違いだったか。在庫照会APIの背後にあるDBをフォールバックとして使った。APIが遅い原因がそのDBにあるなら——」</p><p>「フォールバックが原因に向かって突進する」</p><p>「そう。<strong>フォールバックは主経路から離れなければならない。近づいてはいけない</strong>」</p><h3 id=fallbackchainの実装>FallbackChainの実装</h3><p>「Chain of Responsibility で戦略を連鎖させる」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>FallbackChain</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(ArrayRef CodeRef)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>strategies</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>isa</span>      <span class=o>=&gt;</span> <span class=n>ArrayRef</span><span class=p>[</span><span class=n>CodeRef</span><span class=p>],</span>
+</span></span><span class=line><span class=cl>    <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>execute</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=k>my</span> <span class=nv>$strategy</span> <span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>strategies</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$result</span> <span class=o>=</span> <span class=nb>eval</span> <span class=p>{</span> <span class=nv>$strategy</span><span class=o>-&gt;</span><span class=p>()</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$result</span> <span class=k>if</span> <span class=nb>defined</span> <span class=nv>$result</span> <span class=o>&amp;&amp;</span> <span class=o>!</span><span class=vg>$@</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nb>undef</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「……シンプルですね。各戦略がCodeRefで、成功したらその値を返す。失敗したら次の戦略を試す」</p><p>「**フォールバックチェーン自体は単純でなければならない。チェーンの構造に複雑さを入れると、チェーン自体がバグの温床になる。**複雑さは各戦略の中に閉じ込める」</p><h3 id=各戦略の実装>各戦略の実装</h3><p>「CachedValue は前回のものがそのまま使える。TTL内のキャッシュがあれば返す」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>FallbackStrategy::CachedValue</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(Num HashRef)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Time::HiRes</span> <span class=sx>qw(time)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>max_age</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Num</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=mi>300</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>_cache</span>  <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>HashRef</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=p>{}</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>get</span> <span class=p>($self, $key) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$entry</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>_cache</span><span class=o>-&gt;</span><span class=p>{</span><span class=nv>$key</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nb>undef</span> <span class=k>unless</span> <span class=nv>$entry</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nb>undef</span> <span class=k>if</span> <span class=p>(</span><span class=nb>time</span><span class=p>()</span> <span class=o>-</span> <span class=nv>$entry</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>cached_at</span><span class=p>})</span> <span class=o>&gt;=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>max_age</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$entry</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>value</span><span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>update</span> <span class=p>($self, $key, $value) {</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>_cache</span><span class=o>-&gt;</span><span class=p>{</span><span class=nv>$key</span><span class=p>}</span> <span class=o>=</span> <span class=p>{</span> <span class=n>value</span> <span class=o>=&gt;</span> <span class=nv>$value</span><span class=p>,</span> <span class=n>cached_at</span> <span class=o>=&gt;</span> <span class=nb>time</span><span class=p>()</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「前回のCachedValueにキーを追加しただけですね。product_id ごとにキャッシュする」</p><p>「そうだ。——次に、DefaultValue。<strong>外部依存のない静的な値を返す。</strong>」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>FallbackStrategy::DefaultValue</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(Any)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>default_value</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Any</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>get</span> <span class=p>($self, $key) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>default_value</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「DefaultValueは——でも、商品ごとに在庫数のデフォルト値を持つのは無理がありませんか。新商品のデフォルト在庫数なんて——」</p><p>「正しい懸念だ。在庫<strong>数</strong>のデフォルト値は意味がない。しかし<strong>状態</strong>のデフォルト値は意味がある。——&ldquo;在庫不明"というステータスを返すのだ」</p><p>「&ldquo;在庫不明&rdquo;……」</p><p>「在庫ありでもなしでもない。<strong>&ldquo;確認中&rdquo;</strong>。——在庫照会のレスポンスを数値ではなく状態で返すように設計し直す。<code>available</code>、<code>out_of_stock</code>、<code>unknown</code>。DefaultValueは全商品に対して <code>unknown</code> を返す」</p><p>「<code>unknown</code> を受け取った注文処理は——」</p><p>「<strong>それがビジネス判断だ。</strong> <code>unknown</code> のとき注文を受け付けるか、受け付けないか。受け付けるなら仮注文にするか、確定注文にするか。——ワトソン君が決めることではない。PMが決めることだ」</p><p>黙って頷いた。</p><p>「3つ目。GracefulDegradation」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>FallbackStrategy::GracefulDegradation</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(CodeRef)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>degraded_action</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>CodeRef</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>get</span> <span class=p>($self, $key) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>degraded_action</span><span class=o>-&gt;</span><span class=p>(</span><span class=nv>$key</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「GracefulDegradation の <code>degraded_action</code> は、具体的に何をするんですか」</p><p>「サービスごとに異なる。在庫照会の場合——例えば、在庫確認を省略して注文を仮受付し、在庫API復旧後に在庫を確認してユーザーに通知する。あるいは、在庫情報なしで商品ページを表示し、注文ボタンを一時的にグレーアウトする」</p><p>「Graceful Degradationの"注文仮受付"って、在庫確認なしで注文を受けるんですよね。それで欠品だったら——」</p><p>「正しい懸念だ。——ワトソン君、<strong>欠品のリスク</strong>と<strong>全面停止のリスク</strong>、どちらがビジネスにとって深刻だ？」</p><p>「……全面停止のほうが、明らかに」</p><p>「では、&ldquo;在庫確認なしで注文を受け付けて、後から在庫切れなら謝罪メールを送る"のと、&ldquo;在庫確認できるまで注文画面を止める"のと、どちらがまだましだ」</p><p>「……それはPMに聞きます」</p><p>ロックさんが小さく頷いた。カメラ越しでも頷きが見えた。</p><p>「<strong>それが正解だ</strong>」</p><h3 id=fallbackchainの統合>FallbackChainの統合</h3><p>「統合するとこうなる」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>InventoryClient</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(InstanceOf Object)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>FallbackChain</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>timeout_wrapper</span>  <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Object</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>fallback_cache</span>   <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Object</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>fallback_default</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Object</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>fallback_degrade</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Object</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>http_client</span>      <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Object</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=c1># ★ inventory_db は削除。主経路と同じDBへの依存を断つ</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>check</span> <span class=p>($self, $product_id) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$result</span> <span class=o>=</span> <span class=nb>eval</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>timeout_wrapper</span><span class=o>-&gt;</span><span class=n>execute</span><span class=p>(</span><span class=k>sub</span> <span class=p>($connect_to, $read_to) {</span>
+</span></span><span class=line><span class=cl>            <span class=k>my</span> <span class=nv>$res</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>http_client</span><span class=o>-&gt;</span><span class=n>get</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>                <span class=s>&#34;http://inventory-api.internal/stock/$product_id&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>                <span class=p>{</span> <span class=n>timeout</span> <span class=o>=&gt;</span> <span class=nv>$read_to</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>            <span class=p>);</span>
+</span></span><span class=line><span class=cl>            <span class=nb>die</span> <span class=s>&#34;Inventory API error: $res-&gt;{status}&#34;</span> <span class=k>unless</span> <span class=nv>$res</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>success</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>            <span class=k>return</span> <span class=nv>$res</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>content</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>        <span class=p>});</span>
+</span></span><span class=line><span class=cl>    <span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$err</span> <span class=o>=</span> <span class=vg>$@</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=nv>$err</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=c1># フォールバックチェーン: 主経路と独立した障害源のみ</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$chain</span> <span class=o>=</span> <span class=nn>FallbackChain</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=n>strategies</span> <span class=o>=&gt;</span> <span class=p>[</span>
+</span></span><span class=line><span class=cl>                <span class=k>sub</span> <span class=p>{</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>fallback_cache</span><span class=o>-&gt;</span><span class=n>get</span><span class=p>(</span><span class=nv>$product_id</span><span class=p>)</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>                <span class=k>sub</span> <span class=p>{</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>fallback_default</span><span class=o>-&gt;</span><span class=n>get</span><span class=p>(</span><span class=nv>$product_id</span><span class=p>)</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>                <span class=k>sub</span> <span class=p>{</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>fallback_degrade</span><span class=o>-&gt;</span><span class=n>get</span><span class=p>(</span><span class=nv>$product_id</span><span class=p>)</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>            <span class=p>],</span>
+</span></span><span class=line><span class=cl>        <span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$fallback_result</span> <span class=o>=</span> <span class=nv>$chain</span><span class=o>-&gt;</span><span class=n>execute</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$fallback_result</span> <span class=k>if</span> <span class=nb>defined</span> <span class=nv>$fallback_result</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=nb>die</span> <span class=s>&#34;All fallbacks exhausted: $err&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=c1># 正常時: キャッシュを更新</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>fallback_cache</span><span class=o>-&gt;</span><span class=n>update</span><span class=p>(</span><span class=nv>$product_id</span><span class=p>,</span> <span class=nv>$result</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$result</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<code>inventory_db</code> が消えた。——DBへの直接接続がない」</p><p>「**3つの戦略とも、外部サービスやDBに一切接続していない。**CachedValueはメモリ上。DefaultValueはハードコード。GracefulDegradationはロジックだけで完結する。——フォールバックチェーンの中に、主経路と同じ障害源が1つも含まれていない」</p><p>「……前のコードでは、フォールバックがDBに接続していた。今のコードでは——フォールバックが外の世界に一切触れていない」</p><p>「<strong>フォールバックは内に閉じる。外に手を伸ばした瞬間に、それは新しい障害源になる</strong>」</p><h3 id=防衛線の4層構成>防衛線の4層構成</h3><p>「ここまでの4回のセッションで積み上げた防衛線を図にする」</p><pre class=mermaid>
+	graph LR
+    A[リクエスト] --&gt; B[Retry]
+    B --&gt;|should_retry? → yes| B
+    B --&gt; C[Circuit Breaker]
+    C --&gt;|Open → 即座に| F
+    C --&gt;|Closed/Half-Open| D[Timeout]
+    D --&gt;|接続TO + 読み取りTO| E[外部API]
+    D --&gt;|タイムアウト| F[FallbackChain]
+    E --&gt;|エラー| F
+    F --&gt; F1[CachedValue]
+    F1 --&gt;|miss| F2[DefaultValue]
+    F2 --&gt;|miss| F3[GracefulDegradation]
+    F3 --&gt;|miss| X[エラー返却]
+</pre><p>「Retry → CB → Timeout → FallbackChain。……4層になった」</p><p>「<strong>外側から順に。Retryが"もう一度やるか"を決める。CBが"そもそもやるか"を決める。Timeoutが"どこまで待つか"を決める。FallbackChainが"ダメだったとき何を返すか"を決める</strong>」</p><p>「……&ldquo;何を返すか"の判断だけが、技術者だけで決められない」</p><p>「そうだ。<strong>Retry、CB、Timeoutは技術パラメータで制御できる。FallbackChainの最終戦略——&ldquo;何を犠牲にするか&rdquo;——はビジネス判断だ</strong>」</p><h2 id=解決--安全なフォールバックの証明>解決 — 安全なフォールバックの証明</h2><p>「Before——DBフォールバックがある状態。在庫照会APIの遅延がDB負荷起因の場合、フォールバックが同じDBを叩いて障害を増幅。30分の全面停止」</p><p>「After——FallbackChainで、主経路と独立した3段の戦略。在庫照会APIの遅延がDB負荷起因でも、フォールバックはDBに触れない。在庫照会のみ一時停止。他サービスへの影響ゼロ。キャッシュがあれば古い在庫情報を返却。なければ"unknown"ステータス。注文処理は——」</p><p>「——PMと決めます」</p><p>「そうだ。<strong>技術的にはここで完成だ。残りは設計ではない。合意だ</strong>」</p><h2 id=事件の余韻--問いかける資格>事件の余韻 — 問いかける資格</h2><p>「ロックさん。……一つ聞いていいですか」</p><p>「何だ」</p><p>「フォールバックの設計って——ロックさんにとっても難しい問題なんですか」</p><p>ロックさんの表情が一瞬だけ変わった。カーディガンの袖を直す動作。</p><p>「フォールバックの設計は——私が最も嫌う種類の問題だ」</p><p>「……嫌う？」</p><p>「**コードに正解がない。<strong>CBには状態遷移の数学がある。Retryには指数バックオフの数式がある。Timeoutにはパーセンタイルの統計がある。——フォールバックには、</strong>&ldquo;どこまで劣化を許容するか"という、計算できない判断しかない。**技術者として最も不得意な種類の問題だよ、ワトソン君」</p><p><em>……この人にも、苦手な問題がある。</em></p><p>「だからこそ——ワトソン君、最後に1つ」</p><p>身構えた。</p><p>「あの警告を覚えていて、それでもDBフォールバックを入れた。——それは愚かだったのではない。PMの要望に応えようとした。正しい動機だ。ただ、応え方を間違えた。——次にPMから同じ要望が来たとき、君は"在庫情報なしで注文を受け付けてよいか"と聞き返せる。<strong>今日の失敗が、その質問をする資格を君に与えた</strong>」</p><p>「……ありがとうございます」</p><p>「礼はいい。——それよりワトソン君、次の月曜に君のオフィスのコーヒーメーカーを使わせてくれ。あのフォールバック問題を眺めた後は、カフェインが必要だ」</p><p>小さく笑った。</p><p>「フォールバック問題にカフェインのフォールバックですか」</p><p>「<strong>カフェインにはフォールバックが要らない。デフォルトで正しい</strong>」</p><p>通話が切れた。</p><p>ノートPCの前に座ったまま、しばらく画面を見ていた。Grafanaのダッシュボードではなく、Slackを開いている。</p><p>DMの宛先を選ぶ。プロダクトマネージャーの名前。</p><p>メッセージを打つ。</p><p>「在庫照会のフォールバック戦略について、来週相談させてください。在庫情報が取得できない場合の注文の扱いについて、ビジネス判断が必要な箇所があります」</p><p>送信ボタンを押した。</p><p>今日まで、私は「正しいコードを書くこと」が自分の仕事だと思っていた。CBを書いた。Retryを書いた。Timeoutを書いた。——でも、フォールバックで必要なのは、正しいコードじゃない。正しい問いかけだ。</p><p>「在庫が確認できないとき、注文を受け付けますか？」</p><p>この質問を、来週PMにする。答えは私が出すものじゃない。でも、この質問を出すのは——私の仕事だ。</p><p>ノートPCを閉じた。窓の外は暗い。</p><hr><h2 id=探偵の調査報告書>探偵の調査報告書</h2><div class=table-wrapper><table><thead><tr><th style=text-align:left>容疑（アンチパターン）</th><th style=text-align:left>真実（パターン）</th><th style=text-align:left>証拠（効果）</th></tr></thead><tbody><tr><td style=text-align:left>フォールバックが主経路と同じDB依存</td><td style=text-align:left>主経路と独立したFallbackChain</td><td style=text-align:left>障害伝播範囲: 全面停止 → 在庫照会のみ一時停止</td></tr><tr><td style=text-align:left>単一フォールバック（DB直接クエリ）</td><td style=text-align:left>3段の優先度チェーン（Cache→Default→Degrade）</td><td style=text-align:left>フォールバック経路の外部依存: DB接続あり → ゼロ</td></tr><tr><td style=text-align:left>フォールバック戦略を技術者だけで決定</td><td style=text-align:left>ビジネス判断をPM/PdMと合意</td><td style=text-align:left>&ldquo;何を犠牲にするか"の判断品質が向上</td></tr></tbody></table></div><h3 id=推理のステップ>推理のステップ</h3><ol><li><strong>フォールバック経路の依存関係を洗い出す</strong>: 既存のフォールバックが主経路と同じリソース（DB、外部API、キャッシュサーバー等）に依存していないか確認する</li><li><strong>FallbackChainを構築する</strong>: 各戦略をStrategyとしてカプセル化し、Chain of Responsibilityで優先順に連鎖させる</li><li><strong>各戦略の独立性を検証する</strong>: キャッシュ（インメモリ）、デフォルト値（静的）、機能縮退（ロジックのみ）——外部依存を排除する</li><li><strong>フォールバックの4つのルールを適用する</strong>: (1) 主経路と同じリソースに依存しない (2) 定期的にテストする (3) 主経路より単純にする (4) <strong>何を犠牲にするかは技術者だけで決めない</strong></li><li><strong>ビジネス判断をPM/PdMと合意する</strong>: 「在庫不明」時の注文の扱い、「機能縮退」時のユーザー通知方法をサービスレベルとして定義する</li><li><strong>フォールバック発動率を監視する</strong>: どの戦略が何回発動したかをメトリクスとして記録し、主経路の品質改善に繋げる</li></ol><h3 id=ロックより>ロックより</h3><p>正しいコードを書くことだけが技術者の仕事ではない、ワトソン君。<strong>正しい問いを立てること</strong>もまた、技術者の仕事だ。</p><p>CB、Retry、Timeoutには数式がある。パーセンタイルがある。閾値がある。——フォールバックにはそれがない。代わりにあるのは「何を犠牲にしてよいか」という判断だ。その判断を1人でしてはいけない。</p><p>毒を薬に変えるルールを覚えたまえ。主経路から離れろ。テストを怠るな。単純であれ。そして——<strong>犠牲の範囲は、1人で決めるな。</strong></p></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/perl/>Perl</a>
+<a href=/tags/moo/>Moo</a>
+<a href=/tags/fallback-pattern/>Fallback-Pattern</a>
+<a href=/tags/db-fallback/>Db-Fallback</a>
+<a href=/tags/resilience/>Resilience</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-detective/>Code-Detective</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/05/07/070705/><div class=article-image><img src=/public_images/2026/code-detective-object-pool/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-object-pool/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Object Pool】使い捨ての代償〜借りて返す資源管理術〜</h2></div></a></article><article class=has-image><a href=/2026/05/06/070705/><div class=article-image><img src=/public_images/2026/code-detective-bulkhead/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-bulkhead/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Bulkhead】全館停電の共犯者〜沈まない船の設計図〜</h2></div></a></article><article class=has-image><a href=/2026/05/05/070705/><div class=article-image><img src=/public_images/2026/code-detective-rate-limiting/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-rate-limiting/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Rate Limiting】行列のない受付〜防波堤なきAPIの崩壊〜</h2></div></a></article><article class=has-image><a href=/2026/05/03/070705/><div class=article-image><img src=/public_images/2026/code-detective-timeout/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-timeout/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Timeout】永遠の待ち人〜待たない勇気という防衛線〜</h2></div></a></article><article class=has-image><a href=/2026/05/02/070705/><div class=article-image><img src=/public_images/2026/code-detective-retry/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-retry/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Retry Pattern】嵐を呼ぶリトライ〜指数バックオフという礼儀作法〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

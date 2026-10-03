@@ -1,0 +1,499 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="呼ばれている箇所が数えきれない処理に、出入りをすべて記録する決まりができた。包みメソッド（Wrap Method）で呼ばれる側だけを変え、呼び出し元は1行も変えずにログを効かせます。"><title>呼び出し元を1行も変えずに、全箇所へログを仕込む【Wrap Method】</title><link rel=canonical href=https://www.nqou.net/2026/09/29/070705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="呼び出し元を1行も変えずに、全箇所へログを仕込む【Wrap Method】"><meta property='og:description' content="呼ばれている箇所が数えきれない処理に、出入りをすべて記録する決まりができた。包みメソッド（Wrap Method）で呼ばれる側だけを変え、呼び出し元は1行も変えずにログを効かせます。"><meta property='og:url' content='https://www.nqou.net/2026/09/29/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='legacy-code'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='perl'><meta property='article:tag' content='wrap-method'><meta property='article:tag' content='scattered-callers'><meta property='article:tag' content='code-carpenter'><meta property='article:published_time' content='2026-09-29T07:07:05+09:00'><meta property='article:modified_time' content='2026-09-29T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-carpenter-wrap-method-many-callers/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="呼び出し元を1行も変えずに、全箇所へログを仕込む【Wrap Method】"><meta name=twitter:description content="呼ばれている箇所が数えきれない処理に、出入りをすべて記録する決まりができた。包みメソッド（Wrap Method）で呼ばれる側だけを変え、呼び出し元は1行も変えずにログを効かせます。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-carpenter-wrap-method-many-callers/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-09-29T07:07:05+09:00","datePublished":"2026-09-29T07:07:05+09:00","description":"呼ばれている箇所が数えきれない処理に、出入りをすべて記録する決まりができた。包みメソッド（Wrap Method）で呼ばれる側だけを変え、呼び出し元は1行も変えずにログを効かせます。","headline":"呼び出し元を1行も変えずに、全箇所へログを仕込む【Wrap Method】","image":"https://www.nqou.net/public_images/2026/code-carpenter-wrap-method-many-callers/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/09/29/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#第1幕-検分--表の格子戸ナギさんはもう手を動かしていた>第1幕: 検分 ── 表の格子戸、ナギさんはもう手を動かしていた</a></li><li><a href=#第2幕-手が入らない--数えても今日数えた数が全部とは言えない>第2幕: 手が入らない ── 数えても、今日数えた数が全部とは言えない</a></li><li><a href=#第3幕-手立て--名前の中身だけを差し替える>第3幕: 手立て ── 名前の中身だけを差し替える</a><ol><li><a href=#名前を移して名前を作り直す>名前を移して、名前を作り直す</a></li><li><a href=#名前を移すときの注意>名前を移すときの注意</a></li><li><a href=#ナギさんの書きかけを元に戻す>ナギさんの書きかけを元に戻す</a></li></ol></li><li><a href=#第4幕-検め--何も変わっていないことを目で確かめる>第4幕: 検め ── 何も変わっていないことを、目で確かめる</a></li><li><a href=#普請控>普請控</a></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/09/29/070705/><img src=/public_images/2026/code-carpenter-wrap-method-many-callers/header.webp loading=lazy alt="Featured image of post 呼び出し元を1行も変えずに、全箇所へログを仕込む【Wrap Method】"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/09/29/070705/>呼び出し元を1行も変えずに、全箇所へログを仕込む【Wrap Method】</a></h2><h3 class=article-subtitle>呼ばれている箇所が数えきれない処理に、出入りをすべて記録する決まりができた。包みメソッド（Wrap Method）で呼ばれる側だけを変え、呼び出し元は1行も変えずにログを効かせます。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>29, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 19分</time></div></footer></div></header><section class=article-content><h2 id=第1幕-検分--表の格子戸ナギさんはもう手を動かしていた>第1幕: 検分 ── 表の格子戸、ナギさんはもう手を動かしていた</h2><p>表の格子戸のあたりに、朝の光が縞になって落ちていた。格子戸を透かして通りの明るさがそのまま入り込んでくる、素屋根の下の薄暗さとも蔵の土壁の冷たさとも違う場所だった。通りを人が歩くたびに下駄の音が響き、暖簾がひとつ、ふたつと揺れて、そのたび光の縞がわずかに動いた。表は、この店でいちばん人の出入りが多い場所だった。客が買った品を持って出ていく。配達の人が荷を運んでくる。仕入れの品も、たいていはこの戸をくぐる。奥の勘定場からは見えない、店の顔にあたる場所だ。</p><p>用があって表へ回ると、ナギさんがしゃがみ込んでいるのが見えた。格子戸の敷居のすぐ内側、通りからの光がいちばんよく当たる場所に座り込んで、手元には開いた端末があった。眉間に少し皺を寄せて、何かを書き足しているようだった。近づいても、こちらに気づく様子はなかった。</p><p>「おはようございます」</p><p>声をかけると、ナギさんは顔を上げて、少し慌てたように会釈した。</p><p>「あ、シオリさん。おはようございます」</p><p>覗き込むと、画面には見覚えのある形のコードが二つ並んでいた。片方は<code>Shop::Sales.pm</code>――客が品物を持って表から出ていくときに動く処理、もう片方は<code>Shop::Delivery.pm</code>――配達の品を受け取るときに動く処理。どちらも、末尾に同じような形の三行が書き足されていた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>sub</span> <span class=nf>checkout</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>%args</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$result</span> <span class=o>=</span> <span class=nn>Kido::</span><span class=n>pass_through</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>direction</span> <span class=o>=&gt;</span> <span class=s>&#39;out&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>who</span>       <span class=o>=&gt;</span> <span class=nv>$args</span><span class=p>{</span><span class=n>customer</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>        <span class=n>item</span>      <span class=o>=&gt;</span> <span class=nv>$args</span><span class=p>{</span><span class=n>item</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=c1># ここに1行足した（記帳のつもり。まだ間に合わせの書き方）</span>
+</span></span><span class=line><span class=cl>    <span class=nb>open</span> <span class=k>my</span> <span class=nv>$fh</span><span class=p>,</span> <span class=s>&#39;&gt;&gt;&#39;</span><span class=p>,</span> <span class=s>&#39;kicho.log&#39;</span> <span class=ow>or</span> <span class=nb>die</span> <span class=s>&#34;帳面を開けません: $!&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>print</span> <span class=p>{</span><span class=nv>$fh</span><span class=p>}</span> <span class=s>&#34;out\t$args{customer}\t$args{item}\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nb>close</span> <span class=nv>$fh</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$result</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「旦那様が、出入りは全部帳面に付けろって仰ったので」</p><p>ナギさんが、手を止めずに答えた。</p><p>「格子戸を通る出入りを扱っている箇所を、一つずつ見つけて、記帳の処理を足しています。今のところ、ここと――」</p><p><code>lib/Shop/Delivery.pm</code>の方を指す。そちらにも、<code>direction</code>が<code>'in'</code>に変わっているだけの、よく似た三行が入りかけていた。</p><p>「あとは、仕入れの受け入れの分がまだです」</p><p>三箇所目の<code>lib/Shop/Supplier.pm</code>は、まだ手つかずのまま開かれていた。</p><p>私は、二つのファイルを見比べた。技術的なことはよく分からないが、ファイルを開いて、書いて、閉じる――その三行が、ほとんど同じ形で二回繰り返されているのは、素人目にも分かった。表の格子戸は一つしかないのに、コードの上では、出入りを扱っている場所がいくつもあるらしい。ナギさんは、そのひとつひとつに、同じ形の目印を付けて回っているように見えた。</p><p>「全部の戸口に、同じ札を下げるんですか」</p><p>思ったままを口にした。ナギさんが、手を止めた。</p><p>「……そう言われると、そうですね」</p><p>答えながらも、次の一手は決めかねている様子だった。まだ三箇所目に取りかかっていない指が、宙で止まっていた。</p><h2 id=第2幕-手が入らない--数えても今日数えた数が全部とは言えない>第2幕: 手が入らない ── 数えても、今日数えた数が全部とは言えない</h2><p>そこへ、クロベさんが通りかかった。ナギさんの手元をひと目見て、すぐには何も言わなかった。しばらく画面を眺めてから、口を開いた。</p><p>「それ、いくつある」</p><p>ナギさんが顔を上げた。</p><p>「今のところ、この二箇所と、仕入れの分と……あと、探せばもっとあるかもしれません」</p><p>「では、探しましょう」</p><p>クロベさんは、ナギさんの端末を借りて、<code>Kido::pass_through</code>という名前で検索をかけた。呼んでいる箇所を、片端から拾っていく作業だった。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>$ grep -rn &#39;Kido::pass_through&#39; lib/
+</span></span><span class=line><span class=cl>lib/Shop/Sales.pm:9:    return Kido::pass_through(
+</span></span><span class=line><span class=cl>lib/Shop/Delivery.pm:9:    return Kido::pass_through(
+</span></span></code></pre></td></tr></table></div></div><p>出てきたのは二つだけだった。ナギさんがまだ手を付けていない<code>Shop::Supplier</code>の分は、まだ書きかけですらないため、この検索には引っかからなかった。</p><p>「これで全部、ってことにはならないんですか」</p><p>私が訊ねると、クロベさんは首を振った。</p><p>「この探し方は、今あるファイルの中を見ているだけです。まだ書かれていない場所や、この店の外から動かす別の仕組みがあれば、そこは拾えません。それに、明日また新しい呼び先が増えるかもしれない――今日の数が、明日も同じだという保証はどこにもありません」</p><p>「今日探して二つ」</p><p>クロベさんが、画面を見たまま言った。</p><p>「だが、探したのが今日だけの分だとしたら、明日また増えていないと誰が言えますか」</p><p>ナギさんが、少し間を置いてから答えた。</p><p>「……言えません」</p><p>私は、そのやり取りを黙って見ていた。数を数えるという、いちばん確実に思える手立てが、確実ではないと分かった瞬間だった。今日見つけた二つに、明日三つ目が増えても、それに気づく仕組みは今のところどこにもない。</p><p>クロベさんが、端末を置いた。</p><p>「だから、数える方をやめます」</p><p>その言い方は、あきらめたようには聞こえなかった。むしろ、次の手をもう決めたときの声のように聞こえた。</p><p>ナギさんが、画面に残ったままの検索結果を覗き込んで言った。</p><p>「さっきの検索、二つとも呼んでいた名前は同じでしたね」</p><p>言われてみれば、たしかにどちらも<code>Kido::pass_through</code>という、まったく同じ名前だった。クロベさんがうなずく。</p><p>「呼ぶ側がいくつあっても、呼ばれている名前は一つです。その名前の中身を書き換えれば、呼んでいる数に関わらず効きます」</p><p>「戸は一つです。通る場所ごとに札を作らんでも、戸に札を下げればそれで足ります」</p><p>ナギさんが、少し面食らったような顔をした。私も、正直に言えば同じだった。呼んでいる箇所がいくつあるか分からないという話をしていたのに、その数を数えるのをやめると言う。矛盾しているようにも聞こえたが、クロベさんの顔には迷いがなかった。</p><p>数を数えることをやめる――それが、こんなに軽い言い方で済むとは思っていなかった。私は黙ってうなずいた。クロベさんも、それ以上は説明せずに、格子戸の方へ向き直った。</p><h2 id=第3幕-手立て--名前の中身だけを差し替える>第3幕: 手立て ── 名前の中身だけを差し替える</h2><p>クロベさんが、<code>Kido.pm</code>というファイルを開いた。<code>Kido</code>というのは、表の格子戸を通る出入りを扱っているパッケージの名前だった。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Kido</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>pass_through</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>%args</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$direction</span><span class=p>,</span> <span class=nv>$who</span><span class=p>,</span> <span class=nv>$item</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@args</span><span class=p>{</span><span class=sx>qw(direction who item)</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>direction</span> <span class=o>=&gt;</span> <span class=nv>$direction</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>who</span>       <span class=o>=&gt;</span> <span class=nv>$who</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>item</span>      <span class=o>=&gt;</span> <span class=nv>$item</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「これは、出入りの情報を組み立てて返しているだけです」</p><p>クロベさんが、画面の文字を目だけで追いながら言った。手は動かさなかった。</p><p>「誰が、何を、どちらの向きで通ったか――それを一つにまとめて返す。記帳は、まだしていません」</p><p>「じゃあ、ここに記帳を足せばいいんですか」</p><p>ナギさんが訊いた。クロベさんが首を横に振った。</p><p>「足すのは足すんですが、足し方が違います」</p><h3 id=名前を移して名前を作り直す>名前を移して、名前を作り直す</h3><p>「既存の関数を、別の名前に移します。そして、元の名前で、新しい関数を作ります。新しい方は、前か後ろに新しい仕事をしてから、移した先を呼ぶだけです」</p><p>クロベさんが、要点を繰り返した。</p><p>「呼ぶ側は、名前が変わったことにすら気づきません」</p><p>私には、まだぴんと来なかった。ナギさんが訊ねる。</p><p>「前に見た、別の箱で包むやり方と、何が違うんですか」</p><p>「別の箱で包むやり方――」</p><p>クロベさんが、少し考えてから答えた。</p><p>「あちらは、新しい箱を作って、渡す物をその箱に差し替えます。差し替える場所は、使う側が書き換えないといけません。新しい箱に、何を入れるかを、使う側が決めるからです」</p><p>クロベさんが、比べるように短い例を挙げた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># 別の箱で包むやり方なら、使う側がこう書き換える必要がある</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$kido</span> <span class=o>=</span> <span class=nn>Kido::Recording</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=nn>Kido</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>);</span>   <span class=c1># 渡す物を、新しい箱に差し替える</span>
+</span></span></code></pre></td></tr></table></div></div><p>「これだと、<code>Kido</code>を作っている場所――今回で言えば、この店のどこかにある組み立ての箇所――を、使う側が見つけて書き換えないといけません。今回のは、箱を作りません。名前の中身だけを差し替えます。だから、使う側は何も書き換えずに済みます」</p><p>私には、まだ半分くらいしか分からなかったが、ナギさんは何か腑に落ちた顔をしていた。</p><p>「呼ぶ場所を変えるか、呼ばれる場所を変えるか――そこが違うんですね」</p><p>「そうです」</p><p>クロベさんが、ようやく技法の名前を口にした。</p><p>「新しい戸を作るんじゃありません。今の戸に、化粧材を一枚足すだけです」</p><h3 id=名前を移すときの注意>名前を移すときの注意</h3><p>クロベさんが、実際に<code>Kido.pm</code>を書き換え始めた。</p><p>「名前をまるごと写すと、危ういことになります。中身だけを写すのが安全です」</p><p>私には、それがどう危ういのか、すぐには分からなかった。クロベさんが、短く付け加えた。</p><p>「名前をまるごと写すと、古い方の名前も新しい方の名前も、同じ中身を指したままになります。あとで新しい方の中身だけを書き換えたつもりでも、古い方まで一緒に書き換わってしまう。呼び出すたびに、自分で自分を呼び続けることになります」</p><p>ナギさんが、少し顔をしかめた。</p><p>「止まらなくなる、ってことですか」</p><p>「そうです。だから、中身だけを写します」</p><p>一言だけ添えて、<code>_pass_through_raw</code>という名前で、元の<code>pass_through</code>をそのまま移す。</p><p>「戻ってこない呼び方もありますが、それだと後の記帳が書けません。今回は前も後ろも要るので、ふつうに呼びます」</p><p>書き上がった<code>Kido.pm</code>は、次の形だった。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Kido</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$Ledger</span><span class=p>;</span>   <span class=c1># 記帳先。配線は build_recording が担う</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>_pass_through_raw</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>%args</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$direction</span><span class=p>,</span> <span class=nv>$who</span><span class=p>,</span> <span class=nv>$item</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@args</span><span class=p>{</span><span class=sx>qw(direction who item)</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>direction</span> <span class=o>=&gt;</span> <span class=nv>$direction</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>who</span>       <span class=o>=&gt;</span> <span class=nv>$who</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>item</span>      <span class=o>=&gt;</span> <span class=nv>$item</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>pass_through</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>%args</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$result</span> <span class=o>=</span> <span class=n>_pass_through_raw</span><span class=p>(</span><span class=nv>%args</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$Ledger</span><span class=o>-&gt;</span><span class=n>record</span><span class=p>(</span><span class=nv>%args</span><span class=p>)</span> <span class=k>if</span> <span class=nv>$Ledger</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$result</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>build_recording</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>%args</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$Ledger</span> <span class=o>=</span> <span class=nv>$args</span><span class=p>{</span><span class=n>ledger</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<code>pass_through</code>という名前は、変わっていません」</p><p>クロベさんが、書いたばかりのコードを指して言った。</p><p>「中身だけが、退避した先を呼んでから記帳する、という形に変わりました」</p><p>私は、少し戸惑った。</p><p>「記帳する先は、どこから来るんですか」</p><p>「そこです」</p><p>クロベさんが、<code>build_recording</code>という関数を指した。</p><p>「<code>pass_through</code>そのものには、記帳先を渡す引数を増やしません。増やすと、呼ぶ側全員が、記帳先という新しい引数を知らないといけなくなります。代わりに、別の入り口を一つ作って、そこで記帳先を組み立てます」</p><p>「元の関数の形は、変えない――ってことですか」</p><p>ナギさんが確かめる。</p><p>「そうです。呼ばれ方が同じなら、呼ぶ側は何も知らずに済みます」</p><p>「絵に描いてみてもいいですか」</p><p>私が訊ねると、クロベさんはうなずいた。野帳を開いて、今聞いたばかりの道筋を線でたどってみた。</p><p><img src=/public_images/2026/code-carpenter-wrap-method-many-callers/infographic_1.webp loading=lazy alt=呼び出し元3か所（Shop::Sales/Shop::Delivery/Shop::Supplier、灰色破線で「触っていない」ことを示す）から同じ形の矢印がKido::pass_through(…)としてKido.pmのpass_through関数へ集まり、pass_throughが退避先の_pass_through_rawと新設のKido::Ledgerへ処理を振り分け、別途build_recordingがKido::Ledgerへ記帳先を配線する様子を示した野帳風インフォグラフィック></p><p>三つの戸口から伸びる線は、どれも同じ太さで、<code>pass_through</code>という同じ名前へ向かっていた。変わったのは、その名前の奥に新しく引かれた、もう二本の線だけだった。</p><p>記帳先そのものも、新しく作る必要があった。クロベさんが、続けて<code>lib/Kido/Ledger.pm</code>として書いたのが次のクラスだった。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Kido::Ledger</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>new</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$class</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nb>bless</span> <span class=p>{</span> <span class=n>entries</span> <span class=o>=&gt;</span> <span class=o>[]</span> <span class=p>},</span> <span class=nv>$class</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>record</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>%entry</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nb>push</span> <span class=nv>@</span><span class=p>{</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>entries</span><span class=p>}</span> <span class=p>},</span> <span class=p>{</span> <span class=nv>%entry</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>entries</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>@</span><span class=p>{</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>entries</span><span class=p>}</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「これは、渡された出入りの情報を、ただ溜めるだけのものです」</p><p>クロベさんが言った。</p><p>「記帳した中身をどう使うかは、今日の話には入っていません。今日は、通った記録を残すところまでです」</p><h3 id=ナギさんの書きかけを元に戻す>ナギさんの書きかけを元に戻す</h3><p>「じゃあ、これは……」</p><p>ナギさんが、自分が書きかけていた<code>Shop::Sales.pm</code>と<code>Shop::Delivery.pm</code>の三行を見た。</p><p>「もう要らないってことですね」</p><p>「はい」</p><p>クロベさんが短く答えた。ナギさんは、少し名残惜しそうな様子も見せず、三行――ファイルを開いて、書いて、閉じる――をそれぞれ削って、<code>lib/Shop/Sales.pm</code>を元の形に戻した。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Shop::Sales</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Kido</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>checkout</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>%args</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nn>Kido::</span><span class=n>pass_through</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>direction</span> <span class=o>=&gt;</span> <span class=s>&#39;out&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>who</span>       <span class=o>=&gt;</span> <span class=nv>$args</span><span class=p>{</span><span class=n>customer</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>        <span class=n>item</span>      <span class=o>=&gt;</span> <span class=nv>$args</span><span class=p>{</span><span class=n>item</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>lib/Shop/Delivery.pm</code>も、同じ形だった。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Shop::Delivery</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Kido</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>accept</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>%args</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nn>Kido::</span><span class=n>pass_through</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>direction</span> <span class=o>=&gt;</span> <span class=s>&#39;in&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>who</span>       <span class=o>=&gt;</span> <span class=nv>$args</span><span class=p>{</span><span class=n>courier</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>        <span class=n>item</span>      <span class=o>=&gt;</span> <span class=nv>$args</span><span class=p>{</span><span class=n>item</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>lib/Shop/Supplier.pm</code>も同様だった。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Shop::Supplier</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Kido</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>restock</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>%args</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nn>Kido::</span><span class=n>pass_through</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>direction</span> <span class=o>=&gt;</span> <span class=s>&#39;in&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>who</span>       <span class=o>=&gt;</span> <span class=nv>$args</span><span class=p>{</span><span class=n>supplier</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>        <span class=n>item</span>      <span class=o>=&gt;</span> <span class=nv>$args</span><span class=p>{</span><span class=n>item</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>三つとも、<code>Kido::pass_through(...)</code>という形で、パッケージの名前を付けて呼んでいる。クロベさんが、そこを指して念を押した。</p><p>「呼ぶときは、いつもこの形です。名前を短くして持ち込むような呼び方は、していません」</p><p>「それが、何か関係あるんですか」</p><p>私が訊くと、クロベさんはうなずいた。もし短くして持ち込む書き方をしていたら、次のような形になっていたはずだという。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># もし、こう書いていたら（今回はしていない書き方）</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Kido</span> <span class=sx>qw(pass_through)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>checkout</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>%args</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=n>pass_through</span><span class=p>(</span><span class=n>direction</span> <span class=o>=&gt;</span> <span class=s>&#39;out&#39;</span><span class=p>,</span> <span class=n>who</span> <span class=o>=&gt;</span> <span class=nv>$args</span><span class=p>{</span><span class=n>customer</span><span class=p>},</span> <span class=n>item</span> <span class=o>=&gt;</span> <span class=nv>$args</span><span class=p>{</span><span class=n>item</span><span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「短く持ち込むと、持ち込んだ側は、その時点の中身を手元に写し取ります。あとで<code>Kido.pm</code>の方を書き換えても、手元に写した方は古いままです」</p><p>「じゃあ、記帳が効かないってことですか」</p><p>ナギさんが訊いた。</p><p>「効きません。しかも、警告も出ません。だから、呼ぶたびに名前を見に行く、今回の呼び方にしておく必要があります」</p><p>説明の半分は、私にはまだ難しかった。ただ、三つの呼び出しがどれも同じ形で書かれていることだけは、はっきり分かった。</p><p>「……これ、要らなくなるんですね」</p><p>ナギさんが、削り終えた画面を見ながらつぶやいた。安堵とも違う、素直な納得のような声だった。</p><h2 id=第4幕-検め--何も変わっていないことを目で確かめる>第4幕: 検め ── 何も変わっていないことを、目で確かめる</h2><p>クロベさんが、用意していた三本の検めを順に動かした。</p><p>まず、新しく作った<code>Kido::Ledger</code>が、正しく記帳を積み上げるかどうか。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Test::More</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>lib</span> <span class=s>&#39;lib&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Kido::Ledger</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;記帳した内容がそのまま返る&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$ledger</span> <span class=o>=</span> <span class=nn>Kido::Ledger</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$ledger</span><span class=o>-&gt;</span><span class=n>record</span><span class=p>(</span><span class=n>direction</span> <span class=o>=&gt;</span> <span class=s>&#39;out&#39;</span><span class=p>,</span> <span class=n>who</span> <span class=o>=&gt;</span> <span class=s>&#39;あきこ&#39;</span><span class=p>,</span> <span class=n>item</span> <span class=o>=&gt;</span> <span class=s>&#39;米&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>@entries</span> <span class=o>=</span> <span class=nv>$ledger</span><span class=o>-&gt;</span><span class=n>entries</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span><span class=p>(</span><span class=nb>scalar</span> <span class=nv>@entries</span><span class=p>,</span> <span class=mi>1</span><span class=p>,</span> <span class=s>&#39;記帳は1件積まれる&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span><span class=p>(</span><span class=nv>$entries</span><span class=p>[</span><span class=mi>0</span><span class=p>]{</span><span class=n>who</span><span class=p>},</span> <span class=s>&#39;あきこ&#39;</span><span class=p>,</span> <span class=s>&#39;記帳した「誰が」がそのまま読み出せる&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;複数回の記帳が積み上がる&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$ledger</span> <span class=o>=</span> <span class=nn>Kido::Ledger</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$ledger</span><span class=o>-&gt;</span><span class=n>record</span><span class=p>(</span><span class=n>direction</span> <span class=o>=&gt;</span> <span class=s>&#39;in&#39;</span><span class=p>,</span> <span class=n>who</span> <span class=o>=&gt;</span> <span class=s>&#39;配達のたろう&#39;</span><span class=p>,</span> <span class=n>item</span> <span class=o>=&gt;</span> <span class=s>&#39;酒&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$ledger</span><span class=o>-&gt;</span><span class=n>record</span><span class=p>(</span><span class=n>direction</span> <span class=o>=&gt;</span> <span class=s>&#39;out&#39;</span><span class=p>,</span> <span class=n>who</span> <span class=o>=&gt;</span> <span class=s>&#39;あきこ&#39;</span><span class=p>,</span> <span class=n>item</span> <span class=o>=&gt;</span> <span class=s>&#39;米&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>@entries</span> <span class=o>=</span> <span class=nv>$ledger</span><span class=o>-&gt;</span><span class=n>entries</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span><span class=p>(</span><span class=nb>scalar</span> <span class=nv>@entries</span><span class=p>,</span> <span class=mi>2</span><span class=p>,</span> <span class=s>&#39;記帳した順に2件積み上がる&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>done_testing</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>次に、<code>Kido::pass_through</code>が、これまでと変わらず情報を組み立てているかどうか。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Test::More</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>lib</span> <span class=s>&#39;lib&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Kido</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;出ていく荷の情報がそのまま組み立てられる&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$result</span> <span class=o>=</span> <span class=nn>Kido::</span><span class=n>pass_through</span><span class=p>(</span><span class=n>direction</span> <span class=o>=&gt;</span> <span class=s>&#39;out&#39;</span><span class=p>,</span> <span class=n>who</span> <span class=o>=&gt;</span> <span class=s>&#39;あきこ&#39;</span><span class=p>,</span> <span class=n>item</span> <span class=o>=&gt;</span> <span class=s>&#39;米&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span><span class=p>(</span><span class=nv>$result</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>direction</span><span class=p>},</span> <span class=s>&#39;out&#39;</span><span class=p>,</span> <span class=s>&#39;方向はoutのまま組み立てられる&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span><span class=p>(</span><span class=nv>$result</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>who</span><span class=p>},</span> <span class=s>&#39;あきこ&#39;</span><span class=p>,</span> <span class=s>&#39;誰がはそのまま組み立てられる&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span><span class=p>(</span><span class=nv>$result</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>item</span><span class=p>},</span> <span class=s>&#39;米&#39;</span><span class=p>,</span> <span class=s>&#39;品物はそのまま組み立てられる&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;入ってくる荷の情報がそのまま組み立てられる&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$result</span> <span class=o>=</span> <span class=nn>Kido::</span><span class=n>pass_through</span><span class=p>(</span><span class=n>direction</span> <span class=o>=&gt;</span> <span class=s>&#39;in&#39;</span><span class=p>,</span> <span class=n>who</span> <span class=o>=&gt;</span> <span class=s>&#39;配達のたろう&#39;</span><span class=p>,</span> <span class=n>item</span> <span class=o>=&gt;</span> <span class=s>&#39;酒&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span><span class=p>(</span><span class=nv>$result</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>direction</span><span class=p>},</span> <span class=s>&#39;in&#39;</span><span class=p>,</span> <span class=s>&#39;方向はinのまま組み立てられる&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>done_testing</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「これは、<code>build_recording</code>を呼ばない状態でも動きます」</p><p>クロベさんが言った。</p><p>「記帳先を組み立てていない限り、<code>pass_through</code>は今までと同じ振る舞いのままです」</p><p>実際に動かすと、記帳を有効にする前と後で、この検めの結果は一つも変わらなかった。</p><p>最後に、記帳を有効にしたうえで、三つの呼び出し元それぞれが記帳されるかどうかを確かめた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Test::More</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>lib</span> <span class=s>&#39;lib&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Kido</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Kido::Ledger</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Shop::Sales</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Shop::Delivery</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Shop::Supplier</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$ledger</span> <span class=o>=</span> <span class=nn>Kido::Ledger</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=nn>Kido::</span><span class=n>build_recording</span><span class=p>(</span><span class=n>ledger</span> <span class=o>=&gt;</span> <span class=nv>$ledger</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;客が買った品が出ていくと記帳される&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=nn>Shop::Sales::</span><span class=n>checkout</span><span class=p>(</span><span class=n>customer</span> <span class=o>=&gt;</span> <span class=s>&#39;あきこ&#39;</span><span class=p>,</span> <span class=n>item</span> <span class=o>=&gt;</span> <span class=s>&#39;米&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>@entries</span> <span class=o>=</span> <span class=nv>$ledger</span><span class=o>-&gt;</span><span class=n>entries</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span><span class=p>(</span><span class=nb>scalar</span> <span class=nv>@entries</span><span class=p>,</span> <span class=mi>1</span><span class=p>,</span> <span class=s>&#39;記帳は1件になる&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span><span class=p>(</span><span class=nv>$entries</span><span class=p>[</span><span class=mi>0</span><span class=p>]{</span><span class=n>who</span><span class=p>},</span> <span class=s>&#39;あきこ&#39;</span><span class=p>,</span> <span class=s>&#39;記帳された「誰が」は客の名前&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;配達の品が入ってくると記帳される&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=nn>Shop::Delivery::</span><span class=nb>accept</span><span class=p>(</span><span class=n>courier</span> <span class=o>=&gt;</span> <span class=s>&#39;配達のたろう&#39;</span><span class=p>,</span> <span class=n>item</span> <span class=o>=&gt;</span> <span class=s>&#39;酒&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>@entries</span> <span class=o>=</span> <span class=nv>$ledger</span><span class=o>-&gt;</span><span class=n>entries</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span><span class=p>(</span><span class=nb>scalar</span> <span class=nv>@entries</span><span class=p>,</span> <span class=mi>2</span><span class=p>,</span> <span class=s>&#39;記帳は2件になる&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;仕入れの品が入ってくると記帳される&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=nn>Shop::Supplier::</span><span class=n>restock</span><span class=p>(</span><span class=n>supplier</span> <span class=o>=&gt;</span> <span class=s>&#39;仕入れのじろう&#39;</span><span class=p>,</span> <span class=n>item</span> <span class=o>=&gt;</span> <span class=s>&#39;味噌&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>@entries</span> <span class=o>=</span> <span class=nv>$ledger</span><span class=o>-&gt;</span><span class=n>entries</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span><span class=p>(</span><span class=nb>scalar</span> <span class=nv>@entries</span><span class=p>,</span> <span class=mi>3</span><span class=p>,</span> <span class=s>&#39;記帳は3件になる&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>done_testing</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>三本とも、通った。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>$ prove -l t/
+</span></span><span class=line><span class=cl>t/kido_ledger.t ......................... ok
+</span></span><span class=line><span class=cl>t/kido_pass_through_characterization.t .. ok
+</span></span><span class=line><span class=cl>t/kido_recording_integration.t .......... ok
+</span></span><span class=line><span class=cl>All tests successful.
+</span></span><span class=line><span class=cl>Files=3, Tests=7,  0 wallclock secs
+</span></span><span class=line><span class=cl>Result: PASS
+</span></span></code></pre></td></tr></table></div></div><p>「記帳の仕組み自体は、一本目で確かめてあります」</p><p>クロベさんが言った。</p><p>「<code>pass_through</code>が組み立てる情報の形も、二本目で変わっていません。三本目が確かめているのは、呼び出し元を一切書き換えずに、記帳が一律に効くこと――それだけです。だから、三つの呼び出し元それぞれ一回ずつの確認で足ります。四つ目、五つ目が増えても、記帳の仕組み自体を確かめ直す必要はありません」</p><p>そして、ナギさんが、書き換える前の三つのファイルを取っておいたコピーと、今の三つのファイルを見比べた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>$ diff lib/Shop/Sales.pm.before lib/Shop/Sales.pm
+</span></span><span class=line><span class=cl>$ diff lib/Shop/Delivery.pm.before lib/Shop/Delivery.pm
+</span></span><span class=line><span class=cl>$ diff lib/Shop/Supplier.pm.before lib/Shop/Supplier.pm
+</span></span></code></pre></td></tr></table></div></div><p>何も表示されなかった。差分がない、ということだった。</p><p>三回、同じことを確かめた。三回とも、画面には何も映らなかった。今朝、ナギさんがしゃがみ込んで書き足していた三行を思い出す。あの三行が、この三つのファイルのどこにも残っていない。かといって、記帳そのものは、先の検めで確かに動いていた。</p><p>「……本当に、何も変わっていない」</p><p>画面を見たまま、思わず声に出た。変わったのは<code>Kido.pm</code>だけで、あとは何も触っていない。三箇所に散らばっていた呼び出し先が、今日は一つも書き換えられていない。数えることをあきらめたはずなのに、結果としては、数えなくてよかった、ということになっていた。</p><p>「今日確かめたのは、ここまでです」</p><p>クロベさんが、区切りを付けるように言った。</p><p>「呼び出し元を触らずに、記帳を一律に効かせられること――それは保証します。ただ、退避した方の名前は、外から見ると分かりにくいままです。それは直っていません。記帳先を引数で持ち回らずに済ませた代わりに、<code>build_recording</code>を呼び忘れると、記帳は黙って効かないままになります。呼び出し元の数は増やせても、配線を呼ぶ順番だけは、どこかで一度気にしないといけません。それに、これから別の前後処理をもう一枚重ねたくなったとき、包みを何重にも重ねると、どこで何が起きているか追いにくくなります。今日はまだ一枚しか包んでいないので、その問題は起きていませんが」</p><p>「触ったのは、そこまでですか」</p><p>確かめると、クロベさんは短く「はい」とだけ答えた。</p><p>「<code>Kido.pm</code>の中身と、新しく起こした<code>Kido::Ledger</code>。それだけです。記帳した中身を、あとでどう使うかには触れていません」</p><p>私は、野帳を開いた。今日は、いつものように書き取る前に、しばらく手が止まった。書きかけては消していた三箇所の記帳の跡と、今、何も変わっていない三つのファイルとを、頭の中で見比べていた。</p><p>「触らずに済むなら、次からは何を見ればいいんですか」</p><p>クロベさんが答える。</p><p>「呼び方が、いつも同じ名前を見に行く形になっているかどうかです。今日みたいにパッケージの名前を付けて呼んでいれば、通る場所は一つのままです。短く持ち込んで呼んでいる所があれば、そこだけは今回の手が効きません」</p><p>その一言を、そのまま書き取った。</p><p>「既に使われている所に触らずに済む道を選べる」</p><p>書きながら、まだ自分でも分かりきっていない部分があることに気づいた。今日、クロベさんが「戸は一つです」と言い切れたのは、<code>Kido::pass_through</code>という名前が、店じゅうどこから呼ばれても同じ実体を指しているからだった。だが、それがいつでも成り立つのかどうか――通る場所が一つと言えないときはどう見分けるのか――までは、まだ自分の言葉にできていない。それは、次に持ち越すことにした。</p><p>クロベさんが、道具をしまいながら言った。</p><p>「今日は、一枚包んだだけです。何枚も重ねれば、それも見通しを悪くします」</p><p>その言い方には、今日の仕事を誇るような響きはなかった。ただ、次に同じ手を使うときの注意を、先に置いておくような口ぶりだった。</p><p>野帳を閉じて顔を上げると、ナギさんはもう端末を片付けていた。朝しゃがみ込んでいた敷居のあたりに、もう書きかけのコードは残っていない。表の格子戸には、まだ光の縞が落ちていた。通りを人が行き交う音は変わらず、暖簾も同じように揺れていた。何も変わっていないように見えるその向こうで、今日、確かに何かが変わっていた。</p><hr><h2 id=普請控>普請控</h2><ul><li><strong>見立て</strong>: 旦那様から、出入りは全部帳面に付けるようにという決まりが出た。表の格子戸を通る出入りを扱う<code>Kido::pass_through</code>を呼んでいる箇所が、<code>Shop::Sales</code>（客の会計）・<code>Shop::Delivery</code>（配達の受け取り）・<code>Shop::Supplier</code>（仕入れの荷受け）と複数のモジュールに散らばっていた</li><li><strong>手を入れた所</strong>: 包みメソッド（Wrap Method）を使い、<code>Kido::pass_through</code>を<code>Kido::_pass_through_raw</code>へ退避し、新しい<code>pass_through</code>が記帳をしてから退避先を呼ぶ形にした。記帳先の帳面を扱う<code>Kido::Ledger</code>を新設し、<code>Kido::build_recording</code>で配線した</li><li><strong>触っていない所</strong>: <code>Shop::Sales.pm</code>・<code>Shop::Delivery.pm</code>・<code>Shop::Supplier.pm</code>の3ファイルは一行も変更していない（diffで確認済み）。<code>pass_through</code>が出入りの情報を組み立てる中身も変えていない</li><li><strong>次の工程へ送ること</strong>: 通る場所が本当に一つと言えるのはどんなときか――その見分け方は、まだ自分の言葉にできていない。次の課題として残す</li><li><strong>私が引き受けたこと</strong>: 既に使われている所に触らずに済む道を選べる</li></ul></section><footer class=article-footer><section class=article-tags><a href=/tags/legacy-code/>Legacy-Code</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/perl/>Perl</a>
+<a href=/tags/wrap-method/>Wrap-Method</a>
+<a href=/tags/scattered-callers/>Scattered-Callers</a>
+<a href=/tags/code-carpenter/>Code-Carpenter</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/10/03/070705/><div class=article-image><img src=/public_images/2026/code-carpenter-method-object-long-sub/header.webp loading=lazy data-key data-hash=/public_images/2026/code-carpenter-method-object-long-sub/header.webp></div><div class=article-details><h2 class=article-title>数百行の関数の「途中だけ」をテストしたい。関数をクラスへ移して段ごとに割る【Break Out Method Object】</h2></div></a></article><article class=has-image><a href=/2026/10/02/070705/><div class=article-image><img src=/public_images/2026/code-carpenter-instance-delegator-silent-rename/header.webp loading=lazy data-key data-hash=/public_images/2026/code-carpenter-instance-delegator-silent-rename/header.webp></div><div class=article-details><h2 class=article-title>関数名を揃えたらモックが効かなくなった。テストは緑のまま本物が動く罠【Introduce Instance Delegator】</h2></div></a></article><article class=has-image><a href=/2026/10/01/070705/><div class=article-image><img src=/public_images/2026/code-carpenter-parameterize-constructor-nameless-dependency/header.webp loading=lazy data-key data-hash=/public_images/2026/code-carpenter-parameterize-constructor-nameless-dependency/header.webp></div><div class=article-details><h2 class=article-title>コンストラクタが本番の帳簿ファイルを開いてしまうクラスを、テストできる形にする【Parameterize Constructor】</h2></div></a></article><article class=has-image><a href=/2026/09/30/070705/><div class=article-image><img src=/public_images/2026/code-carpenter-extract-override-imported-copy/header.webp loading=lazy data-key data-hash=/public_images/2026/code-carpenter-extract-override-imported-copy/header.webp></div><div class=article-details><h2 class=article-title>テストのたびに外部 API を叩いてしまうコードを、サブクラスで差し替える【Extract and Override Call】</h2></div></a></article><article class=has-image><a href=/2026/09/28/070705/><div class=article-image><img src=/public_images/2026/code-carpenter-sprout-class-new-member/header.webp loading=lazy data-key data-hash=/public_images/2026/code-carpenter-sprout-class-new-member/header.webp></div><div class=article-details><h2 class=article-title>テストで組み立てられないクラスへの機能追加は、新しいクラスを別に起こす【Sprout Class】</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

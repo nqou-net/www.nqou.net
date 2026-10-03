@@ -1,0 +1,687 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="中央郵便局の差配は、辺境の便も絶やさぬことを矜持にしてきた。末端の一配送所が魔力災害で倒れた夜、その一つを諦めきれず使い魔を送り続けた——だが倒れた相手を待つほど、待つこと自体が使い魔を食い潰す。応答を失った中央局は黙り込み、その沈黙が呼び出しの鎖を登って、倒れた配送所とは無縁の健全な地方の便まで凍りつかせた。差配は「倒れた配送所を補強すれば（早馬＝リトライを増やせば）防げる」と信じて来るが、それは倒れた相手に群がる狼を増やし共倒れを早めるだけだ。直せないのは倒れた相手で、守るべきは待つ側。失敗が続けば鎖を断ち（Open）即座に軽い間に合わせ（Fallback）を返して使い魔を空け、頃合いを見て一筋だけ試しに送り（Half-Open の単一プローブ）、通れば繋ぎ直す（Closed）。倒れた配送所を Deferred で握り論理時計で刻を進める決定的な模擬戦で、連鎖がどこで断たれるかと、回復中の群がりを一筋に絞る理由まで確かめる TypeScript の契約の物語。"><title>コードテイマー【Circuit Breaker】倒れた一匹を見捨てられず、群れごと魔力が枯れ果てる〜倒れた相手への鎖を断ち、頃合いを見て繋ぎ直す〜</title><link rel=canonical href=https://www.nqou.net/2026/07/05/070705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コードテイマー【Circuit Breaker】倒れた一匹を見捨てられず、群れごと魔力が枯れ果てる〜倒れた相手への鎖を断ち、頃合いを見て繋ぎ直す〜"><meta property='og:description' content="中央郵便局の差配は、辺境の便も絶やさぬことを矜持にしてきた。末端の一配送所が魔力災害で倒れた夜、その一つを諦めきれず使い魔を送り続けた——だが倒れた相手を待つほど、待つこと自体が使い魔を食い潰す。応答を失った中央局は黙り込み、その沈黙が呼び出しの鎖を登って、倒れた配送所とは無縁の健全な地方の便まで凍りつかせた。差配は「倒れた配送所を補強すれば（早馬＝リトライを増やせば）防げる」と信じて来るが、それは倒れた相手に群がる狼を増やし共倒れを早めるだけだ。直せないのは倒れた相手で、守るべきは待つ側。失敗が続けば鎖を断ち（Open）即座に軽い間に合わせ（Fallback）を返して使い魔を空け、頃合いを見て一筋だけ試しに送り（Half-Open の単一プローブ）、通れば繋ぎ直す（Closed）。倒れた配送所を Deferred で握り論理時計で刻を進める決定的な模擬戦で、連鎖がどこで断たれるかと、回復中の群がりを一筋に絞る理由まで確かめる TypeScript の契約の物語。"><meta property='og:url' content='https://www.nqou.net/2026/07/05/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='typescript'><meta property='article:tag' content='circuit-breaker'><meta property='article:tag' content='cascading-failure'><meta property='article:tag' content='fault-tolerance'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-tamer'><meta property='article:published_time' content='2026-07-05T07:07:05+09:00'><meta property='article:modified_time' content='2026-07-05T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-tamer-circuit-breaker/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コードテイマー【Circuit Breaker】倒れた一匹を見捨てられず、群れごと魔力が枯れ果てる〜倒れた相手への鎖を断ち、頃合いを見て繋ぎ直す〜"><meta name=twitter:description content="中央郵便局の差配は、辺境の便も絶やさぬことを矜持にしてきた。末端の一配送所が魔力災害で倒れた夜、その一つを諦めきれず使い魔を送り続けた——だが倒れた相手を待つほど、待つこと自体が使い魔を食い潰す。応答を失った中央局は黙り込み、その沈黙が呼び出しの鎖を登って、倒れた配送所とは無縁の健全な地方の便まで凍りつかせた。差配は「倒れた配送所を補強すれば（早馬＝リトライを増やせば）防げる」と信じて来るが、それは倒れた相手に群がる狼を増やし共倒れを早めるだけだ。直せないのは倒れた相手で、守るべきは待つ側。失敗が続けば鎖を断ち（Open）即座に軽い間に合わせ（Fallback）を返して使い魔を空け、頃合いを見て一筋だけ試しに送り（Half-Open の単一プローブ）、通れば繋ぎ直す（Closed）。倒れた配送所を Deferred で握り論理時計で刻を進める決定的な模擬戦で、連鎖がどこで断たれるかと、回復中の群がりを一筋に絞る理由まで確かめる TypeScript の契約の物語。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-tamer-circuit-breaker/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-07-05T07:07:05+09:00","datePublished":"2026-07-05T07:07:05+09:00","description":"中央郵便局の差配は、辺境の便も絶やさぬことを矜持にしてきた。末端の一配送所が魔力災害で倒れた夜、その一つを諦めきれず使い魔を送り続けた——だが倒れた相手を待つほど、待つこと自体が使い魔を食い潰す。応答を失った中央局は黙り込み、その沈黙が呼び出しの鎖を登って、倒れた配送所とは無縁の健全な地方の便まで凍りつかせた。差配は「倒れた配送所を補強すれば（早馬＝リトライを増やせば）防げる」と信じて来るが、それは倒れた相手に群がる狼を増やし共倒れを早めるだけだ。直せないのは倒れた相手で、守るべきは待つ側。失敗が続けば鎖を断ち（Open）即座に軽い間に合わせ（Fallback）を返して使い魔を空け、頃合いを見て一筋だけ試しに送り（Half-Open の単一プローブ）、通れば繋ぎ直す（Closed）。倒れた配送所を Deferred で握り論理時計で刻を進める決定的な模擬戦で、連鎖がどこで断たれるかと、回復中の群がりを一筋に絞る理由まで確かめる TypeScript の契約の物語。","headline":"コードテイマー【Circuit Breaker】倒れた一匹を見捨てられず、群れごと魔力が枯れ果てる〜倒れた相手への鎖を断ち、頃合いを見て繋ぎ直す〜","image":"https://www.nqou.net/public_images/2026/code-tamer-circuit-breaker/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/07/05/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#最果ての配達先を訪ねる>最果ての配達先を、訪ねる</a><ol><li><a href=#倒れた一つを見捨てられなかった>倒れた一つを、見捨てられなかった</a></li><li><a href=#直せないのは倒れた相手のほうだ>直せないのは、倒れた相手のほうだ</a></li><li><a href=#倒れた一匹を群れが支えようとする>倒れた一匹を、群れが支えようとする</a></li></ol></li><li><a href=#待つことが使い魔を食い潰す>待つことが、使い魔を食い潰す</a><ol><li><a href=#倒れた配送所をこちらの手で倒す>倒れた配送所を、こちらの手で倒す</a></li><li><a href=#健全な便が出ていかない>健全な便が、出ていかない</a></li><li><a href=#早馬を増やせば群れはもっと早く枯れる>早馬を増やせば、群れはもっと早く枯れる</a></li></ol></li><li><a href=#鎖を断ち頃合いを見て繋ぎ直す>鎖を断ち、頃合いを見て繋ぎ直す</a><ol><li><a href=#封印の自動結界>封印の自動結界</a></li><li><a href=#同じ災害を結界で受ける>同じ災害を、結界で受ける</a></li><li><a href=#試すのは一筋だけ>試すのは、一筋だけ</a></li><li><a href=#模擬戦をまとめて走らせる>模擬戦を、まとめて走らせる</a></li><li><a href=#結界が守らないもの>結界が、守らないもの</a></li><li><a href=#断つのは繋ぎ直すための間>断つのは、繋ぎ直すための間</a></li><li><a href=#-カイナの魔獣契約録tamers-registry>📜 カイナの魔獣契約録（Tamer&rsquo;s Registry）</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/07/05/070705/><img src=/public_images/2026/code-tamer-circuit-breaker/header.webp loading=lazy alt="Featured image of post コードテイマー【Circuit Breaker】倒れた一匹を見捨てられず、群れごと魔力が枯れ果てる〜倒れた相手への鎖を断ち、頃合いを見て繋ぎ直す〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/07/05/070705/>コードテイマー【Circuit Breaker】倒れた一匹を見捨てられず、群れごと魔力が枯れ果てる〜倒れた相手への鎖を断ち、頃合いを見て繋ぎ直す〜</a></h2><h3 class=article-subtitle>中央郵便局の差配は、辺境の便も絶やさぬことを矜持にしてきた。末端の一配送所が魔力災害で倒れた夜、その一つを諦めきれず使い魔を送り続けた——だが倒れた相手を待つほど、待つこと自体が使い魔を食い潰す。応答を失った中央局は黙り込み、その沈黙が呼び出しの鎖を登って、倒れた配送所とは無縁の健全な地方の便まで凍りつかせた。差配は「倒れた配送所を補強すれば（早馬＝リトライを増やせば）防げる」と信じて来るが、それは倒れた相手に群がる狼を増やし共倒れを早めるだけだ。直せないのは倒れた相手で、守るべきは待つ側。失敗が続けば鎖を断ち（Open）即座に軽い間に合わせ（Fallback）を返して使い魔を空け、頃合いを見て一筋だけ試しに送り（Half-Open の単一プローブ）、通れば繋ぎ直す（Closed）。倒れた配送所を Deferred で握り論理時計で刻を進める決定的な模擬戦で、連鎖がどこで断たれるかと、回復中の群がりを一筋に絞る理由まで確かめる TypeScript の契約の物語。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>05, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 28分</time></div></footer></div></header><section class=article-content><h2 id=最果ての配達先を訪ねる>最果ての配達先を、訪ねる</h2><p>倒れたのは、網の端の、たった一つの配送所だった。なのに、王国じゅうの便が、止まった。</p><p>わたしは王国魔法郵便網の、中央局の差配だ。各地の配送所へ便を割り振り、使い魔を出して運ばせる。使い魔は、中央局が抱える運び手だ。数には限りがある。一頭が便を抱えて発てば、戻るまでその一頭は塞がる。戻れば、また次の便を託せる。その采配が、わたしの仕事だった。</p><p>聖域へ続く道は、網のいちばん端にある。岩がちな尾根を越えた先の、めったに便など来ない辺境だ。届け先は、ただ一軒。理屈で言えば、こんな道は閉じてしまっていい。だがわたしは、一つの宛先も切り捨てたくなくて、人手の足りない時は自分で使い魔を引いて、ここまで通した。だから、この奥に住む主が、ただ者でないことも、配達のついでに、それとなく知っていた。獣を、力でなく契約で鎮める者がいる、と。</p><p>石造りの庵は、幾重もの封印に囲まれていた。古い石に、見たことのない印が、層をなして刻まれている。その封印の一つに指を当てて、線をなぞっていた人が、振り向かずに言った。</p><p>「お前か。いちばん遠い便を、絶やさなかった差配は」</p><p>わたしは、足を止めた。理屈の通らないこの道に、それでも便が絶えず届くのを、この人は端から訝しんでいたのだろう。来るはずのないものが、来続けていた。その出どころを、わたしの几帳面を、宛先の主のほうが見ていた。</p><p>「カイナ、さんですか」と、わたしは言った。「網が、止まったんです。中央局ごと。……視ていただきたい」</p><p>カイナと名乗ったその人は、封印から指を離して、ようやくこちらを向いた。急ぐふうは、まるでなかった。</p><h3 id=倒れた一つを見捨てられなかった>倒れた一つを、見捨てられなかった</h3><p>わたしは、あの夜のことを話した。淡々と話すつもりが、途中で、何度か言葉に詰まった。</p><p>「末端の配送所が、一つ、倒れたんです。北の外れの、小さな所でした。魔力災害で、応答が返らなくなった。便を送っても、受け取ったとも、断るとも、何も言ってこない。ただ、黙る」</p><p>そこまでは、よくあることだった。問題は、その次だ。</p><p>「わたしは、その配送所宛の便を、見捨てられませんでした。届くはずの便です。誰かが待っている。だから、使い魔を出し続けた。応答がなくても、また次を送り、また次を送った。……そうしているうちに」</p><p>声が、掠れた。</p><p>「中央局そのものが、どの便にも応えられなくなったんです。使い魔が、一頭も戻ってこない。そして——倒れた配送所とは何の関わりもない、南の、東の、健全な地方への便まで、いっせいに凍りついた。網が、丸ごと止まった」</p><p>カイナは、急かさずに聞いていた。わたしは、いちばん分からないことを、口にした。</p><p>「倒れたのは、末端の一つだけです。健全な地方は、何も壊れていない。なのに、なぜ網全体が止まったのか。それが、どうしても分からない」</p><p>分からないまま、わたしは一つの答えを握って、ここへ来ていた。</p><p>「だから——あの倒れた配送所を、補強したいんです。待つ刻をもっと延ばして、使い魔を増やして、倒れても何度でも繋ぎ直せるようにする。そうすれば、二度と取りこぼさない。その手伝いを、お願いに来ました」</p><p>それが、正しい道だと信じていた。見捨てないというのは、もっと粘る、ということだと。</p><h3 id=直せないのは倒れた相手のほうだ>直せないのは、倒れた相手のほうだ</h3><p>カイナは、わたしの補強案に、すぐには乗らなかった。代わりに、中央局の送りの手順を見せろ、と言った。</p><p>わたしは、便を送る仕組みを写した板を取り出した。難しいことは、何もしていない。使い魔を一頭確保して、配送所へ送る。それだけだ。だからこそ、ここに穴があるとは、思えなかった。</p><p>まず、使い魔の采配を写したものを見せた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=c1>// 便（配送物）と受領証。delivered:false = 間に合わせ（Fallback）の応答。
+</span></span></span><span class=line><span class=cl><span class=kr>export</span> <span class=kr>interface</span> <span class=nx>Parcel</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=nx>region</span>: <span class=kt>string</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=nx>id</span>: <span class=kt>string</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kr>export</span> <span class=kr>interface</span> <span class=nx>Receipt</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=nx>region</span>: <span class=kt>string</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=nx>delivered</span>: <span class=kt>boolean</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// 配送所（外部依存）。send は Promise。倒れた配送所は応答を握ったままハングする。
+</span></span></span><span class=line><span class=cl><span class=kr>export</span> <span class=kr>interface</span> <span class=nx>Branch</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=nx>send</span><span class=p>(</span><span class=nx>parcel</span>: <span class=kt>Parcel</span><span class=p>)</span><span class=o>:</span> <span class=nx>Promise</span><span class=p>&lt;</span><span class=nt>Receipt</span><span class=p>&gt;;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// 中央局の使い魔（並行スロット）。有限。空くまで次の便は待つ。
+</span></span></span><span class=line><span class=cl><span class=kr>export</span> <span class=kr>class</span> <span class=nx>CourierPool</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=kr>private</span> <span class=nx>available</span>: <span class=kt>number</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=kr>private</span> <span class=kr>readonly</span> <span class=nx>queue</span>: <span class=kt>Array</span><span class=o>&lt;</span><span class=p>()</span> <span class=o>=&gt;</span> <span class=k>void</span><span class=o>&gt;</span> <span class=o>=</span> <span class=p>[];</span>
+</span></span><span class=line><span class=cl>  <span class=kr>private</span> <span class=nx>running</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=c1>// 稼働中の使い魔数
+</span></span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=kr>constructor</span><span class=p>(</span><span class=nx>capacity</span>: <span class=kt>number</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>this</span><span class=p>.</span><span class=nx>available</span> <span class=o>=</span> <span class=nx>capacity</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=kr>async</span> <span class=nx>run</span><span class=p>&lt;</span><span class=nt>T</span><span class=p>&gt;(</span><span class=nx>task</span><span class=o>:</span> <span class=p>()</span> <span class=o>=&gt;</span> <span class=nx>Promise</span><span class=p>&lt;</span><span class=nt>T</span><span class=p>&gt;)</span><span class=o>:</span> <span class=nx>Promise</span><span class=p>&lt;</span><span class=nt>T</span><span class=p>&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=k>this</span><span class=p>.</span><span class=nx>available</span> <span class=o>&gt;</span> <span class=mi>0</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=k>this</span><span class=p>.</span><span class=nx>available</span><span class=o>--</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span> <span class=k>else</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=k>await</span> <span class=k>new</span> <span class=nx>Promise</span><span class=p>&lt;</span><span class=nt>void</span><span class=p>&gt;((</span><span class=nx>res</span><span class=p>)</span> <span class=o>=&gt;</span> <span class=k>this</span><span class=p>.</span><span class=nx>queue</span><span class=p>.</span><span class=nx>push</span><span class=p>(</span><span class=nx>res</span><span class=p>));</span> <span class=c1>// 空くのを待つ
+</span></span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>this</span><span class=p>.</span><span class=nx>running</span><span class=o>++</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>try</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=k>return</span> <span class=k>await</span> <span class=nx>task</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span> <span class=k>finally</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=k>this</span><span class=p>.</span><span class=nx>running</span><span class=o>--</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>      <span class=kr>const</span> <span class=nx>next</span> <span class=o>=</span> <span class=k>this</span><span class=p>.</span><span class=nx>queue</span><span class=p>.</span><span class=nx>shift</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>      <span class=k>if</span> <span class=p>(</span><span class=nx>next</span><span class=p>)</span> <span class=nx>next</span><span class=p>();</span> <span class=c1>// 次の待ち手にスロットを手渡し
+</span></span></span><span class=line><span class=cl>      <span class=k>else</span> <span class=k>this</span><span class=p>.</span><span class=nx>available</span><span class=o>++</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>  <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=kr>get</span> <span class=nx>inFlight</span><span class=p>()</span><span class=o>:</span> <span class=kt>number</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=k>this</span><span class=p>.</span><span class=nx>running</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「使い魔は、数が決まっています」とわたしは言った。「<code>run</code> に便を渡すと、空いた一頭を確保して運ばせる。空きがなければ、待つ。一頭が戻れば、待っていた便に渡す。……当たり前の采配です」</p><p>そして、配送所へ送る手順を見せた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span><span class=lnt>9
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=c1>// Before: 中央局は使い魔を1つ確保し、配送所へ直接送る。倒れていても送り、
+</span></span></span><span class=line><span class=cl><span class=c1>//   応答（or タイムアウト）まで使い魔を保持する。
+</span></span></span><span class=line><span class=cl><span class=kr>export</span> <span class=kr>async</span> <span class=kd>function</span> <span class=nx>dispatchDirect</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>  <span class=nx>pool</span>: <span class=kt>CourierPool</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>  <span class=nx>branch</span>: <span class=kt>Branch</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>  <span class=nx>parcel</span>: <span class=kt>Parcel</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>)</span><span class=o>:</span> <span class=nx>Promise</span><span class=p>&lt;</span><span class=nt>Receipt</span><span class=p>&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=k>return</span> <span class=nx>pool</span><span class=p>.</span><span class=nx>run</span><span class=p>(()</span> <span class=o>=&gt;</span> <span class=nx>branch</span><span class=p>.</span><span class=nx>send</span><span class=p>(</span><span class=nx>parcel</span><span class=p>));</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「使い魔を一頭確保して、配送所へ送る。応答が返るまで、その使い魔は戻りません。……これの、どこが」</p><p>カイナは、板に指を這わせた。生態を見るような、静かな手つきだった。そして、低く言った。</p><p>「お前は、倒れた配送所を直したいと言う。だが——倒れた相手は、お前の手では直せん。向こうの地の魔力災害は、お前の領分じゃない」</p><p>わたしは、食い下がった。「では、せめて待って、繋ぎ直し続ければ……」</p><p>「それが、群れを殺す」</p><p>カイナの声が、わずかに落ちた。</p><h3 id=倒れた一匹を群れが支えようとする>倒れた一匹を、群れが支えようとする</h3><p>「お前の網で暴れているのは、鎖で繋がった獣だ」とカイナは言った。「群れで生きる。一匹が倒れると、他の狼が、鎖を通して魔力を送る。倒れた仲間を、支えようとする」</p><p>わたしは、その姿を思い浮かべた。</p><p>「だが、倒れた一匹は、受け取るばかりで、立たない。支える狼も、やがて魔力が尽きて倒れる。すると、また次の狼が、倒れたそいつを支えようと、魔力を送る。——倒れが、鎖を伝って、次の狼へ、また次の狼へと移っていく。最後は、群れごと枯れ果てる」</p><p>背筋が、冷えた。</p><p>「……わたしが、していたことだ」</p><p>倒れた配送所を見捨てられず、使い魔を送り続けた。応答のない相手に、次々と。その使い魔が戻らず、中央局が枯れ、無関係な地方まで凍りついた。倒れた一匹を支えようとして、群れごと枯らす。それは、比喩ではなかった。</p><p>「お前が見たのは、これだ」とカイナは言った。「倒れた一匹を見捨てられず、群れごと魔力が枯れた。お前の網も、同じだった」</p><h2 id=待つことが使い魔を食い潰す>待つことが、使い魔を食い潰す</h2><h3 id=倒れた配送所をこちらの手で倒す>倒れた配送所を、こちらの手で倒す</h3><p>「災害なら、もう起きた後だ」とカイナは言った。「あの倒れた配送所を、もう一度、この手で倒す」</p><p>カイナが組んだのは、沈黙を握る檻だった。倒れた配送所を真似た偽物は、便を送られても、応答を返さない。いつ黙りを破るか――その頃合いまで、こちらの掌の上にある。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=c1>// Deferred: Promise の解決権を外から握るユーティリティ。
+</span></span></span><span class=line><span class=cl><span class=kr>export</span> <span class=kd>function</span> <span class=nx>deferred</span><span class=p>&lt;</span><span class=nt>T</span><span class=p>&gt;()</span><span class=o>:</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=nx>promise</span>: <span class=kt>Promise</span><span class=p>&lt;</span><span class=nt>T</span><span class=p>&gt;;</span>
+</span></span><span class=line><span class=cl>  <span class=nx>resolve</span><span class=o>:</span> <span class=p>(</span><span class=nx>v</span>: <span class=kt>T</span><span class=p>)</span> <span class=o>=&gt;</span> <span class=k>void</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=nx>reject</span><span class=o>:</span> <span class=p>(</span><span class=nx>e</span>: <span class=kt>unknown</span><span class=p>)</span> <span class=o>=&gt;</span> <span class=k>void</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=kd>let</span> <span class=nx>resolve</span><span class=o>!:</span> <span class=p>(</span><span class=nx>v</span>: <span class=kt>T</span><span class=p>)</span> <span class=o>=&gt;</span> <span class=k>void</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=kd>let</span> <span class=nx>reject</span><span class=o>!:</span> <span class=p>(</span><span class=nx>e</span>: <span class=kt>unknown</span><span class=p>)</span> <span class=o>=&gt;</span> <span class=k>void</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>promise</span> <span class=o>=</span> <span class=k>new</span> <span class=nx>Promise</span><span class=p>&lt;</span><span class=nt>T</span><span class=p>&gt;((</span><span class=nx>res</span><span class=p>,</span> <span class=nx>rej</span><span class=p>)</span> <span class=o>=&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=nx>resolve</span> <span class=o>=</span> <span class=nx>res</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nx>reject</span> <span class=o>=</span> <span class=nx>rej</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=p>});</span>
+</span></span><span class=line><span class=cl>  <span class=k>return</span> <span class=p>{</span> <span class=nx>promise</span><span class=p>,</span> <span class=nx>resolve</span><span class=p>,</span> <span class=nx>reject</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// 倒れた配送所: send を呼ぶたびに新しい Deferred を返してハングする。
+</span></span></span><span class=line><span class=cl><span class=c1>// テストは任意の刻に reject（タイムアウト相当）/ resolve（回復相当）できる。
+</span></span></span><span class=line><span class=cl><span class=kr>export</span> <span class=kr>class</span> <span class=nx>DownedBranch</span> <span class=kr>implements</span> <span class=nx>Branch</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=nx>callCount</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=kr>readonly</span> <span class=nx>pending</span>: <span class=kt>Array</span><span class=o>&lt;</span><span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=nx>promise</span>: <span class=kt>Promise</span><span class=p>&lt;</span><span class=nt>Receipt</span><span class=p>&gt;;</span>
+</span></span><span class=line><span class=cl>    <span class=nx>resolve</span><span class=o>:</span> <span class=p>(</span><span class=nx>v</span>: <span class=kt>Receipt</span><span class=p>)</span> <span class=o>=&gt;</span> <span class=k>void</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nx>reject</span><span class=o>:</span> <span class=p>(</span><span class=nx>e</span>: <span class=kt>unknown</span><span class=p>)</span> <span class=o>=&gt;</span> <span class=k>void</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=p>}</span><span class=o>&gt;</span> <span class=o>=</span> <span class=p>[];</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=nx>send</span><span class=p>(</span><span class=nx>_parcel</span>: <span class=kt>Parcel</span><span class=p>)</span><span class=o>:</span> <span class=nx>Promise</span><span class=p>&lt;</span><span class=nt>Receipt</span><span class=p>&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>this</span><span class=p>.</span><span class=nx>callCount</span><span class=o>++</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=kr>const</span> <span class=nx>d</span> <span class=o>=</span> <span class=nx>deferred</span><span class=p>&lt;</span><span class=nt>Receipt</span><span class=p>&gt;();</span>
+</span></span><span class=line><span class=cl>    <span class=k>this</span><span class=p>.</span><span class=nx>pending</span><span class=p>.</span><span class=nx>push</span><span class=p>(</span><span class=nx>d</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nx>d</span><span class=p>.</span><span class=nx>promise</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>握りの道具は、<code>deferred</code> だ。約束を外から保留しておき、好きな刻に「返した」「失敗した」と決める。倒れた配送所は、送られた便の数を <code>callCount</code> で数え、応答を <code>pending</code> に溜めて、握ったまま黙る。健全な配送所のほうは、送れば即座に「届けた」と返す。</p><p>「網が立て込む繁忙のときだけ、倒れた相手への便がたまたま積もる」とカイナは言った。「だから、平時の見回りでは捕まらない。その稀な折を、こちらから狙って、檻の中へ呼び込む」</p><p>ここで握るのは、二つ。倒れた相手の沈黙と、刻だ。沈黙は、ただ黙らせるだけではない。待ちあぐねた使い魔が「もう戻らぬ」と諦める——現の網でいうタイムアウト——その瞬間も、檻には時計も自動で打ち切る仕掛けも置かず、こちらが手で <code>reject</code> を打って起こす。刻もまた、生の時計は使わない。こちらが手で進める論理の刻にする。沈黙をいつ断ち、刻をどこまで進めるか、その両方を握るから、何度走らせても、ぴたりと同じことが起きる。結果が、その時の運に転ぶことはない。</p><h3 id=健全な便が出ていかない>健全な便が、出ていかない</h3><p>カイナは、使い魔を二頭だけ置いた檻で、最初の災害を流した。倒れた配送所へ、二便。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=kr>const</span> <span class=nx>pool</span> <span class=o>=</span> <span class=k>new</span> <span class=nx>CourierPool</span><span class=p>(</span><span class=mi>2</span><span class=p>);</span> <span class=c1>// 使い魔は二人（容量2）
+</span></span></span><span class=line><span class=cl><span class=kr>const</span> <span class=nx>downed</span> <span class=o>=</span> <span class=k>new</span> <span class=nx>DownedBranch</span><span class=p>();</span>
+</span></span><span class=line><span class=cl><span class=kr>const</span> <span class=nx>healthy</span> <span class=o>=</span> <span class=k>new</span> <span class=nx>HealthyBranch</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// 倒れた配送所へ2便→両方とも使い魔を確保し、応答を待ってハングする。
+</span></span></span><span class=line><span class=cl><span class=kr>const</span> <span class=nx>p1</span> <span class=o>=</span> <span class=nx>dispatchDirect</span><span class=p>(</span><span class=nx>pool</span><span class=p>,</span> <span class=nx>downed</span><span class=p>,</span> <span class=p>{</span> <span class=nx>region</span><span class=o>:</span> <span class=s2>&#34;downed&#34;</span><span class=p>,</span> <span class=nx>id</span><span class=o>:</span> <span class=s2>&#34;p1&#34;</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=kr>const</span> <span class=nx>p2</span> <span class=o>=</span> <span class=nx>dispatchDirect</span><span class=p>(</span><span class=nx>pool</span><span class=p>,</span> <span class=nx>downed</span><span class=p>,</span> <span class=p>{</span> <span class=nx>region</span><span class=o>:</span> <span class=s2>&#34;downed&#34;</span><span class=p>,</span> <span class=nx>id</span><span class=o>:</span> <span class=s2>&#34;p2&#34;</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>await</span> <span class=nx>Promise</span><span class=p>.</span><span class=nx>resolve</span><span class=p>();</span>
+</span></span><span class=line><span class=cl><span class=k>await</span> <span class=nx>Promise</span><span class=p>.</span><span class=nx>resolve</span><span class=p>();</span>
+</span></span><span class=line><span class=cl><span class=nx>assert</span><span class=p>.</span><span class=nx>equal</span><span class=p>(</span><span class=nx>pool</span><span class=p>.</span><span class=nx>inFlight</span><span class=p>,</span> <span class=mi>2</span><span class=p>);</span> <span class=c1>// 使い魔は二人とも、応答のない相手の前で塞がっている
+</span></span></span></code></pre></td></tr></table></div></div><p>二便とも、使い魔を確保して、配送所へ発った。だが配送所は黙ったまま。使い魔は、応答を待って、戻ってこない。<code>inFlight</code> は二——二頭とも、塞がっている。</p><p>そこへ、健全な地方への便を、一つ流す。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=c1>// 健全な地方への便→空き使い魔が無く、まだ送られないまま待たされる。
+</span></span></span><span class=line><span class=cl><span class=kd>let</span> <span class=nx>healthyDone</span> <span class=o>=</span> <span class=kc>false</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=kr>const</span> <span class=nx>healthyPromise</span> <span class=o>=</span> <span class=nx>dispatchDirect</span><span class=p>(</span><span class=nx>pool</span><span class=p>,</span> <span class=nx>healthy</span><span class=p>,</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=nx>region</span><span class=o>:</span> <span class=s2>&#34;healthy&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>  <span class=nx>id</span><span class=o>:</span> <span class=s2>&#34;h1&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>}).</span><span class=nx>then</span><span class=p>((</span><span class=nx>receipt</span><span class=p>)</span> <span class=o>=&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=nx>healthyDone</span> <span class=o>=</span> <span class=kc>true</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=k>return</span> <span class=nx>receipt</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// マイクロタスクを数回まわしても、健全便はまだ通らない。
+</span></span></span><span class=line><span class=cl><span class=k>await</span> <span class=nx>Promise</span><span class=p>.</span><span class=nx>resolve</span><span class=p>();</span>
+</span></span><span class=line><span class=cl><span class=k>await</span> <span class=nx>Promise</span><span class=p>.</span><span class=nx>resolve</span><span class=p>();</span>
+</span></span><span class=line><span class=cl><span class=k>await</span> <span class=nx>Promise</span><span class=p>.</span><span class=nx>resolve</span><span class=p>();</span>
+</span></span><span class=line><span class=cl><span class=nx>assert</span><span class=p>.</span><span class=nx>equal</span><span class=p>(</span><span class=nx>healthyDone</span><span class=p>,</span> <span class=kc>false</span><span class=p>);</span> <span class=c1>// 健全な便が、倒れた相手に巻き込まれて凍っている
+</span></span></span><span class=line><span class=cl><span class=nx>assert</span><span class=p>.</span><span class=nx>equal</span><span class=p>(</span><span class=nx>healthy</span><span class=p>.</span><span class=nx>callCount</span><span class=p>,</span> <span class=mi>0</span><span class=p>);</span> <span class=c1>// healthy.send 自体がまだ呼ばれていない（使い魔が無い）
+</span></span></span></code></pre></td></tr></table></div></div><p>何度、巡回の隙をまわしても、健全な便は出ていかなかった。<code>healthyDone</code> は偽のまま。健全な配送所の <code>send</code> は、まだ一度も呼ばれていない。届け先は無事なのに、運ぶ使い魔が、一頭もいないからだ。</p><p>これは「まだ通っていないだけ」ではない。健全な便は、空く使い魔を待つ列に積まれて、止まっている。その列が動く引き金は、ただ一つ——先に出た使い魔が戻ることだけだ。だが倒れた相手を待つ二頭は、こちらが諦めさせない限り、戻らない。動かす引き金がどこにもないのだから、巡回の隙をいくら掃いても、結果は一分も変わらない。だから「まだ」ではなく「この刻には、決して通らない」と言い切れる。</p><p>わたしは、声を失った。「健全な地方は、何も壊れていない。なのに、便が出ていかない……?」</p><p>「使い魔は二頭とも、倒れた相手の前で、応答を待って立ち尽くしている」とカイナは言った。「健全な便を運ぶ者が、一頭も残っていない」</p><p>カイナは、刻を進めた。倒れた相手への二便が、ようやくタイムアウトで諦め、失敗する。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=c1>// タイムアウト相当：倒れた配送所への2便を reject して使い魔を解放する。
+</span></span></span><span class=line><span class=cl><span class=kr>const</span> <span class=p>[</span><span class=nx>d1</span><span class=p>,</span> <span class=nx>d2</span><span class=p>]</span> <span class=o>=</span> <span class=nx>downed</span><span class=p>.</span><span class=nx>pending</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=nx>d1</span><span class=o>!</span><span class=p>.</span><span class=nx>reject</span><span class=p>(</span><span class=k>new</span> <span class=nb>Error</span><span class=p>(</span><span class=s2>&#34;timeout&#34;</span><span class=p>));</span>
+</span></span><span class=line><span class=cl><span class=nx>d2</span><span class=o>!</span><span class=p>.</span><span class=nx>reject</span><span class=p>(</span><span class=k>new</span> <span class=nb>Error</span><span class=p>(</span><span class=s2>&#34;timeout&#34;</span><span class=p>));</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>await</span> <span class=nx>assert</span><span class=p>.</span><span class=nx>rejects</span><span class=p>(</span><span class=nx>p1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=k>await</span> <span class=nx>assert</span><span class=p>.</span><span class=nx>rejects</span><span class=p>(</span><span class=nx>p2</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// 使い魔が空き、健全便が初めて通る。
+</span></span></span><span class=line><span class=cl><span class=kr>const</span> <span class=nx>healthyReceipt</span> <span class=o>=</span> <span class=k>await</span> <span class=nx>healthyPromise</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=nx>assert</span><span class=p>.</span><span class=nx>equal</span><span class=p>(</span><span class=nx>healthyDone</span><span class=p>,</span> <span class=kc>true</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nx>assert</span><span class=p>.</span><span class=nx>deepEqual</span><span class=p>(</span><span class=nx>healthyReceipt</span><span class=p>,</span> <span class=p>{</span> <span class=nx>region</span><span class=o>:</span> <span class=s2>&#34;healthy&#34;</span><span class=p>,</span> <span class=nx>delivered</span>: <span class=kt>true</span> <span class=p>});</span>
+</span></span></code></pre></td></tr></table></div></div><p>倒れた相手への二便が失敗して、使い魔が空いた。その瞬間、待たされていた健全な便が、初めて出ていった。届いた。</p><p>そこで、わたしは、自分の言葉でようやく像を結んだ。</p><p>「待つこと、そのものが……使い魔を食っていたのか。倒れた相手に送った使い魔は、応答が返らないから、ずっと戻ってこない。戻らないから、健全な便を運ぶ者がいなくなる。倒れたのは末端の一つなのに、待つわたしの側で、使い魔が尽きた」</p><p>カイナは、うなずいた。そして、その先を継いだ。</p><p>「そうして応答を失った中央局は、黙り込む。すると、中央局を頼る上の者が、今度は中央局の沈黙を待つ。倒れが、鎖を登っていく」</p><p>一部の倒れが、繋がりを伝って全体へ広がる。これを <strong>カスケード障害</strong>——連鎖障害——という。倒れた配送所そのものが網を壊したのではない。倒れたと分かっても送り続け、待ち続けたことが、倒れを鎖伝いに運んだのだ。</p><p>もっとも、この檻で目に見せたのは、鎖の一段ぶんだ。使い魔が尽きて、健全な便が凍る、そこまでを確かめた。その先、凍った中央局を頼る上の者がまた枯れていく多段の連鎖は、同じ理屈の繰り返しとして地続きに続く。逆に言えば、一段を断てれば、その上へは登られない。だから手を打つのは、この一段でいい。</p><p>カイナは手元の羊皮紙に、すばやい運筆で魔力の流れを描き出していった。インクが吸い込まれるにつれて、そこに一つの冷厳な理が浮かび上がる。
+「お前が引き起こした連鎖は、こういうことだ」
+差し出された図には、中央局と、倒れた配送所、および本来なら無事であるはずの健全な地方の三者が結ばれていた。</p><p><img src=/public_images/2026/code-tamer-circuit-breaker/infographic_1.webp loading=lazy alt="Infographic sequence diagram showing cascading failure in a courier system with shared resources"></p><p>描かれた線の交点を見つめながら、喉の奥が乾くのを感じた。
+「倒れたのは末端の一つ……なのに、待つために放った使い魔たちが、戻らない鎖の結び目になってしまう」
+「そうだ。一対一の接続で使い魔を使い果たせば、別の健全な接続を試す機会すら奪われる。これが連鎖の正体だ」
+カイナはそう言って、煤けたランプの光を近づけた。</p><h3 id=早馬を増やせば群れはもっと早く枯れる>早馬を増やせば、群れはもっと早く枯れる</h3><p>わたしは、それでも、握ってきた答えにすがった。</p><p>「なら——使い魔を、増やせばいい。早馬を増やして、倒れても何度でも送り直せば、いつかは……」</p><p>カイナは、その場で、使い捨ての檻をもう一つ組んだ。倒れた相手への送りを、三度まで繰り返す——わたしが言った「送り直し」を、そのまま形にしたものだ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=c1>// 却下案の反証専用：dispatchDirect を retries 回までリトライでくるむ使い捨て。
+</span></span></span><span class=line><span class=cl><span class=kr>async</span> <span class=kd>function</span> <span class=nx>dispatchWithRetry</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>  <span class=nx>pool</span>: <span class=kt>CourierPool</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>  <span class=nx>branch</span>: <span class=kt>Branch</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>  <span class=nx>parcel</span>: <span class=kt>Parcel</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>  <span class=nx>retries</span>: <span class=kt>number</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>)</span><span class=o>:</span> <span class=nx>Promise</span><span class=p>&lt;</span><span class=nt>void</span><span class=p>&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=kd>let</span> <span class=nx>lastError</span>: <span class=kt>unknown</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=k>for</span> <span class=p>(</span><span class=kd>let</span> <span class=nx>attempt</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=nx>attempt</span> <span class=o>&lt;</span> <span class=nx>retries</span><span class=p>;</span> <span class=nx>attempt</span><span class=o>++</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>try</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=k>await</span> <span class=nx>pool</span><span class=p>.</span><span class=nx>run</span><span class=p>(()</span> <span class=o>=&gt;</span> <span class=nx>branch</span><span class=p>.</span><span class=nx>send</span><span class=p>(</span><span class=nx>parcel</span><span class=p>));</span>
+</span></span><span class=line><span class=cl>      <span class=k>return</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span> <span class=k>catch</span> <span class=p>(</span><span class=nx>e</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=nx>lastError</span> <span class=o>=</span> <span class=nx>e</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>  <span class=p>}</span>
+</span></span><span class=line><span class=cl>  <span class=k>throw</span> <span class=nx>lastError</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>カイナは、送り直しの回数を変えて、倒れた配送所への到達——<code>callCount</code>——を数えた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=c1>// 送り直しなし（1回）：倒れた配送所への到達は1回だけ。
+</span></span></span><span class=line><span class=cl><span class=c1>// …reject まで進めて…
+</span></span></span><span class=line><span class=cl><span class=nx>assert</span><span class=p>.</span><span class=nx>equal</span><span class=p>(</span><span class=nx>downedNoRetry</span><span class=p>.</span><span class=nx>callCount</span><span class=p>,</span> <span class=mi>1</span><span class=p>);</span> <span class=c1>// 到達は1回のみ
+</span></span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// 送り直し3回：倒れた配送所への到達が3回に増える＝群がる狼が3倍。
+</span></span></span><span class=line><span class=cl><span class=c1>// …1回目 reject → 2回目 → 3回目…
+</span></span></span><span class=line><span class=cl><span class=nx>assert</span><span class=p>.</span><span class=nx>equal</span><span class=p>(</span><span class=nx>downedRetry3</span><span class=p>.</span><span class=nx>callCount</span><span class=p>,</span> <span class=mi>3</span><span class=p>);</span> <span class=c1>// 到達は3回＝送り直しなしの3倍
+</span></span></span></code></pre></td></tr></table></div></div><p>「送り直しを増やせば、倒れた相手への到達が、そのぶん増える」とカイナは言った。「一便のために、三度叩く。倒れた相手に群がる狼が、三倍になる。使い魔は、三倍長く塞がる。——お前の言う補強は、群れを、もっと早く枯らすだけだ」</p><p>送り直しが、いつも悪いわけではない、とカイナは付け加えた。「相手が一時の不調で、待てば返るなら、もう一度試すのは正しい。前に、嵐の中で何度も試させる獣を診たろう。あれは、それで鎮まった。だが今日の相手は、倒れて、待っても返らん。&ldquo;もう一度試せ"の獣とは、向きが逆だ。倒れた相手には、&ldquo;これ以上試すな"が要る」</p><p>そして、カイナは、わたしの握っていた前提を、根元から裏返した。</p><p>「守るのは、倒れた相手じゃない。倒れた相手を待つ、お前の側だ」</p><p>わたしは、その一言で、足元が変わるのを感じた。</p><p>「倒れた相手を……直すんじゃない。待つのを、やめる」と、わたしは口にした。だが、すぐに、胸の奥が抵抗した。「でも、それは……見捨てることに、ならないんですか」</p><p>カイナは、即答しなかった。「鎖を断て。倒れたと分かったら、もう送るな」とだけ言って、次の檻へ手を伸ばした。</p><h2 id=鎖を断ち頃合いを見て繋ぎ直す>鎖を断ち、頃合いを見て繋ぎ直す</h2><h3 id=封印の自動結界>封印の自動結界</h3><p>カイナが施そうとした契約を、<strong>封印の自動結界</strong>——失敗が続く送りを、一時的に遮断して、連鎖を防ぐ仕掛け——といった。<strong>Circuit Breaker</strong> と呼ぶ、とカイナは言った。</p><p>それは、三つの構えを持つ、とカイナは説明した。わたしの理解に合わせて、一つずつ。</p><ul><li>繋がっている構え。鎖は通じていて、普通に送る。ただし、失敗の数を、ずっと数えておく。これを <strong>Closed（閉）</strong> という</li><li>断つ構え。失敗が <strong>閾値</strong>——鎖を断つと決める、失敗の数の境目——を超えたら、鎖を断つ。以降は送らず、即座に <strong>間に合わせの返答（Fallback）</strong>——遮断中に返す、軽くて安全な、間に合わせの答え——を返す。これを <strong>Open（開）</strong> という</li><li>試す構え。一定の刻が過ぎたら、試しに一筋だけ送ってみる。通れば繋ぎ直し、まだ駄目なら、また断つ。これを <strong>Half-Open（半開）</strong> という</li></ul><p>「肝は、ここだ」とカイナは言った。「断てば、送らない。送らねば、使い魔は、倒れた相手の前で立ち尽くさない。使い魔が空いていれば、健全な便は、倒れた相手に巻き込まれない。——倒れを、鎖の途中で断ち切る」</p><p>カイナが刻んだ結界は、これだ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span><span class=lnt>51
+</span><span class=lnt>52
+</span><span class=lnt>53
+</span><span class=lnt>54
+</span><span class=lnt>55
+</span><span class=lnt>56
+</span><span class=lnt>57
+</span><span class=lnt>58
+</span><span class=lnt>59
+</span><span class=lnt>60
+</span><span class=lnt>61
+</span><span class=lnt>62
+</span><span class=lnt>63
+</span><span class=lnt>64
+</span><span class=lnt>65
+</span><span class=lnt>66
+</span><span class=lnt>67
+</span><span class=lnt>68
+</span><span class=lnt>69
+</span><span class=lnt>70
+</span><span class=lnt>71
+</span><span class=lnt>72
+</span><span class=lnt>73
+</span><span class=lnt>74
+</span><span class=lnt>75
+</span><span class=lnt>76
+</span><span class=lnt>77
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=kr>export</span> <span class=kr>type</span> <span class=nx>BreakerState</span> <span class=o>=</span> <span class=s2>&#34;closed&#34;</span> <span class=o>|</span> <span class=s2>&#34;open&#34;</span> <span class=o>|</span> <span class=s2>&#34;half-open&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kr>export</span> <span class=kr>interface</span> <span class=nx>BreakerOptions</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=nx>failureThreshold</span>: <span class=kt>number</span><span class=p>;</span> <span class=c1>// closed→open：連続失敗がこの数に達したら断つ
+</span></span></span><span class=line><span class=cl>  <span class=nx>openDuration</span>: <span class=kt>number</span><span class=p>;</span> <span class=c1>// open→half-open：この論理時間が経過したら試験へ
+</span></span></span><span class=line><span class=cl>  <span class=nx>now</span><span class=o>:</span> <span class=p>()</span> <span class=o>=&gt;</span> <span class=kt>number</span><span class=p>;</span> <span class=c1>// 論理時計（テストが手で進める）
+</span></span></span><span class=line><span class=cl>  <span class=nx>fallback</span><span class=o>:</span> <span class=p>(</span><span class=nx>parcel</span>: <span class=kt>Parcel</span><span class=p>)</span> <span class=o>=&gt;</span> <span class=nx>Receipt</span><span class=p>;</span> <span class=c1>// 軽量・安全な既定値
+</span></span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// 封印の自動結界＝失敗が続く送りを一時的に遮断し、連鎖障害を防ぐ仕組み。
+</span></span></span><span class=line><span class=cl><span class=kr>export</span> <span class=kr>class</span> <span class=nx>CircuitBreaker</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=kr>private</span> <span class=nx>state</span>: <span class=kt>BreakerState</span> <span class=o>=</span> <span class=s2>&#34;closed&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=kr>private</span> <span class=nx>failures</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=kr>private</span> <span class=nx>openedAt</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=c1>// 断った論理時刻
+</span></span></span><span class=line><span class=cl>  <span class=kr>private</span> <span class=nx>probing</span> <span class=o>=</span> <span class=kc>false</span><span class=p>;</span> <span class=c1>// half-open：プローブが1本だけ飛行中か
+</span></span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=kr>private</span> <span class=kr>readonly</span> <span class=nx>opts</span>: <span class=kt>BreakerOptions</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=kr>constructor</span><span class=p>(</span><span class=nx>opts</span>: <span class=kt>BreakerOptions</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>this</span><span class=p>.</span><span class=nx>opts</span> <span class=o>=</span> <span class=nx>opts</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=kr>async</span> <span class=nx>call</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=nx>parcel</span>: <span class=kt>Parcel</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=nx>send</span><span class=o>:</span> <span class=p>(</span><span class=nx>p</span>: <span class=kt>Parcel</span><span class=p>)</span> <span class=o>=&gt;</span> <span class=nx>Promise</span><span class=p>&lt;</span><span class=nt>Receipt</span><span class=p>&gt;,</span>
+</span></span><span class=line><span class=cl>  <span class=p>)</span><span class=o>:</span> <span class=nx>Promise</span><span class=p>&lt;</span><span class=nt>Receipt</span><span class=p>&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=c1>// Open：刻が満ちていれば Half-Open へ（※遅延遷移＝刻が満ちても&#34;次の便&#34;が来て
+</span></span></span><span class=line><span class=cl>    <span class=c1>//   初めて移る。背景タイマーを使わない＝模擬戦で決定的）。満ちていなければ即 Fallback。
+</span></span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=k>this</span><span class=p>.</span><span class=nx>state</span> <span class=o>===</span> <span class=s2>&#34;open&#34;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=k>if</span> <span class=p>(</span><span class=k>this</span><span class=p>.</span><span class=nx>opts</span><span class=p>.</span><span class=nx>now</span><span class=p>()</span> <span class=o>-</span> <span class=k>this</span><span class=p>.</span><span class=nx>openedAt</span> <span class=o>&gt;=</span> <span class=k>this</span><span class=p>.</span><span class=nx>opts</span><span class=p>.</span><span class=nx>openDuration</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>this</span><span class=p>.</span><span class=nx>state</span> <span class=o>=</span> <span class=s2>&#34;half-open&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>this</span><span class=p>.</span><span class=nx>probing</span> <span class=o>=</span> <span class=kc>false</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>      <span class=p>}</span> <span class=k>else</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=k>this</span><span class=p>.</span><span class=nx>opts</span><span class=p>.</span><span class=nx>fallback</span><span class=p>(</span><span class=nx>parcel</span><span class=p>);</span> <span class=c1>// 鎖は断たれている：send を呼ばない
+</span></span></span><span class=line><span class=cl>      <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=c1>// Half-Open：プローブは一筋だけ。既に飛んでいれば他は即 Fallback（群がりで再沈させない）
+</span></span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=k>this</span><span class=p>.</span><span class=nx>state</span> <span class=o>===</span> <span class=s2>&#34;half-open&#34;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=k>if</span> <span class=p>(</span><span class=k>this</span><span class=p>.</span><span class=nx>probing</span><span class=p>)</span> <span class=k>return</span> <span class=k>this</span><span class=p>.</span><span class=nx>opts</span><span class=p>.</span><span class=nx>fallback</span><span class=p>(</span><span class=nx>parcel</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>      <span class=k>this</span><span class=p>.</span><span class=nx>probing</span> <span class=o>=</span> <span class=kc>true</span><span class=p>;</span> <span class=c1>// この便がプローブになる
+</span></span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=c1>// Closed、または Half-Open のプローブ：実際に送る
+</span></span></span><span class=line><span class=cl>    <span class=k>try</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=kr>const</span> <span class=nx>receipt</span> <span class=o>=</span> <span class=k>await</span> <span class=nx>send</span><span class=p>(</span><span class=nx>parcel</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>      <span class=k>this</span><span class=p>.</span><span class=nx>onSuccess</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>      <span class=k>return</span> <span class=nx>receipt</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span> <span class=k>catch</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=k>this</span><span class=p>.</span><span class=nx>onFailure</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>      <span class=k>return</span> <span class=k>this</span><span class=p>.</span><span class=nx>opts</span><span class=p>.</span><span class=nx>fallback</span><span class=p>(</span><span class=nx>parcel</span><span class=p>);</span> <span class=c1>// 失敗も握り潰して間に合わせを返す＝応答性を保つ
+</span></span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>  <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=kr>private</span> <span class=nx>onSuccess</span><span class=p>()</span><span class=o>:</span> <span class=k>void</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=k>this</span><span class=p>.</span><span class=nx>state</span> <span class=o>===</span> <span class=s2>&#34;half-open&#34;</span><span class=p>)</span> <span class=k>this</span><span class=p>.</span><span class=nx>state</span> <span class=o>=</span> <span class=s2>&#34;closed&#34;</span><span class=p>;</span> <span class=c1>// プローブ成功＝繋ぎ直す
+</span></span></span><span class=line><span class=cl>    <span class=k>this</span><span class=p>.</span><span class=nx>failures</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>this</span><span class=p>.</span><span class=nx>probing</span> <span class=o>=</span> <span class=kc>false</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=kr>private</span> <span class=nx>onFailure</span><span class=p>()</span><span class=o>:</span> <span class=k>void</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=k>this</span><span class=p>.</span><span class=nx>state</span> <span class=o>===</span> <span class=s2>&#34;half-open&#34;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=k>this</span><span class=p>.</span><span class=nx>trip</span><span class=p>();</span> <span class=c1>// プローブ失敗＝再び断つ
+</span></span></span><span class=line><span class=cl>      <span class=k>return</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>this</span><span class=p>.</span><span class=nx>failures</span><span class=o>++</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=k>this</span><span class=p>.</span><span class=nx>failures</span> <span class=o>&gt;=</span> <span class=k>this</span><span class=p>.</span><span class=nx>opts</span><span class=p>.</span><span class=nx>failureThreshold</span><span class=p>)</span> <span class=k>this</span><span class=p>.</span><span class=nx>trip</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>  <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=kr>private</span> <span class=nx>trip</span><span class=p>()</span><span class=o>:</span> <span class=k>void</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>this</span><span class=p>.</span><span class=nx>state</span> <span class=o>=</span> <span class=s2>&#34;open&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>this</span><span class=p>.</span><span class=nx>openedAt</span> <span class=o>=</span> <span class=k>this</span><span class=p>.</span><span class=nx>opts</span><span class=p>.</span><span class=nx>now</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>    <span class=k>this</span><span class=p>.</span><span class=nx>probing</span> <span class=o>=</span> <span class=kc>false</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>  <span class=nx>peek</span><span class=p>()</span><span class=o>:</span> <span class=nx>BreakerState</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=k>this</span><span class=p>.</span><span class=nx>state</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>そして、送りの手順は、こう変わった。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=c1>// After の送り：結界を「プールの外側」に置く。Open のとき結界は send を呼ばず
+</span></span></span><span class=line><span class=cl><span class=c1>//   pool.run にすら入らない＝「断てば使い魔を出さない」が文字通り真になる。
+</span></span></span><span class=line><span class=cl><span class=kr>export</span> <span class=kr>async</span> <span class=kd>function</span> <span class=nx>dispatchGuarded</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>  <span class=nx>pool</span>: <span class=kt>CourierPool</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>  <span class=nx>breaker</span>: <span class=kt>CircuitBreaker</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>  <span class=nx>branch</span>: <span class=kt>Branch</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>  <span class=nx>parcel</span>: <span class=kt>Parcel</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>)</span><span class=o>:</span> <span class=nx>Promise</span><span class=p>&lt;</span><span class=nt>Receipt</span><span class=p>&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=k>return</span> <span class=nx>breaker</span><span class=p>.</span><span class=nx>call</span><span class=p>(</span><span class=nx>parcel</span><span class=p>,</span> <span class=p>()</span> <span class=o>=&gt;</span> <span class=nx>pool</span><span class=p>.</span><span class=nx>run</span><span class=p>(()</span> <span class=o>=&gt;</span> <span class=nx>branch</span><span class=p>.</span><span class=nx>send</span><span class=p>(</span><span class=nx>parcel</span><span class=p>)));</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「変えたのは、一点だけだ」とカイナは言った。「前の送りの中身——使い魔を確保して、配送所へ送る——を、そっくりそのまま、結界で包んだ。使い魔も、その数も、配送所も、何一つ変えていない」</p><p><code>dispatchDirect</code> の本体は <code>pool.run(() => branch.send(parcel))</code> だった。<code>dispatchGuarded</code> は、それを <code>breaker.call(parcel, () => …)</code> で丸ごとくるんだだけだ。差分は、その包み一つ。</p><p>そして、その包む位置に、意味があった。結界は、使い魔の采配の、外側にある。だから断たれているとき、結界は配送所へ送らないどころか、使い魔の采配にすら入らない。使い魔を、一頭も出さない。「断てば、待たない。掴まない」が、言葉のうえだけでなく、仕掛けのうえでも、そのまま真になる。</p><h3 id=同じ災害を結界で受ける>同じ災害を、結界で受ける</h3><p>カイナは、Before と同じ災害を、今度は結界ごしに流した。</p><p>ただし、ここでカイナは、正直なところを隠さなかった。</p><p>「結界は、最初から見抜くわけじゃない。まず数便、送って、倒れていると知る。断つのは、知った後だ」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=kr>const</span> <span class=nx>pool</span> <span class=o>=</span> <span class=k>new</span> <span class=nx>CourierPool</span><span class=p>(</span><span class=mi>2</span><span class=p>);</span> <span class=c1>// 使い魔は二人（Beforeと同一）
+</span></span></span><span class=line><span class=cl><span class=kr>const</span> <span class=nx>downed</span> <span class=o>=</span> <span class=k>new</span> <span class=nx>DownedBranch</span><span class=p>();</span>
+</span></span><span class=line><span class=cl><span class=kd>let</span> <span class=nx>clock</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=kr>const</span> <span class=nx>downedBreaker</span> <span class=o>=</span> <span class=k>new</span> <span class=nx>CircuitBreaker</span><span class=p>({</span>
+</span></span><span class=line><span class=cl>  <span class=nx>failureThreshold</span>: <span class=kt>2</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>  <span class=nx>openDuration</span>: <span class=kt>1000</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>  <span class=nx>now</span><span class=o>:</span> <span class=p>()</span> <span class=o>=&gt;</span> <span class=nx>clock</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>  <span class=nx>fallback</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// 学習期：最初の2便はまだ結界が倒れを知らないので、実際に送って待つ
+</span></span></span><span class=line><span class=cl><span class=c1>//   （Before と同じく使い魔を確保する）。
+</span></span></span><span class=line><span class=cl><span class=kr>const</span> <span class=nx>p1</span> <span class=o>=</span> <span class=nx>dispatchGuarded</span><span class=p>(</span><span class=nx>pool</span><span class=p>,</span> <span class=nx>downedBreaker</span><span class=p>,</span> <span class=nx>downed</span><span class=p>,</span> <span class=p>{</span> <span class=nx>region</span><span class=o>:</span> <span class=s2>&#34;downed&#34;</span><span class=p>,</span> <span class=nx>id</span><span class=o>:</span> <span class=s2>&#34;p1&#34;</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=kr>const</span> <span class=nx>p2</span> <span class=o>=</span> <span class=nx>dispatchGuarded</span><span class=p>(</span><span class=nx>pool</span><span class=p>,</span> <span class=nx>downedBreaker</span><span class=p>,</span> <span class=nx>downed</span><span class=p>,</span> <span class=p>{</span> <span class=nx>region</span><span class=o>:</span> <span class=s2>&#34;downed&#34;</span><span class=p>,</span> <span class=nx>id</span><span class=o>:</span> <span class=s2>&#34;p2&#34;</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=k>await</span> <span class=nx>Promise</span><span class=p>.</span><span class=nx>resolve</span><span class=p>();</span>
+</span></span><span class=line><span class=cl><span class=k>await</span> <span class=nx>Promise</span><span class=p>.</span><span class=nx>resolve</span><span class=p>();</span>
+</span></span><span class=line><span class=cl><span class=nx>assert</span><span class=p>.</span><span class=nx>equal</span><span class=p>(</span><span class=nx>pool</span><span class=p>.</span><span class=nx>inFlight</span><span class=p>,</span> <span class=mi>2</span><span class=p>);</span> <span class=c1>// 学習期は Before と同じく使い魔が塞がる
+</span></span></span><span class=line><span class=cl><span class=nx>assert</span><span class=p>.</span><span class=nx>equal</span><span class=p>(</span><span class=nx>downedBreaker</span><span class=p>.</span><span class=nx>peek</span><span class=p>(),</span> <span class=s2>&#34;closed&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// 1便目が失敗→失敗1。まだ Closed。
+</span></span></span><span class=line><span class=cl><span class=nx>downed</span><span class=p>.</span><span class=nx>pending</span><span class=p>[</span><span class=mi>0</span><span class=p>]</span><span class=o>!</span><span class=p>.</span><span class=nx>reject</span><span class=p>(</span><span class=k>new</span> <span class=nb>Error</span><span class=p>(</span><span class=s2>&#34;timeout&#34;</span><span class=p>));</span>
+</span></span><span class=line><span class=cl><span class=k>await</span> <span class=nx>p1</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=nx>assert</span><span class=p>.</span><span class=nx>equal</span><span class=p>(</span><span class=nx>downedBreaker</span><span class=p>.</span><span class=nx>peek</span><span class=p>(),</span> <span class=s2>&#34;closed&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// 2便目も失敗→失敗2＝閾値到達→Open（断つ）。
+</span></span></span><span class=line><span class=cl><span class=nx>downed</span><span class=p>.</span><span class=nx>pending</span><span class=p>[</span><span class=mi>1</span><span class=p>]</span><span class=o>!</span><span class=p>.</span><span class=nx>reject</span><span class=p>(</span><span class=k>new</span> <span class=nb>Error</span><span class=p>(</span><span class=s2>&#34;timeout&#34;</span><span class=p>));</span>
+</span></span><span class=line><span class=cl><span class=k>await</span> <span class=nx>p2</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=nx>assert</span><span class=p>.</span><span class=nx>equal</span><span class=p>(</span><span class=nx>downedBreaker</span><span class=p>.</span><span class=nx>peek</span><span class=p>(),</span> <span class=s2>&#34;open&#34;</span><span class=p>);</span>
+</span></span></code></pre></td></tr></table></div></div><p>最初の二便は、結界もまだ倒れを知らないから、実際に送って、待った。Before と同じく、使い魔が二頭、塞がった。だが、その二便が失敗したところで、結界は閾値に達し、断った。状態は <code>open</code>。</p><p>「結界が消すのは、最初の失敗そのものじゃない」とカイナは言った。「倒れと知ってなお送り続ける、際限のない連鎖のほうだ」</p><p>断った後が、Before との分かれ目だった。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=c1>// 断った後：倒れた配送所への便は結界がプール外で即 Fallback（pool.run に入らない＝
+</span></span></span><span class=line><span class=cl><span class=c1>//   使い魔を確保しない）。
+</span></span></span><span class=line><span class=cl><span class=kr>const</span> <span class=nx>before3Calls</span> <span class=o>=</span> <span class=nx>downed</span><span class=p>.</span><span class=nx>callCount</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=kr>const</span> <span class=nx>p3</span> <span class=o>=</span> <span class=k>await</span> <span class=nx>dispatchGuarded</span><span class=p>(</span><span class=nx>pool</span><span class=p>,</span> <span class=nx>downedBreaker</span><span class=p>,</span> <span class=nx>downed</span><span class=p>,</span> <span class=p>{</span> <span class=nx>region</span><span class=o>:</span> <span class=s2>&#34;downed&#34;</span><span class=p>,</span> <span class=nx>id</span><span class=o>:</span> <span class=s2>&#34;p3&#34;</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=nx>assert</span><span class=p>.</span><span class=nx>deepEqual</span><span class=p>(</span><span class=nx>p3</span><span class=p>,</span> <span class=p>{</span> <span class=nx>region</span><span class=o>:</span> <span class=s2>&#34;downed&#34;</span><span class=p>,</span> <span class=nx>delivered</span>: <span class=kt>false</span> <span class=p>});</span> <span class=c1>// 間に合わせが返る
+</span></span></span><span class=line><span class=cl><span class=nx>assert</span><span class=p>.</span><span class=nx>equal</span><span class=p>(</span><span class=nx>downed</span><span class=p>.</span><span class=nx>callCount</span><span class=p>,</span> <span class=nx>before3Calls</span><span class=p>);</span> <span class=c1>// send は呼ばれていない＝使い魔を出していない
+</span></span></span></code></pre></td></tr></table></div></div><p>断った後の、倒れた配送所への便は、即座に間に合わせの返答を受け取った。<code>delivered</code> は偽——本物の配達ではない、間に合わせだ。そして肝心なのは、<code>callCount</code> が増えていないこと。倒れた配送所へは、もう送られていない。使い魔は、一頭も出ていない。</p><p>だから、健全な便は、待たされる相手がいなかった。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=c1>// 健全な相手には、倒れた相手とは別の結界（healthyBreaker）を立ててある（結界は配送所ごとに分ける・後述）。
+</span></span></span><span class=line><span class=cl><span class=c1>// 健全な地方への便は、空いた使い魔ですぐ出ていく（Before と違い凍らない）。
+</span></span></span><span class=line><span class=cl><span class=kr>const</span> <span class=nx>healthyReceipt</span> <span class=o>=</span> <span class=k>await</span> <span class=nx>dispatchGuarded</span><span class=p>(</span><span class=nx>pool</span><span class=p>,</span> <span class=nx>healthyBreaker</span><span class=p>,</span> <span class=nx>healthy</span><span class=p>,</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=nx>region</span><span class=o>:</span> <span class=s2>&#34;healthy&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>  <span class=nx>id</span><span class=o>:</span> <span class=s2>&#34;h1&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=nx>assert</span><span class=p>.</span><span class=nx>deepEqual</span><span class=p>(</span><span class=nx>healthyReceipt</span><span class=p>,</span> <span class=p>{</span> <span class=nx>region</span><span class=o>:</span> <span class=s2>&#34;healthy&#34;</span><span class=p>,</span> <span class=nx>delivered</span>: <span class=kt>true</span> <span class=p>});</span>
+</span></span></code></pre></td></tr></table></div></div><p>健全な便は、すぐに届いた。Before では、倒れた相手を待つ使い魔に塞がれて、凍りついていた、あの便だ。同じ災害を流したのに、断った後は、凍らない。</p><p>わたしは、ようやく、息をついた。</p><p>「倒れていると知ってからは、倒れた相手への便は、使い魔すら出さずに、間に合わせを返す。だから使い魔が空いていて、健全な便が出ていける。同じ災害なのに、断った後は、健全な便が凍らない」</p><p>「倒れを、鎖の途中で断った」とカイナは言った。「倒れた相手より先は、道連れにしない。これが、結界の仕事だ」</p><p>ここで一つ、わたしは気づいたことがあった。カイナは、倒れた配送所の結界と、健全な配送所の結界を、別々に立てていた。使い魔の采配は一つきり、皆で分け合う。だが結界は、配送所ごとに分けてある。</p><p>「結界は、倒れた一つにだけ掛けろ」とカイナは言った。「道全部にまとめて掛けると、一つの不調で、健全な相手への道まで締め出す。それは、また別の暴走だ」</p><h3 id=試すのは一筋だけ>試すのは、一筋だけ</h3><p>「断ったままでは」とわたしは訊いた。「倒れた配送所が直っても、ずっと繋がらないのでは?」</p><p>「だから、試す構えがある」とカイナは言った。刻を進めて、結界を半開——Half-Open——にした。ただし、ここでもカイナは、仕掛けの正直なところを言い添えた。</p><p>「刻が満ちても、結界が勝手に試し始めるわけじゃない。刻が満ちて、次の便が来て、初めて、試しの一筋が飛ぶ」</p><p>背景でひとりでに動く時計は、どこにもない。次の便が結界を叩いたとき、刻が満ちていれば半開へ移り、その便がそのまま試しの一筋になる。だから、模擬戦は、何度走らせても同じ順序をたどる。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=c1>// 刻を満たし Half-Open へ。便Aがプローブとして実際に飛ぶ（Deferred のまま未解決）。
+</span></span></span><span class=line><span class=cl><span class=nx>clock</span> <span class=o>=</span> <span class=nx>openDuration</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=kr>const</span> <span class=nx>callsBeforeProbe</span> <span class=o>=</span> <span class=nx>downed</span><span class=p>.</span><span class=nx>callCount</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=kr>const</span> <span class=nx>probeA</span> <span class=o>=</span> <span class=nx>dispatchGuarded</span><span class=p>(</span><span class=nx>pool</span><span class=p>,</span> <span class=nx>breaker</span><span class=p>,</span> <span class=nx>downed</span><span class=p>,</span> <span class=p>{</span> <span class=nx>region</span><span class=o>:</span> <span class=s2>&#34;downed&#34;</span><span class=p>,</span> <span class=nx>id</span><span class=o>:</span> <span class=s2>&#34;A&#34;</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=k>await</span> <span class=nx>Promise</span><span class=p>.</span><span class=nx>resolve</span><span class=p>();</span>
+</span></span><span class=line><span class=cl><span class=nx>assert</span><span class=p>.</span><span class=nx>equal</span><span class=p>(</span><span class=nx>breaker</span><span class=p>.</span><span class=nx>peek</span><span class=p>(),</span> <span class=s2>&#34;half-open&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nx>assert</span><span class=p>.</span><span class=nx>equal</span><span class=p>(</span><span class=nx>downed</span><span class=p>.</span><span class=nx>callCount</span><span class=p>,</span> <span class=nx>callsBeforeProbe</span> <span class=o>+</span> <span class=mi>1</span><span class=p>);</span> <span class=c1>// Aが唯一のプローブとして飛んだ
+</span></span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// Aが飛行中（未解決）のまま、同時に便Bを送る→プローブは既に飛んでいるので即 Fallback。
+</span></span></span><span class=line><span class=cl><span class=kr>const</span> <span class=nx>receiptB</span> <span class=o>=</span> <span class=k>await</span> <span class=nx>dispatchGuarded</span><span class=p>(</span><span class=nx>pool</span><span class=p>,</span> <span class=nx>breaker</span><span class=p>,</span> <span class=nx>downed</span><span class=p>,</span> <span class=p>{</span> <span class=nx>region</span><span class=o>:</span> <span class=s2>&#34;downed&#34;</span><span class=p>,</span> <span class=nx>id</span><span class=o>:</span> <span class=s2>&#34;B&#34;</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=nx>assert</span><span class=p>.</span><span class=nx>deepEqual</span><span class=p>(</span><span class=nx>receiptB</span><span class=p>,</span> <span class=p>{</span> <span class=nx>region</span><span class=o>:</span> <span class=s2>&#34;downed&#34;</span><span class=p>,</span> <span class=nx>delivered</span>: <span class=kt>false</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// 倒れた配送所への send 呼び出しは、Aの1回だけ（Bは2本目を送らせない）。
+</span></span></span><span class=line><span class=cl><span class=nx>assert</span><span class=p>.</span><span class=nx>equal</span><span class=p>(</span><span class=nx>downed</span><span class=p>.</span><span class=nx>callCount</span><span class=p>,</span> <span class=nx>callsBeforeProbe</span> <span class=o>+</span> <span class=mi>1</span><span class=p>);</span>
+</span></span></code></pre></td></tr></table></div></div><p>便Aが、試しの一筋として飛んだ。配送所が返事をする前に——Aがまだ宙にある間に——便Bが来る。だが結界は、Bを送らせなかった。即座に間に合わせを返した。<code>callCount</code> は、Aの一回きり。Bは、二本目の試しにならない。</p><p>Bがその場で返るのは、結界が「試しはもう出ている」と見て、配送所へも使い魔の采配へも触れずに、手元で間に合わせを返すからだ。Bの応答は、Aの宙吊りとは別の糸で動く。だからAがどれだけ返事を待っていても、Bがそれに巻き込まれて止まることはない。回復しかけた相手へ、溜まった便が群がって押し倒す——その道そのものが、ここで断たれている。</p><p>「なぜ、試すのが一筋だけなんですか」と、わたしは訊いた。</p><p>「回復したばかりの相手に、溜まった便を一斉に送れば、また潰れる」とカイナは言った。「まず一筋。それが無事に通って初めて、皆を通す」</p><p>倒れたばかりの配送所は、まだ本調子ではない。そこへ、断っている間に溜まった便がいっせいに殺到すれば、立ち直りかけた相手を、もう一度押し倒す。だから、試すのは一筋だけ。その一筋の成否で、繋ぎ直すか、また断つかを決める。</p><p>その二つの結末を、カイナは見せた。一筋が通れば、繋ぎ直す。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=c1>// プローブ成功（resolve）→ Closed に繋ぎ直す。
+</span></span></span><span class=line><span class=cl><span class=nx>downed</span><span class=p>.</span><span class=nx>pending</span><span class=p>[</span><span class=nx>downed</span><span class=p>.</span><span class=nx>pending</span><span class=p>.</span><span class=nx>length</span> <span class=o>-</span> <span class=mi>1</span><span class=p>]</span><span class=o>!</span><span class=p>.</span><span class=nx>resolve</span><span class=p>({</span> <span class=nx>region</span><span class=o>:</span> <span class=s2>&#34;downed&#34;</span><span class=p>,</span> <span class=nx>delivered</span>: <span class=kt>true</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=kr>const</span> <span class=nx>probeReceipt</span> <span class=o>=</span> <span class=k>await</span> <span class=nx>probe</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=nx>assert</span><span class=p>.</span><span class=nx>deepEqual</span><span class=p>(</span><span class=nx>probeReceipt</span><span class=p>,</span> <span class=p>{</span> <span class=nx>region</span><span class=o>:</span> <span class=s2>&#34;downed&#34;</span><span class=p>,</span> <span class=nx>delivered</span>: <span class=kt>true</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=nx>assert</span><span class=p>.</span><span class=nx>equal</span><span class=p>(</span><span class=nx>breaker</span><span class=p>.</span><span class=nx>peek</span><span class=p>(),</span> <span class=s2>&#34;closed&#34;</span><span class=p>);</span>
+</span></span></code></pre></td></tr></table></div></div><p>一筋が、まだ駄目なら、また断つ。そして、次に試すのは、刻がもう一度満ちてからだ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-typescript data-lang=typescript><span class=line><span class=cl><span class=c1>// プローブ失敗（reject）→ 再び Open。openedAt が更新される。
+</span></span></span><span class=line><span class=cl><span class=nx>downed</span><span class=p>.</span><span class=nx>pending</span><span class=p>[</span><span class=nx>downed</span><span class=p>.</span><span class=nx>pending</span><span class=p>.</span><span class=nx>length</span> <span class=o>-</span> <span class=mi>1</span><span class=p>]</span><span class=o>!</span><span class=p>.</span><span class=nx>reject</span><span class=p>(</span><span class=k>new</span> <span class=nb>Error</span><span class=p>(</span><span class=s2>&#34;still down&#34;</span><span class=p>));</span>
+</span></span><span class=line><span class=cl><span class=kr>const</span> <span class=nx>probeReceipt</span> <span class=o>=</span> <span class=k>await</span> <span class=nx>probe</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=nx>assert</span><span class=p>.</span><span class=nx>deepEqual</span><span class=p>(</span><span class=nx>probeReceipt</span><span class=p>,</span> <span class=p>{</span> <span class=nx>region</span><span class=o>:</span> <span class=s2>&#34;downed&#34;</span><span class=p>,</span> <span class=nx>delivered</span>: <span class=kt>false</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=nx>assert</span><span class=p>.</span><span class=nx>equal</span><span class=p>(</span><span class=nx>breaker</span><span class=p>.</span><span class=nx>peek</span><span class=p>(),</span> <span class=s2>&#34;open&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// 以降は即 Fallback、刻が再び満ちるまで試験しない。
+</span></span></span><span class=line><span class=cl><span class=kr>const</span> <span class=nx>callsBeforeRetry</span> <span class=o>=</span> <span class=nx>downed</span><span class=p>.</span><span class=nx>callCount</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=kr>const</span> <span class=nx>r1</span> <span class=o>=</span> <span class=k>await</span> <span class=nx>dispatchGuarded</span><span class=p>(</span><span class=nx>pool</span><span class=p>,</span> <span class=nx>breaker</span><span class=p>,</span> <span class=nx>downed</span><span class=p>,</span> <span class=p>{</span> <span class=nx>region</span><span class=o>:</span> <span class=s2>&#34;downed&#34;</span><span class=p>,</span> <span class=nx>id</span><span class=o>:</span> <span class=s2>&#34;retry-too-soon&#34;</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=nx>assert</span><span class=p>.</span><span class=nx>deepEqual</span><span class=p>(</span><span class=nx>r1</span><span class=p>,</span> <span class=p>{</span> <span class=nx>region</span><span class=o>:</span> <span class=s2>&#34;downed&#34;</span><span class=p>,</span> <span class=nx>delivered</span>: <span class=kt>false</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=nx>assert</span><span class=p>.</span><span class=nx>equal</span><span class=p>(</span><span class=nx>downed</span><span class=p>.</span><span class=nx>callCount</span><span class=p>,</span> <span class=nx>callsBeforeRetry</span><span class=p>);</span> <span class=c1>// send は呼ばれていない＝まだ断たれたまま
+</span></span></span></code></pre></td></tr></table></div></div><p>試しの一筋が失敗すると、結界はまた断ち、断った刻を覚え直す。そこから刻がもう一度満ちるまで、倒れた相手へは、一便も送らない。回復を、急かさない。</p><p>カイナは封印の基盤となる三つの刻印を指さした。それぞれの印が青白く、あるいは鈍く光りながら、見えない魔力の鎖で結ばれている。
+「これが、自動結界の封印が持つ『三つの構え』と、その移り変わりだ」
+その言葉に従うように、羊皮紙の上に三つの状態と、それらを繋ぐ移行の掟が描き出された。</p><p><img src=/public_images/2026/code-tamer-circuit-breaker/infographic_2.webp loading=lazy alt="Infographic state machine diagram showing Circuit Breaker states Closed, Open, and Half-Open with transition rules"></p><p>「閉じた鎖、開いた鎖、と……半ば開かれた、試しの鎖」
+わたしは印の並びをなぞりながら、その精緻な循環を理解し始めていた。
+「ただ頑強に閉じるのでもなく、絶望して断ち切るだけでもない。再び繋ぎ直すために、あらかじめ『間』を用意してあるのですね」
+「そうだ。その『間』を正しく刻むことだけが、群れを救う」
+カイナの指先が、最後に半開（Half-Open）の印から閉（Closed）の印へと戻る道を力強く指し示した。</p><h3 id=模擬戦をまとめて走らせる>模擬戦を、まとめて走らせる</h3><p>カイナは、檻のすべてを、まとめて走らせた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-console data-lang=console><span class=line><span class=cl><span class=gp>$</span> node --test
+</span></span><span class=line><span class=cl><span class=go>▶ Before: dispatchDirect（自動結界なし・直接送り）
+</span></span></span><span class=line><span class=cl><span class=go>  ✔ 1【連鎖】倒れた相手を待つ使い魔が塞がり、健全な便が凍る
+</span></span></span><span class=line><span class=cl><span class=go>  ✔ 2【誤診反証・使い捨て】早馬（リトライ）を増やすと、倒れた相手への到達がN倍に増えるだけ
+</span></span></span><span class=line><span class=cl><span class=go>▶ After: CircuitBreaker / dispatchGuarded（自動結界で送りを包む）
+</span></span></span><span class=line><span class=cl><span class=go>  ✔ 3【局所化】結界が断たれた後、健全な便は倒れた相手に巻き込まれない（Beforeと同じ災害）
+</span></span></span><span class=line><span class=cl><span class=go>  ✔ 4【Closed→Open】失敗が閾値に達すると断つ（境界＝閾値ちょうど）
+</span></span></span><span class=line><span class=cl><span class=go>  ✔ 5【Open→Half-Open】刻が満ちると次の便で試験へ（境界＝刻ちょうど・遅延遷移）
+</span></span></span><span class=line><span class=cl><span class=go>  ✔ 6【Half-Open単一プローブ・ゲート】回復中は一筋だけ通す（並行・群がり軸）
+</span></span></span><span class=line><span class=cl><span class=go>  ✔ 7【Half-Open→Closed】プローブ成功で繋ぎ直す（以降は普通に送れる・失敗カウントもリセット）
+</span></span></span><span class=line><span class=cl><span class=go>  ✔ 8【Half-Open→Open】プローブ失敗で再び断つ（刻が再び満ちるまで試験しない）
+</span></span></span><span class=line><span class=cl><span class=go>ℹ tests 8
+</span></span></span><span class=line><span class=cl><span class=go>ℹ pass 8
+</span></span></span><span class=line><span class=cl><span class=go>ℹ fail 0
+</span></span></span></code></pre></td></tr></table></div></div><p>八本、すべて緑。Before の網は、倒れた相手を待つ使い魔に塞がれて、健全な便まで凍りつかせた。After の網は、まるまる同じ災害を流しても、倒れと知った後は鎖を断ち、使い魔を空けて、健全な便を通した。刻が満ちれば一筋だけ試し、通れば繋ぎ直し、駄目ならまた断った。</p><p>変えたのは、送りを結界で包む、その一点だけだった。使い魔も、その数も、配送所も、タイムアウトも、健全と不全の別も、すべて Before と同じ。違うのは、倒れた相手への鎖を、失敗が続いた時だけ断つかどうか。その一点が、連鎖を断った。</p><h3 id=結界が守らないもの>結界が、守らないもの</h3><p>カイナは、最後に、この結界が守らないものを、一つずつ線引きした。</p><p>「まず、倒れた配送所そのものは、直せん。結界が守るのは、呼ぶ側——お前の中央局だ。倒れた相手の魔力災害は、向こうが立ち直るのを待つしかない」</p><p>「間に合わせの返答は、軽くて安全なものに限れ。もし間に合わせが、本来の倍も手間のかかる別の重い道だったら、その間に合わせ自体が、新たな連鎖を生む。間に合わせは、ただの控えの答えにしておけ」</p><p>「使い魔を、機能ごとに分けて隔てるのは、また別の作法だ。結界は"送るのをやめる&rdquo;。使い魔を"分けて隔てる"のは、別の獣の話だ。今日はやらない」</p><p>「さっきの、何度も試させる獣——あれと、向きが逆なのは言ったな。だが、敵ではない。一時の不調には試させる獣を、倒れて返らぬ相手には断つ結界を。組み合わせるなら、試させる獣の、外側に結界を掛ける」</p><p>わたしは、その線引きを、一つずつ、胸に刻んだ。</p><h3 id=断つのは繋ぎ直すための間>断つのは、繋ぎ直すための間</h3><p>聖域を辞す前に、わたしは、ずっと胸につかえていたことを、自分で解いた。</p><p>「わたしは、見捨てたくなくて、抱え込んで、群れごと枯らしました。でも——鎖を断つのは、見捨てることじゃ、ないんですね」</p><p>カイナは、こちらを見た。</p><p>「倒れた相手を、待ち潰さない。健全な便を、守る。そして、頃合いを見て、また繋ぎに戻る。断つのは、繋ぎ直すための、間（ま）だ。……見捨てるのとは、逆だ」</p><p>見捨てない、というわたしの矜持は、間違っていなかった。ただ、抱え込むことと、守ることを、取り違えていた。賢く断つことで初めて、わたしは、一つも見捨てずに済む。</p><p>「網に、結界を張ります」と、わたしは言った。「倒れたら断ち、頃合いを見て繋ぎ直す。配送所ごとに、一つずつ。……最果てのこの道も、切り捨てずに、守れるように」</p><p>辞そうとして、わたしは、この庵を囲む封印に、もう一度目をやった。配達のたび通った道の終点に、なぜ幾重もの結界を編む人が住むのか。古い石に層をなす印は、わたしの網に今日張る小さな結界と、どこか同じ気配がした。</p><p>カイナは、多くを語らなかった。ただ、一言だけ。</p><p>「お前が今日、網に張る小さな結界。あれは、もっと古くて大きな結界を保つのと、同じ作法だ」</p><p>それ以上は、言わなかった。わたしも、訊かなかった。系譜の深さは、今日のわたしには、まだ遠い。</p><p>最果ての道を、わたしは戻っていった。これまでこの道は、切り捨てられないから通う、重荷だった。けれど今は、違う。倒れたら断ち、頃合いを見て繋ぎ直す——その作法を知った、一筋の鎖だ。重荷ではない。守り方を、わたしはもう、知っている。</p><p>中央局に着いたら、まず、北の外れの、あの小さな配送所の道に、結界を一つ、張ろう。</p><hr><h3 id=-カイナの魔獣契約録tamers-registry>📜 カイナの魔獣契約録（Tamer&rsquo;s Registry）</h3><ul><li><strong>魔獣名（クラス/パターン名）</strong>: リンク・ウルフ（接続の鎖獣）／ カスケード障害（連鎖障害）。契約＝封印の自動結界（Circuit Breaker＝失敗が続く送りを遮断し連鎖を断つ／三状態 Closed・Open・Half-Open）</li><li><strong>危険度（難易度/バグの影響度）</strong>: ★★★★★（倒れたのは末端一つでも、待ち続けることで中央局が応答を失い、沈黙が呼び出しの鎖を登って、無関係な健全機能まで全停止＝部分障害が全体障害へ。エラーを返さず「待ち」で固まるため発覚も復旧も遅い）</li><li><strong>主な生態（アンチパターンの特徴）</strong>:<ul><li>倒れた依存先を待つこと自体が並行リソース（使い魔／スレッド／接続）を食い潰す。倒れたと分かっても送り続けるため失敗が止まらず、応答性の喪失が呼び出しの鎖を登って伝播する（カスケード障害）</li><li>「見捨てたくない」一念での待ち延長・送り直しの増強は逆効果＝倒れた相手への群がり（到達回数）を増やし、共倒れを早める（リトライ増幅）</li><li>害はタイミング依存で、繁忙時に倒れた相手への便が積もったときだけ全停止に至る＝平時に露見しにくい</li></ul></li><li><strong>契約のポイント（設計の要点）</strong>:<ul><li>三状態の自動結界：Closed（通常・失敗を数える）→失敗が閾値超過で Open（断つ・即 Fallback で使い魔を出さない）→刻が満ちて Half-Open（次の便で一筋だけプローブ・遅延遷移）→成功で Closed（繋ぎ直す）／失敗で Open（再び断つ）</li><li>論理的保証：Open＝送らない＝待たない＝使い魔を出さない＝健全な便が倒れた相手に巻き込まれない。結界をプールの外側に置き「断てば使い魔を出さない」を実装でも真にする</li><li>Half-Open は単一プローブ・ゲート＝回復中の相手に溜まった便を一斉送出すると再沈するため、プローブは一筋のみ通し他は即 Fallback（群がり／thundering herd の回避）</li><li>1:1 単一差分＝Before の本体 <code>pool.run(() => branch.send(parcel))</code> を <code>breaker.call(parcel, () => …)</code> で丸ごと包む一点のみ。使い魔（CourierPool）・容量・配送所・タイムアウトは不変。学習期（倒れと知るまでの数便）は実際に待つ＝結界が断つのは閾値到達後の連鎖であり、最初の失敗そのものは防がない</li></ul></li><li><strong>契約外事項（保証しないこと）</strong>:<ul><li>倒れた配送所そのものは直せない（結界は呼ぶ側＝中央局を守る）</li><li>Fallback は軽量・安全な既定値に限る。重い代替経路は新たな連鎖を生む（フォールバック増幅）</li><li>リソースの物理隔離（使い魔を機能ごとに分けて隔てる）は別の獣。結界は「送るのをやめる」、隔離は「分けて隔てる」</li><li>送り直し（一時的障害からの回復＝「もう一度試せ」）とは逆向き（「これ以上試すな」）。組み合わせる場合は送り直しの外側に結界を掛ける</li><li>倒れの単位を取り違える誤用：配送所ごとに結界を分けねば、一つの不調で健全な相手への道まで断つ（部分障害を全体障害に誤変換）。結界は倒れた一つにだけ掛ける</li></ul></li><li><strong>現在のステータス</strong>: 🟢 倒れた相手への鎖を、失敗が続いた時だけ断ち、即座に軽い間に合わせを返して使い魔を空け、頃合いを見て一筋だけ試して繋ぎ直す自動結界の契約成立（呼ぶ側を守り、倒れを鎖の途中で断つ）。断つことは、見捨てることではなく、繋ぎ直すための間——抱え込んで共倒れする一念を、配送所ごとの結界へと組み替えた</li></ul></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/typescript/>Typescript</a>
+<a href=/tags/circuit-breaker/>Circuit-Breaker</a>
+<a href=/tags/cascading-failure/>Cascading-Failure</a>
+<a href=/tags/fault-tolerance/>Fault-Tolerance</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-tamer/>Code-Tamer</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/07/05/120705/><div class=article-image><img src=/public_images/2026/code-tamer-bulkhead/header.webp loading=lazy data-key data-hash=/public_images/2026/code-tamer-bulkhead/header.webp></div><div class=article-details><h2 class=article-title>コードテイマー【Bulkhead】汲み上げの大食らいが船中の魔力を飲み干し、守りの防壁が飢えて落ちる〜魔力槽を機能ごとに隔て、守りの取り分を絶やさない〜</h2></div></a></article><article class=has-image><a href=/2026/07/05/170705/><div class=article-image><img src=/public_images/2026/code-tamer-graceful-shutdown-abyss-null/header.webp loading=lazy data-key data-hash=/public_images/2026/code-tamer-graceful-shutdown-abyss-null/header.webp></div><div class=article-details><h2 class=article-title>コードテイマー【Graceful Shutdown】終いを急ぐ獣が、還らぬ客と開いた鍵を闇に残す〜受け入れを閉ざし、皆を還してから己を閉じる〜</h2></div></a></article><article class=has-image><a href=/2026/07/04/170705/><div class=article-image><img src=/public_images/2026/code-tamer-eventual-consistency/header.webp loading=lazy data-key data-hash=/public_images/2026/code-tamer-eventual-consistency/header.webp></div><div class=article-details><h2 class=article-title>コードテイマー【Eventual Consistency】取りこぼした叫びのあと、その階層だけが古いまま黙り込む〜叫びと巡回の二本を版で束ね、遅れても必ず追いつかせる〜</h2></div></a></article><article class=has-image><a href=/2026/07/04/120705/><div class=article-image><img src=/public_images/2026/code-tamer-optimistic-locking/header.webp loading=lazy data-key data-hash=/public_images/2026/code-tamer-optimistic-locking/header.webp></div><div class=article-details><h2 class=article-title>コードテイマー【Optimistic Locking】二人の手が同じ数を書き、一方の更新が静かに消える〜帳に版を刻み、後から来た手にやり直させる〜</h2></div></a></article><article class=has-image><a href=/2026/07/04/070705/><div class=article-image><img src=/public_images/2026/code-tamer-invalid-state-machine/header.webp loading=lazy data-key data-hash=/public_images/2026/code-tamer-invalid-state-machine/header.webp></div><div class=article-details><h2 class=article-title>コードテイマー【State Machine】氷の貌のまま、獣は炎を吐いて自壊する〜札を足さず、貌をただ一つに畳む〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

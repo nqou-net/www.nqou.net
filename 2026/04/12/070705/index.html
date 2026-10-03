@@ -1,0 +1,345 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="init→configure→startの順序を間違えると爆発する時限設計——Temporal Couplingをrequired属性・BUILD検証・Builderパターンの三本柱で根治するコード探偵ロックの推理。Builder回の依頼人ケンが再登場するアーク総括回。"><title>コード探偵ロックの事件簿【Builder】時限装置の再来〜Temporal Coupling を断つ不変の鍵〜</title><link rel=canonical href=https://www.nqou.net/2026/04/12/070705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コード探偵ロックの事件簿【Builder】時限装置の再来〜Temporal Coupling を断つ不変の鍵〜"><meta property='og:description' content="init→configure→startの順序を間違えると爆発する時限設計——Temporal Couplingをrequired属性・BUILD検証・Builderパターンの三本柱で根治するコード探偵ロックの推理。Builder回の依頼人ケンが再登場するアーク総括回。"><meta property='og:url' content='https://www.nqou.net/2026/04/12/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='perl'><meta property='article:tag' content='moo'><meta property='article:tag' content='builder'><meta property='article:tag' content='temporal-coupling'><meta property='article:tag' content='fluent-interface'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-detective'><meta property='article:published_time' content='2026-04-12T07:07:05+09:00'><meta property='article:modified_time' content='2026-04-12T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-detective-temporal-coupling/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コード探偵ロックの事件簿【Builder】時限装置の再来〜Temporal Coupling を断つ不変の鍵〜"><meta name=twitter:description content="init→configure→startの順序を間違えると爆発する時限設計——Temporal Couplingをrequired属性・BUILD検証・Builderパターンの三本柱で根治するコード探偵ロックの推理。Builder回の依頼人ケンが再登場するアーク総括回。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-detective-temporal-coupling/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-04-12T07:07:05+09:00","datePublished":"2026-04-12T07:07:05+09:00","description":"init→configure→startの順序を間違えると爆発する時限設計——Temporal Couplingをrequired属性・BUILD検証・Builderパターンの三本柱で根治するコード探偵ロックの推理。Builder回の依頼人ケンが再登場するアーク総括回。","headline":"コード探偵ロックの事件簿【Builder】時限装置の再来〜Temporal Coupling を断つ不変の鍵〜","image":"https://www.nqou.net/public_images/2026/code-detective-temporal-coupling/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/04/12/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#現場検証時限装置の構造>現場検証：時限装置の構造</a></li><li><a href=#推理披露不変の鍵>推理披露：不変の鍵</a><ol><li><a href=#鍵1required--ro不完全な状態の排除>鍵1：<code>required</code> + <code>ro</code>（不完全な状態の排除）</a></li><li><a href=#鍵2build-検証複数属性間の不変条件>鍵2：<code>BUILD</code> 検証（複数属性間の不変条件）</a></li><li><a href=#鍵3builder-パターン段階的構築>鍵3：Builder パターン（段階的構築）</a></li></ol></li><li><a href=#解決安全な起動>解決：安全な起動</a></li><li><a href=#探偵の調査報告書>探偵の調査報告書</a><ol><li><a href=#推理のステップ>推理のステップ</a></li><li><a href=#ロックより>ロックより</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/04/12/070705/><img src=/public_images/2026/code-detective-temporal-coupling/header.webp loading=lazy alt="Featured image of post コード探偵ロックの事件簿【Builder】時限装置の再来〜Temporal Coupling を断つ不変の鍵〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/04/12/070705/>コード探偵ロックの事件簿【Builder】時限装置の再来〜Temporal Coupling を断つ不変の鍵〜</a></h2><h3 class=article-subtitle>init→configure→startの順序を間違えると爆発する時限設計——Temporal Couplingをrequired属性・BUILD検証・Builderパターンの三本柱で根治するコード探偵ロックの推理。Builder回の依頼人ケンが再登場するアーク総括回。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>12, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 13分</time></div></footer></div></header><section class=article-content><p>見覚えのある雑居ビルの階段を上った。</p><p>3週間前、僕は引数リストを印刷した紙——ロックさんに「パピルス」と呼ばれた巻物——を握りしめて、この階段を駆け上がったのだ。あの日、Builder パターンを教わり、「全クラスに Builder を追加します！」と意気揚々に叫んで帰った。</p><p>今日は巻物じゃなくてノートPCだけ。足取りは前回ほど速くない。恥ずかしさの分だけ、重い。</p><p>「レガシー・コード・インベスティゲーション（LCI）」のプレートは3週間前と変わらず、くすんだまま掲げてある。もう怪しいとは思わない。怪しいのは最初からわかっている。</p><p>ドアを開けた。</p><p>デスクの上に、エナジードリンクの空き缶が3段に積み上げられていた。一番下に太い缶、真ん中に細い缶、一番上にミニ缶。ロックさんは椅子にふんぞり返ったまま、その構造物をピンセットでつついている。</p><p>「おや、巻物の君か」</p><p>缶から目を上げないまま言った。</p><p>「ケンです。……もう訂正しても無駄ですよね」</p><p>「名前は覚えているよ、ワトソン君。巻物の方が印象的だというだけだ。——で、次は何だ？ パピルスからロゼッタストーンにでも昇格したか？」</p><p>「いえ、今回は紙じゃなくてコードです。またやらかしました」</p><p>ロックさんはピンセットを置き、缶のタワーを指さした。</p><p>「見たまえ。この構造物は下から順に開けなければ崩壊する。一番上のミニ缶を先に取ると、バランスが崩れて全部倒れる。便利だろう？」</p><p>「それ、ただのゴミタワーでは……」</p><p>「順序が大事な構造物だ。逆から手をつけたら崩壊する。……それが今日の事件と無関係だとは言わないよ」</p><p>僕は一瞬黙った。3週間前なら「何言ってんだこの人」と心の中で突っ込んでいただろう。今日は違う。この人の奇行には必ず意味がある——ことがある。ないこともあるが。</p><h2 id=現場検証時限装置の構造>現場検証：時限装置の構造</h2><p>ノートPCを開き、問題のコードを見せた。</p><p>「前回 Builder を教わったあと、社内の他のコードも見直してみたんです。そしたら配信エンジンにこういうクラスがあって……」</p><p><strong>【Before】呼び出し順序に依存する DeliveryEngine</strong></p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>DeliveryEngine</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Carp</span> <span class=sx>qw(croak)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>campaign_id</span>  <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>target</span>       <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>budget</span>       <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>ad_format</span>    <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>frequency</span>    <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>_initialized</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=mi>0</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>_configured</span>  <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=mi>0</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># Step 1: 必ず最初に呼ぶ</span>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>init</span> <span class=p>($self, %args) {</span>
+</span></span><span class=line><span class=cl>    <span class=n>croak</span> <span class=s>&#34;campaign_id is required&#34;</span> <span class=k>unless</span> <span class=nv>$args</span><span class=p>{</span><span class=n>campaign_id</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=n>croak</span> <span class=s>&#34;target is required&#34;</span>      <span class=k>unless</span> <span class=nv>$args</span><span class=p>{</span><span class=n>target</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>campaign_id</span><span class=p>(</span><span class=nv>$args</span><span class=p>{</span><span class=n>campaign_id</span><span class=p>});</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>target</span><span class=p>(</span><span class=nv>$args</span><span class=p>{</span><span class=n>target</span><span class=p>});</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_initialized</span><span class=p>(</span><span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># Step 2: init の後に呼ぶ</span>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>configure</span> <span class=p>($self, %args) {</span>
+</span></span><span class=line><span class=cl>    <span class=n>croak</span> <span class=s>&#34;Must call init() first&#34;</span> <span class=k>unless</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_initialized</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>budget</span><span class=p>(</span><span class=nv>$args</span><span class=p>{</span><span class=n>budget</span><span class=p>}</span>       <span class=sr>//</span> <span class=mi>10000</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>ad_format</span><span class=p>(</span><span class=nv>$args</span><span class=p>{</span><span class=n>ad_format</span><span class=p>}</span> <span class=sr>//</span> <span class=s>&#39;banner&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>frequency</span><span class=p>(</span><span class=nv>$args</span><span class=p>{</span><span class=n>frequency</span><span class=p>}</span> <span class=sr>//</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_configured</span><span class=p>(</span><span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># Step 3: configure の後に呼ぶ</span>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>start</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>    <span class=n>croak</span> <span class=s>&#34;Must call init() first&#34;</span>      <span class=k>unless</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_initialized</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>croak</span> <span class=s>&#34;Must call configure() first&#34;</span> <span class=k>unless</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_configured</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>campaign_id</span> <span class=o>=&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>campaign_id</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>target</span>      <span class=o>=&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>target</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>budget</span>      <span class=o>=&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>budget</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>ad_format</span>   <span class=o>=&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>ad_format</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>frequency</span>   <span class=o>=&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>frequency</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>status</span>      <span class=o>=&gt;</span> <span class=s>&#39;running&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<code>init</code> → <code>configure</code> → <code>start</code> の順番で呼ばないと動かないんです。先週テスト環境で配信設定を作るとき、<code>configure</code> をうっかり飛ばして <code>start</code> を呼んでしまって——」</p><p>「また事故か」</p><p>「未遂です！ テスト環境だったので！ でも本番だったらと思うと……」</p><p>ロックさんが画面に目を落とした。<code>_initialized</code>、<code>_configured</code> のフラグを指先でなぞる。</p><p>「これは……時限装置だよ、ワトソン君」</p><p>「時限装置？」</p><p>「<code>init</code> という名の安全装置を解除し、<code>configure</code> という名の起爆準備を完了し、<code>start</code> で爆発させる。正しい順序でなければ不発弾になる」</p><p>「爆弾って……プログラムですよね？」</p><p>「不発弾は<strong>一番危険な爆弾だ</strong>。今回は <code>croak</code> でエラーになったから気づけた。だがもしフラグチェックがなかったら？ <code>campaign_id</code> が <code>undef</code> のまま配信が始まっていたかもしれない。エラーにすらならず、黙って壊れる。<strong>サイレントな不発弾</strong>だ」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># configure を飛ばすと実行時エラー</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$engine</span> <span class=o>=</span> <span class=nn>DeliveryEngine</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=nv>$engine</span><span class=o>-&gt;</span><span class=n>init</span><span class=p>(</span><span class=n>campaign_id</span> <span class=o>=&gt;</span> <span class=s>&#39;C001&#39;</span><span class=p>,</span> <span class=n>target</span> <span class=o>=&gt;</span> <span class=s>&#39;age:20-35&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$engine</span><span class=o>-&gt;</span><span class=n>start</span><span class=p>;</span>  <span class=c1># 💥 &#34;Must call configure() first&#34;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「でもロックさん、これって前回の Builder で解決できるんじゃないですか？ <code>init</code> と <code>configure</code> をメソッドチェーンで繋げば——」</p><p>ロックさんが首を振った。</p><p>「3週間前の事件を思い出したまえ。あのときの問題は<strong>引数が多すぎる</strong>ことだった。Builder は引数を整理するために導入した。今回の問題は引数の数ではない」</p><p>「じゃあ何が問題なんですか」</p><p>「<strong>不完全な状態のオブジェクトが存在しうる</strong>ことだ」</p><p>ロックさんが紙を取り出し、図を描き始めた。</p><pre class=mermaid>
+	sequenceDiagram
+    participant Client
+    participant Engine as DeliveryEngine
+    Note over Client,Engine: 正しい順序を知らないと壊れる
+    Client-&gt;&gt;Engine: new()
+    Note right of Engine: ❌ 不完全な状態
+    Client-&gt;&gt;Engine: init(campaign_id, target)
+    Note right of Engine: ❌ まだ不完全
+    Client-&gt;&gt;Engine: configure(budget, ad_format)
+    Note right of Engine: ✅ やっと完全
+    Client-&gt;&gt;Engine: start()
+    Engine--&gt;&gt;Client: 配信開始
+</pre><p>「<code>new</code> した直後は何も持っていない空っぽのオブジェクトだ。<code>init</code> を呼んでも、まだ <code>budget</code> がない。<code>configure</code> を呼んで、やっと完全な状態になる。この中間の『不完全な状態』が存在できてしまうことが、すべての元凶だよ」</p><p>「つまり、フラグで順序を守らせているのは……」</p><p>「絆創膏だ。傷口を隠しているだけで、傷を治してはいない」</p><h2 id=推理披露不変の鍵>推理披露：不変の鍵</h2><p>「この事件の解法は3つの鍵で構成される」</p><p>ロックさんがエナジードリンクの缶タワーから一番上のミニ缶を取った。タワーは崩壊しなかった。</p><p>「あれ、崩れない——」</p><p>「缶の中身を入れ替えておいた。一番下が空で、上に行くほど重い。どの順番で取っても安全になるように<strong>構造自体を変えた</strong>のだよ。順序に依存しない設計。それが今日のテーマだ」</p><h3 id=鍵1required--ro不完全な状態の排除>鍵1：<code>required</code> + <code>ro</code>（不完全な状態の排除）</h3><p>「まず1つ目の鍵。不完全な状態のオブジェクトを、<strong>そもそも存在させない</strong>」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>DeliveryEngine</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Carp</span> <span class=sx>qw(croak)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(Str Int Enum)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>campaign_id</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>target</span>      <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>budget</span>      <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Int</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=mi>10000</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>ad_format</span>   <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>      <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>isa</span>     <span class=o>=&gt;</span> <span class=n>Enum</span><span class=p>[</span><span class=sx>qw(banner video native)</span><span class=p>],</span>
+</span></span><span class=line><span class=cl>    <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=s>&#39;banner&#39;</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>frequency</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Int</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=mi>1</span> <span class=p>});</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<code>init()</code> と <code>configure()</code> が消えた……？」</p><p>「消えたのではない。コンストラクタに<strong>吸収</strong>された。<code>campaign_id</code> と <code>target</code> は <code>required => 1</code> だ。これらなしには <code>new</code> が完了しない。つまり <code>new</code> が成功した時点で、オブジェクトは<strong>完全な状態</strong>だ」</p><p>「でも <code>budget</code> や <code>ad_format</code> はオプションですよね。全部 <code>required</code> にしたら不便じゃ……」</p><p>「<code>default</code> があるだろう。デフォルト値があるということは、それは必須ではないということだ。しかし <code>campaign_id</code> と <code>target</code> にデフォルトはあるかね？」</p><p>「ない……です」</p><p>「ならば <code>required</code> だ。設計とはそういうことだよ」</p><p>そして全属性が <code>is => 'ro'</code>——読み取り専用になっている。</p><p>「あ、<code>rw</code> が全部 <code>ro</code> になってる。前回のときは Builder の内部属性は <code>rw</code> でしたよね？」</p><p>「あちらは Builder だ。設定途中の状態を保持する必要があるから <code>rw</code> にした。しかし完成品の <code>DeliveryEngine</code> は違う。完成品の状態は、<strong>生成後に変更されてはならない</strong>。前回の事件でも <code>Campaign</code> 本体は <code>ro</code> だっただろう？」</p><p>そう言われて前回を思い出した。確かに Builder は <code>rw</code> だったが、<code>Campaign</code> 自体はすべて <code>ro</code> だった。あのときは気にしていなかったけれど、それ自体が意図的な設計だったのか。</p><p>「でも全部 <code>ro</code> にしたら、実行中に設定を変えたいときどうするんですか。配信エンジンって、途中で予算を変更したりしません？」</p><p>「変えるな。新しく作れ」</p><p>ロックさんは一言で切り捨てた。</p><p>「<code>budget</code> を変えたければ、新しい <code>DeliveryEngine</code> を <code>budget</code> だけ変えて作り直す。元のオブジェクトは壊さない。これを<strong>不変オブジェクト</strong>という。変更のたびに新品を作れば、古いオブジェクトの状態が汚染される心配はない」</p><h3 id=鍵2build-検証複数属性間の不変条件>鍵2：<code>BUILD</code> 検証（複数属性間の不変条件）</h3><p>「2つ目の鍵。属性同士の関係を縛る」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>sub</span> <span class=nf>BUILD</span> <span class=p>($self, $args) {</span>
+</span></span><span class=line><span class=cl>    <span class=n>croak</span> <span class=s>&#34;budget must be positive&#34;</span>    <span class=k>unless</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>budget</span> <span class=o>&gt;</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>croak</span> <span class=s>&#34;frequency must be positive&#34;</span> <span class=k>unless</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>frequency</span> <span class=o>&gt;</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「これって前回の <code>build()</code> メソッドのバリデーションと同じですか？」</p><p>「本質は同じだ。<code>build()</code> はBuilder 側の門番。<code>BUILD</code> は Moo が用意したオブジェクト側の門番。二重の防壁だ。しかし今回のように属性が5つ程度なら、Builder を介さずとも <code>BUILD</code> だけで十分な場合がある」</p><p>「え、じゃあ Builder いらないんですか？」</p><p>「3つ目の鍵を見せよう」</p><h3 id=鍵3builder-パターン段階的構築>鍵3：Builder パターン（段階的構築）</h3><p>「属性が増えた場合や、設定を段階的に組み立てたい場合には、前回の友人に再登場してもらう」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>DeliveryEngineBuilder</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Carp</span> <span class=sx>qw(croak)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>_campaign_id</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>_target</span>      <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>_budget</span>      <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=mi>10000</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>_ad_format</span>   <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=s>&#39;banner&#39;</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>_frequency</span>   <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=mi>1</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>campaign_id</span> <span class=p>($self, $val) {</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_campaign_id</span><span class=p>(</span><span class=nv>$val</span><span class=p>);</span> <span class=k>return</span> <span class=nv>$self</span><span class=p>;</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>target</span> <span class=p>($self, $val)      {</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_target</span><span class=p>(</span><span class=nv>$val</span><span class=p>);</span>      <span class=k>return</span> <span class=nv>$self</span><span class=p>;</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>budget</span> <span class=p>($self, $val)      {</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_budget</span><span class=p>(</span><span class=nv>$val</span><span class=p>);</span>      <span class=k>return</span> <span class=nv>$self</span><span class=p>;</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>ad_format</span> <span class=p>($self, $val)   {</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_ad_format</span><span class=p>(</span><span class=nv>$val</span><span class=p>);</span>   <span class=k>return</span> <span class=nv>$self</span><span class=p>;</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>frequency</span> <span class=p>($self, $val)   {</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_frequency</span><span class=p>(</span><span class=nv>$val</span><span class=p>);</span>   <span class=k>return</span> <span class=nv>$self</span><span class=p>;</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>build</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>    <span class=n>croak</span> <span class=s>&#34;campaign_id is required&#34;</span> <span class=k>unless</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_campaign_id</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>croak</span> <span class=s>&#34;target is required&#34;</span>      <span class=k>unless</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_target</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nn>DeliveryEngine</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>campaign_id</span> <span class=o>=&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_campaign_id</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>target</span>      <span class=o>=&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_target</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>budget</span>      <span class=o>=&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_budget</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>ad_format</span>   <span class=o>=&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_ad_format</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>frequency</span>   <span class=o>=&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_frequency</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「あ、前回の <code>CampaignBuilder</code> と同じ構造ですね。<code>$self</code> を返してチェーンする……Fluent Interface ですか」</p><p>「よく覚えているじゃないか」</p><p>ロックさんが僅かに口角を上げた。称賛とも皮肉とも取れる表情だ。</p><p>「だが一つ区別しておきたまえ。Fluent Interface はメソッドチェーンの<strong>見た目</strong>の話だ。Builder はオブジェクト生成の<strong>責任</strong>の話だ。見た目が似ていても、目的が違う」</p><p>使い方はこうなる。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># 方法1: 直接コンストラクタ（シンプルな場合）</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$engine</span> <span class=o>=</span> <span class=nn>DeliveryEngine</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>campaign_id</span> <span class=o>=&gt;</span> <span class=s>&#39;C001&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>target</span>      <span class=o>=&gt;</span> <span class=s>&#39;age:20-35&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>budget</span>      <span class=o>=&gt;</span> <span class=mi>50000</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>ad_format</span>   <span class=o>=&gt;</span> <span class=s>&#39;video&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 方法2: Builder（段階的構築が必要な場合）</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$engine2</span> <span class=o>=</span> <span class=nn>DeliveryEngineBuilder</span><span class=o>-&gt;</span><span class=k>new</span>
+</span></span><span class=line><span class=cl>    <span class=o>-&gt;</span><span class=n>campaign_id</span><span class=p>(</span><span class=s>&#39;C001&#39;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=o>-&gt;</span><span class=n>target</span><span class=p>(</span><span class=s>&#39;age:20-35&#39;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=o>-&gt;</span><span class=n>budget</span><span class=p>(</span><span class=mi>50000</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=o>-&gt;</span><span class=n>ad_format</span><span class=p>(</span><span class=s>&#39;video&#39;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=o>-&gt;</span><span class=n>frequency</span><span class=p>(</span><span class=mi>3</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=o>-&gt;</span><span class=n>build</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「前回は『引数が多すぎる問題を Builder で解決した』。今回は『順序依存を Builder で解決した』。同じ Builder なのに解決する問題が違う……」</p><p>「Builder の本質は『<strong>完全な状態でなければ生成しない</strong>』という門番だ。引数地獄であれ、順序地獄であれ、門番の仕事は変わらない。不完全な申請は通さない。それだけだ」</p><p>ふと、前回の最後にロックさんに言われたことを思い出した。</p><p>「前回、ロックさんは『蝶を捕まえるのに大砲を使うな』って言いましたよね。今回はどっちですか？ 大砲？ 蝶？」</p><p>「いい質問だ」</p><p>ロックさんが缶タワーの残骸を片付けながら言った。</p><p>「属性が5つのこのクラスなら、鍵1と鍵2——<code>required</code> と <code>BUILD</code> だけで十分だ。Builder は属性が増えたときの保険だ。過剰適用はしないこと。……前回帰り際に何を叫んでいたか覚えているかね？」</p><p>顔が熱くなった。</p><p>「……『全クラスに Builder 追加します！』」</p><p>「それが過剰適用だ」</p><pre class=mermaid>
+	sequenceDiagram
+    participant Client
+    participant Builder as DeliveryEngineBuilder
+    participant Engine as DeliveryEngine
+    Note over Client,Engine: 順序不要。build() が門番
+    Client-&gt;&gt;Builder: new()
+    Client-&gt;&gt;Builder: campaign_id(&#39;C001&#39;)
+    Client-&gt;&gt;Builder: target(&#39;age:20-35&#39;)
+    Client-&gt;&gt;Builder: budget(50000)
+    Client-&gt;&gt;Builder: build()
+    Builder-&gt;&gt;Builder: バリデーション ✓
+    Builder-&gt;&gt;Engine: new(完全なパラメータ)
+    Engine-&gt;&gt;Engine: BUILD() 検証 ✓
+    Engine--&gt;&gt;Client: 完全な DeliveryEngine
+    Client-&gt;&gt;Engine: start()
+    Engine--&gt;&gt;Client: 配信開始
+</pre><h2 id=解決安全な起動>解決：安全な起動</h2><p>ロックさんが僕のPCでテストを実行した。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># Before: 順序を間違えるとエラー</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$engine</span> <span class=o>=</span> <span class=nn>DeliveryEngine</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=nv>$engine</span><span class=o>-&gt;</span><span class=n>start</span><span class=p>;</span>  <span class=c1># 💥 &#34;Must call init() first&#34;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># After: 必須項目なしではオブジェクトが生成できない</span>
+</span></span><span class=line><span class=cl><span class=nb>eval</span> <span class=p>{</span> <span class=nn>DeliveryEngine</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>()</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=c1># → &#34;Missing required arguments: campaign_id, target&#34;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># After: 不正な値は BUILD で拒否</span>
+</span></span><span class=line><span class=cl><span class=nb>eval</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=nn>DeliveryEngine</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>campaign_id</span> <span class=o>=&gt;</span> <span class=s>&#39;C001&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>target</span>      <span class=o>=&gt;</span> <span class=s>&#39;all&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>budget</span>      <span class=o>=&gt;</span> <span class=o>-</span><span class=mi>500</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=c1># → &#34;budget must be positive&#34;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># After: Builder も順序を問わない</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$engine2</span> <span class=o>=</span> <span class=nn>DeliveryEngineBuilder</span><span class=o>-&gt;</span><span class=k>new</span>
+</span></span><span class=line><span class=cl>    <span class=o>-&gt;</span><span class=n>budget</span><span class=p>(</span><span class=mi>30000</span><span class=p>)</span>           <span class=c1># 順番は</span>
+</span></span><span class=line><span class=cl>    <span class=o>-&gt;</span><span class=n>frequency</span><span class=p>(</span><span class=mi>2</span><span class=p>)</span>            <span class=c1># どうでもいい</span>
+</span></span><span class=line><span class=cl>    <span class=o>-&gt;</span><span class=n>target</span><span class=p>(</span><span class=s>&#39;geo:tokyo&#39;</span><span class=p>)</span>     <span class=c1>#</span>
+</span></span><span class=line><span class=cl>    <span class=o>-&gt;</span><span class=n>ad_format</span><span class=p>(</span><span class=s>&#39;native&#39;</span><span class=p>)</span>     <span class=c1>#</span>
+</span></span><span class=line><span class=cl>    <span class=o>-&gt;</span><span class=n>campaign_id</span><span class=p>(</span><span class=s>&#39;C002&#39;</span><span class=p>)</span>     <span class=c1>#</span>
+</span></span><span class=line><span class=cl>    <span class=o>-&gt;</span><span class=n>build</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$result</span> <span class=o>=</span> <span class=nv>$engine2</span><span class=o>-&gt;</span><span class=n>start</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=c1># → { campaign_id =&gt; &#39;C002&#39;, target =&gt; &#39;geo:tokyo&#39;, ... status =&gt; &#39;running&#39; }</span>
+</span></span></code></pre></td></tr></table></div></div><p>画面に結果が並んだ。Before では <code>init</code> を忘れただけで実行時エラーが出ていたコードが、After では<strong>そもそもオブジェクトが作れない</strong>構造になっている。<code>configure</code> を忘れるとか、<code>start</code> を先に呼ぶとか、そういう「順序ミス」が概念ごと消滅していた。</p><p>「<code>configure</code> を忘れるっていう事故が、起きようがなくなってる」</p><p>「そうだ。時限爆弾の導火線を切ったのではない。<strong>爆弾が組み立てられないようにした</strong>のだ」</p><p>「導火線を切るのは……」</p><p>「対症療法だ。フラグで順序を守らせるのがそれだ。爆弾の部品を手に入れられない構造にするのが根治だ。<code>required</code> がその鍵で、<code>BUILD</code> が最後の検問で、Builder は受付窓口だ。三段構えで、不完全なオブジェクトはこの世に生まれてこられない」</p><p>僕はPCを見つめた。前回の Builder パターンで学んだ「門番」が、今回は別の場所で同じ仕事をしている。パターンは同じでも、解いている問題の根っこが違う。前回は「引数多すぎ」、今回は「順序依存」。でも門番の仕事は一つだけ。不完全な申請を通さないこと。</p><p>「前回は『門番を立てる』で、今回は『爆弾の部品を制限する』。言い方は違いますけど、やってることは同じですね」</p><p>「同じだ。<strong>不正な状態のオブジェクトを存在させない</strong>。それだけのことだよ」</p><p>PCを閉じた。3週間前のように飛び出す気分ではなかった。もう少し考えたいことがある。</p><p>「ロックさん」</p><p>「何だ」</p><p>「前回、僕は Builder を学んで万能の道具を手に入れた気分で帰りました。全クラスに適用しようとした。でも今日来て、Builder は道具であって目的じゃないってわかりました。大事なのは『なぜそれで問題が消えるのか』を理解することですよね」</p><p>ロックさんがエナジードリンクの新しい缶を開けた。泡が小さく弾けた。</p><p>「……成長したじゃないか」</p><p>「次に変なにおいのするコードを見つけたら、まず自分で嗅ぎ分けてみます」</p><p>ロックさんは窓の外を見ていた。</p><p>「この3週間で、私のところには7件の悪臭事件が持ち込まれた。他人の皿に手を伸ばす Feature Envy。列車のように連なる Law of Demeter 違反。仕事を丸投げする Middle Man。遺産を拒む Refused Bequest。溶岩に埋もれた Dead Code。名前のない証拠品 Magic Numbers。そして今日の時限装置だ」</p><p>少し間が空いた。</p><p>「どれも根は同じだよ。コードが<strong>自分の責任を知らない</strong>。それがすべての悪臭の正体だ」</p><p>僕は立ち上がった。前回のように駆け出さない。ドアの前で振り返った。</p><p>「ありがとうございました、ロックさん」</p><p>ロックさんが缶を傾けたまま、こちらを見た。</p><p>「ケン。鼻を鍛えたまえ」</p><p>ケン、と呼ばれたのは初めてだった。ワトソン君でも巻物の君でもなく。</p><p>少し驚いてから笑って、ドアを閉めた。</p><hr><h2 id=探偵の調査報告書>探偵の調査報告書</h2><div class=table-wrapper><table><thead><tr><th style=text-align:left>容疑（アンチパターン）</th><th style=text-align:left>真実（パターン）</th><th style=text-align:left>証拠（効果）</th></tr></thead><tbody><tr><td style=text-align:left>Temporal Coupling（時間的結合）。<code>init()</code> → <code>configure()</code> → <code>start()</code> の暗黙的な呼び出し順序依存。順序を間違えると実行時エラーまたはサイレントな誤動作が発生する。不完全な状態のオブジェクトが存在しうることが根本原因。</td><td style=text-align:left><code>required</code> 属性 + <code>BUILD</code> 検証 + Builder パターン。必須データをコンストラクタ引数で強制し、複数属性間の不変条件を <code>BUILD</code> で検証し、段階的構築が必要な場合は Builder で <code>build()</code> 時にバリデーションを集約する。</td><td style=text-align:left>不完全な状態のオブジェクトが構造的に存在できなくなった。メソッドの呼び出し順序に関する暗黙の知識が不要になり、<code>new</code> が成功した時点でオブジェクトは完全かつ不変。フラグによる防御（対症療法）が不要になった。</td></tr></tbody></table></div><h3 id=推理のステップ>推理のステップ</h3><ol><li><strong>時限装置を見つける</strong>: メソッド名に <code>init</code>, <code>setup</code>, <code>configure</code>, <code>start</code> が含まれるクラスを探す。これらは Temporal Coupling のシグナルだ。</li><li><strong>必須データを <code>required</code> にする</strong>: <code>new</code> が完了した時点でオブジェクトが完全な状態になるように、必須の属性に <code>required => 1</code> と <code>is => 'ro'</code> を指定する。</li><li><strong><code>BUILD</code> で不変条件を検証する</strong>: 複数属性間の関係（budget は正の数、end_date は start_date より後、など）を <code>BUILD</code> メソッドに集約する。</li><li><strong>必要に応じて Builder を導入する</strong>: 属性が多い場合や段階的な構築が必要な場合に限り、Builder パターンで Fluent Interface を提供する。<code>build()</code> がバリデーションの最終関門となる。</li><li><strong>過剰適用を避ける</strong>: 属性が少ないクラスに Builder を導入するのは過剰設計。<code>required</code> + <code>BUILD</code> で十分なケースを見極めること。</li></ol><h3 id=ロックより>ロックより</h3><p>ケン。3週間前、君は Builder を万能の武器と信じて帰っていった。今日、同じ武器が別の事件を解くのを見て、「なぜ解けるのか」を問い始めた。</p><p>Temporal Coupling の正体は、<strong>不完全な状態のオブジェクトが存在できてしまう設計</strong>にある。<code>init</code> の後に <code>configure</code> を呼ばなければならないのは、<code>new</code> が仕事を怠っているからだ。コンストラクタが責任を全うすれば、フラグもいらない。順序もいらない。オブジェクトは生まれた瞬間から完全であるべきだ。</p><p>7つの事件を終えて、1つだけ伝えておこう。コードの悪臭には種類こそ多いが、根はいつも同じだ。<strong>コードが自分の責任を知らないこと</strong>。責任の境界が曖昧なコードは、必ず隣の領域に手を伸ばし、呼び出し順序に依存し、不完全な状態で漂流する。</p><p>鼻を鍛えたまえ。次はきっと、自分で気づけるはずだ。</p></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/perl/>Perl</a>
+<a href=/tags/moo/>Moo</a>
+<a href=/tags/builder/>Builder</a>
+<a href=/tags/temporal-coupling/>Temporal-Coupling</a>
+<a href=/tags/fluent-interface/>Fluent-Interface</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-detective/>Code-Detective</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/03/21/070705/><div class=article-image><img src=/public_images/2026/code-detective-builder-telescoping-constructor/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-builder-telescoping-constructor/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Builder】果てしなき引数の行列〜コンストラクタの窒息事件〜</h2></div></a></article><article class=has-image><a href=/2026/06/21/070705/><div class=article-image><img src=/public_images/2026/code-archaeologist-builder-pattern/header.webp loading=lazy data-key data-hash=/public_images/2026/code-archaeologist-builder-pattern/header.webp></div><div class=article-details><h2 class=article-title>【Perl/Moo】コード考古学者ハリスの冒険【Builder】巨石の防壁ゲート〜段階的構築による整合のレリーフ〜</h2></div></a></article><article class=has-image><a href=/2026/06/12/190705/><div class=article-image><img src=/public_images/2026/code-chef-builder/header.webp loading=lazy data-key data-hash=/public_images/2026/code-chef-builder/header.webp></div><div class=article-details><h2 class=article-title>コードシェフの仕込み帳【Builder】弁当の詰め方〜ルーティングループが2か所に重複する注文処理を、詰め人クラスひとつで整理する〜</h2></div></a></article><article class=has-image><a href=/2026/05/22/070705/><div class=article-image><img src=/public_images/2026/code-bartender-temporal-coupling/header.webp loading=lazy data-key data-hash=/public_images/2026/code-bartender-temporal-coupling/header.webp></div><div class=article-details><h2 class=article-title>コードバーテンダー【Temporal Coupling】カクテルの手順を間違えると台無し〜順序の呪い〜</h2></div></a></article><article class=has-image><a href=/2026/05/15/070705/><div class=article-image><img src=/public_images/2026/code-detective-bff/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-bff/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Backends for Frontends】最後の依頼〜一つの答えが全員を不満にする夜〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

@@ -1,0 +1,349 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="Service Locatorのグローバルレジストリがテストを壊し依存関係を隠蔽する問題を、コンストラクタインジェクションで解決するリファクタリング事例"><title>コード探偵ロックの事件簿【Service Locator】万能レジストリの共犯〜便利な仲介人が隠した依存の糸〜</title><link rel=canonical href=https://www.nqou.net/2026/04/13/070705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コード探偵ロックの事件簿【Service Locator】万能レジストリの共犯〜便利な仲介人が隠した依存の糸〜"><meta property='og:description' content="Service Locatorのグローバルレジストリがテストを壊し依存関係を隠蔽する問題を、コンストラクタインジェクションで解決するリファクタリング事例"><meta property='og:url' content='https://www.nqou.net/2026/04/13/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='perl'><meta property='article:tag' content='moo'><meta property='article:tag' content='service-locator'><meta property='article:tag' content='dependency-injection'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-detective'><meta property='article:published_time' content='2026-04-13T07:07:05+09:00'><meta property='article:modified_time' content='2026-04-13T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-detective-service-locator/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コード探偵ロックの事件簿【Service Locator】万能レジストリの共犯〜便利な仲介人が隠した依存の糸〜"><meta name=twitter:description content="Service Locatorのグローバルレジストリがテストを壊し依存関係を隠蔽する問題を、コンストラクタインジェクションで解決するリファクタリング事例"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-detective-service-locator/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-04-13T07:07:05+09:00","datePublished":"2026-04-13T07:07:05+09:00","description":"Service Locatorのグローバルレジストリがテストを壊し依存関係を隠蔽する問題を、コンストラクタインジェクションで解決するリファクタリング事例","headline":"コード探偵ロックの事件簿【Service Locator】万能レジストリの共犯〜便利な仲介人が隠した依存の糸〜","image":"https://www.nqou.net/public_images/2026/code-detective-service-locator/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/04/13/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#呼ばれた探偵>呼ばれた探偵</a></li><li><a href=#共犯者の名簿>共犯者の名簿</a></li><li><a href=#依存の糸を可視化する>依存の糸を可視化する</a></li><li><a href=#静かなグリーン>静かなグリーン</a></li><li><a href=#一人の会議室>一人の会議室</a></li><li><a href=#探偵の調査報告書>探偵の調査報告書</a><ol><li><a href=#推理のステップ>推理のステップ</a></li><li><a href=#ロックより>ロックより</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/04/13/070705/><img src=/public_images/2026/code-detective-service-locator/header.webp loading=lazy alt="Featured image of post コード探偵ロックの事件簿【Service Locator】万能レジストリの共犯〜便利な仲介人が隠した依存の糸〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/04/13/070705/>コード探偵ロックの事件簿【Service Locator】万能レジストリの共犯〜便利な仲介人が隠した依存の糸〜</a></h2><h3 class=article-subtitle>Service Locatorのグローバルレジストリがテストを壊し依存関係を隠蔽する問題を、コンストラクタインジェクションで解決するリファクタリング事例</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>13, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 12分</time></div></footer></div></header><section class=article-content><h2 id=呼ばれた探偵>呼ばれた探偵</h2><p>金曜の午後、会議室で一人、CIの失敗ログを眺めていた。</p><p>夜間バッチのテスト結果。昨夜は18件中6件が赤い。月曜は4件、水曜は7件、今日は6件。テストコード自体を触った覚えはない。コードレビューでも致命的な変更は見当たらない。それなのに、毎晩ランダムに落ちる。</p><p>リーダーに就任して2週間。前任の田中さんから引き継いだのは、社内SaaS基盤の共通サービス群と、「便利だからそのまま使ってね」という一言だった。</p><p>社外の技術コミュニティのSlackチャンネルで、ある投稿が目に留まったのは3日前のことだ。</p><blockquote><p>レガシーコードの設計問題なら LCI が確実。ちょっと変わった人だけど。</p></blockquote><p>「レガシー・コード・インベスティゲーション」。検索すると簡素なウェブサイトが出てきた。連絡先にメールを送ると、翌日「現場を拝見したい。お伺いします」と返信があった。</p><p>会議室のドアが開いた。</p><p>コートを着た男が入ってきた。鞄から虫眼鏡型のUSB顕微鏡を取り出し、会議室のプロジェクタの接続口を覗き込み始めた。</p><p>「ほう、VGAポートがまだ生きている。レガシーインターフェースというのは、こういう場所にも棲んでいるのだね」</p><p>変わった人だとは聞いていた。聞いていた通りだった。</p><p>「ロックさん。お時間をいただいてありがとうございます。早速ですが、本題に入らせてください」</p><p>「せっかちなワトソン君だ」</p><p>私は聞こえなかったことにして、モニターに映したCIのログを指し示した。</p><p>ロックさんが少し物足りなそうな表情をした。</p><p>「……反応しないのか。最近の依頼人は堪え性がないか、あるいは情報を持ちすぎている。どちらだね」</p><p>「後者です。Slackで評判は拝見しました。呼び方の件は……もういいです、ワトソン君で」</p><p>「話が早いのは美徳だ。では見せてもらおう」</p><h2 id=共犯者の名簿>共犯者の名簿</h2><p>私はノートPCで共通サービス基盤のリポジトリを開いた。</p><p>「このシステムでは、全サービスが <code>ServiceLocator</code> というモジュール経由で依存を取得しています」</p><p>ロックさんがモニターに目を向けた。私が <code>ServiceLocator.pm</code> を開く。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>ServiceLocator</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>%services</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>register</span> <span class=p>($class, $name, $service) {</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$services</span><span class=p>{</span><span class=nv>$name</span><span class=p>}</span> <span class=o>=</span> <span class=nv>$service</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>resolve</span> <span class=p>($class, $name) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$services</span><span class=p>{</span><span class=nv>$name</span><span class=p>}</span> <span class=sr>//</span> <span class=nb>die</span> <span class=s>&#34;Service &#39;$name&#39; not registered&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>reset</span> <span class=p>($class) {</span>
+</span></span><span class=line><span class=cl>    <span class=nv>%services</span> <span class=o>=</span> <span class=p>();</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<code>register</code> でサービスを登録して、<code>resolve</code> で取り出す。全マイクロサービスがこのモジュールを使っています。前任者が構築した共通基盤で、便利だからとそのまま広まりました」</p><p>ロックさんが画面を見たまま、静かに言った。</p><p>「犯人はここにいる。……いや、正確に言おう。<strong>犯人はこの帳簿に載っている全員だ</strong>」</p><p>「全員、ですか」</p><p>「このレジストリは便利な仲介人だ。誰でも預けられ、誰でも引き出せる。だが仲介人が便利すぎると、<strong>誰が何を預けたか分からなくなる</strong>。帳簿が共犯を隠蔽しているのだよ」</p><p>私は注文処理モジュールを開いた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>OrderProcessor</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>process</span> <span class=p>($self, $order) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$validator</span> <span class=o>=</span> <span class=nn>ServiceLocator</span><span class=o>-&gt;</span><span class=n>resolve</span><span class=p>(</span><span class=s>&#39;validator&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$pricer</span>    <span class=o>=</span> <span class=nn>ServiceLocator</span><span class=o>-&gt;</span><span class=n>resolve</span><span class=p>(</span><span class=s>&#39;pricer&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$notifier</span>  <span class=o>=</span> <span class=nn>ServiceLocator</span><span class=o>-&gt;</span><span class=n>resolve</span><span class=p>(</span><span class=s>&#39;notifier&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=nv>$validator</span><span class=o>-&gt;</span><span class=n>validate</span><span class=p>(</span><span class=nv>$order</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$total</span> <span class=o>=</span> <span class=nv>$pricer</span><span class=o>-&gt;</span><span class=n>calculate</span><span class=p>(</span><span class=nv>$order</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$notifier</span><span class=o>-&gt;</span><span class=n>send_confirmation</span><span class=p>(</span><span class=nv>$order</span><span class=p>,</span> <span class=nv>$total</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>{</span> <span class=n>order_id</span> <span class=o>=&gt;</span> <span class=nv>$order</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>id</span><span class=p>},</span> <span class=n>total</span> <span class=o>=&gt;</span> <span class=nv>$total</span><span class=p>,</span> <span class=n>status</span> <span class=o>=&gt;</span> <span class=s>&#39;processed&#39;</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>ロックさんが一行ずつ指でなぞった。</p><p>「このクラスは、何に依存しているか分かるかね？」</p><p>「<code>validator</code>、<code>pricer</code>、<code>notifier</code>ですね。コードを読めば分かります」</p><p>「<strong>コードを読めば</strong>。だが、コンストラクタは何も教えてくれない。<code>OrderProcessor->new</code> を見て、この3つが必要だと気づけるか？」</p><p>間を置いた。コンストラクタの定義を見返す。<code>has</code> 宣言はない。引数なしで <code>new</code> が呼べてしまう。</p><p>「……気づけません。<code>new</code> は引数なしで通ります」</p><p>「それがこの仲介人の罪だ。依存を隠す。事前条件を隠す。そして、<strong>実行してみるまで何が足りないか分からない</strong>」</p><p>ロックさんが会議室のホワイトボードに向かった。マーカーを取り、テストコードを書き始めた。</p><p>「CIが30%落ちる理由を見せよう。ワトソン君、この2つのテストを順に実行したと考えてくれたまえ」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># === テストA: 正常系 ===</span>
+</span></span><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;テストA: 正常な注文処理&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=nn>ServiceLocator</span><span class=o>-&gt;</span><span class=n>register</span><span class=p>(</span><span class=s>&#39;validator&#39;</span><span class=p>,</span> <span class=nn>OrderValidator</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nn>ServiceLocator</span><span class=o>-&gt;</span><span class=n>register</span><span class=p>(</span><span class=s>&#39;pricer&#39;</span><span class=p>,</span>    <span class=nn>PricingService</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>tax_rate</span> <span class=o>=&gt;</span> <span class=mf>0.1</span><span class=p>));</span>
+</span></span><span class=line><span class=cl>    <span class=nn>ServiceLocator</span><span class=o>-&gt;</span><span class=n>register</span><span class=p>(</span><span class=s>&#39;notifier&#39;</span><span class=p>,</span>  <span class=nn>NotificationService</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$processor</span> <span class=o>=</span> <span class=nn>OrderProcessor</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$result</span> <span class=o>=</span> <span class=nv>$processor</span><span class=o>-&gt;</span><span class=n>process</span><span class=p>(</span><span class=nv>$order</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>is</span> <span class=nv>$result</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>total</span><span class=p>},</span> <span class=mi>2200</span><span class=p>,</span> <span class=s>&#39;税込金額が正しい&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=c1># reset を忘れている!</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># === テストB: 税率変更 ===</span>
+</span></span><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;テストB: 税率8%で計算&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=c1># pricer だけ再登録</span>
+</span></span><span class=line><span class=cl>    <span class=nn>ServiceLocator</span><span class=o>-&gt;</span><span class=n>register</span><span class=p>(</span><span class=s>&#39;pricer&#39;</span><span class=p>,</span> <span class=nn>PricingService</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>tax_rate</span> <span class=o>=&gt;</span> <span class=mf>0.08</span><span class=p>));</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$processor</span> <span class=o>=</span> <span class=nn>OrderProcessor</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$result</span> <span class=o>=</span> <span class=nv>$processor</span><span class=o>-&gt;</span><span class=n>process</span><span class=p>(</span><span class=nv>$order</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>is</span> <span class=nv>$result</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>total</span><span class=p>},</span> <span class=mi>2160</span><span class=p>,</span> <span class=s>&#39;税率8%で計算される&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$notifier</span> <span class=o>=</span> <span class=nn>ServiceLocator</span><span class=o>-&gt;</span><span class=n>resolve</span><span class=p>(</span><span class=s>&#39;notifier&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span> <span class=nb>scalar</span><span class=p>(</span><span class=nv>@</span><span class=p>{</span><span class=nv>$notifier</span><span class=o>-&gt;</span><span class=n>sent_messages</span><span class=p>}),</span> <span class=mi>1</span><span class=p>,</span> <span class=s>&#39;今回のテストで1件だけ送信&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=c1># ↑ 実際は2件!</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span></code></pre></td></tr></table></div></div><p>「テストAが <code>notifier</code> を登録し、<code>reset</code> を呼ばずに終わる。テストBは <code>pricer</code> だけ再登録するが、<code>notifier</code> はテストAのものが残っている。テストAの送信履歴がテストBに紛れ込む。送信件数のアサーションが期待1件、実際2件で失敗する」</p><p>私はCIのログを見直した。失敗しているテストの大半が、このパターンだった。テスト間で <code>reset</code> を呼ぶ規約はあるが、全員が守っているわけではない。</p><p>「テスト間で <code>reset</code> が必要……でも、<code>reset</code> を忘れたら？」</p><p>「前の事件の証拠品が次の事件に紛れ込む。<strong>証拠品保管庫が汚染される</strong>のだよ。これがCIが30%落ちる理由だ。テストの実行順序が変われば、汚染のパターンも変わる。だからランダムに見える。だが原因は決定的だ——グローバルな状態の共有だ」</p><p>さらにもう一つ、ロックさんがホワイトボードに書き加えた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># === テストC: 依存の登録漏れ ===</span>
+</span></span><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;テストC: 依存の登録漏れ&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=nn>ServiceLocator</span><span class=o>-&gt;</span><span class=k>reset</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nn>ServiceLocator</span><span class=o>-&gt;</span><span class=n>register</span><span class=p>(</span><span class=s>&#39;pricer&#39;</span><span class=p>,</span> <span class=nn>PricingService</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=c1># validator と notifier を登録し忘れ</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$processor</span> <span class=o>=</span> <span class=nn>OrderProcessor</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>  <span class=c1># ← new は成功してしまう!</span>
+</span></span><span class=line><span class=cl>    <span class=nb>eval</span> <span class=p>{</span> <span class=nv>$processor</span><span class=o>-&gt;</span><span class=n>process</span><span class=p>(</span><span class=nv>$order</span><span class=p>)</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=n>like</span> <span class=vg>$@</span><span class=p>,</span> <span class=sx>qr/not registered/</span><span class=p>,</span> <span class=s>&#39;実行時にやっとエラー&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<code>new</code> は何の不満もなく成功する。依存が3つ足りないのに。壊れるのは <code>process</code> を呼んだ瞬間だ。つまり<strong>本番のリクエストが来るまで気づかない</strong>」</p><h2 id=依存の糸を可視化する>依存の糸を可視化する</h2><p>ロックさんがマーカーのキャップを閉じた。</p><p>「解法は単純だ。隠された依存を、光の下に引きずり出す」</p><p>ロックさんが私のエディタに手を伸ばし——私が操作するのを待たずに——<code>OrderProcessor.pm</code> を書き換え始めた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>OrderProcessor</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(InstanceOf)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>validator</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>isa</span>      <span class=o>=&gt;</span> <span class=n>InstanceOf</span><span class=p>[</span><span class=s>&#39;OrderValidator&#39;</span><span class=p>],</span>
+</span></span><span class=line><span class=cl>    <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>pricer</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>isa</span>      <span class=o>=&gt;</span> <span class=n>InstanceOf</span><span class=p>[</span><span class=s>&#39;PricingService&#39;</span><span class=p>],</span>
+</span></span><span class=line><span class=cl>    <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>notifier</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>isa</span>      <span class=o>=&gt;</span> <span class=n>InstanceOf</span><span class=p>[</span><span class=s>&#39;NotificationService&#39;</span><span class=p>],</span>
+</span></span><span class=line><span class=cl>    <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>process</span> <span class=p>($self, $order) {</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>validator</span><span class=o>-&gt;</span><span class=n>validate</span><span class=p>(</span><span class=nv>$order</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$total</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>pricer</span><span class=o>-&gt;</span><span class=n>calculate</span><span class=p>(</span><span class=nv>$order</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>notifier</span><span class=o>-&gt;</span><span class=n>send_confirmation</span><span class=p>(</span><span class=nv>$order</span><span class=p>,</span> <span class=nv>$total</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>{</span> <span class=n>order_id</span> <span class=o>=&gt;</span> <span class=nv>$order</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>id</span><span class=p>},</span> <span class=n>total</span> <span class=o>=&gt;</span> <span class=nv>$total</span><span class=p>,</span> <span class=n>status</span> <span class=o>=&gt;</span> <span class=s>&#39;processed&#39;</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<code>required</code> にするだけですか。それだけで、テストの不安定さが消えるんですか」</p><p>「ワトソン君、<code>required</code> は手段だ。本質はそこではない。<strong>依存をコンストラクタに宣言する</strong>ことで、2つの変化が起きる」</p><p>ロックさんが指を立てた。</p><p>「第一に、このクラスが何に依存しているかが、コードを読み込まなくても分かるようになる。コンストラクタの引数リストが、依頼人名簿だ」</p><p>もう一本、指を立てた。</p><p>「第二に、<strong>各テストが自分専用の依存を持つ</strong>。グローバルな共有状態がなくなる。テストAの証拠品がテストBに紛れ込むことは、構造的に起こりえなくなる」</p><p>ロックさんがテストコードを書き換えた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># === テストA: 正常系 ===</span>
+</span></span><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;テストA: 正常な注文処理&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$notifier</span> <span class=o>=</span> <span class=nn>NotificationService</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$processor</span> <span class=o>=</span> <span class=nn>OrderProcessor</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>validator</span> <span class=o>=&gt;</span> <span class=nn>OrderValidator</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>pricer</span>    <span class=o>=&gt;</span> <span class=nn>PricingService</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>tax_rate</span> <span class=o>=&gt;</span> <span class=mf>0.1</span><span class=p>),</span>
+</span></span><span class=line><span class=cl>        <span class=n>notifier</span>  <span class=o>=&gt;</span> <span class=nv>$notifier</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$result</span> <span class=o>=</span> <span class=nv>$processor</span><span class=o>-&gt;</span><span class=n>process</span><span class=p>(</span><span class=nv>$order</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>is</span> <span class=nv>$result</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>status</span><span class=p>},</span> <span class=s>&#39;processed&#39;</span><span class=p>,</span> <span class=s>&#39;注文が処理された&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span> <span class=nv>$result</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>total</span><span class=p>},</span> <span class=mi>2200</span><span class=p>,</span> <span class=s>&#39;税込金額が正しい&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span> <span class=nb>scalar</span><span class=p>(</span><span class=nv>@</span><span class=p>{</span><span class=nv>$notifier</span><span class=o>-&gt;</span><span class=n>sent_messages</span><span class=p>}),</span> <span class=mi>1</span><span class=p>,</span> <span class=s>&#39;1件送信&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># === テストB: 税率変更 — 状態汚染なし ===</span>
+</span></span><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;テストB: テスト間の独立性（税率8%）&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$notifier</span> <span class=o>=</span> <span class=nn>NotificationService</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$processor</span> <span class=o>=</span> <span class=nn>OrderProcessor</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>validator</span> <span class=o>=&gt;</span> <span class=nn>OrderValidator</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>pricer</span>    <span class=o>=&gt;</span> <span class=nn>PricingService</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>tax_rate</span> <span class=o>=&gt;</span> <span class=mf>0.08</span><span class=p>),</span>
+</span></span><span class=line><span class=cl>        <span class=n>notifier</span>  <span class=o>=&gt;</span> <span class=nv>$notifier</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$result</span> <span class=o>=</span> <span class=nv>$processor</span><span class=o>-&gt;</span><span class=n>process</span><span class=p>(</span><span class=nv>$order</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>is</span> <span class=nv>$result</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>total</span><span class=p>},</span> <span class=mi>2160</span><span class=p>,</span> <span class=s>&#39;税率8%で計算される&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span> <span class=nb>scalar</span><span class=p>(</span><span class=nv>@</span><span class=p>{</span><span class=nv>$notifier</span><span class=o>-&gt;</span><span class=n>sent_messages</span><span class=p>}),</span> <span class=mi>1</span><span class=p>,</span> <span class=s>&#39;今回のテストで1件だけ送信&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span></code></pre></td></tr></table></div></div><p>各 <code>subtest</code> が自分の <code>new</code> で依存を組み立てている。<code>ServiceLocator</code> は呼ばれていない。<code>reset</code> も不要になった。</p><p>「要するに、依存の受け渡し経路を、グローバルな帳簿からコンストラクタの引数に変えるということですか」</p><p>「正確だ。よくまとめたね、ワトソン君」</p><p>テストCに相当する確認もした。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># === テストC: 依存の不足はコンストラクタで即検知 ===</span>
+</span></span><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;テストC: 依存の不足はnew()で即検知&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=nb>eval</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=nn>OrderProcessor</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=n>pricer</span> <span class=o>=&gt;</span> <span class=nn>PricingService</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=c1># validator と notifier を渡し忘れ</span>
+</span></span><span class=line><span class=cl>        <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=n>like</span> <span class=vg>$@</span><span class=p>,</span> <span class=sx>qr/required/</span><span class=p>,</span> <span class=s>&#39;new() の時点でエラー&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>new</code> が失敗する。<code>process</code> を呼ぶ前に、構築の時点で依存不足が判明する。</p><p>「Before では <code>new</code> が素通りして <code>process</code> で爆発していました。After では <code>new</code> の時点で止まる。検知のタイミングが<strong>実行時から構築時に</strong>前倒しされた」</p><p>「そうだ。Service Locator は、壊れるべきところで壊れないシステムだった。そして壊れるべきところで壊れないシステムを、人は<strong>安全</strong>だと錯覚する」</p><p>ここで一つ、引っかかることがあった。</p><p>「依存が5つ、10個と増えたら、コンストラクタが肥大化しませんか」</p><p>ロックさんが首を傾げた。</p><p>「そのときは別の事件だ。クラスの責務が多すぎるという。コンストラクタの肥大化は、責務過多の<strong>正直な告白</strong>だよ。Service Locator は、その告白を握りつぶしていたのだ」</p><p>「つまり、<code>resolve</code> なら何個追加してもインターフェースは変わらないから、責務の膨張に気づけない。コンストラクタなら、引数が増えるたびに『多すぎる』と目に見える形で教えてくれる、ということですか」</p><p>「その通り。仲介人が告白を握りつぶすか、コンストラクタが正直に告白するか。違いはそれだけだ」</p><p>「もう一つ質問があります。DIコンテナ——Bread::Board のようなものを使えば、配線の手間をもっとスマートに管理できるのでは？」</p><p>「コンテナ自体は無罪だ。ただし、使い方を誤れば有罪になる」</p><p>ロックさんがホワイトボードに図を描いた。</p><pre class=mermaid>
+	graph LR
+    subgraph &#34;❌ Service Locator化&#34;
+        A1[クラスA] --&gt;|&#34;container-&gt;get()&#34;| C1[DIコンテナ]
+        B1[クラスB] --&gt;|&#34;container-&gt;get()&#34;| C1
+        D1[クラスC] --&gt;|&#34;container-&gt;get()&#34;| C1
+    end
+    subgraph &#34;✅ Composition Root&#34;
+        CR[エントリポイント] --&gt;|&#34;container-&gt;get()&#34;| C2[DIコンテナ]
+        CR --&gt;|完成品を渡す| A2[クラスA]
+        CR --&gt;|完成品を渡す| B2[クラスB]
+        CR --&gt;|完成品を渡す| D2[クラスC]
+    end
+</pre><p>「コンテナの <code>get()</code> をアプリケーションコードの各所で呼べば、それは Service Locator の別名だ。コンテナを使うなら <strong>Composition Root</strong> ——アプリケーションの入口、<strong>1箇所だけ</strong>。そこで全ての配線を済ませ、あとは完成品を渡す」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span><span class=lnt>9
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># Composition Root（アプリケーションのエントリポイント）</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$processor</span> <span class=o>=</span> <span class=nn>OrderProcessor</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>validator</span> <span class=o>=&gt;</span> <span class=nn>OrderValidator</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>pricer</span>    <span class=o>=&gt;</span> <span class=nn>PricingService</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>tax_rate</span> <span class=o>=&gt;</span> <span class=mf>0.1</span><span class=p>),</span>
+</span></span><span class=line><span class=cl>    <span class=n>notifier</span>  <span class=o>=&gt;</span> <span class=nn>NotificationService</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 以降は $processor を使うだけ。resolve 不要</span>
+</span></span><span class=line><span class=cl><span class=nv>$processor</span><span class=o>-&gt;</span><span class=n>process</span><span class=p>(</span><span class=nv>$order</span><span class=p>);</span>
+</span></span></code></pre></td></tr></table></div></div><p>「この形なら、DIコンテナを使っても使わなくても同じ構造になる。依存は <code>new</code> に明示され、グローバル状態はない。テストでは各テストが自分の依存を組み立てる。それだけだ」</p><h2 id=静かなグリーン>静かなグリーン</h2><p>After のテストを実行した。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>ok 1 - After: テストA - 正常な注文処理
+</span></span><span class=line><span class=cl>ok 2 - After: テストB - テスト間の独立性（税率8%）
+</span></span><span class=line><span class=cl>ok 3 - After: テストC - 依存の不足はnew()で即検知
+</span></span><span class=line><span class=cl>1..3
+</span></span></code></pre></td></tr></table></div></div><p>全件パス。赤いログが一つもない。</p><p>「CIで100回実行しても同じ結果になる、ということですか」</p><p>「そうだ。各テストが自分の依存を保持している限り、実行順序は関係ない。<strong>決定的なテスト</strong>だ」</p><p>新しい依存を追加した場合の影響を考えた。コンストラクタに引数を追加すれば、既存の呼び出し元で <code>required</code> のエラーが出る。変更の影響が、<strong>構築時に</strong>分かる。</p><p>「Service Locator だと、新しい依存を <code>resolve()</code> で追加しても呼び出し元は何も変わらないんですよね。便利に見えますが——」</p><p>「便利に見えて、変更の影響を隠している。壊れるべきところが壊れない。それは安全ではない。<strong>沈黙する警報器</strong>だよ」</p><p>「全サービスを一度にリファクタリングするのは現実的ではないのですが」</p><p>「一つずつだ。最も不安定なテストを持つクラスから始めろ。CIのログが優先順位を教えてくれる」</p><h2 id=一人の会議室>一人の会議室</h2><p>ロックさんが帰り支度を始めた。コートを羽織り、鞄にUSB顕微鏡を戻す。会議室を出る前に、プロジェクタのVGAポートに名残惜しそうな視線を送っていた。</p><p>「報酬の件ですが——」</p><p>「金は要らない。CIの安定率を90%にしたら教えてくれ。それが報酬だ」</p><p>「……変わったことを言う人ですね」</p><p>「変わっているのは私ではない。<strong>便利だという理由で依存を隠すシステム</strong>の方が、よほど変わっている」</p><p>ロックさんが会議室を出て行った。ドアが閉まり、空調の音だけが残った。</p><p>私はCIのログを閉じた。エディタを開いた。</p><p>失敗率の高いテストファイルのリストは、さっき作ったばかりだ。一番上のファイルを開く。<code>ServiceLocator->resolve</code> が3箇所。まずここからだ。</p><p><code>has</code> を3行書き、<code>required => 1</code> を付ける。<code>process</code> メソッドの中の <code>resolve</code> を <code>$self-></code> に置き換える。テストファイルを開き、<code>ServiceLocator->register</code> を消して、<code>new</code> の引数に差し替える。</p><p>小さな変更だ。ただし、変更の意味は小さくない。</p><p>依存は、見えているうちは管理できる。見えなくなった瞬間に、管理しているつもりの幻想が始まる。ちょうど、あのレジストリのように。</p><hr><h2 id=探偵の調査報告書>探偵の調査報告書</h2><div class=table-wrapper><table><thead><tr><th style=text-align:left>容疑（アンチパターン）</th><th style=text-align:left>真実（パターン）</th><th style=text-align:left>証拠（効果）</th></tr></thead><tbody><tr><td style=text-align:left>Service Locator（グローバルレジストリ）</td><td style=text-align:left>コンストラクタインジェクション</td><td style=text-align:left>依存関係がコンストラクタで明示される</td></tr><tr><td style=text-align:left>暗黙的依存（<code>resolve</code> で動的取得）</td><td style=text-align:left><code>has</code> + <code>required => 1</code></td><td style=text-align:left>依存不足が構築時に検知される</td></tr><tr><td style=text-align:left>テスト間の状態汚染（共有 <code>%services</code>）</td><td style=text-align:left>各テストが独自の依存を保持</td><td style=text-align:left>テスト実行順序に依存しない決定的テスト</td></tr><tr><td style=text-align:left>沈黙する警報器（依存追加が非破壊的）</td><td style=text-align:left>コンストラクタ引数の増加</td><td style=text-align:left>変更の影響が構築時に明示される</td></tr></tbody></table></div><h3 id=推理のステップ>推理のステップ</h3><ol><li><strong>Service Locator の特定</strong>: グローバルな <code>my %services</code> を持つモジュールが、全サービスの依存解決に使われていないか確認する</li><li><strong>暗黙的依存の洗い出し</strong>: <code>resolve()</code> を呼んでいるクラスのメソッドを調べ、本当に必要な依存のリストを作る</li><li><strong>コンストラクタへの移行</strong>: 各依存を <code>has</code> 属性として宣言し、<code>required => 1</code> を付ける。<code>isa</code> による型制約も追加する</li><li><strong><code>resolve</code> の置き換え</strong>: メソッド内の <code>ServiceLocator->resolve('xxx')</code> を <code>$self->xxx</code> に置き換える</li><li><strong>テストの書き換え</strong>: <code>ServiceLocator->register</code> と <code>reset</code> を削除し、各テストで <code>new</code> に依存を直接渡す</li><li><strong>Composition Root の設定</strong>: アプリケーションのエントリポイント1箇所で、全依存を組み立てて渡す</li></ol><h3 id=ロックより>ロックより</h3><p>便利な仲介人は、最初は歓迎される。誰でも預けられ、誰でも引き出せる。チーム全員がそれを「共通基盤」と呼び、設計の一部だと信じている。</p><p>だがその利便性の裏側で、依存関係は帳簿の奥に沈んでいく。テストは夜ごとに不安定になり、新しい機能を追加するたびに、どこかで見覚えのないエラーが顔を出す。</p><p>便利な仲介人を追放せよ。コンストラクタに真実を語らせるのだ。コードが正直であること——それが最も確実な安定性である。</p></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/perl/>Perl</a>
+<a href=/tags/moo/>Moo</a>
+<a href=/tags/service-locator/>Service-Locator</a>
+<a href=/tags/dependency-injection/>Dependency-Injection</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-detective/>Code-Detective</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/04/15/070705/><div class=article-image><img src=/public_images/2026/code-detective-registry/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-registry/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Registry】三者面談〜DI信者が見落とした「正しい棚」の使い方〜</h2></div></a></article><article class=has-image><a href=/2026/04/14/070705/><div class=article-image><img src=/public_images/2026/code-detective-dependency-injection/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-dependency-injection/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Dependency Injection】密室の new〜依存を手渡す者が扉を開く〜</h2></div></a></article><article class=has-image><a href=/2026/03/12/070705/><div class=article-image><img src=/public_images/2026/code-detective-singleton/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-singleton/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Singleton／DI】便利すぎる万能薬の副作用〜消えた証拠〜</h2></div></a></article><article class=has-image><a href=/2026/05/24/070705/><div class=article-image><img src=/public_images/2026/code-bartender-service-locator/header.webp loading=lazy data-key data-hash=/public_images/2026/code-bartender-service-locator/header.webp></div><div class=article-details><h2 class=article-title>コードバーテンダー【Service Locator】隠し味を誰も知らない〜記録なき秘伝〜</h2></div></a></article><article class=has-image><a href=/2026/05/15/070705/><div class=article-image><img src=/public_images/2026/code-detective-bff/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-bff/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Backends for Frontends】最後の依頼〜一つの答えが全員を不満にする夜〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

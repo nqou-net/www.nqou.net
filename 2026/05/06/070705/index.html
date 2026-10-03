@@ -1,0 +1,375 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="全機能が共有するDBコネクションプールでバッチ暴走→全サービス停止。Bulkheadで機能別にリソースを隔離し、一区画の障害が全体に波及しない設計をPerl/Mooで実装。"><title>コード探偵ロックの事件簿【Bulkhead】全館停電の共犯者〜沈まない船の設計図〜</title><link rel=canonical href=https://www.nqou.net/2026/05/06/070705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コード探偵ロックの事件簿【Bulkhead】全館停電の共犯者〜沈まない船の設計図〜"><meta property='og:description' content="全機能が共有するDBコネクションプールでバッチ暴走→全サービス停止。Bulkheadで機能別にリソースを隔離し、一区画の障害が全体に波及しない設計をPerl/Mooで実装。"><meta property='og:url' content='https://www.nqou.net/2026/05/06/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='perl'><meta property='article:tag' content='moo'><meta property='article:tag' content='bulkhead'><meta property='article:tag' content='shared-resource-pool'><meta property='article:tag' content='resilience'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-detective'><meta property='article:published_time' content='2026-05-06T07:07:05+09:00'><meta property='article:modified_time' content='2026-05-06T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-detective-bulkhead/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コード探偵ロックの事件簿【Bulkhead】全館停電の共犯者〜沈まない船の設計図〜"><meta name=twitter:description content="全機能が共有するDBコネクションプールでバッチ暴走→全サービス停止。Bulkheadで機能別にリソースを隔離し、一区画の障害が全体に波及しない設計をPerl/Mooで実装。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-detective-bulkhead/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-05-06T07:07:05+09:00","datePublished":"2026-05-06T07:07:05+09:00","description":"全機能が共有するDBコネクションプールでバッチ暴走→全サービス停止。Bulkheadで機能別にリソースを隔離し、一区画の障害が全体に波及しない設計をPerl/Mooで実装。","headline":"コード探偵ロックの事件簿【Bulkhead】全館停電の共犯者〜沈まない船の設計図〜","image":"https://www.nqou.net/public_images/2026/code-detective-bulkhead/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/05/06/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#怪しい看板の3階>怪しい看板の3階</a></li><li><a href=#隔壁のない船>隔壁のない船</a><ol><li><a href=#beforeコード-全機能が共有するコネクションプール>Beforeコード: 全機能が共有するコネクションプール</a></li></ol></li><li><a href=#沈まない船の設計図>沈まない船の設計図</a><ol><li><a href=#rate-limitingとの違い>Rate Limitingとの違い</a></li><li><a href=#afterコード-bulkheadクラス>Afterコード: Bulkheadクラス</a></li><li><a href=#bulkheadregistry>BulkheadRegistry</a></li><li><a href=#隔壁の粒度>隔壁の粒度</a></li><li><a href=#即時拒否の原則>即時拒否の原則</a></li><li><a href=#afterコード-機能別bulkheadで隔離>Afterコード: 機能別Bulkheadで隔離</a></li><li><a href=#バッチの失敗とビジネス判断>バッチの失敗とビジネス判断</a></li></ol></li><li><a href=#水密区画の完成>水密区画の完成</a></li><li><a href=#報酬>報酬</a></li><li><a href=#探偵の調査報告書>探偵の調査報告書</a><ol><li><a href=#推理のステップ>推理のステップ</a></li><li><a href=#ロックより>ロックより</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/05/06/070705/><img src=/public_images/2026/code-detective-bulkhead/header.webp loading=lazy alt="Featured image of post コード探偵ロックの事件簿【Bulkhead】全館停電の共犯者〜沈まない船の設計図〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/05/06/070705/>コード探偵ロックの事件簿【Bulkhead】全館停電の共犯者〜沈まない船の設計図〜</a></h2><h3 class=article-subtitle>全機能が共有するDBコネクションプールでバッチ暴走→全サービス停止。Bulkheadで機能別にリソースを隔離し、一区画の障害が全体に波及しない設計をPerl/Mooで実装。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>06, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 15分</time></div></footer></div></header><section class=article-content><h2 id=怪しい看板の3階>怪しい看板の3階</h2><p>火曜日の午後2時。都内の雑居ビル。</p><p>スマホの地図アプリと、Slackのスクリーンショットを交互に見ながら、狭い階段を上がった。2週間前、社内Slackの#tech-helpチャンネルに流れた匿名の投稿。「レガシーコードの構造問題ならLCIに相談してみてください。雑居ビルの3階、怪しい看板のところです。腕は確かです」。投稿者は不明。「レガシー・コード・インベスティゲーション」でGoogle検索したら、住所と「コード問題、解決します。LCI」だけの簡素なウェブサイトが出てきた。</p><p>2階の踊り場を過ぎた。3階に小さなプレートが1枚。「レガシー・コード・インベスティゲーション（LCI）」。看板というより表札。</p><p>——本当に怪しい。</p><p>ドアの前に立つ。ノックした。返答がない。もう一度ノックする。</p><p>中から低い声。「……開いているよ」</p><p>ドアを開けた。まず匂い。接着剤の有機溶剤と、甘ったるいエナジードリンク。デスクにモニタが3台。足元にエナジードリンク缶が積み上がっている。ホワイトボードに何か書いてあるが、ドアからでは読めない。</p><p>デスクの端で——男が椅子に座り、木製の帆船模型を組み立てていた。右手にピンセット、左手に薄い木の板。木くずが散っている。</p><p>「……隔壁が合わないな。0.3ミリ厚すぎる」</p><p>わたしのことは見ていない。</p><p>「あの——Slackで紹介されて来たんですが。LCIの——」</p><p>男がようやく顔を上げた。わたしを見る。2秒。それから椅子を回した。</p><p>「ワトソン君。遅かったね」</p><p>「——え？」</p><p>「座りたまえ」</p><p>「……わたし、ワトソンではないんですが」</p><p>完全に無視された。椅子を指している。</p><p>2秒待った。反応はない。……まあいいか。訂正しても聞いていないし。争うほどのことではない。</p><p>椅子に座る。鞄からノートPCと方眼ノートを取り出した。</p><p>「ロック……さん、ですか？」</p><p>「ロックだ。探偵だ」</p><p>探偵。一瞬ノートPCの手が止まった。処理して、流した。</p><p>「先月末、うちのECサイトが30分間止まりました」</p><p>ノートPCを開いた。自分で描いたシステム構成図を映す。3つの機能——注文API、商品検索API、レポートバッチ——が1つのDBコネクションプール（max: 20）から矢印で接続されている。手描き。色分けしてある。</p><p>「月末のレポートバッチが走ったら、注文も検索も全部止まりました。原因はコネクションプールの枯渇です。バッチが20本中15本を占有して」</p><p>ロックさんは図を覗き込んでいた。同時に手元の船模型をいじっている。集中していないように見えるが——どうだろう。</p><p>「コネクションプールの上限が20で、バッチが15本使うと残りが5本。秒間80リクエストを5本では捌けません」</p><p>ロックさんが船模型の部品を置いた。構成図を見ている。</p><p>「20本のコネクション。注文、検索、バッチ。——全員が同じ部屋にいるわけだ」</p><p>「はい。バッチの同時実行数を減らせば当面は凌げますが——」</p><p>「対症療法だ。バッチの数を減らしても、部屋は1つのままだ。別の何かが暴走すれば、また全員が道連れになる」</p><p>少し間を置いた。</p><p>「……はい。それで、根本的にどうすればいいのかがわからなくて」</p><h2 id=隔壁のない船>隔壁のない船</h2><p>ロックさんが船模型の船体を持ち上げた。わたしに見せる。船体の内部は1つの空洞。仕切りがない。</p><p>「これを見たまえ。この船には、まだ隔壁が入っていない。船体の中は1つの空間だ。——もし、ここに穴が開いたら？」</p><p>「水が入って……全体が沈みます」</p><p>「君のシステムは——この船だ。20本のコネクションが1つの部屋にある。1つの機能が暴走すれば、全員が溺れる」</p><p>ノートPCで現在のコードを見せた。</p><h3 id=beforeコード-全機能が共有するコネクションプール>Beforeコード: 全機能が共有するコネクションプール</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>AppService</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(InstanceOf)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>connection_pool</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>isa</span>      <span class=o>=&gt;</span> <span class=n>InstanceOf</span><span class=p>[</span><span class=s>&#39;ConnectionPool&#39;</span><span class=p>],</span>
+</span></span><span class=line><span class=cl>    <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>process_order</span> <span class=p>($self, $order) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$conn</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>connection_pool</span><span class=o>-&gt;</span><span class=n>get_connection</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$result</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_execute_order</span><span class=p>(</span><span class=nv>$conn</span><span class=p>,</span> <span class=nv>$order</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>connection_pool</span><span class=o>-&gt;</span><span class=n>release</span><span class=p>(</span><span class=nv>$conn</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$result</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>search_products</span> <span class=p>($self, $query) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$conn</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>connection_pool</span><span class=o>-&gt;</span><span class=n>get_connection</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$result</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_execute_search</span><span class=p>(</span><span class=nv>$conn</span><span class=p>,</span> <span class=nv>$query</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>connection_pool</span><span class=o>-&gt;</span><span class=n>release</span><span class=p>(</span><span class=nv>$conn</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$result</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>generate_report</span> <span class=p>($self, $params) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$conn</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>connection_pool</span><span class=o>-&gt;</span><span class=n>get_connection</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$result</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_execute_report</span><span class=p>(</span><span class=nv>$conn</span><span class=p>,</span> <span class=nv>$params</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>connection_pool</span><span class=o>-&gt;</span><span class=n>release</span><span class=p>(</span><span class=nv>$conn</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$result</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>3つの機能が、すべて同じ<code>connection_pool</code>からコネクションを取得している。壁がない。1つの船体に穴が開いたら、全部が沈む構造。</p><p>方眼ノートに図を描いた。1つの大きな四角——コネクションプール:20——に、3つの矢印が入っている。バッチの矢印だけ太くした。接続を大量に使うから。</p><p>「レポート1件で平均5秒。月末に50件が並行で走ると——」</p><p>「15本のコネクションが5秒間占有される。その間に来た注文リクエストは——5本のコネクションの空き待ちだ」</p><p>「コネクション取得のタイムアウトが60秒に設定してあって——」</p><p>「60秒待って、結局取れなければ503。——ワトソン君、60秒は長い」</p><p>「……はい。その60秒の間に新しいリクエストがさらに溜まって——」</p><p>「雪崩だ」</p><p>30分の全館停電。社長がSlackに「EC止まってるぞ」と書き込んだのを見て、わたしがバッチをkillして仮復旧した。あの30分間のことを考えると、声が固くなる。</p><h2 id=沈まない船の設計図>沈まない船の設計図</h2><p>ロックさんがピンセットで薄い木の板を1枚取った。接着剤を塗り、船体の内側に嵌める。</p><p>「この1枚の板が——隔壁だ。これで、船体が2つの部屋に分かれた」</p><p>「図にしていいですか？」</p><p>ノートを取り出した。</p><p>「コネクションプールを分ける……ということですか」</p><p>3つのプールに分けた図を描いた。注文API:8本、検索API:8本、バッチ:4本。合計20本。——描いた後、自分の図を見て眉をひそめた。</p><p>「でも、分けたら全体の効率が落ちませんか？ バッチが走らない日は4本が遊んでいます。注文が混んでも使えない」</p><p>ロックさんが船模型を置いた。</p><p>「船の隔壁も、貨物室の容積を減らす。隔壁の板の分だけ、荷物が積めなくなる。——しかし、ワトソン君。1箇所の穴で船を失うのと、貨物室が少し狭くなるのと、どちらが高くつく？」</p><p>3秒の沈黙。図を見ている。</p><p>「……30分の全館停電の方が、はるかに高いです」</p><p>「そうだ。Bulkheadの本質は——<strong>効率を少し犠牲にして、壊滅を防ぐ</strong>ことだ。完璧な効率は、完璧な脆さの裏返しでもある」</p><h3 id=rate-limitingとの違い>Rate Limitingとの違い</h3><p>ロックさんがBulkheadのコード概念を説明している間に、ノートに「セマフォ」と書いた。その横に「Rate Limiting?」と疑問符付きで。</p><p>「ロックさん、1つ聞いていいですか。これは……セマフォですよね？ コネクションの数を数えて、上限に達したら止める。Rate Limitingとは違うんですか？」</p><p>ロックさんが椅子を少し回した。</p><p>「いい質問だ。——Rate Limitingは『入口の門番』だ。1秒間に何人入れるかを制御する。時間あたりの流量の制限」</p><p>「Bulkheadは？」</p><p>「Bulkheadは『部屋の壁』だ。入ってきた人を、どの部屋にどれだけ入れるかを制御する。同時に存在できる数の制限」</p><p>ノートに描いた。入口に門番、中に壁。</p><p>「門番は……入る速度を制御。壁は……中の配分を制御」</p><p>「そうだ。門番がいても、壁がなければ——全員が同じ部屋に殺到する。壁があっても、門番がいなければ——際限なく人が入ってきて、全ての部屋が溢れる」</p><p>図を見ている。ゆっくりと。</p><p>「……両方要る、ということですか」</p><p>「二重の防衛線だ。入口と内部。——どちらか一方では足りない」</p><h3 id=afterコード-bulkheadクラス>Afterコード: Bulkheadクラス</h3><p>ロックさんがホワイトボードに向かった。コードを書き始める。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span><span class=lnt>51
+</span><span class=lnt>52
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Bulkhead</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(Int Str)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Carp</span> <span class=sx>qw(croak)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>name</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>isa</span>      <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>max_concurrent</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>isa</span>      <span class=o>=&gt;</span> <span class=n>Int</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>_active_count</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>      <span class=o>=&gt;</span> <span class=s>&#39;rw&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>isa</span>     <span class=o>=&gt;</span> <span class=n>Int</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>default</span> <span class=o>=&gt;</span> <span class=mi>0</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>execute</span> <span class=p>($self, $code) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_active_count</span> <span class=o>&gt;=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>max_concurrent</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>croak</span> <span class=nb>sprintf</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=s>&#34;Bulkhead &#39;%s&#39; is full (%d/%d)&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>name</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_active_count</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>max_concurrent</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_active_count</span><span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_active_count</span> <span class=o>+</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$result</span> <span class=o>=</span> <span class=nb>eval</span> <span class=p>{</span> <span class=nv>$code</span><span class=o>-&gt;</span><span class=p>()</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$err</span> <span class=o>=</span> <span class=vg>$@</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_active_count</span><span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_active_count</span> <span class=o>-</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>croak</span> <span class=nv>$err</span> <span class=k>if</span> <span class=nv>$err</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$result</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>available</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>max_concurrent</span> <span class=o>-</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_active_count</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>is_full</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_active_count</span> <span class=o>&gt;=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>max_concurrent</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「図にしていいですか？」</p><p>ノートにBulkheadオブジェクトの箱を描いた。中に「max: 8」「active: 3」と書く。「あと5本空いている」。</p><p><code>execute()</code>の中身を追った。呼ばれるとまずカウンタをチェックする。上限に達していたら即座に<code>croak</code>——例外を投げる。達していなければカウンタを+1して、渡されたコードを実行する。<code>eval</code>で包んでいるから、コード内で例外が発生しても必ずカウンタを-1してから再送出する。リソースのリークがない。</p><h3 id=bulkheadregistry>BulkheadRegistry</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>BulkheadRegistry</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(HashRef InstanceOf)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Carp</span> <span class=sx>qw(croak)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>_bulkheads</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>      <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>isa</span>     <span class=o>=&gt;</span> <span class=n>HashRef</span><span class=p>[</span><span class=n>InstanceOf</span><span class=p>[</span><span class=s>&#39;Bulkhead&#39;</span><span class=p>]],</span>
+</span></span><span class=line><span class=cl>    <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=p>{}</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>register</span> <span class=p>($self, %args) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$name</span> <span class=o>=</span> <span class=nv>$args</span><span class=p>{</span><span class=n>name</span><span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=sr>//</span> <span class=n>croak</span> <span class=s>&#34;Bulkhead name is required&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>croak</span> <span class=s>&#34;Bulkhead &#39;$name&#39; already registered&#34;</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=nb>exists</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>_bulkheads</span><span class=o>-&gt;</span><span class=p>{</span><span class=nv>$name</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$bulkhead</span> <span class=o>=</span> <span class=nn>Bulkhead</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=nv>%args</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>_bulkheads</span><span class=o>-&gt;</span><span class=p>{</span><span class=nv>$name</span><span class=p>}</span> <span class=o>=</span> <span class=nv>$bulkhead</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$bulkhead</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>get</span> <span class=p>($self, $name) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>_bulkheads</span><span class=o>-&gt;</span><span class=p>{</span><span class=nv>$name</span><span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=sr>//</span> <span class=n>croak</span> <span class=s>&#34;Unknown bulkhead: &#39;$name&#39;&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「Registryがあると、機能名で引けるんですね。注文は注文用、検索は検索用……」</p><p>ロックさんがうなずいた。</p><h3 id=隔壁の粒度>隔壁の粒度</h3><p>ノートの図を発展させた。3つのプール（注文/検索/バッチ）を描いた後、注文APIの中をさらに分割する線を描きかけて、手を止めた。</p><p>「隔壁の粒度はどう決めるんですか？ いま3つに分けましたけど——注文APIの中でも、決済呼び出しと在庫照会は分けた方がいいですか？」</p><p>「ワトソン君、船の話をしよう。タイタニック号を知っているね？」</p><p>「……隔壁があったのに沈んだ船、ですか」</p><p>「16の水密区画があった。設計上は4区画の浸水に耐えられるはずだった。——しかし氷山は6区画を破った。隔壁の上端が低すぎて、1つの区画から次の区画へ水が溢れた」</p><p>「隔壁が多ければ安全というわけではない……」</p><p>「逆もまた真だ。隔壁が少なすぎれば、1室の浸水で沈む。——粒度の正解は、<strong>障害の影響範囲</strong>で決める」</p><p>ノートに戻る。</p><p>「注文APIの中で、決済と在庫照会を分ける必要があるかどうかは——」</p><p>「どちらかが遅延したとき、もう一方を巻き添えにしたくないなら、分ける。巻き添えでも許容できるなら、分けない。——ビジネスの判断だ」</p><p>「決済が止まるのと、在庫照会が止まるのとでは……決済が止まる方が致命的です」</p><p>「ならば決済は独立した隔壁を持つべきだ。在庫照会は注文APIの残りと同居でもいい。——隔壁の数は、<strong>守りたいものの数</strong>で決まる」</p><h3 id=即時拒否の原則>即時拒否の原則</h3><p>「制限に達したらどうなるんですか？ 処理を待たせますか？ 即座に断りますか？」</p><p>「2つの方針がある。ワトソン君、ノートに描きたまえ」</p><p>素直にペンを取った。</p><p>「1つ目:即座に拒否。Bulkheadが満杯なら、リクエストを例外で返す。呼び出し元はすぐに別の手を打てる」</p><p>描きながら、口が先に動いた。</p><p>「待ち時間ゼロ。でも、一時的なピークでも容赦なく弾く……」</p><p>「2つ目:一定時間だけ待つ。Bulkheadに空きが出るまで最大N秒待つ。空きが出なければ拒否」</p><p>「待つ場合……スレッドが待機している間、そのスレッド自体がリソースを消費しますよね。Bulkheadで守ろうとしているリソースとは別の場所でリソースが詰まる」</p><p>ロックさんが少しだけ目を見開いた。すぐに戻った。</p><p>「……そうだ。待機そのものがリソースを消費する。隔壁の手前に行列ができて、その行列がシステムを圧迫する——本末転倒だ」</p><p>「じゃあ、即座に拒否が基本で——待つのは特殊なケースだけ、ですか」</p><p>「正解だ。隔壁の原則は<strong>速やかな失敗</strong>。空きがなければ即座に『ここは満室だ』と断る。——断り方さえ誠実であれば、客は別の店に行ける」</p><h3 id=afterコード-機能別bulkheadで隔離>Afterコード: 機能別Bulkheadで隔離</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>AppService</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(InstanceOf)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>connection_pool</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>isa</span>      <span class=o>=&gt;</span> <span class=n>InstanceOf</span><span class=p>[</span><span class=s>&#39;ConnectionPool&#39;</span><span class=p>],</span>
+</span></span><span class=line><span class=cl>    <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>bulkhead_registry</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>isa</span>      <span class=o>=&gt;</span> <span class=n>InstanceOf</span><span class=p>[</span><span class=s>&#39;BulkheadRegistry&#39;</span><span class=p>],</span>
+</span></span><span class=line><span class=cl>    <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>process_order</span> <span class=p>($self, $order) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$bulkhead</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>bulkhead_registry</span><span class=o>-&gt;</span><span class=n>get</span><span class=p>(</span><span class=s>&#39;order&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$bulkhead</span><span class=o>-&gt;</span><span class=n>execute</span><span class=p>(</span><span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$conn</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>connection_pool</span><span class=o>-&gt;</span><span class=n>get_connection</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$result</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_execute_order</span><span class=p>(</span><span class=nv>$conn</span><span class=p>,</span> <span class=nv>$order</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>connection_pool</span><span class=o>-&gt;</span><span class=n>release</span><span class=p>(</span><span class=nv>$conn</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$result</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>search_products</span> <span class=p>($self, $query) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$bulkhead</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>bulkhead_registry</span><span class=o>-&gt;</span><span class=n>get</span><span class=p>(</span><span class=s>&#39;search&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$bulkhead</span><span class=o>-&gt;</span><span class=n>execute</span><span class=p>(</span><span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$conn</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>connection_pool</span><span class=o>-&gt;</span><span class=n>get_connection</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$result</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_execute_search</span><span class=p>(</span><span class=nv>$conn</span><span class=p>,</span> <span class=nv>$query</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>connection_pool</span><span class=o>-&gt;</span><span class=n>release</span><span class=p>(</span><span class=nv>$conn</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$result</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>generate_report</span> <span class=p>($self, $params) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$bulkhead</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>bulkhead_registry</span><span class=o>-&gt;</span><span class=n>get</span><span class=p>(</span><span class=s>&#39;batch&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$bulkhead</span><span class=o>-&gt;</span><span class=n>execute</span><span class=p>(</span><span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$conn</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>connection_pool</span><span class=o>-&gt;</span><span class=n>get_connection</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$result</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_execute_report</span><span class=p>(</span><span class=nv>$conn</span><span class=p>,</span> <span class=nv>$params</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>connection_pool</span><span class=o>-&gt;</span><span class=n>release</span><span class=p>(</span><span class=nv>$conn</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$result</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>各メソッドが最初にやることが変わった。<code>connection_pool->get_connection</code>ではなく、<code>bulkhead_registry->get('order')</code>。まずBulkheadを取得し、その<code>execute()</code>の中でコネクションを使う。バッチ用Bulkheadが4接続の上限に達しても、注文用Bulkheadの8接続は無傷。隔壁が浸水を閉じ込めている。</p><h3 id=バッチの失敗とビジネス判断>バッチの失敗とビジネス判断</h3><p>ノートの図を見返した。バッチ用Bulkhead——4接続。</p><p>「Bulkheadで隔離すれば、バッチの暴走は注文APIに影響しなくなる。——でも、バッチ自体が失敗するのは許容していいんですか？」</p><p>「全館停電で全レポートが生成されないのと、4接続の範囲内で優先度の高いレポートだけ先に生成されるのと——どちらが望ましい？」</p><p>「……後者です。でも、それは——」</p><p>「技術の問題ではなく？」</p><p>「経理チームと話す必要があります。どのレポートを先に出すか、優先順位を決めないと」</p><p>「Bulkheadは壁を立てるだけだ。壁の向こうに何を入れるかは——」</p><p>「ビジネスが決める」</p><p>ロックさんが船模型の隔壁を1枚嵌めた。</p><p>「そうだ」</p><pre class=mermaid>
+	classDiagram
+    class Bulkhead {
+        -String name
+        -Int max_concurrent
+        -Int _active_count
+        +execute(CodeRef code) Any
+        +available() Int
+        +is_full() Bool
+    }
+
+    class BulkheadRegistry {
+        -HashRef~Bulkhead~ _bulkheads
+        +register(name, max_concurrent) Bulkhead
+        +get(String name) Bulkhead
+    }
+
+    class App_Service {
+        -ConnectionPool connection_pool
+        -BulkheadRegistry bulkhead_registry
+        +process_order(order) Result
+        +search_products(query) Result
+        +generate_report(params) Result
+    }
+
+    BulkheadRegistry &#34;1&#34; --&gt; &#34;*&#34; Bulkhead : manages
+    App_Service --&gt; BulkheadRegistry : uses
+    App_Service --&gt; Bulkhead : executes through
+</pre><h2 id=水密区画の完成>水密区画の完成</h2><p>ロックさんが船模型に最後の隔壁を嵌め終えた。机に置く。3つの区画が隔壁で仕切られている。</p><p>「ワトソン君。この船は——もう1箇所の穴では沈まない」</p><p>自分のノートの図を見た。3つのBulkheadで区切られたシステム構成図。</p><p>「わたしのシステムも……バッチが暴走しても、注文と検索は止まらない」</p><p>「ただし——」</p><p>「隔壁だけでは完全ではない……ですよね。隔壁の中でリソースが枯渇したら、Circuit Breakerで遮断して。入口にはRate Limitingで流量を制御して」</p><p>ロックさんがわたしを見た。船模型から手を離す。</p><p>「——そうだ」</p><p>少し驚いたように見えた。わたしが自分で言ったからだろうか。Slackで見かけた「Rate Limiting」の話と、今日学んだBulkhead。入口の門番と、内部の壁。2つで1組の防衛線——。</p><p>「ワトソン君」</p><p>「はい」</p><p>——あれ、今「はい」と答えた。……まあ、いいか。</p><h2 id=報酬>報酬</h2><p>荷物をまとめた。立ち上がる。</p><p>「ロックさん、あの——お代というか、報酬は……」</p><p>ロックさんが船模型の横に置いてある接着剤のチューブを手に取った。</p><p>「これだ。このエポキシ樹脂——木と木を分子レベルで結合させる。二度と離れない。いい接着剤だ」</p><p>「……接着剤、ですか」</p><p>「同じものを1本。次に来るときに持ってきたまえ」</p><p>鞄にノートPCをしまいながら、接着剤のメーカー名と品番をスマホで撮影した。</p><p>「……わかりました」</p><p>報酬が接着剤。Slackの投稿者は「腕は確か」とは言っていたが、「変な人」とは言っていなかった。いや——「怪しい看板」とは言っていたか。</p><p>ドアを開けて廊下に出た。振り返らない。</p><p>階段を降りながら、スマホのノートアプリを開く。今日描いた図の写真を見返した。3つのBulkheadで区切られたシステム構成図。その横に、指でメモを書き足す。「Rate Limiting — 入口の門番?」。ロックさんが最後に言った「二重の防衛線」のことが気になっている。</p><p>雑居ビルの出口を出た。4月の午後の日差し。スマホをポケットにしまい、会社に戻る方向に歩き出す。</p><p>月末まであと3週間。今度の月末は——全館停電にはならない。</p><hr><h2 id=探偵の調査報告書>探偵の調査報告書</h2><div class=table-wrapper><table><thead><tr><th style=text-align:left>容疑（アンチパターン）</th><th style=text-align:left>真実（パターン）</th><th style=text-align:left>証拠（効果）</th></tr></thead><tbody><tr><td style=text-align:left>全機能が共有するリソースプール</td><td style=text-align:left>Bulkhead（機能別リソース隔離）</td><td style=text-align:left>1機能の暴走が他機能を道連れにしない</td></tr><tr><td style=text-align:left>粒度を考慮しない隔壁設計</td><td style=text-align:left>障害影響範囲に基づく粒度決定</td><td style=text-align:left>守るべきものの数で隔壁数を決める</td></tr><tr><td style=text-align:left>制限到達時の無限待機</td><td style=text-align:left>即時拒否（Fail Fast）</td><td style=text-align:left>待機によるリソース消費の二次被害を防ぐ</td></tr><tr><td style=text-align:left>隔壁単独での過信</td><td style=text-align:left>CB + Rate Limiting との組み合わせ</td><td style=text-align:left>入口の門番と内部の壁で二重の防衛線</td></tr></tbody></table></div><h3 id=推理のステップ>推理のステップ</h3><ol><li><strong>共有リソースプールの特定</strong> — 全機能が同一のDBコネクションプールを使っていないか確認する</li><li><strong>機能ごとの使用量調査</strong> — 各機能が通常時・ピーク時にどれだけリソースを消費するか把握する</li><li><strong>Bulkheadオブジェクトの設計</strong> — <code>name</code>（機能名）と<code>max_concurrent</code>（最大同時実行数）を持つMooクラスを作成する</li><li><strong>BulkheadRegistryの導入</strong> — 複数のBulkheadを名前で管理する仕組みを作る</li><li><strong>粒度の決定</strong> — 「この機能が止まったとき、他の何を巻き添えにしたくないか」をビジネス観点で判断する</li><li><strong>制限到達時の振る舞い決定</strong> — 即時拒否を基本とし、呼び出し元で適切にエラーハンドリングする</li><li><strong>他のパターンとの組み合わせ検討</strong> — Circuit Breaker（障害検出・遮断）、Rate Limiting（入口の流量制御）との多層防衛</li></ol><h3 id=ロックより>ロックより</h3><p>隔壁のない船は、たった1つの穴で沈む。だが、隔壁を入れた船は——穴が開いた区画だけが水を受け入れ、残りの区画は浮力を保つ。</p><p>君のシステムも同じだ。全てのリソースを1つの部屋に入れている限り、1つの暴走が全てを道連れにする。壁を立てたまえ。完璧な効率を手放す代わりに、壊滅しないシステムを手に入れるんだ。</p><p>それから——壁を立てたら、入口の門番のことも忘れないでくれたまえ。壁だけでは、際限なく人が入ってきて、全ての部屋が溢れる。内部の壁と入口の門番。二重の防衛線が、船を浮かせ続ける。</p></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/perl/>Perl</a>
+<a href=/tags/moo/>Moo</a>
+<a href=/tags/bulkhead/>Bulkhead</a>
+<a href=/tags/shared-resource-pool/>Shared-Resource-Pool</a>
+<a href=/tags/resilience/>Resilience</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-detective/>Code-Detective</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/05/07/070705/><div class=article-image><img src=/public_images/2026/code-detective-object-pool/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-object-pool/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Object Pool】使い捨ての代償〜借りて返す資源管理術〜</h2></div></a></article><article class=has-image><a href=/2026/05/05/070705/><div class=article-image><img src=/public_images/2026/code-detective-rate-limiting/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-rate-limiting/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Rate Limiting】行列のない受付〜防波堤なきAPIの崩壊〜</h2></div></a></article><article class=has-image><a href=/2026/05/04/070705/><div class=article-image><img src=/public_images/2026/code-detective-fallback/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-fallback/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Fallback Pattern】最後の砦〜優雅に壊れる技術〜</h2></div></a></article><article class=has-image><a href=/2026/05/03/070705/><div class=article-image><img src=/public_images/2026/code-detective-timeout/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-timeout/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Timeout】永遠の待ち人〜待たない勇気という防衛線〜</h2></div></a></article><article class=has-image><a href=/2026/05/02/070705/><div class=article-image><img src=/public_images/2026/code-detective-retry/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-retry/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Retry Pattern】嵐を呼ぶリトライ〜指数バックオフという礼儀作法〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

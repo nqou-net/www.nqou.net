@@ -1,0 +1,393 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="帳票×出力形式のif-elsif連鎖でCSV出力に発注書の分岐漏れが発生。Double Dispatchのaccept/visit二段構えとMoo::Role requiresで追加漏れをクラス構築時に検出する実装を解説。"><title>コード探偵ロックの事件簿【Double Dispatch】消えた発注書〜型の組み合わせが生んだ空白〜</title><link rel=canonical href=https://www.nqou.net/2026/04/27/070705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コード探偵ロックの事件簿【Double Dispatch】消えた発注書〜型の組み合わせが生んだ空白〜"><meta property='og:description' content="帳票×出力形式のif-elsif連鎖でCSV出力に発注書の分岐漏れが発生。Double Dispatchのaccept/visit二段構えとMoo::Role requiresで追加漏れをクラス構築時に検出する実装を解説。"><meta property='og:url' content='https://www.nqou.net/2026/04/27/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='perl'><meta property='article:tag' content='moo'><meta property='article:tag' content='double-dispatch'><meta property='article:tag' content='type-checking-chain'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-detective'><meta property='article:published_time' content='2026-04-27T07:07:05+09:00'><meta property='article:modified_time' content='2026-04-27T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-detective-double-dispatch/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コード探偵ロックの事件簿【Double Dispatch】消えた発注書〜型の組み合わせが生んだ空白〜"><meta name=twitter:description content="帳票×出力形式のif-elsif連鎖でCSV出力に発注書の分岐漏れが発生。Double Dispatchのaccept/visit二段構えとMoo::Role requiresで追加漏れをクラス構築時に検出する実装を解説。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-detective-double-dispatch/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-04-27T07:07:05+09:00","datePublished":"2026-04-27T07:07:05+09:00","description":"帳票×出力形式のif-elsif連鎖でCSV出力に発注書の分岐漏れが発生。Double Dispatchのaccept/visit二段構えとMoo::Role requiresで追加漏れをクラス構築時に検出する実装を解説。","headline":"コード探偵ロックの事件簿【Double Dispatch】消えた発注書〜型の組み合わせが生んだ空白〜","image":"https://www.nqou.net/public_images/2026/code-detective-double-dispatch/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/04/27/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#空欄だらけの表>空欄だらけの表</a></li><li><a href=#型を尋問する共犯者たち>型を尋問する共犯者たち</a></li><li><a href=#名乗りそして応答>名乗り、そして応答</a></li><li><a href=#静かな崩壊が終わる日>静かな崩壊が終わる日</a></li><li><a href=#探偵の調査報告書>探偵の調査報告書</a><ol><li><a href=#推理のステップ>推理のステップ</a></li><li><a href=#ロックより>ロックより</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/04/27/070705/><img src=/public_images/2026/code-detective-double-dispatch/header.webp loading=lazy alt="Featured image of post コード探偵ロックの事件簿【Double Dispatch】消えた発注書〜型の組み合わせが生んだ空白〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/04/27/070705/>コード探偵ロックの事件簿【Double Dispatch】消えた発注書〜型の組み合わせが生んだ空白〜</a></h2><h3 class=article-subtitle>帳票×出力形式のif-elsif連鎖でCSV出力に発注書の分岐漏れが発生。Double Dispatchのaccept/visit二段構えとMoo::Role requiresで追加漏れをクラス構築時に検出する実装を解説。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>27, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 12分</time></div></footer></div></header><section class=article-content><h2 id=空欄だらけの表>空欄だらけの表</h2><p>ドアをノックした。返事がない。</p><p>問い合わせフォームから送った相談内容に対して、「火曜14時。帳票の構造がわかるサンプルコード必須」とだけ書かれた返信が来たのは先週のことだ。LTスライドに載っていたURLを辿ってたどり着いた「レガシー・コード・インベスティゲーション」なる団体。雑居ビルの三階。すりガラスの向こうに人影は見えるが、こちらのノックには無反応だった。</p><p>ドアノブを回すと、鍵は開いている。仕方なく中に入った。</p><p>最初に目に入ったのは、壁一面に広がるホワイトボードだった。そこに描かれた表——縦4行、横3列のマトリクス。縦軸に「請求書」「見積書」「納品書」「???」、横軸に「PDF」「CSV」「HTML」。マスの大半には「?」が書き込まれている。</p><p>表に向かって立っている長身の男が、チョークを走らせている。漂うエナジードリンクの甘い匂い。デスクの上には飲みかけの缶が3本。</p><p>咳払いをした。</p><p>男が振り返った。私を一瞥し、すぐにホワイトボードに目を戻す。</p><p>「ちょうどいい。ワトソン君、この表の4行目——」</p><p>「私の名前は田中です。問い合わせフォームから連絡した者ですが」</p><p>「ああ、帳票の。知ってるよ。で、ワトソン君、この表の4行目に何が入るか、君は知っているはずだ」</p><p>ため息を飲み込んだ。訂正のコストに見合わない。それよりも、この表が気になった。問い合わせフォームに「帳票出力のif文が増え続けて破綻した」と書いただけだ。それだけの情報でマトリクスを描いている。</p><p>「……発注書です」</p><p>ロックさんはホワイトボードの「???」を消し、「発注書」と書いた。そしてCSV列と発注書行が交差するマスに、赤いチョークで大きくバツを入れた。</p><p>「ここが空欄になった。そうだね？」</p><p>「……はい。CSVフォーマッターに発注書の分岐を追加し忘れました」</p><p>「経緯を聞かせてくれたまえ。サンプルコードは持ってきたかね」</p><p>ラップトップを開いた。帳票出力システムの概要を説明する。請求書、見積書、納品書の3種類。出力形式はPDF、CSV、HTMLの3つ。先週「発注書」を追加した。PdfFormatterとHtmlFormatterには分岐を入れた。CsvFormatterを見落とした。CSVエクスポートで空文字が返り、顧客の経理部門から「CSVに発注書のデータがない」と連絡が来た。テストは落ちなかった。CSV×発注書のテストケースがそもそも存在しなかったから。</p><p>ロックさんがラップトップの画面を覗き込み、CsvFormatterのコードをスクロールした。</p><p>「何行目から何行目が <code>format</code> メソッドかね」</p><p>「15行目から58行目です」</p><p>「即答できるあたり、何度もこのコードと格闘したのだろう。——いい現場だ」</p><p>褒められたのか皮肉なのか判断できなかった。ただ、この人はコードを見る目が確かだ。フォーマッターのコードを10秒眺めただけで、何を問題にすべきか見当がついている。</p><h2 id=型を尋問する共犯者たち>型を尋問する共犯者たち</h2><p>ロックさんが画面を指し、コードの核心部分を読み上げた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/Formatter/Csv.pm (Before)</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Formatter::Csv</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>format</span> <span class=p>($self, $document) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=nv>$document</span><span class=o>-&gt;</span><span class=n>isa</span><span class=p>(</span><span class=s>&#39;Document::Invoice&#39;</span><span class=p>))</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_format_invoice</span><span class=p>(</span><span class=nv>$document</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>elsif</span> <span class=p>(</span><span class=nv>$document</span><span class=o>-&gt;</span><span class=n>isa</span><span class=p>(</span><span class=s>&#39;Document::Quote&#39;</span><span class=p>))</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_format_quote</span><span class=p>(</span><span class=nv>$document</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>elsif</span> <span class=p>(</span><span class=nv>$document</span><span class=o>-&gt;</span><span class=n>isa</span><span class=p>(</span><span class=s>&#39;Document::DeliveryNote&#39;</span><span class=p>))</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_format_delivery_note</span><span class=p>(</span><span class=nv>$document</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=c1># Document::PurchaseOrder の分岐が存在しない!</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=s>&#39;&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「3つのフォーマッターに、この <code>isa</code> の連鎖がそれぞれいくつある？」</p><p>「PdfFormatterに4つ、HtmlFormatterに4つ、CsvFormatterに——3つです。追加し忘れたので」</p><p>ロックさんがホワイトボードに向き直り、<code>isa('Invoice')</code> → <code>isa('Quote')</code> → <code>isa('DeliveryNote')</code> → <code>???</code> と矢印を描き足した。</p><p>「ワトソン君、この事件の犯人は発注書の分岐を追加し忘れた君ではない」</p><p>「では何が犯人だと？」</p><p>「<strong>この構造だ</strong>」</p><p>ロックさんが <code>isa()</code> の連鎖を指した。</p><p>「帳票の種類を外から尋問しているのだよ。『お前は何者だ？ 請求書か？ 見積書か？ 納品書か？』——容疑者を一人ずつ連れてきて名札を確認している。名簿に載っていない人間が来たら、素通りさせてしまう」</p><p>名簿。確かにそうだ。<code>isa()</code> の連鎖は、フォーマッターが知っている帳票の一覧表だ。一覧表は手で更新する。手動更新は漏れる。</p><p>「<code>isa()</code> の連鎖は名簿の照合だ。名簿は手動更新。そして手動更新はいつか漏れる」</p><p>ロックさんが画面に戻り、<code>return ''</code> の行を指した。</p><p>「この空文字列が犯人の逃走ルートだ。分岐に該当しないとき、コードは何もせずに空文字を返す。エラーにならない。ログにも残らない。顧客が気づくまで、コードは何も壊れていないふりをする」</p><p>「静かに壊れる」</p><p>「その通り。<strong>問題はコードの作者ではない。型を外から調べるという判断そのものだ</strong>」</p><p>反論しようとして、止まった。型を調べなければ、どのフォーマットを使うかわからない。でも——型を調べる構造そのものが問題だと言っている。</p><p>「でも、型を調べなければ、どのフォーマットを使うかわからないですよね？」</p><p>「いい質問だ。——ワトソン君、駅の改札を思い浮かべてくれたまえ。改札機は切符の種類を見て通すか止めるかを決めている。だが改札機は切符に『お前は何の切符だ？』と尋ねているかね」</p><p>一瞬考えた。</p><p>「いいえ。ICカードが、タッチした時点で自分の情報を送る」</p><p>「<strong>型は外から調べるのではなく、本人に名乗らせる</strong>。これが第一のディスパッチだ」</p><p>ロックさんがホワイトボードのマトリクス表の横に新しい図を描き始めた。帳票から矢印が伸び、フォーマッターのメソッドに向かっている。矢印の向きがさっきまでと逆だった。</p><p>フォーマッターが帳票を尋問するのではなく、帳票がフォーマッターに名乗り出る。</p><h2 id=名乗りそして応答>名乗り、そして応答</h2><p>「帳票は自分が何者か知っている。だから、フォーマッターに自分を渡すとき、<strong>自分の型名を込めたメソッド</strong>を呼ぶのだよ。請求書なら <code>format_invoice</code> と名乗る。見積書なら <code>format_quote</code> と名乗る。フォーマッターは名前を聞いてから、処理を選ぶ」</p><p>ロックさんがコードを書き始めた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/Document.pm — 基底クラス</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Document</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>items</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>accept</span> <span class=p>($self, $formatter) {</span>
+</span></span><span class=line><span class=cl>    <span class=nb>die</span> <span class=nb>ref</span><span class=p>(</span><span class=nv>$self</span><span class=p>)</span> <span class=o>.</span> <span class=s>&#34;::accept is not implemented&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/Document/Invoice.pm</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Document::Invoice</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>extends</span> <span class=s>&#39;Document&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>tax_rate</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=mf>0.1</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>accept</span> <span class=p>($self, $formatter) {</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$formatter</span><span class=o>-&gt;</span><span class=n>format_invoice</span><span class=p>(</span><span class=nv>$self</span><span class=p>);</span>  <span class=c1># 自分が Invoice であることを名乗る</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/Document/Quote.pm</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Document::Quote</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>extends</span> <span class=s>&#39;Document&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>valid_days</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=mi>30</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>accept</span> <span class=p>($self, $formatter) {</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$formatter</span><span class=o>-&gt;</span><span class=n>format_quote</span><span class=p>(</span><span class=nv>$self</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/Document/DeliveryNote.pm</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Document::DeliveryNote</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>extends</span> <span class=s>&#39;Document&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>shipped_date</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>accept</span> <span class=p>($self, $formatter) {</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$formatter</span><span class=o>-&gt;</span><span class=n>format_delivery_note</span><span class=p>(</span><span class=nv>$self</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/Document/PurchaseOrder.pm</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Document::PurchaseOrder</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>extends</span> <span class=s>&#39;Document&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>order_date</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>accept</span> <span class=p>($self, $formatter) {</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$formatter</span><span class=o>-&gt;</span><span class=n>format_purchase_order</span><span class=p>(</span><span class=nv>$self</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>ホワイトボードに近づいた。ロックさんが描いた矢印を指でなぞる。</p><p>「待ってください。最初の <code>accept</code> の呼び出しで、Perlのメソッドディスパッチが帳票の型を解決する。Invoiceなら <code>Document::Invoice::accept</code> が呼ばれる。これが1回目」</p><p>ロックさんがうなずいた。</p><p>「<code>Invoice::accept</code> の中で <code>$formatter->format_invoice($self)</code> を呼ぶ。ここでPerlがフォーマッターの型を解決する。CsvFormatterなら <code>Formatter::Csv::format_invoice</code> が呼ばれる。これが2回目」</p><p>「その通り」</p><p>「二重ディスパッチ。1回目で『誰が』を決め、2回目で『何を』を決める」</p><p>「名前は後でいい。大事なのは構造だ。——さて、ここからが本題だよ、ワトソン君」</p><p>ロックさんが新しいコードを書いた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/DocumentFormatter.pm — Role</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>DocumentFormatter</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo::Role</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>requires</span> <span class=sx>qw(
+</span></span></span><span class=line><span class=cl><span class=sx>    format_invoice
+</span></span></span><span class=line><span class=cl><span class=sx>    format_quote
+</span></span></span><span class=line><span class=cl><span class=sx>    format_delivery_note
+</span></span></span><span class=line><span class=cl><span class=sx>    format_purchase_order
+</span></span></span><span class=line><span class=cl><span class=sx>)</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「この <code>requires</code> は——」</p><p>「これが今回の事件の鍵だよ、ワトソン君」</p><p>コードを見つめた。<code>requires</code> の行に4つのメソッド名が並んでいる。</p><p>「新しいフォーマッタークラスを作って <code>with 'DocumentFormatter'</code> と書いた瞬間、<code>format_purchase_order</code> を実装していなければ Moo がエラーを出す。<strong>クラスの構築時に</strong>——テストを走らせるまでもなく——追加漏れが発覚する。本番で空のCSVが出力されることは二度とない」</p><p>「あ、」</p><p>声が漏れた。</p><p>「——追加漏れが構造的に不可能になる」</p><p>「その通り」</p><p>ロックさんが具象フォーマッターのコードを書き始めた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/Formatter/Csv.pm (After)</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Formatter::Csv</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>with</span> <span class=s>&#39;DocumentFormatter&#39;</span><span class=p>;</span>  <span class=c1># requires が enforce する</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>format_invoice</span> <span class=p>($self, $invoice) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>@lines</span> <span class=o>=</span> <span class=nb>map</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=nb>join</span><span class=p>(</span><span class=s>&#39;,&#39;</span><span class=p>,</span> <span class=nv>$_</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>name</span><span class=p>},</span> <span class=nv>$_</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>quantity</span><span class=p>},</span> <span class=nv>$_</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>price</span><span class=p>})</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span> <span class=nv>$invoice</span><span class=o>-&gt;</span><span class=nn>items</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>return</span> <span class=nb>join</span><span class=p>(</span><span class=s>&#34;\n&#34;</span><span class=p>,</span> <span class=s>&#39;name,quantity,price&#39;</span><span class=p>,</span> <span class=nv>@lines</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>format_quote</span> <span class=p>($self, $quote) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>@lines</span> <span class=o>=</span> <span class=nb>map</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=nb>join</span><span class=p>(</span><span class=s>&#39;,&#39;</span><span class=p>,</span> <span class=nv>$_</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>name</span><span class=p>},</span> <span class=nv>$_</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>quantity</span><span class=p>},</span> <span class=nv>$_</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>price</span><span class=p>})</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span> <span class=nv>$quote</span><span class=o>-&gt;</span><span class=nn>items</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>return</span> <span class=nb>join</span><span class=p>(</span><span class=s>&#34;\n&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=s>&#39;name,quantity,price&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=nv>@lines</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=s>&#34;valid_days,&#34;</span> <span class=o>.</span> <span class=nv>$quote</span><span class=o>-&gt;</span><span class=n>valid_days</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>format_delivery_note</span> <span class=p>($self, $note) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>@lines</span> <span class=o>=</span> <span class=nb>map</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=nb>join</span><span class=p>(</span><span class=s>&#39;,&#39;</span><span class=p>,</span> <span class=nv>$_</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>name</span><span class=p>},</span> <span class=nv>$_</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>quantity</span><span class=p>})</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span> <span class=nv>$note</span><span class=o>-&gt;</span><span class=nn>items</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>return</span> <span class=nb>join</span><span class=p>(</span><span class=s>&#34;\n&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=s>&#39;name,quantity&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=nv>@lines</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=s>&#34;shipped_date,&#34;</span> <span class=o>.</span> <span class=nv>$note</span><span class=o>-&gt;</span><span class=n>shipped_date</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>format_purchase_order</span> <span class=p>($self, $order) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>@lines</span> <span class=o>=</span> <span class=nb>map</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=nb>join</span><span class=p>(</span><span class=s>&#39;,&#39;</span><span class=p>,</span> <span class=nv>$_</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>name</span><span class=p>},</span> <span class=nv>$_</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>quantity</span><span class=p>},</span> <span class=nv>$_</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>price</span><span class=p>})</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span> <span class=nv>$order</span><span class=o>-&gt;</span><span class=nn>items</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>return</span> <span class=nb>join</span><span class=p>(</span><span class=s>&#34;\n&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=s>&#39;name,quantity,price&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=nv>@lines</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=s>&#34;order_date,&#34;</span> <span class=o>.</span> <span class=nv>$order</span><span class=o>-&gt;</span><span class=n>order_date</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>Beforeのコードと見比べた。</p><p>「<code>if-elsif</code> が消えた。完全に」</p><p>「<code>isa()</code> の一文字も残っていない。型はもう尋問されない。自分で名乗り、相手がそれに応える。対等な会話だ」</p><p>ホワイトボードに新しいマトリクス表を描き始めた。4行×3列。各マスにメソッド名を書き込んでいく。<code>format_invoice × Csv</code>、<code>format_invoice × Html</code>、<code>format_invoice × Pdf</code>……。</p><p>「帳票を追加するたびに、Roleに新しいメソッド名を <code>requires</code> に追加する。そして全てのフォーマッターに新しいメソッドを実装する」</p><p>手が止まった。</p><p>「修正箇所は減っていません」</p><p>「鋭い指摘だ」</p><p>ロックさんが少し笑った。珍しい表情だった。</p><p>「修正箇所が分散しているのは事実だ。だがワトソン君、if-elsif地獄と決定的に違う点が一つある」</p><p>「何ですか」</p><p>「<code>if-elsif</code> は分岐を追加し忘れても動く。空文字が返る。顧客が気づくまで誰も気づかない。だが <code>requires</code> はメソッドを追加し忘れたらクラスが構築できない」</p><p>ロックさんがホワイトボードの赤いバツ——最初の事件現場マーク——を指した。</p><p>「<strong>『気づかない失敗』が『見逃せないエラー』に変わる</strong>。——ワトソン君、完全な解決策など存在しない。問題の性質を変えるのだ」</p><p>完全な解決策など存在しない。問題の性質を変える。</p><p><code>if-elsif</code> では、忘れても動く。Double Dispatch では、忘れたら止まる。修正箇所の数は同じでも、忘れたときに何が起きるかが決定的に違う。</p><p>ホワイトボードのマトリクス表を見つめた。全てのマスが埋まっている。もう「?」はない。</p><pre class=mermaid>
+	sequenceDiagram
+    participant C as Caller
+    participant D as Document::Invoice
+    participant F as Formatter::Csv
+
+    C-&gt;&gt;D: $invoice-&gt;accept($csv_formatter)
+    Note over D: 1st dispatch: Invoice::accept
+    D-&gt;&gt;F: $formatter-&gt;format_invoice($self)
+    Note over F: 2nd dispatch: Csv::format_invoice
+    F--&gt;&gt;C: CSV文字列を返却
+</pre><h2 id=静かな崩壊が終わる日>静かな崩壊が終わる日</h2><p>「実演しよう。新しい帳票『領収書(Receipt)』を追加するとしたまえ」</p><p>ロックさんがコードを書いた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/Document/Receipt.pm（新規追加）</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Document::Receipt</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>extends</span> <span class=s>&#39;Document&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>payment_date</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>accept</span> <span class=p>($self, $formatter) {</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$formatter</span><span class=o>-&gt;</span><span class=n>format_receipt</span><span class=p>(</span><span class=nv>$self</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「帳票クラスは追加した。次にRoleの <code>requires</code> に <code>format_receipt</code> を追加する」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># lib/DocumentFormatter.pm（更新）</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>DocumentFormatter</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo::Role</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>requires</span> <span class=sx>qw(
+</span></span></span><span class=line><span class=cl><span class=sx>    format_invoice
+</span></span></span><span class=line><span class=cl><span class=sx>    format_quote
+</span></span></span><span class=line><span class=cl><span class=sx>    format_delivery_note
+</span></span></span><span class=line><span class=cl><span class=sx>    format_purchase_order
+</span></span></span><span class=line><span class=cl><span class=sx>    format_receipt          # ← 追加
+</span></span></span><span class=line><span class=cl><span class=sx>)</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「さて、CsvFormatterに <code>format_receipt</code> をまだ実装していない状態で、テストを走らせてみよう」</p><p>ロックさんがターミナルでコマンドを叩いた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>Can&#39;t apply DocumentFormatter to Formatter::Csv - missing format_receipt
+</span></span></code></pre></td></tr></table></div></div><p>「テストの中身に到達する前に、クラスの構築段階で止まった」</p><p>「これが二重ディスパッチの真価だ。型は自分で名乗り、受け手はその名乗りに応える義務を負う。義務を果たさなければ、システムが止まる。<strong>静かな崩壊ではなく、明白な拒絶だ</strong>」</p><pre class=mermaid>
+	classDiagram
+    class Document {
+        +items
+        +accept(formatter)
+    }
+    class Document_Invoice {
+        +tax_rate
+        +accept(formatter)
+    }
+    class Document_Quote {
+        +valid_days
+        +accept(formatter)
+    }
+    class Document_DeliveryNote {
+        +shipped_date
+        +accept(formatter)
+    }
+    class Document_PurchaseOrder {
+        +order_date
+        +accept(formatter)
+    }
+    class DocumentFormatter {
+        &lt;&lt;Role&gt;&gt;
+        +format_invoice()*
+        +format_quote()*
+        +format_delivery_note()*
+        +format_purchase_order()*
+    }
+    class Formatter_Csv {
+        +format_invoice()
+        +format_quote()
+        +format_delivery_note()
+        +format_purchase_order()
+    }
+    class Formatter_Html {
+        +format_invoice()
+        +format_quote()
+        +format_delivery_note()
+        +format_purchase_order()
+    }
+
+    Document &lt;|-- Document_Invoice
+    Document &lt;|-- Document_Quote
+    Document &lt;|-- Document_DeliveryNote
+    Document &lt;|-- Document_PurchaseOrder
+    DocumentFormatter &lt;|.. Formatter_Csv
+    DocumentFormatter &lt;|.. Formatter_Html
+</pre><p>もし先週、この構造になっていたら。発注書を追加した時点で、CsvFormatterがエラーを出していた。空のCSVは出力されなかった。顧客からの電話もなかった。</p><p>起きてしまったことは変えられない。だが、同じことを二度と起こさない構造にはできる。</p><p>ロックさんが <code>Formatter::Csv</code> に <code>format_receipt</code> を追加し、テストを再実行した。ターミナルに緑の文字が流れた。</p><p><code>All tests successful.</code></p><p>「ビルドが通った。システムに秩序が戻った」</p><p>ラップトップを閉じた。帰り支度をする。</p><p>「ありがとうございました。一つ聞いてもいいですか」</p><p>「どうぞ」</p><p>「この構造で——帳票の種類が固定で、操作の方を増やしたい場合。バリデーター、プレビュー生成器、統計集計器。全部同じ accept の構造で追加できますか？」</p><p>ロックさんが少し笑った。椅子に深く腰掛ける。</p><p>「ワトソン君、それは次の事件だ。この手口を組織的に使い回す手法には名前がある。だが今日はDouble Dispatchだけ持ち帰りたまえ。<strong>部品の意味を知らずに建物を建てても、いい建物にはならない</strong>」</p><p>次の事件、と言った。この人にとって、構造の問題はすべて「事件」なのだ。</p><p>「報酬の話をしていませんでした」</p><p>「いらない。今回は表を描く口実をもらった。それで十分だ」</p><p>軽く頭を下げて事務所を出た。</p><p>階段を降りながら考えた。4種類×3形式＝12メソッド。if-elsif のときは3フォーマッターに4分岐ずつだったから、処理の数は同じだ。コード量はむしろ増えている。</p><p>でも——追加漏れは構造的に消える。「気づかない失敗」がなくなる。</p><p>それは、コード量では測れない価値だ。</p><p>帰りの電車でノートPCを開いた。CsvFormatterの <code>format</code> メソッドを開く。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>if</span> <span class=p>(</span><span class=nv>$document</span><span class=o>-&gt;</span><span class=n>isa</span><span class=p>(</span><span class=s>&#39;Document::Invoice&#39;</span><span class=p>))</span> <span class=p>{</span>
+</span></span></code></pre></td></tr></table></div></div><p>この行にカーソルを合わせた。</p><p>消した。</p><p><code>with 'DocumentFormatter';</code> と打った。</p><p>これで、次の帳票を追加するとき。私は何も忘れない。正確には——忘れることが許されなくなる。</p><hr><h2 id=探偵の調査報告書>探偵の調査報告書</h2><div class=table-wrapper><table><thead><tr><th>容疑（アンチパターン）</th><th>真実（パターン）</th><th>証拠（効果）</th></tr></thead><tbody><tr><td><code>isa()</code> / <code>ref()</code> による型チェック連鎖（if-elsif 地獄）</td><td>Double Dispatch（二重ディスパッチ）</td><td>型の判定を外から排除し、追加漏れの検出をクラス構築時に前倒し</td></tr><tr><td>条件分岐の追加漏れ（サイレント失敗）</td><td><code>Moo::Role</code> の <code>requires</code> による契約</td><td>未実装メソッドがあればクラス構築が拒否される（ラウド失敗）</td></tr><tr><td>型の組み合わせ爆発を手動管理</td><td>accept/visit の二段構え</td><td>新しい型の追加時、全フォーマッターへの実装が構造的に強制される</td></tr></tbody></table></div><h3 id=推理のステップ>推理のステップ</h3><ol><li>各フォーマッタークラスの <code>format</code> メソッド内にある <code>isa()</code> 連鎖を特定する</li><li><code>Document</code> 基底クラスに <code>accept($formatter)</code> メソッドを定義する</li><li>各帳票クラスの <code>accept</code> メソッドで、自分の型名を込めた <code>$formatter->format_&lt;type>($self)</code> を呼ぶ</li><li><code>DocumentFormatter</code> Role で全ての <code>format_&lt;type></code> メソッドを <code>requires</code> で宣言する</li><li>各フォーマッタークラスで Role を適用し、型固有メソッドを実装する（<code>isa()</code> は消える）</li><li>新しい帳票型を追加し、<code>requires</code> によるクラス構築時エラーが発生することを確認する</li></ol><h3 id=ロックより>ロックより</h3><p>型は自分の名前を知っている。知っているのだから、本人に名乗らせればいい。</p><p>外から「お前は何者だ？」と尋問する構造は、尋問者の名簿が完全であることを前提にしている。名簿は手動更新だ。手動更新はいつか漏れる。漏れたとき、コードは何も壊れていないふりをする。これが最も危険な失敗だ。</p><p>二重ディスパッチは、問題を消すのではない。問題の性質を変えるのだ。「気づかない失敗」を「見逃せないエラー」に変える。</p><p>構造は万能ではない。だが、構造があれば失敗の到着地点を選べる。空のCSVが顧客に届くのと、ビルドが止まるのと——どちらの失敗を引き受けるか。その選択こそが設計だ。</p></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/perl/>Perl</a>
+<a href=/tags/moo/>Moo</a>
+<a href=/tags/double-dispatch/>Double-Dispatch</a>
+<a href=/tags/type-checking-chain/>Type-Checking-Chain</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-detective/>Code-Detective</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/05/15/070705/><div class=article-image><img src=/public_images/2026/code-detective-bff/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-bff/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Backends for Frontends】最後の依頼〜一つの答えが全員を不満にする夜〜</h2></div></a></article><article class=has-image><a href=/2026/05/14/070705/><div class=article-image><img src=/public_images/2026/code-detective-api-gateway/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-api-gateway/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【API Gateway】窓口のない捜査本部〜マイクロサービスに個別に会いに行く悲劇〜</h2></div></a></article><article class=has-image><a href=/2026/05/13/070705/><div class=article-image><img src=/public_images/2026/code-detective-strangler-fig/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-strangler-fig/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Strangler Fig】外壁に伸びる蔓〜全面更改が新旧を窒息させる夜〜</h2></div></a></article><article class=has-image><a href=/2026/05/12/070705/><div class=article-image><img src=/public_images/2026/code-detective-anti-corruption-layer/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-anti-corruption-layer/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Anti-Corruption Layer】越境伝票の怪〜外様の略語が捜査本部を汚す夜〜</h2></div></a></article><article class=has-image><a href=/2026/05/11/070705/><div class=article-image><img src=/public_images/2026/code-detective-competing-consumers/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-competing-consumers/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Competing Consumers】重なる受領印〜増員だけでは消えない二重処理〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

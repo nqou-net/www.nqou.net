@@ -1,0 +1,328 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="全面切替で失敗した基幹刷新を、Strangler Fig と ACL、Facade、feature flag で段階移行する Perl/Moo 実装です"><title>コード探偵ロックの事件簿【Strangler Fig】外壁に伸びる蔓〜全面更改が新旧を窒息させる夜〜</title><link rel=canonical href=https://www.nqou.net/2026/05/13/070705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コード探偵ロックの事件簿【Strangler Fig】外壁に伸びる蔓〜全面更改が新旧を窒息させる夜〜"><meta property='og:description' content="全面切替で失敗した基幹刷新を、Strangler Fig と ACL、Facade、feature flag で段階移行する Perl/Moo 実装です"><meta property='og:url' content='https://www.nqou.net/2026/05/13/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='perl'><meta property='article:tag' content='moo'><meta property='article:tag' content='strangler-fig'><meta property='article:tag' content='big-bang-rewrite'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-detective'><meta property='article:tag' content='feature-flag'><meta property='article:tag' content='anti-corruption-layer'><meta property='article:published_time' content='2026-05-13T07:07:05+09:00'><meta property='article:modified_time' content='2026-05-13T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-detective-strangler-fig/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コード探偵ロックの事件簿【Strangler Fig】外壁に伸びる蔓〜全面更改が新旧を窒息させる夜〜"><meta name=twitter:description content="全面切替で失敗した基幹刷新を、Strangler Fig と ACL、Facade、feature flag で段階移行する Perl/Moo 実装です"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-detective-strangler-fig/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-05-13T07:07:05+09:00","datePublished":"2026-05-13T07:07:05+09:00","description":"全面切替で失敗した基幹刷新を、Strangler Fig と ACL、Facade、feature flag で段階移行する Perl/Moo 実装です","headline":"コード探偵ロックの事件簿【Strangler Fig】外壁に伸びる蔓〜全面更改が新旧を窒息させる夜〜","image":"https://www.nqou.net/public_images/2026/code-detective-strangler-fig/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/05/13/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#赤線で消えた全面切替>赤線で消えた全面切替</a></li><li><a href=#現場検証---一枚の切替札に押し込まれた未完成>現場検証 - 一枚の切替札に押し込まれた未完成</a><ol><li><a href=#beforeコード-global-flag-がすべてを一緒に動かす>Beforeコード: global flag がすべてを一緒に動かす</a></li><li><a href=#hidden-consumer-は-facade-を通らない>Hidden consumer は facade を通らない</a></li></ol></li><li><a href=#推理披露---蔓は壁ごとではなく継ぎ目ごとに伸ばす>推理披露 - 蔓は壁ごとではなく継ぎ目ごとに伸ばす</a><ol><li><a href=#切替単位を-system-から-slice-に戻す>切替単位を system から slice に戻す</a></li><li><a href=#facade-に持たせるのは-dispatch-だけ>Facade に持たせるのは dispatch だけ</a></li><li><a href=#acl-は移行途中の新館を守る防波堤になる>ACL は移行途中の新館を守る防波堤になる</a></li><li><a href=#撤去条件を書かなければ-temporary-は-permanent-になる>撤去条件を書かなければ temporary は permanent になる</a></li></ol></li><li><a href=#テストで確認する---一枚札からカード単位へ>テストで確認する - 一枚札からカード単位へ</a></li><li><a href=#壁に残ったのは撤去条件つきの蔓>壁に残ったのは、撤去条件つきの蔓</a></li><li><a href=#探偵の調査報告書>探偵の調査報告書</a><ol><li><a href=#推理のステップ>推理のステップ</a></li><li><a href=#ロックより>ロックより</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/05/13/070705/><img src=/public_images/2026/code-detective-strangler-fig/header.webp loading=lazy alt="Featured image of post コード探偵ロックの事件簿【Strangler Fig】外壁に伸びる蔓〜全面更改が新旧を窒息させる夜〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/05/13/070705/>コード探偵ロックの事件簿【Strangler Fig】外壁に伸びる蔓〜全面更改が新旧を窒息させる夜〜</a></h2><h3 class=article-subtitle>全面切替で失敗した基幹刷新を、Strangler Fig と ACL、Facade、feature flag で段階移行する Perl/Moo 実装です</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>13, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 11分</time></div></footer></div></header><section class=article-content><h2 id=赤線で消えた全面切替>赤線で消えた全面切替</h2><p>全面切替は、計画書の上では美しかったのです。</p><p>00:30 に入口を閉じる。</p><p>01:10 に向きを変える。</p><p>03:00 までに smoke test を終える。</p><p>日曜夜の移行演習室で赤線で消されたのは、その美しさの方でした。壁には runbook、endpoint matrix、rollback 条件、依存システム一覧が貼られています。<code>submit_order</code> には緑丸がついていたのに、<code>cancel_order</code> と <code>shipment_callback</code> には赤い付箋が重なり、<code>nightly_settlement</code> の欄には「未移行」の文字が太く残っていました。</p><p>ロックさんは、ホワイトボードに貼られた architecture map を前にして、古い箱を消すのではなく、その外側へ細い緑のテープを伸ばしていました。包み込むような線でした。</p><p>「外壁を爆破する前に、蔓の伸びる道を決めるべきだったね、ワトソン君」</p><p>「工程表にその役割名はありません」</p><p>私はそこまで言ってから、壁の赤い付箋へ目を戻しました。</p><p>「ですが、言いたいことは分かります。今夜の rehearsal は、バグが一つ見つかったという話ではありません」</p><p>実際、<code>submit_order</code> だけを見れば動いていました。Web の注文は新しい <code>RoutingCore</code> へ届いています。問題は裏側でした。cancel は未実装、warehouse callback は旧 status を前提に別ルートで戻り、CSV レポートは旧DBを source of truth にしたままです。入口だけを切り替えても、建物の中で使っている廊下の工事進捗は揃っていませんでした。</p><p>「一枚の札で全部の扉を開けようとしたのです」</p><p>「結構。それが今夜の事件だよ」</p><h2 id=現場検証---一枚の切替札に押し込まれた未完成>現場検証 - 一枚の切替札に押し込まれた未完成</h2><p>最初に見せたのは、失敗した rehearsal で実際に使っていた切替の骨組みでした。</p><h3 id=beforeコード-global-flag-がすべてを一緒に動かす>Beforeコード: global flag がすべてを一緒に動かす</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>BangCutoverFacade</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(Bool Object)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>enable_new_stack</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Bool</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>legacy</span>           <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Object</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>routing_core</span>     <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Object</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>submit_order</span> <span class=p>($self, $payload) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>_target</span><span class=o>-&gt;</span><span class=n>submit_order</span><span class=p>(</span><span class=nv>$payload</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>cancel_order</span> <span class=p>($self, $payload) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>_target</span><span class=o>-&gt;</span><span class=n>cancel_order</span><span class=p>(</span><span class=nv>$payload</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>_target</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>enable_new_stack</span> <span class=p>?</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>routing_core</span> <span class=p>:</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>legacy</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>この設計の狙いは分かります。役員会は「一つの札で戻せること」を求めます。全面切替を掲げるなら、全部を <code>enable_new_stack</code> にぶら下げたくなる。切替責任者の立場から見れば、それは魅力的です。</p><p>けれども、魅力的なのは制御できているように見えるからであって、実際に制御できているからではありません。</p><p>新しい <code>RoutingCore</code> は <code>submit_order</code> だけは実装済みでした。ところが <code>cancel_order</code> はまだです。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>RoutingCore</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>submit_order</span> <span class=p>($self, $payload) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>target</span>   <span class=o>=&gt;</span> <span class=s>&#39;new&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>order_id</span> <span class=o>=&gt;</span> <span class=nv>$payload</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>order_id</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>        <span class=n>status</span>   <span class=o>=&gt;</span> <span class=s>&#39;accepted&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>cancel_order</span> <span class=p>($self, $payload) {</span>
+</span></span><span class=line><span class=cl>    <span class=nb>die</span> <span class=s>&#34;cancel_order is not migrated for $payload-&gt;{order_id}&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>私は腕を組んだまま、言い訳ではなく事実として説明しました。</p><p>「<code>submit_order</code> は通りました。だから smoke test では緑がついたんです。ですが、同じ札で <code>cancel_order</code> まで新系へ送れば、未実装のまま落ちます」</p><p>ロックさんは <code>cancel_order</code> の行を指で叩きました。</p><p>「準備のできた扉も、できていない扉も、同じ鍵で開けようとしたわけだね」</p><p>それだけではありませんでした。もっと厄介だったのは、そもそも facade を通っていない廊下が残っていたことです。</p><h3 id=hidden-consumer-は-facade-を通らない>Hidden consumer は facade を通らない</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>ShipmentCallbackHandler</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(Object)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>legacy</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Object</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>shipment_callback</span> <span class=p>($self, $payload) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>legacy</span><span class=o>-&gt;</span><span class=n>shipment_callback</span><span class=p>(</span><span class=nv>$payload</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>warehouse callback は古い status code を吐く前提で、旧系へ直結していました。<code>enable_new_stack</code> を上げても、この handler には何の影響もありません。入口だけを新しくしても、建物の裏口が古いままなら、切替は成立しません。</p><p>私はそこでようやく、自分が嫌っていた違和感の名前を口にできました。</p><p>「Facade を置いたのに、交通整理がありませんでした」</p><p>「その通り。窓口はあった。だが順路表がない」</p><p>Big Bang Rewrite が失敗しやすいのは、古いコードが存在するからではありません。未移行の責務、隠れた依存、意味の違う payload を、一夜の切替へ圧縮してしまうからです。問題は legacy の存在ではなく、進捗の違う廊下を一枚の札で同時に開けることでした。</p><h2 id=推理披露---蔓は壁ごとではなく継ぎ目ごとに伸ばす>推理披露 - 蔓は壁ごとではなく継ぎ目ごとに伸ばす</h2><p>「では、全面切替をやめても複雑さが残るだけではありませんか」</p><p>私は最初にそこを確認しました。temporary component を増やして、借金の置き場を変えるだけに見えたからです。</p><p>「残るとも」</p><p>ロックさんは、あっさり認めました。</p><p>「違いは、月曜朝の全館停止として噴くか、route table と map に隔離されるかだよ」</p><p>この返事で、ようやく話が技術の話になりました。複雑さを消すのではなく、置き場を制御する。それが Strangler Fig でした。</p><h3 id=切替単位を-system-から-slice-に戻す>切替単位を system から slice に戻す</h3><p>まず必要なのは、「何をどこで切るのか」を system 全体ではなく slice 単位へ戻すことです。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>my</span> <span class=nv>$map</span> <span class=o>=</span> <span class=nn>MigrationMap</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>slices</span> <span class=o>=&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=s>&#39;submit_order:web&#39;</span> <span class=o>=&gt;</span> <span class=nn>MigrationSlice</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=n>slice_key</span>        <span class=o>=&gt;</span> <span class=s>&#39;submit_order:web&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>candidate_target</span> <span class=o>=&gt;</span> <span class=s>&#39;new&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>flag_key</span>         <span class=o>=&gt;</span> <span class=s>&#39;submit_order_web&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>hidden_consumers</span> <span class=o>=&gt;</span> <span class=o>[]</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>),</span>
+</span></span><span class=line><span class=cl>        <span class=s>&#39;cancel_order:web&#39;</span> <span class=o>=&gt;</span> <span class=nn>MigrationSlice</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=n>slice_key</span>        <span class=o>=&gt;</span> <span class=s>&#39;cancel_order:web&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>candidate_target</span> <span class=o>=&gt;</span> <span class=s>&#39;legacy&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>hidden_consumers</span> <span class=o>=&gt;</span> <span class=o>[]</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=p>),</span>
+</span></span><span class=line><span class=cl>        <span class=s>&#39;report_export&#39;</span> <span class=o>=&gt;</span> <span class=nn>MigrationSlice</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>            <span class=n>slice_key</span>        <span class=o>=&gt;</span> <span class=s>&#39;report_export&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>candidate_target</span> <span class=o>=&gt;</span> <span class=s>&#39;legacy&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>            <span class=n>hidden_consumers</span> <span class=o>=&gt;</span> <span class=p>[</span><span class=s>&#39;finance_csv&#39;</span><span class=p>],</span>
+</span></span><span class=line><span class=cl>        <span class=p>),</span>
+</span></span><span class=line><span class=cl>    <span class=p>},</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span></code></pre></td></tr></table></div></div><p>ここで大事なのは、クラスの境界ではなく責務の境界です。<code>submit_order:web</code> のように、入口、source of truth、rollback の単位が一緒に決められる切れ目で切る。<code>cancel_order</code> と <code>report_export</code> は readiness が違うのだから、同じ札に乗せてはいけません。</p><p>「module ではなく責務単位で切るんですね」</p><p>「結構。system を置き換えるのではない。責務の担当を、継ぎ目ごとに移すのだよ」</p><p>Strangler Fig は old と new を長く共存させます。だからこそ、共存の単位を狭くしなければなりません。ここで雑に切ると、今度は「安全に小さく失敗する」代わりに「間違いを小分けに量産する」だけになります。</p><h3 id=facade-に持たせるのは-dispatch-だけ>Facade に持たせるのは dispatch だけ</h3><p>次に、Facade の責務を絞ります。切替期の Facade は必要です。しかし、必要だからといって何でも背負わせると、今度は migration 中の God Class になります。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>FulfillmentFacade</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(Object)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>legacy</span>    <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Object</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>new_stack</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Object</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>decisions</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Object</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>acl</span>       <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Object</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=nb>map</span>       <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Object</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>submit_order</span> <span class=p>($self, $payload) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$slice_key</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_slice_key</span><span class=p>(</span> <span class=s>&#39;submit_order&#39;</span><span class=p>,</span> <span class=nv>$payload</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$target</span>    <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>decisions</span><span class=o>-&gt;</span><span class=n>target_for</span><span class=p>(</span><span class=nv>$slice_key</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_dispatch</span><span class=p>(</span> <span class=nv>$target</span><span class=p>,</span> <span class=s>&#39;submit_order&#39;</span><span class=p>,</span> <span class=nv>$payload</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>cancel_order</span> <span class=p>($self, $payload) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$slice_key</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_slice_key</span><span class=p>(</span> <span class=s>&#39;cancel_order&#39;</span><span class=p>,</span> <span class=nv>$payload</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$target</span>    <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>decisions</span><span class=o>-&gt;</span><span class=n>target_for</span><span class=p>(</span><span class=nv>$slice_key</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_dispatch</span><span class=p>(</span> <span class=nv>$target</span><span class=p>,</span> <span class=s>&#39;cancel_order&#39;</span><span class=p>,</span> <span class=nv>$payload</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>Facade 自体は、入口を固定し、route decision を一箇所へ寄せるだけです。translation も exposure policy も retirement judgment も、ここへは入れません。</p><p>route decision は別オブジェクトへ逃がします。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>MigrationDecisions</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(HashRef Object)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>migration_map</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Object</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>feature_flags</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>HashRef</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=p>{}</span> <span class=p>}</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>target_for</span> <span class=p>($self, $slice_key) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$slice</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>migration_map</span><span class=o>-&gt;</span><span class=n>slice</span><span class=p>(</span><span class=nv>$slice_key</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=s>&#39;legacy&#39;</span> <span class=k>if</span> <span class=nv>$slice</span><span class=o>-&gt;</span><span class=n>candidate_target</span> <span class=ow>eq</span> <span class=s>&#39;legacy&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=s>&#39;new&#39;</span> <span class=k>if</span> <span class=o>!</span><span class=nb>defined</span> <span class=nv>$slice</span><span class=o>-&gt;</span><span class=n>flag_key</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>feature_flags</span><span class=o>-&gt;</span><span class=p>{</span> <span class=nv>$slice</span><span class=o>-&gt;</span><span class=n>flag_key</span> <span class=p>}</span> <span class=p>?</span> <span class=s>&#39;new&#39;</span> <span class=p>:</span> <span class=s>&#39;legacy&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>私はこの分離を見て、ようやく feature flag の居場所も理解しました。flag は migration の計画そのものではありません。準備のできた slice を、今この利用者へ見せてよいかを決めるだけです。切替順序や hidden consumer の棚卸しまで flag に背負わせると、if 文が工程表の代わりを始めます。</p><p>役割は次のように分けるのが素直です。</p><div class=table-wrapper><table><thead><tr><th>要素</th><th>持つ責務</th><th>持たせない責務</th></tr></thead><tbody><tr><td>Facade</td><td>安定した入口と dispatch</td><td>business rule、semantic translation、retire judgment</td></tr><tr><td>MigrationDecisions</td><td>route selection と exposure 制御</td><td>hidden consumer の一覧管理、翻訳責務</td></tr><tr><td>Feature flag</td><td>canary、即時退避、露出可否</td><td>migration order そのもの</td></tr><tr><td>ACL</td><td>old/new の語彙と意味の翻訳</td><td>traffic exposure の判断</td></tr><tr><td>MigrationMap</td><td>slice、依存、exit condition の記録</td><td>runtime if 文の代用</td></tr></tbody></table></div><p>ここで初めて、Facade が「単なる窓口」ではなく「交通整理役」になります。整理役であり続ける条件は、荷物の中身まで抱え込まないことでした。</p><h3 id=acl-は移行途中の新館を守る防波堤になる>ACL は移行途中の新館を守る防波堤になる</h3><p>「ACL は前回の話でした。今回は route の問題なのに、まだ必要ですか」</p><p>私がそう聞くと、ロックさんは warehouse callback の票を一枚持ち上げました。</p><p>「route が決めるのは、どちらへ送るかだ。ACL が守るのは、新しい側がどの言葉で考えるかだよ」</p><p>今回の <code>RoutingCore</code> は、新しい建物です。けれども移行の途中では、まだ legacy の callback や status code と接続せざるを得ません。そのとき、新しい側が old vocabulary で育ってしまうと、置換したはずなのに新館の中で古い都合が生き延びます。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>LegacyFulfillmentAcl</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>normalize_shipment_callback</span> <span class=p>($self, $payload) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>%status_map</span> <span class=o>=</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>P</span> <span class=o>=&gt;</span> <span class=s>&#39;pending&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>S</span> <span class=o>=&gt;</span> <span class=s>&#39;shipped&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>X</span> <span class=o>=&gt;</span> <span class=s>&#39;cancelled&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$order_id</span><span class=p>)</span> <span class=o>=</span> <span class=nv>$payload</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>legacy_order_id</span><span class=p>}</span> <span class=o>=~</span><span class=sr> /^L-(.+)$/</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>order_id</span> <span class=o>=&gt;</span> <span class=nv>$order_id</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>status</span>   <span class=o>=&gt;</span> <span class=nv>$status_map</span><span class=p>{</span> <span class=nv>$payload</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>state_code</span><span class=p>}</span> <span class=p>}</span> <span class=sr>//</span> <span class=s>&#39;unknown&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>この ACL がやっていることは派手ではありません。<code>L-2001</code> を <code>2001</code> に直し、<code>S</code> を <code>shipped</code> に直しているだけです。ですが、移行期にはそれで十分です。新しい側が old payload を直接読まなくて済む。つまり route と translation を分けられる。それが大きい。</p><p>私はここで、前夜の rehearsal がなぜ嫌だったのかをもう少し正確に言えるようになりました。私は old system が嫌だったのではありません。new system の中にまで old system の言葉が入り込むことが嫌だったのです。</p><h3 id=撤去条件を書かなければ-temporary-は-permanent-になる>撤去条件を書かなければ temporary は permanent になる</h3><p>残る疑問は一つでした。</p><p>「temporary component を、いつ消せると判断するんですか」</p><p>これに答えられない限り、私はどんな仮設も受け入れられません。Strangler Fig が安全な移行戦略だと言われても、temporary が無期限なら、それは新しい遺構です。</p><p>ロックさんは、ここで初めて wall map ではなく、撤去条件の方を指しました。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>MigrationMap</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(HashRef)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>slices</span> <span class=o>=&gt;</span> <span class=p>(</span> <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>HashRef</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>ready_to_retire</span> <span class=p>($self, $slice_key, $telemetry) {</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>slice</span><span class=p>(</span><span class=nv>$slice_key</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=mi>0</span> <span class=k>if</span> <span class=p>(</span> <span class=nv>$telemetry</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>divergence_count</span><span class=p>}</span> <span class=sr>//</span> <span class=mi>0</span> <span class=p>)</span> <span class=o>&gt;</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=mi>0</span> <span class=k>if</span> <span class=p>(</span> <span class=nv>$telemetry</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>rollback_count</span><span class=p>}</span> <span class=sr>//</span> <span class=mi>0</span> <span class=p>)</span> <span class=o>&gt;</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=mi>0</span> <span class=k>if</span> <span class=p>(</span> <span class=nv>$telemetry</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>direct_callers_remaining</span><span class=p>}</span> <span class=sr>//</span> <span class=mi>0</span> <span class=p>)</span> <span class=o>&gt;</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=mi>0</span> <span class=k>if</span> <span class=o>!</span><span class=p>(</span> <span class=nv>$telemetry</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>flag_removed</span><span class=p>}</span> <span class=sr>//</span> <span class=mi>0</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=mi>1</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>divergence が残っているか。</p><p>rollback が発生していないか。</p><p>facade を通らない direct caller が消えたか。</p><p>flag を抜いたか。</p><p>この四つが揃って初めて、その slice は legacy route を外せます。私はこの関数を見て、ようやく temporary という言葉に期限が入った気がしました。</p><p>「一時的という言葉は、撤去条件を持って初めて意味を持つのですね」</p><p>「そうだ。期限なき仮設は、ただの新しい古墳だよ」</p><h2 id=テストで確認する---一枚札からカード単位へ>テストで確認する - 一枚札からカード単位へ</h2><p>Strangler Fig を説明だけで終わらせると、どうしても「設計の雰囲気がいい話」に見えます。そこで今回は、Before と After をテストで固定しました。</p><p>Before では、次の二つが起きます。</p><ul><li><code>enable_new_stack</code> を上げると <code>submit_order</code> だけでなく <code>cancel_order</code> まで新系へ送られる</li><li>facade を通らない <code>ShipmentCallbackHandler</code> が old vocabulary をそのまま運び込む</li></ul><p>After では、逆に次の四つが通ります。</p><ul><li><code>submit_order:web</code> だけを new へ route できる</li><li><code>cancel_order:web</code> は legacy に残せる</li><li>feature flag を下ろせば prepared slice でも legacy へ戻せる</li><li>callback payload の translation と temporary route の retirement を独立に管理できる</li></ul><p>この差は小さく見えて、実務では決定的です。smoke test の緑が「全部通った」を意味しなくなります。代わりに「このカードは通った」が言えるようになる。失敗しても、赤く塗り戻すのは建物全体ではなく、そのカードだけで済みます。</p><pre class=mermaid>
+	flowchart LR
+    Client[Web Client] --&gt; Facade[FulfillmentFacade]
+    Facade --&gt; Decisions[MigrationDecisions]
+    Flags[Feature Flags] --&gt; Decisions
+    Map[MigrationMap] --&gt; Decisions
+    Decisions --&gt;|submit_order:web| New[RoutingCorePort]
+    Decisions --&gt;|cancel_order:web| Legacy[LegacyFulfillmentPort]
+    Callback[Legacy Callback] --&gt; ACL[LegacyFulfillmentAcl]
+    ACL --&gt; New
+</pre><p>私はこの図を見ながら、ようやく「段階移行」と「先送り」の違いを説明できるようになりました。先送りは、判断を future の cutover に積み残します。段階移行は、判断を今ここで map と telemetry に書き出します。書き出したものだけを、順に消していきます。</p><h2 id=壁に残ったのは撤去条件つきの蔓>壁に残ったのは、撤去条件つきの蔓</h2><p>話が終わったあと、私は壁の中央から赤いプレートを外しました。</p><p><code>ALL TRAFFIC TO NEW</code></p><p>その代わりに、<code>submit_order:web</code>、<code>cancel_order:web</code>、<code>shipment_callback</code>、<code>report_export</code> と書いたカードを並べました。今夜の時点で緑にできるのは一枚だけです。けれども、それでよいのだと初めて言えました。全部を一度に緑へ変えられないことは、失敗ではありません。順番を持たずに全部を動かそうとしたことが失敗だったのです。</p><p>「これなら、切替判定の会議で説明できます」</p><p>「説明できる設計は、たいてい戻し方も持っている」</p><p>ロックさんは、外した赤いプレートを眺めてから、軽く持ち上げました。</p><p>「立派な証拠品だ。次の事件でも、全面切替を正義と呼ぶ者がいたら見せるとしよう」</p><p>私は笑いませんでした。あれは冗談というより、運用ルールでした。</p><p>全面切替の一行は消えました。壁に残ったのは、ようやく現実の順序で並んだ切替のカードでした。</p><hr><h2 id=探偵の調査報告書>探偵の調査報告書</h2><div class=table-wrapper><table><thead><tr><th>容疑（アンチパターン）</th><th>真実（パターン）</th><th>証拠（効果）</th></tr></thead><tbody><tr><td>全 operation を一枚の全面切替フラグに押し込むこと</td><td>Strangler Fig による slice 単位の段階移行</td><td>失敗半径を system 全体から slice 単位へ縮められる</td></tr><tr><td>route、flag、translation を facade 一つへ混載すること</td><td>Facade + MigrationDecisions + ACL の責務分離</td><td>移行中の God Class 化を防げる</td></tr><tr><td>hidden consumer を棚卸ししないこと</td><td>MigrationMap による依存の見える化</td><td>smoke test の外にある依存を切替前に扱える</td></tr><tr><td>temporary component に期限を付けないこと</td><td>exit condition による retirement 判断</td><td>仮設を legacy と一緒に永住させずに済む</td></tr></tbody></table></div><h3 id=推理のステップ>推理のステップ</h3><ol><li>facade を通らない hidden consumer を含め、入口と裏口を棚卸しする</li><li>system 全体ではなく capability / channel 単位で migration slice を定義する</li><li>stable な facade を置き、dispatch だけを一箇所へ集約する</li><li>route decision と feature flag を分け、露出制御を if 文の沼にしない</li><li>新しい側が old vocabulary で汚れないよう ACL を seam に置く</li><li>divergence、rollback、direct caller、flag 削除を exit condition として記録する</li><li>緑になった slice から順に legacy route と temporary component を撤去する</li></ol><h3 id=ロックより>ロックより</h3><p>古い館を壊すなと言っているのではない。壊す順を誤るなと言っているのだよ、ワトソン君。一夜で外壁を吹き飛ばせば、支えていた蔓まで失われる。ならば逆に、新しい蔓を一枝ずつ伸ばしたまえ。</p><p>route を決める者、言葉を翻訳する者、退出条件を書く者。その三者を同じ机へ縛りつけるな。役を分けておけば、崩れるのは建物全体ではなく一本の枝で済む。移行とは、正しい順番で縮小する混沌なのだよ。</p></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/perl/>Perl</a>
+<a href=/tags/moo/>Moo</a>
+<a href=/tags/strangler-fig/>Strangler-Fig</a>
+<a href=/tags/big-bang-rewrite/>Big-Bang-Rewrite</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-detective/>Code-Detective</a>
+<a href=/tags/feature-flag/>Feature-Flag</a>
+<a href=/tags/anti-corruption-layer/>Anti-Corruption-Layer</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/05/12/070705/><div class=article-image><img src=/public_images/2026/code-detective-anti-corruption-layer/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-anti-corruption-layer/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Anti-Corruption Layer】越境伝票の怪〜外様の略語が捜査本部を汚す夜〜</h2></div></a></article><article class=has-image><a href=/2026/05/15/070705/><div class=article-image><img src=/public_images/2026/code-detective-bff/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-bff/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Backends for Frontends】最後の依頼〜一つの答えが全員を不満にする夜〜</h2></div></a></article><article class=has-image><a href=/2026/05/14/070705/><div class=article-image><img src=/public_images/2026/code-detective-api-gateway/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-api-gateway/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【API Gateway】窓口のない捜査本部〜マイクロサービスに個別に会いに行く悲劇〜</h2></div></a></article><article class=has-image><a href=/2026/05/11/070705/><div class=article-image><img src=/public_images/2026/code-detective-competing-consumers/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-competing-consumers/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Competing Consumers】重なる受領印〜増員だけでは消えない二重処理〜</h2></div></a></article><article class=has-image><a href=/2026/05/10/070705/><div class=article-image><img src=/public_images/2026/code-detective-dlq/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-dlq/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Dead Letter Queue】差し戻し地獄〜リトライの檻に囚われたメッセージ〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

@@ -1,0 +1,435 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="浮動小数点数での金額計算による1円の誤差と、通貨コードの分離による異通貨加算バグを、Money Value Objectで構造的に解決する。Perl/Mooでの整数セント表現、演算子オーバーロード、通貨不一致検出まで実装付きで解説。"><title>コード探偵ロックの事件簿【Money Pattern】消えた1円の行方〜浮動小数点が生んだ幽霊通貨〜</title><link rel=canonical href=https://www.nqou.net/2026/04/25/070705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コード探偵ロックの事件簿【Money Pattern】消えた1円の行方〜浮動小数点が生んだ幽霊通貨〜"><meta property='og:description' content="浮動小数点数での金額計算による1円の誤差と、通貨コードの分離による異通貨加算バグを、Money Value Objectで構造的に解決する。Perl/Mooでの整数セント表現、演算子オーバーロード、通貨不一致検出まで実装付きで解説。"><meta property='og:url' content='https://www.nqou.net/2026/04/25/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='perl'><meta property='article:tag' content='moo'><meta property='article:tag' content='money-pattern'><meta property='article:tag' content='value-object'><meta property='article:tag' content='floating-point'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-detective'><meta property='article:published_time' content='2026-04-25T07:07:05+09:00'><meta property='article:modified_time' content='2026-04-25T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-detective-money-pattern/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コード探偵ロックの事件簿【Money Pattern】消えた1円の行方〜浮動小数点が生んだ幽霊通貨〜"><meta name=twitter:description content="浮動小数点数での金額計算による1円の誤差と、通貨コードの分離による異通貨加算バグを、Money Value Objectで構造的に解決する。Perl/Mooでの整数セント表現、演算子オーバーロード、通貨不一致検出まで実装付きで解説。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-detective-money-pattern/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-04-25T07:07:05+09:00","datePublished":"2026-04-25T07:07:05+09:00","description":"浮動小数点数での金額計算による1円の誤差と、通貨コードの分離による異通貨加算バグを、Money Value Objectで構造的に解決する。Perl/Mooでの整数セント表現、演算子オーバーロード、通貨不一致検出まで実装付きで解説。","headline":"コード探偵ロックの事件簿【Money Pattern】消えた1円の行方〜浮動小数点が生んだ幽霊通貨〜","image":"https://www.nqou.net/public_images/2026/code-detective-money-pattern/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/04/25/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#事務所への来客予約どおりの15時>事務所への来客——予約どおりの15時</a></li><li><a href=#容疑者の浮上幽霊通貨の正体>容疑者の浮上——幽霊通貨の正体</a></li><li><a href=#鮮やかなリファクタリングmoney-value-object>鮮やかなリファクタリング——Money Value Object</a><ol><li><a href=#ステップ1-骨格>ステップ1: 骨格</a></li><li><a href=#ステップ2-通貨チェックと加減算>ステップ2: 通貨チェックと加減算</a></li><li><a href=#ステップ3-スカラー乗算>ステップ3: スカラー乗算</a></li><li><a href=#ステップ4-等価性と文字列化>ステップ4: 等価性と文字列化</a></li><li><a href=#ステップ5-ファクトリメソッド>ステップ5: ファクトリメソッド</a></li></ol></li><li><a href=#事件の終わりテストが証明する金額の正体>事件の終わり——テストが証明する金額の正体</a></li><li><a href=#探偵の調査結果そしてドメインの深淵>探偵の調査結果——そしてドメインの深淵</a></li><li><a href=#探偵の調査報告書>探偵の調査報告書</a><ol><li><a href=#推理のステップ>推理のステップ</a></li><li><a href=#ロックより>ロックより</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/04/25/070705/><img src=/public_images/2026/code-detective-money-pattern/header.webp loading=lazy alt="Featured image of post コード探偵ロックの事件簿【Money Pattern】消えた1円の行方〜浮動小数点が生んだ幽霊通貨〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/04/25/070705/>コード探偵ロックの事件簿【Money Pattern】消えた1円の行方〜浮動小数点が生んだ幽霊通貨〜</a></h2><h3 class=article-subtitle>浮動小数点数での金額計算による1円の誤差と、通貨コードの分離による異通貨加算バグを、Money Value Objectで構造的に解決する。Perl/Mooでの整数セント表現、演算子オーバーロード、通貨不一致検出まで実装付きで解説。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>25, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 13分</time></div></footer></div></header><section class=article-content><h2 id=事務所への来客予約どおりの15時>事務所への来客——予約どおりの15時</h2><p>雑居ビルの三階。階段を上がって、ドアの前で立ち止まる。スマホの時刻は15:00。メールには「木曜の15時に来たまえ」とだけ書かれていた。差出人は「ロック」。署名もなければ、会社概要のURLもない。</p><p>社外の技術ブログのコメント欄でLCIの名前を見つけたのは、先月の障害の事後分析レポートを読み漁っていた夜のことだ。「この手の問題ならLCIに相談してみては」——それだけの情報を頼りにサイトを見つけ、メールを送った。返信は一行。</p><p>ドアをノックする。</p><p>「開いている」</p><p>押し開けると、デスクの上にCasioの関数電卓——fx-991——の筐体と基板が並んでいた。男がひとり、虫眼鏡を片手に基板のチップを覗き込んでいる。くたびれたジャケット。エナジードリンクの缶は1本だけ。飲みかけ。</p><p>「このチップはBCD演算ユニットだ。10進数をそのまま扱う。浮動小数点を使わない。だから電卓は <code>0.1 + 0.2</code> を正確に <code>0.3</code> と表示できる」</p><p>虫眼鏡から目を離さずに言う。</p><p>「——一方、君のサーバーは？」</p><p>「あの、15時のお約束で伺いました。決済チームの——」</p><p>「ああ、メールの」ようやく虫眼鏡を置いた。「金額が1円ずれる件と、通貨が混ざる件だね。——見せたまえ、ワトソン君」</p><p>一拍、間が空いた。</p><p>「……それ、やめていただけますか」</p><p>ロックさんは気にする素振りすらなく、椅子をくるりと回してデスクに向かった。</p><p>「コードを見せたまえ、と言っているんだ」</p><p>まあ、呼び方より中身だ。バッグからノートPCを取り出す。</p><p>2つの障害を説明する。淡々と、だが語尾に力がこもる。</p><p>「先月、請求金額が1円ずれる障害が本番で出ました。原因は税率計算の浮動小数点丸め誤差です。修正はしましたが、対症療法です」</p><p>「修正の翌週、今度は別の箇所で、USD建ての送金額にJPY建ての手数料が加算されるバグが出ました。コード上は <code>$amount + $fee</code> で、どちらもただの数値です。通貨が別変数で管理されていて、足し算の時点ではチェックがありません」</p><p>「2つの障害の根っこが同じなのか別なのか、わたしにはわかりません。わかっているのは、金額の計算が信用できない状態だということです」</p><p>ロックさんはノートPCの画面をこちらに向けるよう促しながら、静かに言った。</p><p>「2つの事件は根が同じだ。<strong>金額がValue Objectになっていない</strong>——つまり、金はただの数字として放置されている。数字には名前がなく、通貨がなく、振る舞いがない。名前のない金は、幽霊と同じだよ」</p><h2 id=容疑者の浮上幽霊通貨の正体>容疑者の浮上——幽霊通貨の正体</h2><p>ロックさんがノートPCの画面を覗き込む。わたしの決済モジュールのコードが映っている。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Payment::Invoice</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(Num Str ArrayRef)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>amount</span>   <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Num</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>currency</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>items</span>    <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>ArrayRef</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=o>[]</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>total</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$sum</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=k>my</span> <span class=nv>$item</span> <span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>items</span><span class=o>-&gt;</span><span class=nv>@</span><span class=err>*</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$sum</span> <span class=o>+=</span> <span class=nv>$item</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>price</span><span class=p>}</span> <span class=o>*</span> <span class=nv>$item</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>quantity</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$sum</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>add_tax</span> <span class=p>($self, $tax_rate) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>total</span> <span class=o>*</span> <span class=p>(</span><span class=mi>1</span> <span class=o>+</span> <span class=nv>$tax_rate</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>add_fee</span> <span class=p>($self, $fee_amount) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>total</span> <span class=o>+</span> <span class=nv>$fee_amount</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<code>price</code> は何型だね？」ロックさんが <code>$sum += $item->{price} * $item->{quantity}</code> の行を指でなぞる。</p><p>「Numです。浮動小数点数」</p><p>「そして <code>currency</code> は別のフィールドにいる。<code>add_fee</code> を見たまえ。<code>$self->total + $fee_amount</code>——この <code>$fee_amount</code> の通貨は誰が保証しているかね？」</p><p>「……呼び出し側の責任です。ドキュメントには『同一通貨で渡すこと』と書いてあります」</p><p>ロックさんがデスクの上の電卓基板をちらりと見た。</p><p>「ドキュメントで防ぐ。——先日の依頼人も同じことを言っていたよ」</p><p>何の話かわからなかったが、「ドキュメントで防ぐ」が不十分だという指摘は理解できた。</p><p>「容疑者は二人いる」ロックさんが言った。「第一の容疑者——<strong>浮動小数点数</strong>。証拠を見せよう」</p><p>ロックさんは自分のThinkPad——電卓の隣に置いてあった年代物——のターミナルを開いた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl>$ perl -e <span class=s1>&#39;print 0.1 + 0.2, &#34;\n&#34;&#39;</span>
+</span></span><span class=line><span class=cl>0.30000000000000004
+</span></span></code></pre></td></tr></table></div></div><p>画面を凝視する。息が止まった。</p><p>「……知識としては知っていました。IEEE 754。でも——」</p><p>「知っていることと、自分のコードに当てはまると認識することは別の能力だよ、ワトソン君。もう1つ」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl>$ perl -e <span class=s1>&#39;my $s = 0; $s += 0.01 for 1..100; print $s, &#34;\n&#34;&#39;</span>
+</span></span><span class=line><span class=cl>0.999999999999998
+</span></span></code></pre></td></tr></table></div></div><p>「0.01を100回足して……1にならない」自分でも声のトーンが上がったのがわかった。</p><p>「税率8%を掛けた瞬間、結果は近似値になる。その近似値を <code>sprintf '%.0f'</code> で丸めたとき、1円上に行くか下に行くかは入力値の組み合わせで変わる。再現条件が複雑すぎて人間には追えない。——だが整数なら、1 + 1 は常に 2 だ」</p><p>「つまり、金額を最初から整数で……セント表現？」</p><p>「そうだ。$19.99は整数1999。¥1000はそのまま整数1000。日本円には小数がないからな。<strong>最小通貨単位の整数で保持すれば、加減算から浮動小数点が消える</strong>」</p><p>ロックさんは一呼吸置いて、続けた。</p><p>「第二の容疑者——<strong>通貨の不在</strong>」</p><p>わたしのコードの <code>add_fee</code> を指さす。</p><p>「<code>$self->total + $fee_amount</code>。Perlはこの2つの数値を足す。通貨のことは何も知らない。金額と通貨が別の変数にいる限り、コードは通貨を無視する自由を持つ」</p><p>言葉を切って、こちらを見る。</p><p>「金額と通貨は、パスポートの写真と名前のようなものだ。剥がした瞬間、誰の顔かわからなくなる」</p><p>「だからMoneyオブジェクトで一体化する、ということですか」</p><p>「正確には、<strong>分離不可能にする</strong>。金額だけを取り出して裸で演算することを、構造的に不可能にするのだ」</p><h2 id=鮮やかなリファクタリングmoney-value-object>鮮やかなリファクタリング——Money Value Object</h2><p>ロックさんがThinkPadをわたしのノートPCの隣に並べた。</p><p>「Moneyクラスを作る。金額は整数。通貨は文字列。どちらも <code>ro</code>——不変だ」</p><h3 id=ステップ1-骨格>ステップ1: 骨格</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Money</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>MooX::StrictConstructor</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(Int Str)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Carp</span> <span class=sx>qw(croak)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>overload</span>
+</span></span><span class=line><span class=cl>    <span class=s>&#39;+&#39;</span>   <span class=o>=&gt;</span> <span class=o>\&amp;</span><span class=n>_add</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=s>&#39;-&#39;</span>   <span class=o>=&gt;</span> <span class=o>\&amp;</span><span class=n>_subtract</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=s>&#39;*&#39;</span>   <span class=o>=&gt;</span> <span class=o>\&amp;</span><span class=n>_multiply</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=s>&#39;==&#39;</span>  <span class=o>=&gt;</span> <span class=o>\&amp;</span><span class=n>_equal</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=s>&#39;!=&#39;</span>  <span class=o>=&gt;</span> <span class=o>\&amp;</span><span class=n>_not_equal</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=s>&#39;&#34;&#34;&#39;</span>  <span class=o>=&gt;</span> <span class=o>\&amp;</span><span class=n>_stringify</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=s>&#39;&lt;=&gt;&#39;</span> <span class=o>=&gt;</span> <span class=o>\&amp;</span><span class=n>_compare</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=s>&#39;neg&#39;</span> <span class=o>=&gt;</span> <span class=o>\&amp;</span><span class=n>_negate</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>fallback</span> <span class=o>=&gt;</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>amount</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>isa</span>      <span class=o>=&gt;</span> <span class=n>Int</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>currency</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>isa</span>      <span class=o>=&gt;</span> <span class=n>Str</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<code>fallback => 0</code> って何ですか？」</p><p>「定義していない演算子が使われたとき、Perlが勝手に推測して動かすのを禁止する宣言だ。<code>fallback => 1</code> なら <code>$money / $money2</code> のような未定義の演算が暗黙的に動き得る。<code>fallback => 0</code> なら即座にエラーだ。<strong>許可していない操作がエラーになることこそが安全だ</strong>」</p><p>「ホワイトリスト方式ですね。許可した演算だけが動く」</p><h3 id=ステップ2-通貨チェックと加減算>ステップ2: 通貨チェックと加減算</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>sub</span> <span class=nf>_assert_same_currency</span> <span class=p>($self, $other) {</span>
+</span></span><span class=line><span class=cl>    <span class=n>croak</span> <span class=nb>sprintf</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=s>&#39;Currency mismatch: cannot operate %s with %s&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>currency</span><span class=p>,</span> <span class=nv>$other</span><span class=o>-&gt;</span><span class=n>currency</span>
+</span></span><span class=line><span class=cl>    <span class=p>)</span> <span class=k>unless</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>currency</span> <span class=ow>eq</span> <span class=nv>$other</span><span class=o>-&gt;</span><span class=n>currency</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>_add</span> <span class=p>($self, $other, $swap) {</span>
+</span></span><span class=line><span class=cl>    <span class=n>croak</span> <span class=s>&#39;Cannot operate with non-Money value&#39;</span>
+</span></span><span class=line><span class=cl>        <span class=k>unless</span> <span class=nb>ref</span> <span class=nv>$other</span> <span class=o>&amp;&amp;</span> <span class=nv>$other</span><span class=o>-&gt;</span><span class=n>isa</span><span class=p>(</span><span class=s>&#39;Money&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_assert_same_currency</span><span class=p>(</span><span class=nv>$other</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nn>Money</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>amount</span>   <span class=o>=&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>amount</span> <span class=o>+</span> <span class=nv>$other</span><span class=o>-&gt;</span><span class=n>amount</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>currency</span> <span class=o>=&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>currency</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>_subtract</span> <span class=p>($self, $other, $swap) {</span>
+</span></span><span class=line><span class=cl>    <span class=n>croak</span> <span class=s>&#39;Cannot operate with non-Money value&#39;</span>
+</span></span><span class=line><span class=cl>        <span class=k>unless</span> <span class=nb>ref</span> <span class=nv>$other</span> <span class=o>&amp;&amp;</span> <span class=nv>$other</span><span class=o>-&gt;</span><span class=n>isa</span><span class=p>(</span><span class=s>&#39;Money&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_assert_same_currency</span><span class=p>(</span><span class=nv>$other</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$left</span><span class=p>,</span> <span class=nv>$right</span><span class=p>)</span> <span class=o>=</span> <span class=nv>$swap</span> <span class=p>?</span> <span class=p>(</span><span class=nv>$other</span><span class=p>,</span> <span class=nv>$self</span><span class=p>)</span> <span class=p>:</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$other</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nn>Money</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>amount</span>   <span class=o>=&gt;</span> <span class=nv>$left</span><span class=o>-&gt;</span><span class=n>amount</span> <span class=o>-</span> <span class=nv>$right</span><span class=o>-&gt;</span><span class=n>amount</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>currency</span> <span class=o>=&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>currency</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<code>_add</code> の冒頭を見たまえ。まず <code>$other</code> がMoneyオブジェクトかどうかを確認する。次に通貨が同じかを確認する。<strong>どちらかが満たされなければ、即座に死ぬ</strong>」</p><p>「<code>$amount_usd + $fee_jpy</code> を書いたら croak する」</p><p>「正確には、<code>$usd_money + $jpy_money</code> を書いたら croak する。<strong>裸の数値とは足せないし、異なる通貨とも足せない</strong>。二重の防壁だ」</p><p>あの通貨混合バグが頭をよぎった。USD建ての送金額にJPY建ての手数料を加算してしまったコード。もしMoneyオブジェクトを使っていたら——コードが動く前にエラーになっていた。</p><h3 id=ステップ3-スカラー乗算>ステップ3: スカラー乗算</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>sub</span> <span class=nf>_multiply</span> <span class=p>($self, $other, $swap) {</span>
+</span></span><span class=line><span class=cl>    <span class=n>croak</span> <span class=s>&#39;Cannot multiply Money by Money&#39;</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=nb>ref</span> <span class=nv>$other</span> <span class=o>&amp;&amp;</span> <span class=nv>$other</span><span class=o>-&gt;</span><span class=n>isa</span><span class=p>(</span><span class=s>&#39;Money&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>croak</span> <span class=s>&#39;Multiplier must be a number&#39;</span>
+</span></span><span class=line><span class=cl>        <span class=k>unless</span> <span class=nb>defined</span> <span class=nv>$other</span> <span class=o>&amp;&amp;</span> <span class=o>!</span><span class=nb>ref</span> <span class=nv>$other</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nn>Money</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>amount</span>   <span class=o>=&gt;</span> <span class=nb>int</span><span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>amount</span> <span class=o>*</span> <span class=nv>$other</span> <span class=o>+</span> <span class=mf>0.5</span><span class=p>),</span>
+</span></span><span class=line><span class=cl>        <span class=n>currency</span> <span class=o>=&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>currency</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「掛け算の <code>$other</code> がMoneyだったらエラーにしてる。Money × Moneyを禁止してるんですね」</p><p>「100円 × 200円は何になるかね？ 20000 円円？ ——意味がないだろう。Moneyの掛け算はスカラー倍だけが正当だ。3個買うなら <code>$price * 3</code>。税込み計算なら <code>$price * 1.08</code>。<strong>許可する演算と禁止する演算を型で宣言するのがValue Objectの仕事だ</strong>」</p><p>「<code>int($self->amount * $other + 0.5)</code> は……四捨五入ですか？」</p><p>「最も単純な丸めだ。本番では丸め戦略を引数で受け取るか、別のメソッドに切り出すのが望ましい。Ward Cunninghamは『Moneyオブジェクト自体は丸めるべきではない。丸めはトランザクションのコンテキストで行うべき』と言っている。今回は構造の説明を優先して簡略化した」</p><h3 id=ステップ4-等価性と文字列化>ステップ4: 等価性と文字列化</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>sub</span> <span class=nf>_equal</span> <span class=p>($self, $other, $swap) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=mi>0</span> <span class=k>unless</span> <span class=nb>ref</span> <span class=nv>$other</span> <span class=o>&amp;&amp;</span> <span class=nv>$other</span><span class=o>-&gt;</span><span class=n>isa</span><span class=p>(</span><span class=s>&#39;Money&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>amount</span> <span class=o>==</span> <span class=nv>$other</span><span class=o>-&gt;</span><span class=n>amount</span>
+</span></span><span class=line><span class=cl>        <span class=o>&amp;&amp;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>currency</span> <span class=ow>eq</span> <span class=nv>$other</span><span class=o>-&gt;</span><span class=n>currency</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>_not_equal</span> <span class=p>($self, $other, $swap) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=o>!</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_equal</span><span class=p>(</span><span class=nv>$other</span><span class=p>,</span> <span class=nv>$swap</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>_compare</span> <span class=p>($self, $other, $swap) {</span>
+</span></span><span class=line><span class=cl>    <span class=n>croak</span> <span class=s>&#39;Cannot compare non-Money&#39;</span>
+</span></span><span class=line><span class=cl>        <span class=k>unless</span> <span class=nb>ref</span> <span class=nv>$other</span> <span class=o>&amp;&amp;</span> <span class=nv>$other</span><span class=o>-&gt;</span><span class=n>isa</span><span class=p>(</span><span class=s>&#39;Money&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_assert_same_currency</span><span class=p>(</span><span class=nv>$other</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$left</span><span class=p>,</span> <span class=nv>$right</span><span class=p>)</span> <span class=o>=</span> <span class=nv>$swap</span> <span class=p>?</span> <span class=p>(</span><span class=nv>$other</span><span class=p>,</span> <span class=nv>$self</span><span class=p>)</span> <span class=p>:</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$other</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$left</span><span class=o>-&gt;</span><span class=n>amount</span> <span class=sr>&lt;=&gt;</span> <span class=nv>$right</span><span class=o>-&gt;</span><span class=n>amount</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>_negate</span> <span class=p>($self, @) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nn>Money</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>amount</span>   <span class=o>=&gt;</span> <span class=o>-</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>amount</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>currency</span> <span class=o>=&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>currency</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>_stringify</span> <span class=p>($self, @) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nb>sprintf</span> <span class=s>&#39;%s %d&#39;</span><span class=p>,</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>currency</span><span class=p>,</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>amount</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>「<code>==</code> は金額<strong>と</strong>通貨の両方が一致して初めて <code>true</code> だ。USD 1999 と JPY 1999 は等しくない。——これがValue Objectの等価性だ」</p><p>属性の値で等しさを判定する。Entity vs Value Objectの概念——どこかで読んだ記憶がある。MoneyにIDはない。金額と通貨が同じなら、同じMoneyだ。</p><h3 id=ステップ5-ファクトリメソッド>ステップ5: ファクトリメソッド</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>my</span> <span class=nv>%CURRENCY_MINOR_UNIT</span> <span class=o>=</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>JPY</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>USD</span> <span class=o>=&gt;</span> <span class=mi>100</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>EUR</span> <span class=o>=&gt;</span> <span class=mi>100</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>GBP</span> <span class=o>=&gt;</span> <span class=mi>100</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>from_major</span> <span class=p>($class, $major_amount, $currency) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$unit</span> <span class=o>=</span> <span class=nv>$CURRENCY_MINOR_UNIT</span><span class=p>{</span><span class=nv>$currency</span><span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=sr>//</span> <span class=n>croak</span> <span class=s>&#34;Unknown currency: $currency&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$class</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>amount</span>   <span class=o>=&gt;</span> <span class=nb>int</span><span class=p>(</span><span class=nv>$major_amount</span> <span class=o>*</span> <span class=nv>$unit</span> <span class=o>+</span> <span class=mf>0.5</span><span class=p>),</span>
+</span></span><span class=line><span class=cl>        <span class=n>currency</span> <span class=o>=&gt;</span> <span class=nv>$currency</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>to_major</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$unit</span> <span class=o>=</span> <span class=nv>$CURRENCY_MINOR_UNIT</span><span class=p>{</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>currency</span><span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=sr>//</span> <span class=n>croak</span> <span class=nb>sprintf</span><span class=p>(</span><span class=s>&#39;Unknown currency: %s&#39;</span><span class=p>,</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>currency</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>amount</span> <span class=o>/</span> <span class=nv>$unit</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「人間は <code>19.99</code> と書きたがるし、表示も <code>$19.99</code> でしてほしい。<code>from_major</code> は人間向けの数値を整数に変換し、<code>to_major</code> は逆方向だ。<strong>内部は常に整数、外部とのやりとりにだけ変換を使う</strong>」</p><p>「JPYの <code>minor_unit</code> が1になってる。日本円は小数点以下がないから、そのまま」</p><p>「ISO 4217では通貨ごとに小数点以下の桁数が定義されている。日本円は0、米ドルは2、バーレーン・ディナールは3だ。この <code>%CURRENCY_MINOR_UNIT</code> が通貨ごとの違いを吸収する」</p><p><code>MooX::StrictConstructor</code> にも目が止まった。タイプミスが即座にエラーになる仕組み——不変オブジェクトでは構築時の正しさが全て、という話をどこかで聞いたような気がする。</p><p>「Moneyは不変だ。<code>$money->amount(500)</code> とは書けない。金額を変えたければ、新しいMoneyを作る」ロックさんが言った。「<strong>不変性はMoneyの前提条件であって、オプションではない</strong>。100円が勝手に200円に変わる紙幣を信用する人間はいないだろう？」</p><p>確かに。金額が可変なら、共有されたMoneyオブジェクトの値がどこかで書き換えられるリスクがある。不変であれば安全に共有できる。</p><pre class=mermaid>
+	classDiagram
+    class Money {
+        -Int amount
+        -Str currency
+        +amount() Int
+        +currency() Str
+        +from_major(amount, currency)$ Money
+        +to_major() Num
+        +_add(other) Money
+        +_subtract(other) Money
+        +_multiply(scalar) Money
+        +_equal(other) Bool
+        +_stringify() Str
+    }
+
+    class Invoice {
+        +Money total_amount
+        +add_tax(rate) Money
+        +add_fee(Money fee) Money
+    }
+
+    Invoice --&gt; Money : 金額はすべて Money
+    note for Money &#34;amount + currency 一体化\n整数セント表現\n演算子オーバーロード\n通貨不一致 = 即croak&#34;
+</pre><h2 id=事件の終わりテストが証明する金額の正体>事件の終わり——テストが証明する金額の正体</h2><p>ターミナルを開いた。ロックさんの指示でテストを書く。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>use</span> <span class=nn>Test::More</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Test::Exception</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># === 整数精度テスト ===</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$a</span> <span class=o>=</span> <span class=nn>Money</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>amount</span> <span class=o>=&gt;</span> <span class=mi>10</span><span class=p>,</span> <span class=n>currency</span> <span class=o>=&gt;</span> <span class=s>&#39;USD&#39;</span><span class=p>);</span>   <span class=c1># $0.10</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$b</span> <span class=o>=</span> <span class=nn>Money</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>amount</span> <span class=o>=&gt;</span> <span class=mi>20</span><span class=p>,</span> <span class=n>currency</span> <span class=o>=&gt;</span> <span class=s>&#39;USD&#39;</span><span class=p>);</span>   <span class=c1># $0.20</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$c</span> <span class=o>=</span> <span class=nv>$a</span> <span class=o>+</span> <span class=nv>$b</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>is</span> <span class=nv>$c</span><span class=o>-&gt;</span><span class=n>amount</span><span class=p>,</span> <span class=mi>30</span><span class=p>,</span> <span class=s>&#39;整数加算: 10 + 20 = 30 (浮動小数点誤差なし)&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># === 通貨不一致テスト ===</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$usd</span> <span class=o>=</span> <span class=nn>Money</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>amount</span> <span class=o>=&gt;</span> <span class=mi>1000</span><span class=p>,</span> <span class=n>currency</span> <span class=o>=&gt;</span> <span class=s>&#39;USD&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$jpy</span> <span class=o>=</span> <span class=nn>Money</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>amount</span> <span class=o>=&gt;</span> <span class=mi>1000</span><span class=p>,</span> <span class=n>currency</span> <span class=o>=&gt;</span> <span class=s>&#39;JPY&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>dies_ok</span> <span class=p>{</span> <span class=nv>$usd</span> <span class=o>+</span> <span class=nv>$jpy</span> <span class=p>}</span> <span class=s>&#39;異なる通貨の加算は例外&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># === Money × Money 禁止テスト ===</span>
+</span></span><span class=line><span class=cl><span class=n>dies_ok</span> <span class=p>{</span> <span class=nv>$usd</span> <span class=o>*</span> <span class=nv>$jpy</span> <span class=p>}</span> <span class=s>&#39;Money同士の乗算は例外&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># === スカラー乗算テスト ===</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$price</span> <span class=o>=</span> <span class=nn>Money</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>amount</span> <span class=o>=&gt;</span> <span class=mi>1999</span><span class=p>,</span> <span class=n>currency</span> <span class=o>=&gt;</span> <span class=s>&#39;USD&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$triple</span> <span class=o>=</span> <span class=nv>$price</span> <span class=o>*</span> <span class=mi>3</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>is</span> <span class=nv>$triple</span><span class=o>-&gt;</span><span class=n>amount</span><span class=p>,</span> <span class=mi>5997</span><span class=p>,</span> <span class=s>&#39;スカラー乗算: 1999 * 3 = 5997&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># === 不変性テスト ===</span>
+</span></span><span class=line><span class=cl><span class=n>dies_ok</span> <span class=p>{</span> <span class=nv>$price</span><span class=o>-&gt;</span><span class=n>amount</span><span class=p>(</span><span class=mi>500</span><span class=p>)</span> <span class=p>}</span> <span class=s>&#39;属性の書き換えは例外&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>is</span> <span class=nv>$price</span><span class=o>-&gt;</span><span class=n>amount</span><span class=p>,</span> <span class=mi>1999</span><span class=p>,</span> <span class=s>&#39;元のオブジェクトは不変&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># === 等価性テスト ===</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$same</span> <span class=o>=</span> <span class=nn>Money</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>amount</span> <span class=o>=&gt;</span> <span class=mi>1999</span><span class=p>,</span> <span class=n>currency</span> <span class=o>=&gt;</span> <span class=s>&#39;USD&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>ok</span> <span class=nv>$price</span> <span class=o>==</span> <span class=nv>$same</span><span class=p>,</span> <span class=s>&#39;同じ金額・同じ通貨は等しい&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$diff_currency</span> <span class=o>=</span> <span class=nn>Money</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>amount</span> <span class=o>=&gt;</span> <span class=mi>1999</span><span class=p>,</span> <span class=n>currency</span> <span class=o>=&gt;</span> <span class=s>&#39;JPY&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>ok</span> <span class=nv>$price</span> <span class=o>!=</span> <span class=nv>$diff_currency</span><span class=p>,</span> <span class=s>&#39;同じ金額でも通貨が違えば等しくない&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># === ファクトリメソッドテスト ===</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$from_dollars</span> <span class=o>=</span> <span class=nn>Money</span><span class=o>-&gt;</span><span class=n>from_major</span><span class=p>(</span><span class=mf>19.99</span><span class=p>,</span> <span class=s>&#39;USD&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>is</span> <span class=nv>$from_dollars</span><span class=o>-&gt;</span><span class=n>amount</span><span class=p>,</span> <span class=mi>1999</span><span class=p>,</span> <span class=s>&#39;from_major: $19.99 → 1999&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$from_yen</span> <span class=o>=</span> <span class=nn>Money</span><span class=o>-&gt;</span><span class=n>from_major</span><span class=p>(</span><span class=mi>1000</span><span class=p>,</span> <span class=s>&#39;JPY&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>is</span> <span class=nv>$from_yen</span><span class=o>-&gt;</span><span class=n>amount</span><span class=p>,</span> <span class=mi>1000</span><span class=p>,</span> <span class=s>&#39;from_major: ¥1000 → 1000&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># === StrictConstructor テスト ===</span>
+</span></span><span class=line><span class=cl><span class=n>dies_ok</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=nn>Money</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>amout</span> <span class=o>=&gt;</span> <span class=mi>1000</span><span class=p>,</span> <span class=n>currency</span> <span class=o>=&gt;</span> <span class=s>&#39;JPY&#39;</span><span class=p>);</span>  <span class=c1># タイプミス</span>
+</span></span><span class=line><span class=cl><span class=p>}</span> <span class=s>&#39;タイプミスは例外&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>done_testing</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>テスト実行。全テストパス。グリーン。</p><p>モニターの <code>All tests successful</code> を見ながら、息を一つ吐いた。</p><p>「……全部通りました」</p><p>「通貨不一致はエラーになる。Money同士の掛け算もエラーになる。浮動小数点の丸め誤差は、そもそも発生しない」</p><p>ロックさんが静かに続けた。</p><p>「<strong>犯人は裸の数値だった</strong>。名前のない金が、名前のあるMoneyになった。それだけのことだ」</p><p>「それだけのこと、ですか」わたしは画面を見つめたまま言った。「でも、それだけで2つの障害が両方消える」</p><p>「構造が正しければ、バグのカテゴリ全体が消える。1件のバグを潰すのではなく、<strong>バグが棲める場所を消す</strong>のだ」</p><h2 id=探偵の調査結果そしてドメインの深淵>探偵の調査結果——そしてドメインの深淵</h2><p>ロックさんがThinkPadを閉じた。わたしもノートPCをバッグにしまいかける。</p><p>だが、一つだけ聞きたいことがあった。</p><p>「ロックさん。ドメインの深淵って、結局なんなんですか」</p><p>自分でもなぜそんな言葉が出たのかわからない。ただ、金額が「ただの数値」として放置されていた状況——名前もなく、境界もなく、振る舞いもない——それを「深淵」と呼びたくなった。</p><p>ロックさんは関数電卓の基板をデスクに戻しながら、少し間を置いた。</p><p>「型のない世界だよ。値が値としての権利——名前も、境界も、振る舞いも——を持たない世界だ。金額はただの数字。住所はただの文字列。注文はただのハッシュ」</p><p>それから、こちらを見た。</p><p>「ワトソン君、深淵を覗き返すには <strong>型を与える</strong> 以外にないのだ」</p><p>数字に名前を与え、境界を定め、振る舞いを付与する。それはMoneyだけの話ではない。もっと大きな——うまく言葉にできないが、設計全体を貫く一本の線のようなものが見えた気がした。</p><p>「報酬は——そうだな」ロックさんがデスクの上を見渡す。「10進数で正確に表現できないドリンクを1本。0.1リットルのエスプレッソだ」</p><p>「……それ、普通のエスプレッソですよね」</p><p>「普通かどうかは浮動小数点に聞いてくれたまえ」</p><p>ドアに手をかけ、小さく苦笑した。</p><p>帰りの電車。スマホのメモアプリに <code>Money->new(amount => 1999, currency => 'USD')</code> と打ち込んでみる。</p><p>金額に名前がつくだけで、こんなに安心できるものなのか。数字が型になった瞬間、1円の幽霊は消えた。</p><hr><h2 id=探偵の調査報告書>探偵の調査報告書</h2><div class=table-wrapper><table><thead><tr><th style=text-align:left>容疑（アンチパターン）</th><th style=text-align:left>真実（パターン）</th><th style=text-align:left>証拠（効果）</th></tr></thead><tbody><tr><td style=text-align:left>浮動小数点数での金額計算</td><td style=text-align:left>整数セント表現（最小通貨単位）</td><td style=text-align:left>加減算から丸め誤差が構造的に消滅</td></tr><tr><td style=text-align:left>金額と通貨の分離管理</td><td style=text-align:left>Money Value Object（金額＋通貨一体化）</td><td style=text-align:left>異なる通貨の演算が即座にエラー</td></tr><tr><td style=text-align:left>裸の数値による暗黙的な型変換</td><td style=text-align:left>演算子オーバーロード＋fallback => 0</td><td style=text-align:left>未定義の操作がエラーになる安全設計</td></tr><tr><td style=text-align:left>ドキュメントによる通貨チェック</td><td style=text-align:left><code>_assert_same_currency</code> による構造的保証</td><td style=text-align:left>実行時に通貨不一致を自動検出</td></tr></tbody></table></div><h3 id=推理のステップ>推理のステップ</h3><ol><li><strong>整数化</strong>: 金額を最小通貨単位の整数で保持する。USD $19.99 → <code>1999</code>、JPY ¥1000 → <code>1000</code>。通貨ごとの小数桁数（ISO 4217）に応じて変換係数を定義する</li><li><strong>一体化</strong>: <code>amount</code>（整数）と <code>currency</code>（文字列）を1つのMoneyオブジェクトに封じ込める。<code>is => 'ro'</code> で不変性を保証する</li><li><strong>演算子定義</strong>: <code>overload</code> で <code>+</code>, <code>-</code>, <code>*</code>, <code>==</code>, <code>!=</code>, <code>&lt;=></code> を定義する。加減算では通貨チェック、乗算ではMoney × Money禁止を組み込む</li><li><strong>未定義操作の禁止</strong>: <code>fallback => 0</code> で定義していない演算を即座にエラーにする</li><li><strong>ファクトリメソッド</strong>: <code>from_major</code> / <code>to_major</code> で人間向け数値との変換口を用意する。内部は常に整数</li><li><strong>StrictConstructor</strong>: <code>MooX::StrictConstructor</code> でコンストラクタのタイプミスを検出する。不変オブジェクトは構築時の正しさが全て</li></ol><h3 id=ロックより>ロックより</h3><p>金は、数字の中で最も嘘をつきやすい存在だ。小数点以下の幽霊が1円を食い、通貨の境界を持たない裸の数値が国境を無視する。</p><p>Value Objectとは、値に権利を与える行為だ。名前を与え、境界を定め、振る舞いを付与する。Moneyはその最も切実な実践であり——ドメインの深淵に型の光を差し込む最初の一歩だ。</p><p>ワトソン君、金を扱うなら、金に名前をつけたまえ。名前のない金は誰のものでもない。そして誰のものでもない金は、いつか必ず消える。</p></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/perl/>Perl</a>
+<a href=/tags/moo/>Moo</a>
+<a href=/tags/money-pattern/>Money-Pattern</a>
+<a href=/tags/value-object/>Value-Object</a>
+<a href=/tags/floating-point/>Floating-Point</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-detective/>Code-Detective</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/04/23/070705/><div class=article-image><img src=/public_images/2026/code-detective-entity-value-object/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-entity-value-object/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Entity vs Value Object】二重人格の住所録〜同一性と等価性が交差する日〜</h2></div></a></article><article class=has-image><a href=/2026/03/10/070705/><div class=article-image><img src=/public_images/2026/code-detective-value-object-primitive-obsession/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-value-object-primitive-obsession/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Value Object】偽造された身分証〜変数が型を失う日〜</h2></div></a></article><article class=has-image><a href=/2026/05/15/070705/><div class=article-image><img src=/public_images/2026/code-detective-bff/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-bff/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Backends for Frontends】最後の依頼〜一つの答えが全員を不満にする夜〜</h2></div></a></article><article class=has-image><a href=/2026/05/14/070705/><div class=article-image><img src=/public_images/2026/code-detective-api-gateway/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-api-gateway/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【API Gateway】窓口のない捜査本部〜マイクロサービスに個別に会いに行く悲劇〜</h2></div></a></article><article class=has-image><a href=/2026/05/13/070705/><div class=article-image><img src=/public_images/2026/code-detective-strangler-fig/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-strangler-fig/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Strangler Fig】外壁に伸びる蔓〜全面更改が新旧を窒息させる夜〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

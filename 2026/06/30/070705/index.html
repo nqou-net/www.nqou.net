@@ -1,0 +1,430 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="通知を一本足しただけで、ポイント付与が止まった。注文確定の本体に反応が直書きされ、施策のたびに急所を開ける——散弾銃手術をObserverパターンで解き、発生側は「起きた」と知らせるだけにする整備記録。"><title>コードメカニック【Observer】通知を一本足しただけで、ポイントが付かなくなった〜「起きた」と知らせるだけの配線へ〜</title><link rel=canonical href=https://www.nqou.net/2026/06/30/070705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コードメカニック【Observer】通知を一本足しただけで、ポイントが付かなくなった〜「起きた」と知らせるだけの配線へ〜"><meta property='og:description' content="通知を一本足しただけで、ポイント付与が止まった。注文確定の本体に反応が直書きされ、施策のたびに急所を開ける——散弾銃手術をObserverパターンで解き、発生側は「起きた」と知らせるだけにする整備記録。"><meta property='og:url' content='https://www.nqou.net/2026/06/30/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='go'><meta property='article:tag' content='observer'><meta property='article:tag' content='shotgun-surgery'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-mechanic'><meta property='article:published_time' content='2026-06-30T07:07:05+09:00'><meta property='article:modified_time' content='2026-06-30T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-mechanic-observer/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コードメカニック【Observer】通知を一本足しただけで、ポイントが付かなくなった〜「起きた」と知らせるだけの配線へ〜"><meta name=twitter:description content="通知を一本足しただけで、ポイント付与が止まった。注文確定の本体に反応が直書きされ、施策のたびに急所を開ける——散弾銃手術をObserverパターンで解き、発生側は「起きた」と知らせるだけにする整備記録。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-mechanic-observer/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-06-30T07:07:05+09:00","datePublished":"2026-06-30T07:07:05+09:00","description":"通知を一本足しただけで、ポイント付与が止まった。注文確定の本体に反応が直書きされ、施策のたびに急所を開ける——散弾銃手術をObserverパターンで解き、発生側は「起きた」と知らせるだけにする整備記録。","headline":"コードメカニック【Observer】通知を一本足しただけで、ポイントが付かなくなった〜「起きた」と知らせるだけの配線へ〜","image":"https://www.nqou.net/public_images/2026/code-mechanic-observer/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/06/30/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#周年祭の朝に>周年祭の朝に</a><ol><li><a href=#コードのほうの整備士>コードのほうの整備士</a></li><li><a href=#燃えているところ>燃えているところ</a></li></ol></li><li><a href=#応急二箇所塞ぐ>応急——二箇所、塞ぐ</a></li><li><a href=#整備記録をさかのぼる>整備記録を、さかのぼる</a><ol><li><a href=#半分正しい>半分、正しい</a></li></ol></li><li><a href=#本格整備起きたと知らせるだけにする>本格整備——「起きた」と知らせるだけにする</a><ol><li><a href=#まずあなたの案をやります>まず、あなたの案をやります</a></li><li><a href=#出来事を型にする>出来事を、型にする</a></li><li><a href=#線はどこに引くのか>線はどこに引くのか</a></li><li><a href=#購読者は道具を抱えて生まれる>購読者は、道具を抱えて生まれる</a></li><li><a href=#配線は入口で一回>配線は、入口で一回</a></li><li><a href=#速くはなっていない>速くは、なっていない</a></li></ol></li><li><a href=#試運転次の施策がその場に届く>試運転——次の施策が、その場に届く</a><ol><li><a href=#雨の日クーポン>雨の日クーポン</a></li><li><a href=#納車>納車</a></li></ol></li><li><a href=#整備記録簿>整備記録簿</a><ol><li><a href=#整備手順>整備手順</a></li><li><a href=#親方より>親方より</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/06/30/070705/><img src=/public_images/2026/code-mechanic-observer/header.webp loading=lazy alt="Featured image of post コードメカニック【Observer】通知を一本足しただけで、ポイントが付かなくなった〜「起きた」と知らせるだけの配線へ〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/06/30/070705/>コードメカニック【Observer】通知を一本足しただけで、ポイントが付かなくなった〜「起きた」と知らせるだけの配線へ〜</a></h2><h3 class=article-subtitle>通知を一本足しただけで、ポイント付与が止まった。注文確定の本体に反応が直書きされ、施策のたびに急所を開ける——散弾銃手術をObserverパターンで解き、発生側は「起きた」と知らせるだけにする整備記録。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>30, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 24分</time></div></footer></div></header><section class=article-content><h2 id=周年祭の朝に>周年祭の朝に</h2><p>犯人探しは、要らなかった。</p><p>朝7時前、ベッドの中で見たスマホに、通知サービスのエラーログが並んでいた。タイムアウト。タイムアウト。タイムアウト。昨夜のリリースは1コミット。差分は、注文確定の処理に足した、周年祭クーポンの通知ブロックだけ。火元は、私だ。</p><p>私は、自家焙煎コーヒー豆のオンラインストアでバックエンドを書いている。実務2年目。焙煎所の2階が事務所で、開発は私とフロント担当の2人だけ。企画——店主と企画担当——は毎月施策を打ってくる。新豆入荷の案内、雨の日クーポン。そして今週は、焙煎所5周年祭。初日の今朝は、セール目当ての注文が朝から続いていた。それ自体は、いいニュースのはずだった。</p><p>出社して、確認して、血の気が引いた。通知がタイムアウトした注文では、ポイントが付いていない。CS（カスタマーサポート）用の操作履歴も、無い。</p><p>「<code>return err</code>、か」</p><p>たった一行。通知が失敗したら、エラーを返す。間違ったことを書いた覚えはない。周年祭の通知は企画の肝だから、失敗を黙って握りつぶしたくなかった。丁寧にやったつもりだった。なのにその一行が、ポイントと履歴を道連れにした。</p><p>通知の失敗が、なんでポイントの失敗になるんだ。</p><p>追い打ちは、階段を上がってきた。企画担当だ。「ねえ、定期便のお客さんから『周年祭のクーポン、私には来てないんですけど』って問い合わせが。告知には“ご注文全部に付きます”って書いちゃってます」</p><p>——定期便。うちの定期便の注文は、毎朝6時のジョブが確定する。そして昨夜の私は、Webの確定処理に通知を足して、満足して、寝た。</p><p>ジョブのほうには、足し忘れていた。</p><h3 id=コードのほうの整備士>コードのほうの整備士</h3><p>今朝はちょうど、焙煎機の定期整備の日だった。階下で作業していた整備士さん——人のいい年配の男性だ——が、コーヒーを取りに降りた私の顔を見て言った。「機械の調子、悪い?」</p><p>機械じゃなくて、コードのほうで。力なくそう返したら、整備士さんは少し笑って、工具箱の蓋の裏から名刺を一枚出した。</p><p>「なら、コードのほうの整備士を知ってるよ。親方って呼ばれてる人でね。うちの業界で言う、出張整備だ」</p><p>藁にもすがる気持ち、というより、半分は付き合いで連絡した。直し方は分かっている。エラーを握りつぶして続行に変えればいい。それでも連絡したのは、たぶん、「直し方は分かるのに、これが最後になる気がしない」からだった。</p><p>昼前に、その人は来た。整備士というから作業着を想像していたが、現れたのは身軽な格好の女性で、荷物は肩掛けの鞄ひとつ。あいさつは短く、余計なことを何も訊かない。階段の途中で焙煎機に目を留めて、「いい整備だ」とだけ言った。機械への一言が、世間話の代わりらしかった。</p><p>私は経緯を一気に説明して、苦笑いで締めた。「……で、火元は分かってるんです。昨夜の私です。直し方も、たぶん分かってます。エラーを握りつぶして続行に変えればいい。でも——また起きますよね。次の施策でも、私はこの関数に何か足すので」</p><p>親方は私の隣に腰を下ろして、画面より先に、こっちを見た。</p><p>「昨夜、何を足したかじゃない。これまで、何回足してきたか——それを後で数えます」</p><p>「……何回、って」思わず指を折りはじめて、折りきれずにやめた。</p><p>「先に、いま燃えているところを見せてください」</p><h3 id=燃えているところ>燃えているところ</h3><p>私は確定処理のファイルを開いた。Webのチェックアウトが呼ぶ、注文確定の本体だ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=kn>package</span><span class=w> </span><span class=nx>order</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=c1>// チェックアウトの確定。施策のたびに、ここへ何かが足されてきた</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=nf>ConfirmCheckout</span><span class=p>(</span><span class=nx>o</span><span class=w> </span><span class=nx>Order</span><span class=p>)</span><span class=w> </span><span class=kt>error</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=c1>// 在庫を引き当てる。引けなければ確定自体が失敗</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nf>reserveStock</span><span class=p>(</span><span class=nx>o</span><span class=p>);</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>!=</span><span class=w> </span><span class=kc>nil</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=k>return</span><span class=w> </span><span class=nx>err</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=c1>// 注文を確定として保存</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nf>saveConfirmed</span><span class=p>(</span><span class=nx>o</span><span class=p>);</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>!=</span><span class=w> </span><span class=kc>nil</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=k>return</span><span class=w> </span><span class=nx>err</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=c1>// 確認メール（前任のコメント: メールが落ちても注文は止めない）</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nf>sendConfirmMail</span><span class=p>(</span><span class=nx>o</span><span class=p>);</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>!=</span><span class=w> </span><span class=kc>nil</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nx>log</span><span class=p>.</span><span class=nf>Printf</span><span class=p>(</span><span class=s>&#34;mail: %v&#34;</span><span class=p>,</span><span class=w> </span><span class=nx>err</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=c1>// 昨夜足した: 周年祭クーポンの通知</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=c1>// 企画の肝だから、失敗を握りつぶしたくなかった</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nf>notifyCampaign</span><span class=p>(</span><span class=nx>o</span><span class=p>);</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>!=</span><span class=w> </span><span class=kc>nil</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=k>return</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=c1>// ← この一行が、下の2つを道連れにした</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=c1>// ポイント付与（去年の施策で追加）</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nf>grantPoints</span><span class=p>(</span><span class=nx>o</span><span class=p>);</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>!=</span><span class=w> </span><span class=kc>nil</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nx>log</span><span class=p>.</span><span class=nf>Printf</span><span class=p>(</span><span class=s>&#34;points: %v&#34;</span><span class=p>,</span><span class=w> </span><span class=nx>err</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=c1>// 操作履歴（CS向け。一昨年の施策で追加）</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nf>writeHistory</span><span class=p>(</span><span class=nx>o</span><span class=p>);</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>!=</span><span class=w> </span><span class=kc>nil</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nx>log</span><span class=p>.</span><span class=nf>Printf</span><span class=p>(</span><span class=s>&#34;history: %v&#34;</span><span class=p>,</span><span class=w> </span><span class=nx>err</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>return</span><span class=w> </span><span class=kc>nil</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p>確定の関数なのに、中身の大半は確定じゃない。メール、通知、ポイント、履歴。「注文が確定したら、やること」が、確定の本体に直書きで並んでいる。</p><p>そして、もう一個ある。お見せするのが恥ずかしいやつが。私は定期便ジョブのファイルを開いた。見てほしいのは2点——並びの順番が微妙に違うこと。そして、無いものがあること。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=c1>// 毎朝6時の定期便ジョブ。中身は ConfirmCheckout の&#34;ほぼ&#34;コピペ</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=nf>ConfirmSubscription</span><span class=p>(</span><span class=nx>o</span><span class=w> </span><span class=nx>Order</span><span class=p>)</span><span class=w> </span><span class=kt>error</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nf>reserveStock</span><span class=p>(</span><span class=nx>o</span><span class=p>);</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>!=</span><span class=w> </span><span class=kc>nil</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=k>return</span><span class=w> </span><span class=nx>err</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nf>saveConfirmed</span><span class=p>(</span><span class=nx>o</span><span class=p>);</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>!=</span><span class=w> </span><span class=kc>nil</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=k>return</span><span class=w> </span><span class=nx>err</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nf>grantPoints</span><span class=p>(</span><span class=nx>o</span><span class=p>);</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>!=</span><span class=w> </span><span class=kc>nil</span><span class=w> </span><span class=p>{</span><span class=w> </span><span class=c1>// ← 順番からして微妙に違う</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nx>log</span><span class=p>.</span><span class=nf>Printf</span><span class=p>(</span><span class=s>&#34;points: %v&#34;</span><span class=p>,</span><span class=w> </span><span class=nx>err</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nf>sendSubscriptionMail</span><span class=p>(</span><span class=nx>o</span><span class=p>);</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>!=</span><span class=w> </span><span class=kc>nil</span><span class=w> </span><span class=p>{</span><span class=w> </span><span class=c1>// ← メールも定期便用の別関数</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nx>log</span><span class=p>.</span><span class=nf>Printf</span><span class=p>(</span><span class=s>&#34;mail: %v&#34;</span><span class=p>,</span><span class=w> </span><span class=nx>err</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nf>writeHistory</span><span class=p>(</span><span class=nx>o</span><span class=p>);</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>!=</span><span class=w> </span><span class=kc>nil</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nx>log</span><span class=p>.</span><span class=nf>Printf</span><span class=p>(</span><span class=s>&#34;history: %v&#34;</span><span class=p>,</span><span class=w> </span><span class=nx>err</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=c1>// 周年祭の通知は──無い。昨夜の私は、こっちの存在を忘れていた</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>return</span><span class=w> </span><span class=kc>nil</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p>「同じ並びが、もう一回あるんです。順番は微妙に違って、メールも定期便用の別物で。……で、昨夜の通知は、こっちには無い。告知は“ご注文全部”なのに」</p><p>親方は両方のコードを、上から下まで黙って読んでいるように見えた。私は我慢できずに訊いた。</p><p>「直し方は分かってるんです。でも、これ、直したことになるんでしょうか。次の施策が来たら、私はまた、この2箇所を開けるんですよね」</p><h2 id=応急二箇所塞ぐ>応急——二箇所、塞ぐ</h2><p>親方はキーボードに手を伸ばし、まず昨夜の一行を書き換えた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=w>	</span><span class=c1>// 応急: 通知の失敗は記録して、先へ進む（ポイントと履歴を道連れにしない）</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nf>notifyCampaign</span><span class=p>(</span><span class=nx>o</span><span class=p>);</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>!=</span><span class=w> </span><span class=kc>nil</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nx>log</span><span class=p>.</span><span class=nf>Printf</span><span class=p>(</span><span class=s>&#34;campaign: %v&#34;</span><span class=p>,</span><span class=w> </span><span class=nx>err</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p>これで、通知サービスが詰まっても、ポイントと履歴は走る。今朝の巻き添えは止まる。</p><p>続けて親方は、Web側の通知ブロックを範囲選択して、コピーした。定期便ジョブの関数に、そのまま貼り付ける。足し忘れていた通知が、ジョブ側にも入った。</p><p>「朝の取りこぼし——付かなかったポイントと、消えた履歴は、注文の記録から引き直せます。それは手当てのスクリプトの仕事です」</p><p>私は安堵しかけて、いま見た手元を思い返した。</p><p>「……いま、コピペしましたよね」</p><p>「ええ。この構造の中では、これが正しい直し方です。同じ反応が2箇所にあるなら、2箇所に同じものを書く」</p><p>「嫌味だ……」笑ってしまった。そして、笑いながら気づいた。「つまりこの構造のままだと、次の施策の日も、誰かがこのコピペをやるんですね。で、貼り忘れた担当が事故る。——今回の担当は、昨夜の私でしたけど」</p><p>親方は画面から目を離さずに言った。</p><p>「二箇所、塞ぎました。今日の取りこぼしは、もう出ません。——ですが、次の施策の日、あなたはまた二箇所を開けて、エラーをどうするかをまた決めて、またテストを直す。開けるたびに、撃てる」</p><p>「撃てる……?」</p><p>「今朝あなたが撃った。通知を足しただけで、ポイントに当たった」</p><p>通知を足しただけで、ポイントに当たった。今朝からずっと喉に引っかかっていた違和感を、そのまま言葉にされた気がした。</p><p>「とりあえず今日は乗り切れますよね。……で、本格のほうは、何をどうするんですか。切り出して整理する、とかですか」</p><p>親方は答える代わりに、ターミナルを開いた。</p><h2 id=整備記録をさかのぼる>整備記録を、さかのぼる</h2><p>「さっきの質問の、答え合わせをしましょう。——この関数、何回足されてきたか」</p><p>親方が打ったのは、コードを表示するコマンドではなかった。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-console data-lang=console><span class=line><span class=cl><span class=gp>$</span> git log --since<span class=o>=</span><span class=s2>&#34;3 months ago&#34;</span> --oneline -- internal/order/confirm.go
+</span></span><span class=line><span class=cl><span class=go>e3f91c2 周年祭クーポン通知を追加
+</span></span></span><span class=line><span class=cl><span class=go>a8d02b7 ポイント付与率を周年祭用に変更
+</span></span></span><span class=line><span class=cl><span class=go>4c11f0a 確認メールの文面を夏ブレンドに差し替え
+</span></span></span><span class=line><span class=cl><span class=go>9b7e6d1 操作履歴にクーポンIDを追加
+</span></span></span><span class=line><span class=cl><span class=go>...（計14件）
+</span></span></span></code></pre></td></tr></table></div></div><p>その発想が、私にはなかった。コードを読むんじゃない。コードが直されてきた“理由”を読む。整備記録簿をさかのぼるみたいに。気づけば椅子を引いて、画面に身を乗り出していた。</p><p>「3ヶ月で14回。この関数が直された理由を、上から読んでください」</p><p>「通知、ポイント、メール、履歴、ポイント、メール……」読み上げて、途中で手が止まった。「——注文の確定そのものを直した回が、一つも無い」</p><p>「そう。この関数の名前は『確定』なのに、開けられる用事は、いつも確定の“あと”の話だ。メールの都合。ポイントの都合。企画の都合。——確定は3ヶ月、何も変わっていないのに、確定の関数だけが14回、手術台に載っている」</p><p>親方は、ようやくこちらを向いた。</p><p>「これは Shotgun Surgery（ショットガン・サージェリー）と呼びます」</p><p>散弾銃手術。<strong>Shotgun Surgery</strong> とは、1つの変更をするために、複数の箇所へ小さな修正を撃ち込んで回る羽目になる状態を指す、コードの不吉な兆候（コードスメル）だ。今回なら「周年祭の通知を足す」というたった1つの用事が、Webの確定、定期便の確定、それぞれのテスト——と、何箇所にも散る。</p><p>「一発の用事で、弾が何箇所にも飛ぶから、散弾銃……。昨夜の私は、そのうち1箇所に撃ち忘れたわけですね」</p><p>「逆向きの名前もあります」と親方は付け加えた。「この関数ひとつに、メールの都合もポイントの都合も、変更の理由が集まりすぎていることは Divergent Change という。散るのも病気、集まりすぎるのも病気。どちらも根は同じ——『注文が確定した』という出来事と、『そのとき何をするか』が、同じ場所に書いてあることです」</p><p>親方は鞄から太いマーカーを取り出すと、作業机の上の油染みたウエスを押しのけ、裏紙に素早く図を書き殴った。
+そのペン先が走る音は、錆びたボルトをレンチで力任せに回すときのような、鈍い摩擦音を立てていた。</p><p>「いいかい。君の書いた配線は、1つの動力スイッチから何本ものむき出しの銅線が、メール送信機やらポイント加算器やらに直接ハンダ付けされている状態だ。しかも、Web用と定期便用で、同じような二系統の配線盤が並んでいる」</p><p>親方の言葉を聞きながら、私は自分の頭の中の配線図と、目の前の図を重ね合わせていた。</p><p>「本来なら、どちらも“注文確定”というピストンが動くだけでいいはずなのに、そのピストンの先端に、いくつもの連動アームが無理やりボルト留めされている。だからアームを一本追加しようとしただけで、バランスが崩れて隣のアームに干渉し、折れてしまったんだ」</p><p>描かれた図は、まさに今朝の私の失態そのものだった。Web側のスイッチにはどうにか新しい追加アームをボルト留めしたものの、定期便側のスイッチにはアームを取り付け忘れて、そのまま火花を散らして止まっている。</p><p><img src=/public_images/2026/code-mechanic-observer/infographic_1.webp loading=lazy alt="Shotgun Surgery diagram: both ConfirmCheckout and ConfirmSubscription functions duplicately trigger individual downstream handlers (Confirm Email, Grant Points, Write History), resulting in a missed Campaign Notification call in ConfirmSubscription"></p><h3 id=半分正しい>半分、正しい</h3><p>実は、温めていた案があった。応急のあいだ、ずっと考えていたやつだ。少しだけ自信もあった。</p><p>「……整理の仕方、考えてたんです。反応は全部それぞれ関数に切り出して——いまも一応関数ですけど、もっとちゃんと——確定の関数は、それを順番に呼ぶだけにする。それと、Webとジョブでほぼコピペになってるのをやめて、確定の関数を一本にまとめる。そうすれば、足し忘れは起きませんよね。一本しか無いんだから」</p><p>「半分、正しい」</p><p>「半分」</p><p>「一本化は、やります。それで『二箇所に撃つ』は消える。足し忘れも消える。——だが、それだけだと、次の施策の日、あなたはその一本を開ける。呼び出しを一行、足しに来る。エラーをどうするか、どの順番に挟むか、また確定の本体の中で決める。今朝の <code>return err</code> と同じ判断を、また同じ急所でやる。開ける限り、撃てる」</p><p>半分褒められて、半分崩された。納得しかけて、でも、詰まった。</p><p>「……でも、じゃあ、どうするんですか。確定したらメールもポイントも通知もやるんだから、確定の関数がそれを呼ぶしか、ないじゃないですか。呼ばずに、やらせる方法なんて——」</p><p>言いながら、自分の言葉に引っかかった。呼ばずに、やらせる。</p><p>親方が、初めてかすかに頷いたように見えた。</p><h2 id=本格整備起きたと知らせるだけにする>本格整備——「起きた」と知らせるだけにする</h2><h3 id=まずあなたの案をやります>まず、あなたの案をやります</h3><p>親方はそう言って、Webとジョブの2つの確定関数を統合し、単一の <code>Confirm</code> にまとめはじめた。両方の入口は、これを呼ぶだけになる。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=c1>// 中間形: 経路を一本にした Confirm。反応はまだ直書きのまま</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=nf>Confirm</span><span class=p>(</span><span class=nx>o</span><span class=w> </span><span class=nx>Order</span><span class=p>)</span><span class=w> </span><span class=kt>error</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nf>reserveStock</span><span class=p>(</span><span class=nx>o</span><span class=p>);</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>!=</span><span class=w> </span><span class=kc>nil</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=k>return</span><span class=w> </span><span class=nx>err</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nf>saveConfirmed</span><span class=p>(</span><span class=nx>o</span><span class=p>);</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>!=</span><span class=w> </span><span class=kc>nil</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=k>return</span><span class=w> </span><span class=nx>err</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=c1>// 経路の違いは、関数の違いから「データの違い」になった</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>o</span><span class=p>.</span><span class=nx>IsSubscription</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=k>if</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nf>sendSubscriptionMail</span><span class=p>(</span><span class=nx>o</span><span class=p>);</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>!=</span><span class=w> </span><span class=kc>nil</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>			</span><span class=nx>log</span><span class=p>.</span><span class=nf>Printf</span><span class=p>(</span><span class=s>&#34;mail: %v&#34;</span><span class=p>,</span><span class=w> </span><span class=nx>err</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w> </span><span class=k>else</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=k>if</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nf>sendConfirmMail</span><span class=p>(</span><span class=nx>o</span><span class=p>);</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>!=</span><span class=w> </span><span class=kc>nil</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>			</span><span class=nx>log</span><span class=p>.</span><span class=nf>Printf</span><span class=p>(</span><span class=s>&#34;mail: %v&#34;</span><span class=p>,</span><span class=w> </span><span class=nx>err</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=c1>// …通知・ポイント・履歴は、直書きのまま続く…</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>return</span><span class=w> </span><span class=kc>nil</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p>一つだけ、新しいものが増えている。<code>o.IsSubscription</code> だ。いままで「どっちの確定関数を呼んだか」で区別していた経路の情報は、関数を一本にすると行き場を失う。だから <code>Order</code> に <code>IsSubscription</code>（定期便かどうか）を一つ持たせて、データとして運ぶ。立てるのは注文を組み立てる側——定期便ジョブが作る注文だけ、true になる。</p><p>「これで撃つ先は一箇所。足し忘れは、もう構造的に起きない。……で、ここからが『残り半分』ですか」</p><p>「ここからが本題です。この関数から、メールもポイントも通知も、追い出します」</p><p>「追い出すって——確定したら、やるんですよ?」</p><p>「やります。だが、確定の関数が呼ぶのをやめる。確定は『確定した』と知らせるだけにする。やる側が、勝手に聞いて、勝手にやる」</p><p>——『呼ばずに、やらせる』。さっき自分で口にした言葉が、そのまま返ってきた。</p><h3 id=出来事を型にする>出来事を、型にする</h3><p>親方が最初に書いたのは、struct が一つだけだった。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=kn>package</span><span class=w> </span><span class=nx>order</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kn>import</span><span class=w> </span><span class=s>&#34;time&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=c1>// 「注文が確定した」という出来事そのもの。事実だけを運ぶ</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>type</span><span class=w> </span><span class=nx>OrderConfirmed</span><span class=w> </span><span class=kd>struct</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>OrderID</span><span class=w>        </span><span class=kt>string</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>CustomerID</span><span class=w>     </span><span class=kt>string</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>Total</span><span class=w>          </span><span class=kt>int</span><span class=w>  </span><span class=c1>// 円</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>IsSubscription</span><span class=w> </span><span class=kt>bool</span><span class=w> </span><span class=c1>// 定期便かどうか</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>ConfirmedAt</span><span class=w>    </span><span class=nx>time</span><span class=p>.</span><span class=nx>Time</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p>struct を1つ作っただけだ。だがこれは設定でもデータの保存でもなく、「いま、これが起きた」という報せを運ぶための型。報せに必要な事実——どの注文が、誰の、いくらで——だけを持つ。</p><p>次に、その報せを受け取る側。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=c1>// 購読者＝OrderConfirmed を受け取って、自分の仕事をする関数</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>type</span><span class=w> </span><span class=nx>Subscriber</span><span class=w> </span><span class=kd>func</span><span class=p>(</span><span class=nx>OrderConfirmed</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>type</span><span class=w> </span><span class=nx>Confirmer</span><span class=w> </span><span class=kd>struct</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>subs</span><span class=w> </span><span class=p>[]</span><span class=nx>Subscriber</span><span class=w> </span><span class=c1>// 報せを聞きたい人の名簿</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=nf>NewConfirmer</span><span class=p>()</span><span class=w> </span><span class=o>*</span><span class=nx>Confirmer</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>return</span><span class=w> </span><span class=o>&amp;</span><span class=nx>Confirmer</span><span class=p>{}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=c1>// 名簿に載る。起動時に一度だけ呼ばれる想定</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=p>(</span><span class=nx>c</span><span class=w> </span><span class=o>*</span><span class=nx>Confirmer</span><span class=p>)</span><span class=w> </span><span class=nf>SubscribeConfirmed</span><span class=p>(</span><span class=nx>s</span><span class=w> </span><span class=nx>Subscriber</span><span class=p>)</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>c</span><span class=p>.</span><span class=nx>subs</span><span class=w> </span><span class=p>=</span><span class=w> </span><span class=nb>append</span><span class=p>(</span><span class=nx>c</span><span class=p>.</span><span class=nx>subs</span><span class=p>,</span><span class=w> </span><span class=nx>s</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p>「<code>[]Subscriber</code>……関数を、スライスで持つんですか。関数って、変数みたいに持てるんでしたっけ」</p><p>「Goでは、関数は値です。<code>int</code> をスライスに並べられるように、関数もスライスに並べられる」</p><p><code>type Subscriber func(OrderConfirmed)</code> は、「<code>OrderConfirmed</code> を受け取って何も返さない関数」に名前を付けたものだ。<code>int</code> や <code>string</code> と同じように、変数に入り、スライスに並ぶ。</p><p>では、その名簿はどこに置くのか。登録された購読者をずっと覚えておく置き場が要る。だから <code>Confirmer</code> という struct を作って、<code>subs</code> に持たせる。メソッド定義の先頭にある <code>(c *Confirmer)</code> はレシーバと呼ばれる Go の書き方で、「この関数は <code>Confirmer</code> に属するメソッドだ」という意味になる。</p><p>そして、確定の本体がこうなった。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=p>(</span><span class=nx>c</span><span class=w> </span><span class=o>*</span><span class=nx>Confirmer</span><span class=p>)</span><span class=w> </span><span class=nf>Confirm</span><span class=p>(</span><span class=nx>o</span><span class=w> </span><span class=nx>Order</span><span class=p>)</span><span class=w> </span><span class=kt>error</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=c1>// ここから——確定の成立条件。失敗したら確定そのものが失敗</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nf>reserveStock</span><span class=p>(</span><span class=nx>o</span><span class=p>);</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>!=</span><span class=w> </span><span class=kc>nil</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=k>return</span><span class=w> </span><span class=nx>err</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nf>saveConfirmed</span><span class=p>(</span><span class=nx>o</span><span class=p>);</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>!=</span><span class=w> </span><span class=kc>nil</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=k>return</span><span class=w> </span><span class=nx>err</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=c1>// ここまで——確定は成立した</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=c1>// あとは「起きた」と知らせるだけ</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>ev</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>OrderConfirmed</span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nx>OrderID</span><span class=p>:</span><span class=w>        </span><span class=nx>o</span><span class=p>.</span><span class=nx>ID</span><span class=p>,</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nx>CustomerID</span><span class=p>:</span><span class=w>     </span><span class=nx>o</span><span class=p>.</span><span class=nx>CustomerID</span><span class=p>,</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nx>Total</span><span class=p>:</span><span class=w>          </span><span class=nx>o</span><span class=p>.</span><span class=nx>Total</span><span class=p>,</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nx>IsSubscription</span><span class=p>:</span><span class=w> </span><span class=nx>o</span><span class=p>.</span><span class=nx>IsSubscription</span><span class=p>,</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nx>ConfirmedAt</span><span class=p>:</span><span class=w>    </span><span class=nx>time</span><span class=p>.</span><span class=nf>Now</span><span class=p>(),</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>for</span><span class=w> </span><span class=nx>_</span><span class=p>,</span><span class=w> </span><span class=nx>s</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=k>range</span><span class=w> </span><span class=nx>c</span><span class=p>.</span><span class=nx>subs</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nf>s</span><span class=p>(</span><span class=nx>ev</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>return</span><span class=w> </span><span class=kc>nil</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p>メールが消えた。通知も、ポイントも、履歴も。残っているのは在庫の引き当てと、確定の保存と、名簿への報せだけ。</p><h3 id=線はどこに引くのか>線はどこに引くのか</h3><p>「在庫は、残すんですね。メールと一緒に追い出すのかと思ってました」</p><p>「在庫が引けないのに確定しては駄目だ。在庫と保存は確定の成立条件——本体に残る。外へ出すのは、確定の“あと”でいい反応だけです」</p><p>分かってきた気がした。私は自分なりに基準を立ててみた。</p><p>「大事なものは中、軽いものは外、ですよね。じゃあポイントも中じゃないですか? お金に関わるし、今朝あれだけ事故になったんだから」</p><p>「基準は重要さじゃない」</p><p>親方は即答だった。</p><p>「——それが失敗したとき、確定ごと失敗にしたいか。ポイントが付かなかった注文を、無かったことにしたいですか」</p><p>「……したくない、です」言いながら、頭の中で整理がついていく。「注文は通ってほしい。ポイントは、あとからでも付け直せる。……そうか、メールも通知も同じだ。失敗しても、注文まで失敗にしたいものは、一個も無い」</p><p>「それが線です。重要かどうかじゃない。確定を止めたいかどうか」</p><p>今朝の事故が、ようやく一本の線でつながった。つまり——外に出すべき通知を、中に書いたから、通知の失敗が確定の失敗になったんだ。</p><h3 id=購読者は道具を抱えて生まれる>購読者は、道具を抱えて生まれる</h3><p>追い出された反応たちは、どこへ行くのか。親方は新しいパッケージを切った。Before では、確定処理の側が、メールや通知の道具をぜんぶ抱えていた——<code>order</code> が反応たちに依存していた。これからは逆だ。反応の側が、<code>order</code> の報せ（<code>OrderConfirmed</code>）を知りに来る。確定の本体は、もう反応たちの存在を知らない。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=kn>package</span><span class=w> </span><span class=nx>notify</span><span class=w> </span><span class=c1>// 反応の側のパッケージ。order を import する（向きが逆になった）</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=c1>// メール購読者を作る。クライアントは閉じ込める。</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=c1>// 出し分け（確認メール/定期便メール）はメールの関心になったので、この中で分岐する</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=nf>NewMailSender</span><span class=p>(</span><span class=nx>cli</span><span class=w> </span><span class=o>*</span><span class=nx>mail</span><span class=p>.</span><span class=nx>Client</span><span class=p>)</span><span class=w> </span><span class=nx>order</span><span class=p>.</span><span class=nx>Subscriber</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>return</span><span class=w> </span><span class=kd>func</span><span class=p>(</span><span class=nx>ev</span><span class=w> </span><span class=nx>order</span><span class=p>.</span><span class=nx>OrderConfirmed</span><span class=p>)</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=kd>var</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=kt>error</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=k>if</span><span class=w> </span><span class=nx>ev</span><span class=p>.</span><span class=nx>IsSubscription</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>			</span><span class=nx>err</span><span class=w> </span><span class=p>=</span><span class=w> </span><span class=nx>cli</span><span class=p>.</span><span class=nf>SendSubscriptionMail</span><span class=p>(</span><span class=nx>ev</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=p>}</span><span class=w> </span><span class=k>else</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>			</span><span class=nx>err</span><span class=w> </span><span class=p>=</span><span class=w> </span><span class=nx>cli</span><span class=p>.</span><span class=nf>SendCheckoutMail</span><span class=p>(</span><span class=nx>ev</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=k>if</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>!=</span><span class=w> </span><span class=kc>nil</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>			</span><span class=nx>log</span><span class=p>.</span><span class=nf>Printf</span><span class=p>(</span><span class=s>&#34;mail: %v&#34;</span><span class=p>,</span><span class=w> </span><span class=nx>err</span><span class=p>)</span><span class=w> </span><span class=c1>// メールの失敗はメールの問題。誰も道連れにしない</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=c1>// ポイント購読者・履歴購読者・周年祭通知購読者も同じ形</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=c1>// func NewPointsGranter(store *points.Store) order.Subscriber {...}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=c1>// func NewHistoryWriter(rec *history.Recorder) order.Subscriber {...}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=c1>// func NewCampaignNotifier(cli *campaign.Client) order.Subscriber {...}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p>「待ってください」気になることがあった。「<code>cli</code> って、<code>NewMailSender</code> の中の変数ですよね。関数を返して <code>NewMailSender</code> を抜けたら、消えるんじゃないんですか。返ってきた関数が、あとで名簿から呼ばれたとき、<code>cli</code> はまだ使えるんですか」</p><p>「使えます。返した関数が抱えている限り、生きている。Goの関数は、自分が生まれた場所の変数を持ったまま外に出られる——クロージャと呼びます。さっき『関数は値だ』と言った。並べられて、しかも、荷物を持てる」</p><p>「道具を持たせたまま、名簿に載せるんだ」</p><p>それから、と親方はメール購読者の中の <code>if</code> を指した。</p><p>「Before では、確認メールか定期便メールかを、確定の関数が知っていた。一本化の <code>if</code> でもまだ知っていた。いまは、メールの購読者だけが知っている。メールの出し分けは、メールの関心。確定の本体は、もう知らない」</p><p>一つ、確かめておきたいことがあった。</p><p>「ポイントの購読者が失敗したら、誰が気づくんですか。確定はもう、エラーを受け取りませんよね」</p><p>「ポイントの失敗の面倒は、ポイントの購読者が自分で見る。ログを書く、付け直しの再試行をする、アラートを上げる——それはポイントの都合で決めることで、確定の本体で決めることじゃない。今朝のあなたは、通知のエラー方針を、確定の本体の中で決めるしかなかった。だから外した」</p><h3 id=配線は入口で一回>配線は、入口で一回</h3><p>最後は、名簿への登録だ。アプリケーションの起動時、<code>main</code> で一回だけ配線する。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=nf>main</span><span class=p>()</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=c1>// mailCli などの道具（クライアントや台帳）の初期化は省略</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>confirmer</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>order</span><span class=p>.</span><span class=nf>NewConfirmer</span><span class=p>()</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=c1>// 名簿への登録は、起動時にここで一回だけ</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>confirmer</span><span class=p>.</span><span class=nf>SubscribeConfirmed</span><span class=p>(</span><span class=nx>notify</span><span class=p>.</span><span class=nf>NewMailSender</span><span class=p>(</span><span class=nx>mailCli</span><span class=p>))</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>confirmer</span><span class=p>.</span><span class=nf>SubscribeConfirmed</span><span class=p>(</span><span class=nx>notify</span><span class=p>.</span><span class=nf>NewPointsGranter</span><span class=p>(</span><span class=nx>pointsStore</span><span class=p>))</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>confirmer</span><span class=p>.</span><span class=nf>SubscribeConfirmed</span><span class=p>(</span><span class=nx>notify</span><span class=p>.</span><span class=nf>NewHistoryWriter</span><span class=p>(</span><span class=nx>historyRec</span><span class=p>))</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>confirmer</span><span class=p>.</span><span class=nf>SubscribeConfirmed</span><span class=p>(</span><span class=nx>notify</span><span class=p>.</span><span class=nf>NewCampaignNotifier</span><span class=p>(</span><span class=nx>campCli</span><span class=p>))</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=c1>// Webハンドラも定期便ジョブも、同じ confirmer.Confirm を呼ぶだけ</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nf>startServer</span><span class=p>(</span><span class=nx>confirmer</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nf>startSubscriptionJob</span><span class=p>(</span><span class=nx>confirmer</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p>「Webとジョブが同じ <code>Confirm</code> を呼ぶから、名簿も共通……」声に出して、気づいた。「登録の足し忘れ、起きようがない。経路ごとに足すんじゃなくて、名簿に一回載せるだけだから」</p><p>「次の施策の日、あなたが書くのは購読者一つと、この登録一行。確定の本体は、開けない」</p><p>親方がやって見せたこの組み付けには、名前がある。<strong>Observer（オブザーバー）</strong>——出来事の発生側と、それに反応する側を切り離すデザインパターンだ。発生側は「起きた」と知らせるだけで、誰が聞いているかを知らない。反応する側（購読者）は、あとから何人でも足せる。</p><p>親方は今度は別の色のマーカーで、新しい図を描いた。
+それは、さっきの複雑に絡み合ったハンダ付けの山とはまったく違う、驚くほどすっきりとした図だった。</p><p>「注文確定のスイッチは、もう何も動かさない。ただ“ピストンが動いた”という信号を、一本の電線で分配器に送るだけだ。分配器の先には名簿があって、そこに登録された受信機たちが、流れてきた信号を自分で感知して動く」</p><p>頭の中で、新しい配線盤が組み上がっていくのが見えた。</p><p>そうか、これならスイッチの横に無理やり追加アームをボルト留めする必要はない。
+スイッチ側は「動いた」という事実をブザーで鳴らすだけでいい。ブザーの音が聞こえる範囲に、メール係も、ポイント係も、そして新しく入った雨の日クーポン係も、それぞれ勝手に椅子を並べて座っていればいいのだ。</p><p>誰が聞いているかをスイッチが知る必要はないし、誰か一人が聞き耳を立てるのをサボったり、途中でつまずいて転んだりしても、ブザーそのものが止まることはない。</p><p>「これが、出来事と反応を分けるということか……」</p><p>私は、親方が描いた新しい配線の青写真を見つめながら、その美しさに息を呑んでいた。</p><p><img src=/public_images/2026/code-mechanic-observer/infographic_2.webp loading=lazy alt="Observer Pattern architecture: Checkout/Subscription clients invoke Confirmer.Confirm, which broadcasts an OrderConfirmed event to decoupled subscribers (Email, Points, History, Campaign) registered in a subscription registry"></p><p>「この名簿って」ふと気になった。「名簿を管理する係の人がいて、内容を見て『これはメール係へ、これはポイント係へ』って振り分ける、みたいな話とは違うんですか」</p><p>「それは別の整備です。これは一方通行——確定が『起きた』と流すだけで、全員に同じ報せが届く。購読者同士は互いを知らないし、言い返しもしない。係どうしのやり取りを捌く話は、また別の機会に」</p><h3 id=速くはなっていない>速くは、なっていない</h3><p>「ただし」と、親方は付け加えた。「速くは、なっていません」</p><p>購読者は登録順に、その場で順に呼ばれる。通知サービスが今朝みたいに詰まれば、確定の応答はその分、遅いままだ。今日切り離したのは巻き添えであって、待ち時間ではない。どうしても待たせたくなくなったら、報せを channel——Goの、処理と処理のあいだで値を受け渡す道具——に流して、別の goroutine（並行して動く処理の単位）で受ける手がある。だがそれは、順序も取りこぼしもエラーの行き先も全部設計し直す第二段階で、今日はやらない。</p><p>もう一つ。購読者は登録した順に呼ばれるが、順序に意味を持たせはじめたら危険信号だ。「ポイントの後でないとメールが書けない」のような依存ができたら、それはもう独立した購読者ではなく手続きで、名簿から出して明示的に順に呼ぶ形に戻すべきだ——親方はそう言って、名簿のスライスを軽く指で叩いた。</p><p>「なぜこれで『次』が無くなるんですか?」最後に、まとめのつもりで訊いた。</p><p>「無くなるのは事故じゃない。確定の本体を開ける理由が無くなる。開けなければ、撃てない。新しい反応は、名簿に並ぶだけだ」</p><h2 id=試運転次の施策がその場に届く>試運転——次の施策が、その場に届く</h2><p>テストも、形が変わった。</p><p>Before のテストは、事故の記録だった。通知のスタブ（テスト用に差し替えた偽物の通知）に失敗を仕込むと、<code>ConfirmCheckout</code> 全体がエラーになり、ポイントと履歴が呼ばれない——今朝の巻き添えを、そのまま文書化したものだ。定期便側が通知を一度も呼ばないこと（足し忘れ）も、テストとして残した。</p><p>After のテストは、構造の証明になった。一つ目（①）は成立条件の検証——在庫が引けなければ確定が失敗し、購読者は誰も呼ばれない。イベントは「発行されない」のであって、「失敗する」のではない。そして二つ目（②）が、今朝の巻き添えの回帰テスト——同じ事故が再発しないことを、確かめ続けるテストだ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=c1>// ② 今朝の巻き添えの回帰テスト: 通知購読者が内部で失敗しても、</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=c1>// ポイント購読者はちゃんと呼ばれる。Subscriber は func(OrderConfirmed)——</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=c1>// エラーを返す配線が型から消えており、失敗が本体や他の購読者に伝わる道は無い。</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=nf>TestConfirm_FailingSubscriberDoesNotDragOthers</span><span class=p>(</span><span class=nx>t</span><span class=w> </span><span class=o>*</span><span class=nx>testing</span><span class=p>.</span><span class=nx>T</span><span class=p>)</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>c</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nf>NewConfirmer</span><span class=p>()</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>notifyAttempted</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=kc>false</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>c</span><span class=p>.</span><span class=nf>SubscribeConfirmed</span><span class=p>(</span><span class=kd>func</span><span class=p>(</span><span class=nx>ev</span><span class=w> </span><span class=nx>OrderConfirmed</span><span class=p>)</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nx>notifyAttempted</span><span class=w> </span><span class=p>=</span><span class=w> </span><span class=kc>true</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=c1>// 今朝の通知のように内部で失敗する（が、外へは何も返せない）</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nx>_</span><span class=w> </span><span class=p>=</span><span class=w> </span><span class=nx>errors</span><span class=p>.</span><span class=nf>New</span><span class=p>(</span><span class=s>&#34;campaign: timeout&#34;</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>})</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>pointsCalled</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=kc>false</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>c</span><span class=p>.</span><span class=nf>SubscribeConfirmed</span><span class=p>(</span><span class=kd>func</span><span class=p>(</span><span class=nx>ev</span><span class=w> </span><span class=nx>OrderConfirmed</span><span class=p>)</span><span class=w> </span><span class=p>{</span><span class=w> </span><span class=nx>pointsCalled</span><span class=w> </span><span class=p>=</span><span class=w> </span><span class=kc>true</span><span class=w> </span><span class=p>})</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>c</span><span class=p>.</span><span class=nf>Confirm</span><span class=p>(</span><span class=nx>Order</span><span class=p>{</span><span class=nx>ID</span><span class=p>:</span><span class=w> </span><span class=s>&#34;A-2002&#34;</span><span class=p>,</span><span class=w> </span><span class=nx>CustomerID</span><span class=p>:</span><span class=w> </span><span class=s>&#34;C-2&#34;</span><span class=p>,</span><span class=w> </span><span class=nx>Total</span><span class=p>:</span><span class=w> </span><span class=mi>1800</span><span class=p>});</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>!=</span><span class=w> </span><span class=kc>nil</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nx>t</span><span class=p>.</span><span class=nf>Fatalf</span><span class=p>(</span><span class=s>&#34;購読者の失敗は確定を失敗にしない: %v&#34;</span><span class=p>,</span><span class=w> </span><span class=nx>err</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=p>!</span><span class=nx>notifyAttempted</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nx>t</span><span class=p>.</span><span class=nf>Error</span><span class=p>(</span><span class=s>&#34;通知購読者が呼ばれていない&#34;</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=p>!</span><span class=nx>pointsCalled</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nx>t</span><span class=p>.</span><span class=nf>Error</span><span class=p>(</span><span class=s>&#34;通知購読者の失敗がポイント購読者を巻き添えにした（Before の事故の再来）&#34;</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p>テストの中の <code>_ = errors.New(...)</code> の <code>_</code> は、値を使わずに捨てる Go の書き方だ。エラーは作った——だが、渡す先が無い。<code>Subscriber</code> はエラーを返せない型なので、購読者の失敗が本体に伝わる配線そのものが、型からもう消えている。あの一行は、「エラーは起きたが、行き先が無い」をそのまま書いたものだ。このテストは、それを文書化している。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-console data-lang=console><span class=line><span class=cl><span class=gp>$</span> go <span class=nb>test</span> ./before/order ./after/order ./after/notify
+</span></span><span class=line><span class=cl><span class=go>ok  	code-mechanic/shotgun-surgery-observer/before/order	0.591s
+</span></span></span><span class=line><span class=cl><span class=go>ok  	code-mechanic/shotgun-surgery-observer/after/order	0.174s
+</span></span></span><span class=line><span class=cl><span class=go>ok  	code-mechanic/shotgun-surgery-observer/after/notify	0.404s
+</span></span></span></code></pre></td></tr></table></div></div><p>試運転、合格。</p><h3 id=雨の日クーポン>雨の日クーポン</h3><p>そのとき、また階段を上がってくる足音がした。企画担当だ。</p><p>「ねえ、来週なんだけど、雨の日クーポンやりたくて。雨の日に注文してくれた人に、ちょっとだけ——」</p><p>確定処理を開けて、と反射的に考えはじめて、やめた。隣で親方が、何も言わずにこっちを見ている。</p><p>私はその場で書いた。<code>NewRainyDayCoupon(weatherCli, campCli)</code>——雨なら、クーポンを発行する購読者を一つ。<code>main</code> に、登録を一行。<code>go test</code>。緑。</p><p>diff を見た。確定の本体、開けてない。触ったのは、新しい購読者のファイルと、名簿の一行だけ。</p><p>「で、できそう?」と企画担当。</p><p>「もう入りました」</p><p>「早っ」</p><p>朝からずっと頬に貼り付いていた苦笑いが、はじめてニヤリに変わったのが、自分でも分かった。</p><h3 id=納車>納車</h3><p>親方は試運転の緑を見届けると、立ち上がって、整備記録簿——A4一枚の作業明細だった——を私の机に置いた。</p><p>「確定の本体は、もう開けない。施策は名簿に足すだけだ。——開けたくなったら、それは施策じゃなく、確定そのものが変わるときです」</p><p>それから、報酬の話をした。金銭ではなく、この人の言う「ちゃんとした整備」の約束だ。</p><p>「購読者には、必ず自分のテストを付けること。確定の本体のテストは、もう増やさなくていい。増えるのは名簿と、購読者と、そのテストだけだ」</p><p>約束します、と言いかけたところで、階下から焙煎機が低く唸る音がした。「終わったよー」という整備士さんの声が、ほぼ同時に届く。</p><p>機械とコード、二台分の整備が終わった日だった。</p><hr><h2 id=整備記録簿>整備記録簿</h2><div class=table-wrapper><table><thead><tr><th>こんな異音・症状が出たら</th><th>入れるべき整備（Observer）</th><th>まだ様子見でいい</th></tr></thead><tbody><tr><td>「○○したら××する」の××が、○○の処理本体に直書きで並び、施策・関心が増えるたびに同じ関数を開けている</td><td>✓</td><td></td></tr><tr><td>同じ反応の並びが複数の経路（Web・バッチ等）にコピペされ、足し忘れやドリフト（コピペ同士が少しずつ食い違っていくこと）が起きている</td><td>✓</td><td></td></tr><tr><td>新しく足した反応のエラー処理が、既存の反応を巻き添えにした（今朝のそれ）</td><td>✓</td><td></td></tr><tr><td>反応する相手が2つで固定・増える予定がない</td><td></td><td>✓（直接呼び出し2行で足りる。登録の仕組みは過剰）</td></tr><tr><td>反応の結果（戻り値）が本体の続きに必要（審査結果で分岐する等）</td><td></td><td>✓（それは報せではなく、ただの関数呼び出し）</td></tr></tbody></table></div><h3 id=整備手順>整備手順</h3><ol><li>出来事の発生箇所を数える。複数あれば、まず一本化する。足し忘れは、ここで消える。</li><li>本体に並ぶ処理を仕分ける。基準は「それが失敗したとき、出来事ごと失敗にしたいか」——したいものは成立条件として本体に残す。したくないものが、外へ出す反応。</li><li>出来事を一つの型にする（<code>OrderConfirmed</code> のように、報せに必要な事実だけを持つ struct）。</li><li>反応を購読者（<code>func(イベント)</code> 型）に切り出す。依存する道具はクロージャ工場（<code>NewXxx(道具) Subscriber</code>）で閉じ込め、エラーの面倒は各購読者が自分で見る。</li><li>本体は、成立条件のあとに名簿へ報せを流すだけにする。名簿への登録は起動時（<code>main</code>）に一箇所。</li><li>新しい関心は、購読者1つ＋登録1行で足す。本体は開けない。購読者には自分のテストを付ける。</li></ol><h3 id=親方より>親方より</h3><p>「確定したら、あれもこれもやる」——その“あれもこれも”を本体に書き足していくと、関数の名前は確定のままで、中身は施策の置き場になる。開ける用事が増え、開けるたびに、関係ないものを撃てるようになる。今朝のは、それだ。</p><p>出来事と、反応を、分けろ。本体に残すのは「失敗したら出来事ごと失敗にしたいもの」だけ。あとは「起きた」と知らせて、受け手に任せる。受け手は名簿に足すだけ。開けなければ、撃てない。</p><p>——重い受け手が出てきて、報せを待たせたくなくなったら、channel で別の流れに逃がす手もある。だがそれは、順序も取りこぼしも設計し直す第二段階だ。まずは同期のまま、切り離せ。</p></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/go/>Go</a>
+<a href=/tags/observer/>Observer</a>
+<a href=/tags/shotgun-surgery/>Shotgun-Surgery</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-mechanic/>Code-Mechanic</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/07/01/170705/><div class=article-image><img src=/public_images/2026/code-mechanic-mediator/header.webp loading=lazy data-key data-hash=/public_images/2026/code-mechanic-mediator/header.webp></div><div class=article-details><h2 class=article-title>コードメカニック【Mediator】部品は全部直したのに、最後に全部が絡んでいた〜直結をやめ、仲介役にすべてを捌かせる〜</h2></div></a></article><article class=has-image><a href=/2026/07/01/120705/><div class=article-image><img src=/public_images/2026/code-mechanic-middleware/header.webp loading=lazy data-key data-hash=/public_images/2026/code-mechanic-middleware/header.webp></div><div class=article-details><h2 class=article-title>コードメカニック【Middleware】一行変えるのに、三十回ボンネットを開けた〜各車に貼った同じ点検を、通り抜ける一本のラインへ〜</h2></div></a></article><article class=has-image><a href=/2026/07/01/070705/><div class=article-image><img src=/public_images/2026/code-mechanic-fat-handler-command/header.webp loading=lazy data-key data-hash=/public_images/2026/code-mechanic-fat-handler-command/header.webp></div><div class=article-details><h2 class=article-title>コードメカニック【Command】一日見積もりが、底なしだった〜ハンドラーに作り付けた仕事を、一個の命令に切り出す〜</h2></div></a></article><article class=has-image><a href=/2026/06/30/170705/><div class=article-image><img src=/public_images/2026/code-mechanic-template-method/header.webp loading=lazy data-key data-hash=/public_images/2026/code-mechanic-template-method/header.webp></div><div class=article-details><h2 class=article-title>コードメカニック【Template Method】同じ直しが、三本目にだけ当たらなかった〜丸写しの骨格を、一本の手順書に組み直す〜</h2></div></a></article><article class=has-image><a href=/2026/06/30/120705/><div class=article-image><img src=/public_images/2026/code-mechanic-decorator/header.webp loading=lazy data-key data-hash=/public_images/2026/code-mechanic-decorator/header.webp></div><div class=article-details><h2 class=article-title>コードメカニック【Decorator】1年眠った証跡が、監査の朝に開かなかった〜専用型の掛け算を、積み重ねの一枚に解く〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

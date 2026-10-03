@@ -1,0 +1,440 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="Service Locator撤去後にDI過剰適用で行き詰まった問題を、Registry＋DIハイブリッド構成で解決。SL・DI・Registryの三つ巴比較で使い分けの境界線を明確化する。"><title>コード探偵ロックの事件簿【Registry】三者面談〜DI信者が見落とした「正しい棚」の使い方〜</title><link rel=canonical href=https://www.nqou.net/2026/04/15/070705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="コード探偵ロックの事件簿【Registry】三者面談〜DI信者が見落とした「正しい棚」の使い方〜"><meta property='og:description' content="Service Locator撤去後にDI過剰適用で行き詰まった問題を、Registry＋DIハイブリッド構成で解決。SL・DI・Registryの三つ巴比較で使い分けの境界線を明確化する。"><meta property='og:url' content='https://www.nqou.net/2026/04/15/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='design-pattern'><meta property='article:tag' content='perl'><meta property='article:tag' content='moo'><meta property='article:tag' content='registry-pattern'><meta property='article:tag' content='service-locator'><meta property='article:tag' content='dependency-injection'><meta property='article:tag' content='plugin-system'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='code-detective'><meta property='article:published_time' content='2026-04-15T07:07:05+09:00'><meta property='article:modified_time' content='2026-04-15T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-detective-registry/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="コード探偵ロックの事件簿【Registry】三者面談〜DI信者が見落とした「正しい棚」の使い方〜"><meta name=twitter:description content="Service Locator撤去後にDI過剰適用で行き詰まった問題を、Registry＋DIハイブリッド構成で解決。SL・DI・Registryの三つ巴比較で使い分けの境界線を明確化する。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-detective-registry/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-04-15T07:07:05+09:00","datePublished":"2026-04-15T07:07:05+09:00","description":"Service Locator撤去後にDI過剰適用で行き詰まった問題を、Registry＋DIハイブリッド構成で解決。SL・DI・Registryの三つ巴比較で使い分けの境界線を明確化する。","headline":"コード探偵ロックの事件簿【Registry】三者面談〜DI信者が見落とした「正しい棚」の使い方〜","image":"https://www.nqou.net/public_images/2026/code-detective-registry/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/04/15/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/advent-calendar-2025/><svg class="icon icon-tabler icon-tabler-calendar" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="4" y="5" width="16" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="4" y1="11" x2="20" y2="11"/><path d="M8 15h.01"/><path d="M12 15h.01"/><path d="M16 15h.01"/><path d="M8 19h.01"/><path d="M12 19h.01"/><path d="M16 19h.01"/></svg>
+<span>Perl Advent Calendar 2025 - AI Edition</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#予約のない来客>予約のない来客</a></li><li><a href=#di-万能説の限界>DI 万能説の限界</a></li><li><a href=#第三の容疑者>第三の容疑者</a></li><li><a href=#棚を渡す>棚を渡す</a></li><li><a href=#三者の法廷>三者の法廷</a></li><li><a href=#グリーンの確認>グリーンの確認</a></li><li><a href=#棚番の哲学>棚番の哲学</a></li><li><a href=#探偵の調査報告書>探偵の調査報告書</a><ol><li><a href=#三つ巴の判断フロー>三つ巴の判断フロー</a></li><li><a href=#推理のステップ>推理のステップ</a></li><li><a href=#ロックより>ロックより</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/04/15/070705/><img src=/public_images/2026/code-detective-registry/header.webp loading=lazy alt="Featured image of post コード探偵ロックの事件簿【Registry】三者面談〜DI信者が見落とした「正しい棚」の使い方〜"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/04/15/070705/>コード探偵ロックの事件簿【Registry】三者面談〜DI信者が見落とした「正しい棚」の使い方〜</a></h2><h3 class=article-subtitle>Service Locator撤去後にDI過剰適用で行き詰まった問題を、Registry＋DIハイブリッド構成で解決。SL・DI・Registryの三つ巴比較で使い分けの境界線を明確化する。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>15, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 17分</time></div></footer></div></header><section class=article-content><h2 id=予約のない来客>予約のない来客</h2><p>火曜の午後、デスクでプラグインシステムの設計書を睨んでいた。</p><p>通知プラグインの追加申請が3件溜まっている。Slack連携、Webhook通知、SMS通知。どれも技術的には単純だ。だが今の設計では、1つプラグインを追加するたびにコンストラクタとテストを全面修正しなければならない。</p><p>2週間前に Service Locator を全面撤去した。ロックさん——あの探偵気取りのコード調査員——に教わった通り、すべての依存をコンストラクタインジェクションに移行した。CIの安定率は92%まで回復した。正しい判断だったと思っている。</p><p>思っている、のだが。</p><p>「経過は良好だな。ただし、新たな症状が出ている」</p><p>背後から声がした。</p><p>振り向くと、コートを着た男が私のデスクの横に立っていた。手にはホワイトボード用の付箋を3色——赤、青、緑——持っている。うちのオフィスの備品だ。</p><p>「ロックさん。……アポイントは取っていないはずですが」</p><p>「定期検診だよ、ワトソン君。前回の患者——失礼、依頼人の経過観察は、探偵の職務に含まれる」</p><p>含まれない。そもそもこの人は探偵ですらない。ただのコード調査員だ。</p><p>「ワトソン君は……もう慣れました。好きに呼んでください」</p><p>「つまらないな。抵抗がないと張り合いがない」</p><p>ロックさんはそう言いながら、私の許可なくホワイトボードの前に移動した。既に書いてあった設計メモを端に寄せ、付箋を3色に分けて貼り始めた。赤、青、緑。それぞれに何か書いている。</p><p>「何してるんですか」</p><p>「分類だよ。赤は<strong>取りに行く者</strong>。青は<strong>渡してもらう者</strong>。緑は<strong>置いておく者</strong>」</p><p>意味がわからない。だが前回の経験上、この人の行動には——必ずとは言わないが——大抵何かの意図がある。</p><p>「CIの安定率は92%になりました」</p><p>「よくやった。ただし——」</p><p>ロックさんが私のデスクのモニターを覗き込んだ。</p><p>「その画面のコードに、新しい事件のにおいがするね」</p><h2 id=di-万能説の限界>DI 万能説の限界</h2><p>「見ていいですか」とも訊かずに、ロックさんが椅子を引き寄せてモニターの前に座った。私は自分のデスクなのに立ったまま説明する側になっていた。</p><p>「前回教わった通り、Service Locator を全面撤去してコンストラクタインジェクションに移行しました。CIは安定しています。ですが——」</p><p>画面には通知配信モジュールが表示されている。</p><p>「——このプラグインシステムだけ、DI で管理しきれないんです」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>NotificationDispatcher</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(InstanceOf)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># プラグインが増えるたびにここが膨らむ</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>email_notifier</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>InstanceOf</span><span class=p>[</span><span class=s>&#39;Notifier::Email&#39;</span><span class=p>],</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>slack_notifier</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>InstanceOf</span><span class=p>[</span><span class=s>&#39;Notifier::Slack&#39;</span><span class=p>],</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>webhook_notifier</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>isa</span> <span class=o>=&gt;</span> <span class=n>InstanceOf</span><span class=p>[</span><span class=s>&#39;Notifier::Webhook&#39;</span><span class=p>],</span> <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=c1># SMS を追加したい → has を追加 → テスト全修正</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>dispatch</span> <span class=p>($self, $event) {</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>email_notifier</span><span class=o>-&gt;</span><span class=n>notify</span><span class=p>(</span><span class=nv>$event</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>slack_notifier</span><span class=o>-&gt;</span><span class=n>notify</span><span class=p>(</span><span class=nv>$event</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>webhook_notifier</span><span class=o>-&gt;</span><span class=n>notify</span><span class=p>(</span><span class=nv>$event</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=c1># 新しいプラグインを追加するにはここも修正</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「プラグインが3つの段階ではまだ我慢できます。ですが、SMS通知を追加するには <code>has sms_notifier</code> を追加して、<code>dispatch</code> メソッドを修正して、既存テスト20件を全部直す必要がある。来月にはLINE通知とPush通知も予定されていて——」</p><p>「コンストラクタが肥大化する」</p><p>「はい。それだけではなく、顧客のプランによって有効なプラグインが異なります。エンタープライズプラン向けにはWebhookとSMSが必要ですが、フリープランにはメールだけでいい。でも全部 <code>required</code> なので、フリープランのテストでもWebhookやSMSのインスタンスを渡さないとオブジェクトが作れません」</p><p>ロックさんが腕を組んだ。</p><p>「前回のService Locatorは依存を隠した罪で有罪だった。だが今度は、正義感から全員を法廷に引きずり出しすぎている」</p><p>「正しいことをしたはずなのに、なぜ苦しいんですか」</p><p>「DI は万能ではないからだ。依存が<strong>固定的で少数</strong>のとき、DI は最良の選択になる。だが、動的に増減するもの、名前で区別するものには向かない。——ワトソン君、第三の容疑者を紹介しよう」</p><h2 id=第三の容疑者>第三の容疑者</h2><p>ロックさんがホワイトボードの付箋に向き直った。</p><p>赤い付箋には「SL: 取りに行く」、青い付箋には「DI: 渡してもらう」と書いてある。そして緑の付箋にはこう書かれていた。</p><p><strong>「Registry: 棚に置いておく」</strong></p><p>「棚？」</p><p>「名前で引ける棚だ。プラグインを棚に置く。使いたい者は棚から取る。棚自体は、誰が何を取るかに関心がない。——まず棚を作ろう」</p><p>ロックさんが私のエディタに新しいファイルを作り始めた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>PluginRegistry</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Carp</span> <span class=sx>qw(croak)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>namespace::clean</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>_plugins</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>default</span>  <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=p>{}</span> <span class=p>},</span>
+</span></span><span class=line><span class=cl>    <span class=n>init_arg</span> <span class=o>=&gt;</span> <span class=nb>undef</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>register</span> <span class=p>($self, $name, $plugin) {</span>
+</span></span><span class=line><span class=cl>    <span class=n>croak</span> <span class=s>&#34;Plugin name required&#34;</span>          <span class=k>unless</span> <span class=nb>defined</span> <span class=nv>$name</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>croak</span> <span class=s>&#34;Plugin object required&#34;</span>        <span class=k>unless</span> <span class=nb>defined</span> <span class=nv>$plugin</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>croak</span> <span class=s>&#34;Plugin &#39;$name&#39; already exists&#34;</span> <span class=k>if</span> <span class=nb>exists</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>_plugins</span><span class=o>-&gt;</span><span class=p>{</span><span class=nv>$name</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>_plugins</span><span class=o>-&gt;</span><span class=p>{</span><span class=nv>$name</span><span class=p>}</span> <span class=o>=</span> <span class=nv>$plugin</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>get</span> <span class=p>($self, $name) {</span>
+</span></span><span class=line><span class=cl>    <span class=n>croak</span> <span class=s>&#34;Plugin &#39;$name&#39; not found&#34;</span>
+</span></span><span class=line><span class=cl>        <span class=k>unless</span> <span class=nb>exists</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>_plugins</span><span class=o>-&gt;</span><span class=p>{</span><span class=nv>$name</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>_plugins</span><span class=o>-&gt;</span><span class=p>{</span><span class=nv>$name</span><span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>has_plugin</span> <span class=p>($self, $name) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nb>exists</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>_plugins</span><span class=o>-&gt;</span><span class=p>{</span><span class=nv>$name</span><span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>all_plugins</span> <span class=p>($self) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nb>values</span> <span class=nv>%</span><span class=p>{</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>_plugins</span><span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>unregister</span> <span class=p>($self, $name) {</span>
+</span></span><span class=line><span class=cl>    <span class=nb>delete</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>_plugins</span><span class=o>-&gt;</span><span class=p>{</span><span class=nv>$name</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>シンプルだった。ハッシュに名前とオブジェクトのペアを入れて、名前で取り出す。それだけだ。</p><p>「待ってください。名前でオブジェクトを取得するという点では、前回のService Locatorと同じに見えるのですが」</p><p>ロックさんが——待っていたかのように——頷いた。</p><p>「いい警戒だ。前回の事件を覚えている者ならそう思うだろう。だが、<strong>棚番</strong>と<strong>仲介人</strong>は違うのだよ」</p><p>「違いはどこですか。コードの見た目はほぼ同じです」</p><p>「責務の範囲だ。この <code>PluginRegistry</code> が持つメソッドを見たまえ。<code>register</code>、<code>get</code>、<code>has_plugin</code>、<code>unregister</code>、<code>all_plugins</code>。——これ以外に何がある？」</p><p>「何もないです」</p><p>「そうだ。<strong>何もない</strong>。この棚には、オブジェクトを生成する力がない。ライフサイクルを管理する力がない。依存を連鎖的に解決する力がない。受け取ったものを名前で保管し、求められたら返す。それが棚番の全仕事だ」</p><p>「前回の <code>ServiceLocator</code> も、やっていることは <code>register</code> と <code>resolve</code> だけでしたよね？」</p><p>「コードの見た目は似ている。だが問題の本質は<strong>スコープ</strong>だった。前回の <code>ServiceLocator</code> は <code>my %services</code> ——パッケージレベルの静的変数で全サービスを管理していた。アプリケーション全体がひとつの帳簿を共有していた。今回の <code>PluginRegistry</code> は <code>has _plugins</code> ——<strong>インスタンス属性</strong>だ。テストのたびに新しい棚を作れる。棚同士は干渉しない」</p><p>前回の事件の核心は、テスト間のグローバル状態汚染だった。<code>ServiceLocator->reset</code> を忘れると、前のテストの証拠品が次のテストに紛れ込む問題。</p><p>「つまり……<code>PluginRegistry</code> はインスタンスだから、テストごとに独立した棚を用意できる。前回のようなグローバル汚染は構造的に起きない、ということですか」</p><p>「その通りだ」</p><h2 id=棚を渡す>棚を渡す</h2><p>「では、<code>NotificationDispatcher</code> をどう変えますか」</p><p>「こうだ」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>NotificationDispatcher</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>v5</span><span class=mf>.36</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Types::Standard</span> <span class=sx>qw(InstanceOf)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>registry</span> <span class=o>=&gt;</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span>       <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>isa</span>      <span class=o>=&gt;</span> <span class=n>InstanceOf</span><span class=p>[</span><span class=s>&#39;PluginRegistry&#39;</span><span class=p>],</span>
+</span></span><span class=line><span class=cl>    <span class=n>required</span> <span class=o>=&gt;</span> <span class=mi>1</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>dispatch</span> <span class=p>($self, $event) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=k>my</span> <span class=nv>$plugin</span> <span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>registry</span><span class=o>-&gt;</span><span class=n>all_plugins</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$plugin</span><span class=o>-&gt;</span><span class=n>notify</span><span class=p>(</span><span class=nv>$event</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>dispatch_by_name</span> <span class=p>($self, $name, $event) {</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$plugin</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=nn>registry</span><span class=o>-&gt;</span><span class=n>get</span><span class=p>(</span><span class=nv>$name</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$plugin</span><span class=o>-&gt;</span><span class=n>notify</span><span class=p>(</span><span class=nv>$event</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>コンストラクタの引数が、3つのプラグインから <code>registry</code> 1つに変わっている。</p><p>「Registry をコンストラクタインジェクションするんですか？」</p><p>「そうだ。<strong>棚を手渡す</strong>のだよ。棚の中身は知らなくてよい。だが、棚があることは宣言する。<code>required => 1</code> だ」</p><p>「中身が増えても、コンストラクタは変わらない……」</p><p>「プラグインが3つでも30でも、<code>NotificationDispatcher</code> のコンストラクタは <code>registry</code> の1行だけだ。プラグインの追加は、棚に物を足すだけで済む。クラス定義の修正は不要。テストの修正も最小限で済む」</p><p>「でも、それだと <code>NotificationDispatcher</code> が何のプラグインに依存しているか、コンストラクタからは見えませんよね。前回の事件では『コンストラクタが依存を明示する』ことが重要だと言っていたのに、矛盾しませんか」</p><p>ロックさんが一瞬止まった。</p><p>「……鋭いな、ワトソン君。前回と同じ論理で、今回を切ろうとしている。嫌いではないよ」</p><p>「矛盾してますよね？」</p><p>「していない。<strong>依存の性質が違う</strong>からだ」</p><p>ロックさんがホワイトボードに戻った。</p><p>「<code>OrderProcessor</code> が <code>validator</code> と <code>pricer</code> と <code>notifier</code> に依存している——これは<strong>固定的な構造依存</strong>だ。注文処理には必ずバリデーションと価格計算と通知が必要で、この関係は変わらない。こういう依存は、コンストラクタに1つずつ明示すべきだ」</p><p>「一方、<code>NotificationDispatcher</code> のプラグインは——」</p><p>「<strong>動的なコレクション</strong>だ。メール、Slack、Webhook、SMS……何がいるかは実行環境や顧客のプランで変わる。数もコンパイル時には確定しない。こういうものを個別にコンストラクタに並べると、前に見たコードのように肥大化する」</p><p>「なるほど。固定的な少数の依存は DI で直接宣言し、動的に変わるコレクションは Registry に委ねて、Registry 自体を DI で渡す……」</p><p>「そういうことだ。DI と Registry は対立しない。<strong>併用</strong>するのだ」</p><h2 id=三者の法廷>三者の法廷</h2><p>ロックさんがホワイトボードの3色の付箋を指差した。</p><p>「ここで三者を法廷に並べよう。<strong>赤い共犯者</strong>、<strong>青い正義の味方</strong>、そして<strong>緑の棚番</strong>だ」</p><pre class=mermaid>
+	graph LR
+    subgraph &#34;緑: Registry + DI&#34;
+        direction LR
+        R_Assembler[アセンブラ] --&gt;|&#34;new(registry =&gt; $reg)&#34;| R_Client[クライアント]
+        R_Client --&gt;|&#34;get(&#39;email&#39;)&#34;| R_Registry[Registry]
+        R_Registry -.-&gt;|&#34;名前付き管理&#34;| R_Plugins[プラグイン群]
+    end
+    subgraph &#34;青: Dependency Injection&#34;
+        direction LR
+        DI_Assembler[アセンブラ] --&gt;|&#34;new(db =&gt; $db)&#34;| DI_Client[クライアント]
+        DI_Client -.-&gt;|&#34;明示的な依存&#34;| DI_Service[サービス]
+    end
+    subgraph &#34;赤: Service Locator&#34;
+        direction LR
+        SL_Client[クライアント] --&gt;|&#34;resolve(&#39;db&#39;)&#34;| SL[Service Locator]
+        SL -.-&gt;|&#34;隠れた依存&#34;| SL_Service[サービス]
+    end
+</pre><p>「構造を比較する」</p><div class=table-wrapper><table><thead><tr><th style=text-align:left>観点</th><th style=text-align:left>Service Locator</th><th style=text-align:left>DI</th><th style=text-align:left>Registry + DI</th></tr></thead><tbody><tr><td style=text-align:left><strong>依存の方向</strong></td><td style=text-align:left>Client → Locator（Pull）</td><td style=text-align:left>Assembler → Client（Push）</td><td style=text-align:left>Client → Registry（Pull）、ただし Registry 自体は DI で Push</td></tr><tr><td style=text-align:left><strong>依存の可視性</strong></td><td style=text-align:left>隠蔽される</td><td style=text-align:left>完全に明示的</td><td style=text-align:left>Registry の存在は明示的、中身は動的</td></tr><tr><td style=text-align:left><strong>テスト容易性</strong></td><td style=text-align:left>低（グローバル状態汚染）</td><td style=text-align:left>高（各テストが独自の依存を保持）</td><td style=text-align:left>高（Registry インスタンスがテストごとに独立）</td></tr><tr><td style=text-align:left><strong>動的追加</strong></td><td style=text-align:left>容易</td><td style=text-align:left>困難（コンストラクタ修正が必要）</td><td style=text-align:left>容易（Registry に register するだけ）</td></tr><tr><td style=text-align:left><strong>責務の範囲</strong></td><td style=text-align:left>全サービスの依存解決</td><td style=text-align:left>なし（外部が配線）</td><td style=text-align:left>同一インターフェースの名前付き管理のみ</td></tr></tbody></table></div><p>「前回の事件——Service Locator の罪状は3つあった。暗黙的依存、テスト汚染、沈黙する警報器」</p><p>「はい。全部覚えています」</p><p>「では、Registry はその3つの罪を犯すか？」</p><p>私は表を見直した。</p><p>「暗黙的依存……Registry の存在自体はコンストラクタに <code>required</code> で明示されている。中身のプラグインは動的だが、それはプラグインシステムの性質上やむを得ない。——有罪ではない」</p><p>「テスト汚染は？」</p><p>「Registry はインスタンスだから、テストごとに新しいインスタンスを作る。グローバルな共有状態がない。——前回の事件とは構造が違う。有罪ではない」</p><p>「沈黙する警報器は？」</p><p>「プラグインの追加は Registry への <code>register</code> だけで済む。コンストラクタは変わらない。……これは『依存追加が非破壊的』という、前回有罪にした性質と同じでは？」</p><p>ロックさんが笑った——この人にしては珍しく、素直な笑みだった。</p><p>「よく気づいた。そこが<strong>境界線</strong>だ。固定的な構造依存——DBコネクション、ロガー、バリデータ——を Registry に逃がせば、確かにそれは Service Locator の再犯になる。だがプラグインのように<strong>動的に変わるコレクション</strong>を Registry で管理するのは、正当な使い方だ」</p><p>「判断基準はありますか。どこまでが正当で、どこからが再犯なのか」</p><p>「一つだけだ。<strong>コンストラクタに書けるのに Registry に逃がすな</strong>。コンストラクタに書けるものを Registry に入れるのは、告白を握りつぶす行為だ。コンストラクタに書ききれないもの——動的なコレクション——だけを Registry に任せろ」</p><p>「もう一つ質問があります。この Registry に遅延生成やライフサイクル管理を入れたら便利そうですが」</p><p>ロックさんの表情が引き締まった。</p><p>「そこが<strong>罠</strong>だ。生成ロジックを入れた瞬間、棚番は仲介人に変わる。ライフサイクル管理を入れれば、コンシェルジュに変わる。責務が膨張し、気づいたときには前回の犯人と同じ顔をしている」</p><p>「つまり、<code>register</code>、<code>get</code>、<code>has_plugin</code>、<code>unregister</code>。これ以上のメソッドを生やさない」</p><p>「そうだ。棚番には棚番の仕事だけをさせる」</p><h2 id=グリーンの確認>グリーンの確認</h2><p>テストを書いた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># テスト用の Role と実装</span>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Role::Notifier</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo::Role</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>requires</span> <span class=s>&#39;notify&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Notifier::Email</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>with</span> <span class=s>&#39;Role::Notifier&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>sent</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=o>[]</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>notify</span> <span class=p>($self, $event) {</span>
+</span></span><span class=line><span class=cl>    <span class=nb>push</span> <span class=nv>@</span><span class=p>{</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>sent</span><span class=p>},</span> <span class=p>{</span> <span class=n>type</span> <span class=o>=&gt;</span> <span class=s>&#39;email&#39;</span><span class=p>,</span> <span class=n>event</span> <span class=o>=&gt;</span> <span class=nv>$event</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>type</span><span class=p>}</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Notifier::Slack</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>with</span> <span class=s>&#39;Role::Notifier&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>sent</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=o>[]</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>notify</span> <span class=p>($self, $event) {</span>
+</span></span><span class=line><span class=cl>    <span class=nb>push</span> <span class=nv>@</span><span class=p>{</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>sent</span><span class=p>},</span> <span class=p>{</span> <span class=n>type</span> <span class=o>=&gt;</span> <span class=s>&#39;slack&#39;</span><span class=p>,</span> <span class=n>event</span> <span class=o>=&gt;</span> <span class=nv>$event</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>type</span><span class=p>}</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>Notifier::Webhook</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Moo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>with</span> <span class=s>&#39;Role::Notifier&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>has</span> <span class=n>sent</span> <span class=o>=&gt;</span> <span class=p>(</span><span class=n>is</span> <span class=o>=&gt;</span> <span class=s>&#39;ro&#39;</span><span class=p>,</span> <span class=n>default</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span> <span class=o>[]</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>notify</span> <span class=p>($self, $event) {</span>
+</span></span><span class=line><span class=cl>    <span class=nb>push</span> <span class=nv>@</span><span class=p>{</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=n>sent</span><span class=p>},</span> <span class=p>{</span> <span class=n>type</span> <span class=o>=&gt;</span> <span class=s>&#39;webhook&#39;</span><span class=p>,</span> <span class=n>event</span> <span class=o>=&gt;</span> <span class=nv>$event</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>type</span><span class=p>}</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>Registry の基本操作。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span><span class=lnt>9
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;Registry: 登録・取得・存在確認&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$registry</span> <span class=o>=</span> <span class=nn>PluginRegistry</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$email</span> <span class=o>=</span> <span class=nn>Notifier::Email</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=nv>$registry</span><span class=o>-&gt;</span><span class=n>register</span><span class=p>(</span><span class=s>&#39;email&#39;</span><span class=p>,</span> <span class=nv>$email</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>ok</span> <span class=nv>$registry</span><span class=o>-&gt;</span><span class=n>has_plugin</span><span class=p>(</span><span class=s>&#39;email&#39;</span><span class=p>),</span> <span class=s>&#39;email が登録されている&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span> <span class=nv>$registry</span><span class=o>-&gt;</span><span class=n>get</span><span class=p>(</span><span class=s>&#39;email&#39;</span><span class=p>),</span> <span class=nv>$email</span><span class=p>,</span> <span class=s>&#39;同じインスタンスが返る&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>ok</span> <span class=o>!</span><span class=nv>$registry</span><span class=o>-&gt;</span><span class=n>has_plugin</span><span class=p>(</span><span class=s>&#39;slack&#39;</span><span class=p>),</span> <span class=s>&#39;未登録は false&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>NotificationDispatcher</code> と組み合わせたテスト。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;Dispatcher + Registry: 全プラグインに配信&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$email</span> <span class=o>=</span> <span class=nn>Notifier::Email</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$slack</span> <span class=o>=</span> <span class=nn>Notifier::Slack</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$registry</span> <span class=o>=</span> <span class=nn>PluginRegistry</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$registry</span><span class=o>-&gt;</span><span class=n>register</span><span class=p>(</span><span class=s>&#39;email&#39;</span><span class=p>,</span> <span class=nv>$email</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$registry</span><span class=o>-&gt;</span><span class=n>register</span><span class=p>(</span><span class=s>&#39;slack&#39;</span><span class=p>,</span> <span class=nv>$slack</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$dispatcher</span> <span class=o>=</span> <span class=nn>NotificationDispatcher</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>registry</span> <span class=o>=&gt;</span> <span class=nv>$registry</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$dispatcher</span><span class=o>-&gt;</span><span class=n>dispatch</span><span class=p>({</span> <span class=n>type</span> <span class=o>=&gt;</span> <span class=s>&#39;order_completed&#39;</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>is</span> <span class=nb>scalar</span><span class=p>(</span><span class=nv>@</span><span class=p>{</span><span class=nv>$email</span><span class=o>-&gt;</span><span class=n>sent</span><span class=p>}),</span> <span class=mi>1</span><span class=p>,</span> <span class=s>&#39;メール通知1件&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span> <span class=nb>scalar</span><span class=p>(</span><span class=nv>@</span><span class=p>{</span><span class=nv>$slack</span><span class=o>-&gt;</span><span class=n>sent</span><span class=p>}),</span> <span class=mi>1</span><span class=p>,</span> <span class=s>&#39;Slack通知1件&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span></code></pre></td></tr></table></div></div><p>名前指定の配信。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;Dispatcher: 名前指定で特定プラグインのみ配信&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$email</span> <span class=o>=</span> <span class=nn>Notifier::Email</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$slack</span> <span class=o>=</span> <span class=nn>Notifier::Slack</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$registry</span> <span class=o>=</span> <span class=nn>PluginRegistry</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$registry</span><span class=o>-&gt;</span><span class=n>register</span><span class=p>(</span><span class=s>&#39;email&#39;</span><span class=p>,</span> <span class=nv>$email</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$registry</span><span class=o>-&gt;</span><span class=n>register</span><span class=p>(</span><span class=s>&#39;slack&#39;</span><span class=p>,</span> <span class=nv>$slack</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$dispatcher</span> <span class=o>=</span> <span class=nn>NotificationDispatcher</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>registry</span> <span class=o>=&gt;</span> <span class=nv>$registry</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$dispatcher</span><span class=o>-&gt;</span><span class=n>dispatch_by_name</span><span class=p>(</span><span class=s>&#39;email&#39;</span><span class=p>,</span> <span class=p>{</span> <span class=n>type</span> <span class=o>=&gt;</span> <span class=s>&#39;alert&#39;</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>is</span> <span class=nb>scalar</span><span class=p>(</span><span class=nv>@</span><span class=p>{</span><span class=nv>$email</span><span class=o>-&gt;</span><span class=n>sent</span><span class=p>}),</span> <span class=mi>1</span><span class=p>,</span> <span class=s>&#39;メールのみ送信&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span> <span class=nb>scalar</span><span class=p>(</span><span class=nv>@</span><span class=p>{</span><span class=nv>$slack</span><span class=o>-&gt;</span><span class=n>sent</span><span class=p>}),</span> <span class=mi>0</span><span class=p>,</span> <span class=s>&#39;Slackは送信されない&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span></code></pre></td></tr></table></div></div><p>そして、今回一番確認しておきたかったテスト。動的なプラグイン追加だ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;動的追加: 実行時にプラグインを追加&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$email</span> <span class=o>=</span> <span class=nn>Notifier::Email</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$registry</span> <span class=o>=</span> <span class=nn>PluginRegistry</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$registry</span><span class=o>-&gt;</span><span class=n>register</span><span class=p>(</span><span class=s>&#39;email&#39;</span><span class=p>,</span> <span class=nv>$email</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$dispatcher</span> <span class=o>=</span> <span class=nn>NotificationDispatcher</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>registry</span> <span class=o>=&gt;</span> <span class=nv>$registry</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$dispatcher</span><span class=o>-&gt;</span><span class=n>dispatch</span><span class=p>({</span> <span class=n>type</span> <span class=o>=&gt;</span> <span class=s>&#39;signup&#39;</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span> <span class=nb>scalar</span><span class=p>(</span><span class=nv>@</span><span class=p>{</span><span class=nv>$email</span><span class=o>-&gt;</span><span class=n>sent</span><span class=p>}),</span> <span class=mi>1</span><span class=p>,</span> <span class=s>&#39;初回: email のみ&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=c1># 実行時に Webhook を追加</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$webhook</span> <span class=o>=</span> <span class=nn>Notifier::Webhook</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$registry</span><span class=o>-&gt;</span><span class=n>register</span><span class=p>(</span><span class=s>&#39;webhook&#39;</span><span class=p>,</span> <span class=nv>$webhook</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=nv>$dispatcher</span><span class=o>-&gt;</span><span class=n>dispatch</span><span class=p>({</span> <span class=n>type</span> <span class=o>=&gt;</span> <span class=s>&#39;signup&#39;</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span> <span class=nb>scalar</span><span class=p>(</span><span class=nv>@</span><span class=p>{</span><span class=nv>$email</span><span class=o>-&gt;</span><span class=n>sent</span><span class=p>}),</span> <span class=mi>2</span><span class=p>,</span> <span class=s>&#39;2回目: email も配信&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span> <span class=nb>scalar</span><span class=p>(</span><span class=nv>@</span><span class=p>{</span><span class=nv>$webhook</span><span class=o>-&gt;</span><span class=n>sent</span><span class=p>}),</span> <span class=mi>1</span><span class=p>,</span> <span class=s>&#39;2回目: 追加した webhook も配信&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span></code></pre></td></tr></table></div></div><p>Before の設計では、Webhook を追加するには <code>has webhook_notifier</code> を追加し、<code>dispatch</code> メソッドを修正し、全テストを直す必要があった。After では <code>registry->register('webhook', $webhook)</code> の1行で済む。クラス定義に触れていない。</p><p>そして、前回の事件の教訓——テスト間の状態汚染が起きないことの確認。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;テスト間の状態独立: Registry はインスタンス&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$registry1</span> <span class=o>=</span> <span class=nn>PluginRegistry</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$registry1</span><span class=o>-&gt;</span><span class=n>register</span><span class=p>(</span><span class=s>&#39;email&#39;</span><span class=p>,</span> <span class=nn>Notifier::Email</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$registry2</span> <span class=o>=</span> <span class=nn>PluginRegistry</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$registry2</span><span class=o>-&gt;</span><span class=n>register</span><span class=p>(</span><span class=s>&#39;slack&#39;</span><span class=p>,</span> <span class=nn>Notifier::Slack</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>ok</span> <span class=nv>$registry1</span><span class=o>-&gt;</span><span class=n>has_plugin</span><span class=p>(</span><span class=s>&#39;email&#39;</span><span class=p>),</span>   <span class=s>&#39;registry1 には email&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>ok</span> <span class=o>!</span><span class=nv>$registry1</span><span class=o>-&gt;</span><span class=n>has_plugin</span><span class=p>(</span><span class=s>&#39;slack&#39;</span><span class=p>),</span>  <span class=s>&#39;registry1 には slack がない&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>ok</span> <span class=o>!</span><span class=nv>$registry2</span><span class=o>-&gt;</span><span class=n>has_plugin</span><span class=p>(</span><span class=s>&#39;email&#39;</span><span class=p>),</span>  <span class=s>&#39;registry2 には email がない&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=n>ok</span> <span class=nv>$registry2</span><span class=o>-&gt;</span><span class=n>has_plugin</span><span class=p>(</span><span class=s>&#39;slack&#39;</span><span class=p>),</span>   <span class=s>&#39;registry2 には slack&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span></code></pre></td></tr></table></div></div><p>2つの Registry インスタンスが互いに干渉しない。前回のパッケージ変数 <code>my %services</code> とは根本的に構造が異なる。</p><p>最後に、Registry が DI 経由で渡されること——つまり、Registry 自体が暗黙的な依存にならないことの確認。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;Registry は DI 経由で注入（required）&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=nb>eval</span> <span class=p>{</span> <span class=nn>NotificationDispatcher</span><span class=o>-&gt;</span><span class=k>new</span> <span class=p>};</span>  <span class=c1># registry を渡さない</span>
+</span></span><span class=line><span class=cl>    <span class=n>like</span> <span class=vg>$@</span><span class=p>,</span> <span class=sx>qr/required/</span><span class=p>,</span> <span class=s>&#39;Registry なしで生成するとエラー&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span></code></pre></td></tr></table></div></div><p>テストを実行した。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>ok 1 - Registry: 登録・取得・存在確認
+</span></span><span class=line><span class=cl>ok 2 - Dispatcher + Registry: 全プラグインに配信
+</span></span><span class=line><span class=cl>ok 3 - Dispatcher: 名前指定で特定プラグインのみ配信
+</span></span><span class=line><span class=cl>ok 4 - 動的追加: 実行時にプラグインを追加
+</span></span><span class=line><span class=cl>ok 5 - テスト間の状態独立: Registry はインスタンス
+</span></span><span class=line><span class=cl>ok 6 - Registry は DI 経由で注入（required）
+</span></span></code></pre></td></tr></table></div></div><p>全件グリーン。</p><h2 id=棚番の哲学>棚番の哲学</h2><p>ロックさんが付箋を指差しながら、最後の整理をした。</p><p>「使い分けの基準を確認しよう」</p><p>「依存が固定的で少数なら DI」</p><p>「そうだ」</p><p>「同一インターフェースの複数実装を名前で管理する、あるいは動的に追加・削除されるなら Registry」</p><p>「そうだ。そしてRegistryをDI経由で渡す」</p><p>「Service Locator は？」</p><p>「フレームワークの制約でクラス内部から依存を解決するしかない場合に限り、Composition Root の近くで使う。それ以外は選ばない」</p><p>「前回の帳簿——Service Locator が、全面的に悪というわけではないんですか」</p><p>「万能の仲介人に頼った構造が問題なのだ。限定された用途で、限定されたスコープで使う分には、道具に善悪はない。——だが、そこまで自制できる開発チームは少ない。だから私は DI を推す。判断に迷ったら DI だ」</p><p>ロックさんがコートを羽織り、ホワイトボードの付箋を眺めた。赤、青、緑。3色が並んでいる。</p><p>「この3色は剥がさないでおくといい。誰かが『便利だから全部 Registry に入れよう』と言い出したとき、赤い付箋の意味を思い出す」</p><p>「仲介人に戻る瞬間を」</p><p>「そうだ」</p><p>ロックさんが鞄にホワイトボードマーカーを戻し——うちのオフィスの備品なので返してほしいのだが——出口に向かった。</p><p>「報酬の件ですが——前回はCIの安定率を報酬にしていましたね」</p><p>「92%という報告は受け取った。見事な成績だよ、ワトソン君」</p><p>「では今回は？」</p><p>「定期検診は無料だよ。だが——」</p><p>ロックさんがドアノブに手をかけたまま振り返った。</p><p>「——新しい処方箋は有料だ。次回からは見積もりを出すよ、ワトソン君」</p><p>ドアが閉まった。</p><p>プラグインシステムの設計書に視線を戻した。通知プラグインの追加申請が3件。Slack連携、Webhook通知、SMS通知。</p><p><code>PluginRegistry</code> を作る。<code>register</code> で3つのプラグインを登録する。<code>NotificationDispatcher</code> のコンストラクタを <code>registry</code> 1つに書き換える。クラス定義の修正はそれだけで済む。</p><p>ホワイトボードの3色の付箋が、午後の光を受けて並んでいた。棚番か。悪くない名前だ。</p><hr><h2 id=探偵の調査報告書>探偵の調査報告書</h2><div class=table-wrapper><table><thead><tr><th style=text-align:left>容疑（問題）</th><th style=text-align:left>真実（パターン）</th><th style=text-align:left>証拠（効果）</th></tr></thead><tbody><tr><td style=text-align:left>DI 過剰適用（全プラグインをコンストラクタに列挙）</td><td style=text-align:left>Registry + DI ハイブリッド</td><td style=text-align:left>プラグイン追加時のクラス修正が不要</td></tr><tr><td style=text-align:left>コンストラクタ肥大化（プラグイン数＝引数数）</td><td style=text-align:left>PluginRegistry をDI で注入</td><td style=text-align:left>コンストラクタは <code>registry</code> の1引数のみ</td></tr><tr><td style=text-align:left>動的追加の不可（has の追加が必要）</td><td style=text-align:left><code>registry->register</code> による実行時追加</td><td style=text-align:left>クラス定義の修正なしにプラグインを追加可能</td></tr><tr><td style=text-align:left>テスト全修正（プラグイン追加のたびに）</td><td style=text-align:left>テスト用 Registry インスタンス</td><td style=text-align:left>必要なプラグインだけ登録した軽量テスト</td></tr></tbody></table></div><h3 id=三つ巴の判断フロー>三つ巴の判断フロー</h3><pre class=mermaid>
+	graph TD
+    Q1{依存は固定的で少数か？} --&gt;|Yes| DI[&#34;DI（コンストラクタインジェクション）&#34;]
+    Q1 --&gt;|No| Q2{同一IFの複数実装を&lt;br/&gt;名前で管理するか？}
+    Q2 --&gt;|Yes| REG[&#34;Registry + DI ハイブリッド&#34;]
+    Q2 --&gt;|No| Q3{動的に追加・削除されるか？}
+    Q3 --&gt;|Yes| REG
+    Q3 --&gt;|No| DI
+</pre><div class=table-wrapper><table><thead><tr><th style=text-align:left>観点</th><th style=text-align:left>Service Locator</th><th style=text-align:left>DI</th><th style=text-align:left>Registry + DI</th></tr></thead><tbody><tr><td style=text-align:left>依存の方向</td><td style=text-align:left>Client → Locator（Pull）</td><td style=text-align:left>Assembler → Client（Push）</td><td style=text-align:left>Registry 自体は DI（Push）、中身は Pull</td></tr><tr><td style=text-align:left>依存の可視性</td><td style=text-align:left>隠蔽される</td><td style=text-align:left>完全に明示的</td><td style=text-align:left>Registry の存在は明示的、中身は動的</td></tr><tr><td style=text-align:left>テスト容易性</td><td style=text-align:left>低</td><td style=text-align:left>高</td><td style=text-align:left>高</td></tr><tr><td style=text-align:left>動的追加</td><td style=text-align:left>容易</td><td style=text-align:left>困難</td><td style=text-align:left>容易</td></tr><tr><td style=text-align:left>推奨度</td><td style=text-align:left>限定的</td><td style=text-align:left>第一選択</td><td style=text-align:left>動的コレクション向け</td></tr></tbody></table></div><h3 id=推理のステップ>推理のステップ</h3><ol><li><strong>DI 過剰適用の検知</strong>: 同一インターフェースの実装がコンストラクタに3つ以上並んでいたら、Registry の出番を疑う</li><li><strong>Registry クラスの作成</strong>: <code>register</code>、<code>get</code>、<code>has_plugin</code>、<code>unregister</code>、<code>all_plugins</code> のみ。Factory やライフサイクル管理を入れない</li><li><strong>コンストラクタの書き換え</strong>: 個別のプラグイン属性を削除し、<code>registry</code> 属性（<code>required => 1</code>）に置き換える</li><li><strong>dispatch の汎用化</strong>: 個別メソッド呼び出しを <code>all_plugins</code> or <code>get</code> によるループに変更</li><li><strong>Registry の組み立て</strong>: Composition Root でプラグインを登録し、Registry を DI で渡す</li><li><strong>境界線の確認</strong>: 構造依存（DB、ロガー等）を Registry に逃がしていないか検証する</li></ol><h3 id=ロックより>ロックより</h3><p>棚番・仲介人・配達人。この3つの名前を覚えておくといい。</p><p>棚番は物を預かって返す。それだけだ。仲介人は何でも見つけてくれるが、誰に何を頼んだか外からは見えなくなる。配達人は必要なものを届けてくれるから、自分で取りに行く必要がない。</p><p>すべてを配達してもらう必要はない。動的に増えるものは、棚に任せればいい。ただし、棚にFactoryやライフサイクルの力を与えてはいけない。力を与えた瞬間、棚番は仲介人に変わる。そして仲介人は、前回我々が有罪にしたばかりの容疑者だ。</p><p>道具に善悪はない。使い方の境界線を引くのは、設計者の仕事だ。</p></section><footer class=article-footer><section class=article-tags><a href=/tags/design-pattern/>Design-Pattern</a>
+<a href=/tags/perl/>Perl</a>
+<a href=/tags/moo/>Moo</a>
+<a href=/tags/registry-pattern/>Registry-Pattern</a>
+<a href=/tags/service-locator/>Service-Locator</a>
+<a href=/tags/dependency-injection/>Dependency-Injection</a>
+<a href=/tags/plugin-system/>Plugin-System</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/code-detective/>Code-Detective</a></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/04/13/070705/><div class=article-image><img src=/public_images/2026/code-detective-service-locator/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-service-locator/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Service Locator】万能レジストリの共犯〜便利な仲介人が隠した依存の糸〜</h2></div></a></article><article class=has-image><a href=/2026/04/14/070705/><div class=article-image><img src=/public_images/2026/code-detective-dependency-injection/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-dependency-injection/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Dependency Injection】密室の new〜依存を手渡す者が扉を開く〜</h2></div></a></article><article class=has-image><a href=/2026/03/12/070705/><div class=article-image><img src=/public_images/2026/code-detective-singleton/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-singleton/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Singleton／DI】便利すぎる万能薬の副作用〜消えた証拠〜</h2></div></a></article><article class=has-image><a href=/2026/05/24/070705/><div class=article-image><img src=/public_images/2026/code-bartender-service-locator/header.webp loading=lazy data-key data-hash=/public_images/2026/code-bartender-service-locator/header.webp></div><div class=article-details><h2 class=article-title>コードバーテンダー【Service Locator】隠し味を誰も知らない〜記録なき秘伝〜</h2></div></a></article><article class=has-image><a href=/2026/05/15/070705/><div class=article-image><img src=/public_images/2026/code-detective-bff/header.webp loading=lazy data-key data-hash=/public_images/2026/code-detective-bff/header.webp></div><div class=article-details><h2 class=article-title>コード探偵ロックの事件簿【Backends for Frontends】最後の依頼〜一つの答えが全員を不満にする夜〜</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>
