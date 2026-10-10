@@ -1,0 +1,519 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="数百行の決算処理は途中の値がすべて関数の中に閉じていて、3段目だけを確かめられない。関数をクラスへ移し、局所変数をフィールドにする――メソッドオブジェクトの抽出（Break Out Method Object）を、呼び方も戻り値も変えずに行います。"><title>数百行の関数の「途中だけ」をテストしたい。関数をクラスへ移して段ごとに割る【Break Out Method Object】</title><link rel=canonical href=https://www.nqou.net/2026/10/03/070705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="数百行の関数の「途中だけ」をテストしたい。関数をクラスへ移して段ごとに割る【Break Out Method Object】"><meta property='og:description' content="数百行の決算処理は途中の値がすべて関数の中に閉じていて、3段目だけを確かめられない。関数をクラスへ移し、局所変数をフィールドにする――メソッドオブジェクトの抽出（Break Out Method Object）を、呼び方も戻り値も変えずに行います。"><meta property='og:url' content='https://www.nqou.net/2026/10/03/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='legacy-code'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='perl'><meta property='article:tag' content='break-out-method-object'><meta property='article:tag' content='long-function'><meta property='article:tag' content='code-carpenter'><meta property='article:published_time' content='2026-10-03T07:07:05+09:00'><meta property='article:modified_time' content='2026-10-03T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-carpenter-method-object-long-sub/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="数百行の関数の「途中だけ」をテストしたい。関数をクラスへ移して段ごとに割る【Break Out Method Object】"><meta name=twitter:description content="数百行の決算処理は途中の値がすべて関数の中に閉じていて、3段目だけを確かめられない。関数をクラスへ移し、局所変数をフィールドにする――メソッドオブジェクトの抽出（Break Out Method Object）を、呼び方も戻り値も変えずに行います。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-carpenter-method-object-long-sub/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><link rel=stylesheet href=/css/series-nav.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-10-03T07:07:05+09:00","datePublished":"2026-10-03T07:07:05+09:00","description":"数百行の決算処理は途中の値がすべて関数の中に閉じていて、3段目だけを確かめられない。関数をクラスへ移し、局所変数をフィールドにする――メソッドオブジェクトの抽出（Break Out Method Object）を、呼び方も戻り値も変えずに行います。","headline":"数百行の関数の「途中だけ」をテストしたい。関数をクラスへ移して段ごとに割る【Break Out Method Object】","image":"https://www.nqou.net/public_images/2026/code-carpenter-method-object-long-sub/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/10/03/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#第1幕-検分--大黒柱のそば>第1幕: 検分 ── 大黒柱のそば</a></li><li><a href=#第2幕-手が入らない--三つ目に届かない>第2幕: 手が入らない ── 三つ目に届かない</a></li><li><a href=#第3幕-手立て--柱は建てたまま>第3幕: 手立て ── 柱は建てたまま</a></li><li><a href=#第4幕-検め--割る所と割らない所>第4幕: 検め ── 割る所と割らない所</a></li><li><a href=#普請控>普請控</a></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/10/03/070705/><img src=/public_images/2026/code-carpenter-method-object-long-sub/header.webp loading=lazy alt="Featured image of post 数百行の関数の「途中だけ」をテストしたい。関数をクラスへ移して段ごとに割る【Break Out Method Object】"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/10/03/070705/>数百行の関数の「途中だけ」をテストしたい。関数をクラスへ移して段ごとに割る【Break Out Method Object】</a></h2><h3 class=article-subtitle>数百行の決算処理は途中の値がすべて関数の中に閉じていて、3段目だけを確かめられない。関数をクラスへ移し、局所変数をフィールドにする――メソッドオブジェクトの抽出（Break Out Method Object）を、呼び方も戻り値も変えずに行います。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>03, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 21分</time></div></footer></div><div class=series-top-banner><span class=series-badge>連載</span>
+<a href=/2026/09/24/060705/ class=series-title>コード大工</a>
+<span class=series-count>（第10話 / 全12話）</span><div class=series-nav-links><a href=/2026/10/02/070705/ title="関数名を揃えたらモックが効かなくなった。テストは緑のまま本物が動く罠【Introduce Instance Delegator】">← 前の話</a><a href=/2026/09/24/060705/>目次</a><a href=/2026/10/04/070705/ title="差し替えた部品が月末だけ落ちる。Perl でインタフェースを書き、can で確かめる【Extract Interface】">次の話 →</a></div></div></header><section class=article-content><h2 id=第1幕-検分--大黒柱のそば>第1幕: 検分 ── 大黒柱のそば</h2><p>昼下がりの帳場は、大黒柱のそばがいちばん明るい。</p><p>素屋根の隙間から差す光が、柱の肌の、手で撫でられて黒光りした高さのあたりに当たっていて、鉋屑が一片、その光の中をゆっくり降りていた。帳場の文机は柱のすぐ脇にある。今日はその机の上に、端末の画面を打ち出した紙が十数枚、広がっていた。クロベさんとナギさんが並んで座り、クロベさんは鉛筆で、紙の欄外に何かを書きつけている。ナギさんは、書かれた所を隣から目で追っていた。</p><p>私は帳場の入口で足を止めて、紙の端を見た。声をかける前に、しばらく眺めてしまった。それから用件を切り出した。</p><p>「来月から、年の決算は私が預かることになりました」</p><p>二人が顔を上げた。クロベさんは鉛筆を止めたが、目は紙に残っていた。</p><p>「店主から、頼まれています。決算の中の、掛売りの回収見込みを引いておく所だけは、私が自分の言葉で説明できるようにしてほしい、と。どこまで直してもらうかも、私が決めてよいそうです」</p><p>「引当ですな」</p><p>クロベさんが、紙から目を上げないまま言った。</p><p>「引当というのは、掛売りのうち、回収できないかもしれない分を見込んで、あらかじめ差し引いておく金額のことです。決算は五つの区切りに分けて数えていて、引当はその三つ目です。この区切りを、段と呼んでいます」</p><p>「店主に話すときは、どう言えばいいでしょう」</p><p>「回収できないかもしれない分を、先に引いておく額。それで足ります」</p><p>私は野帳に、その一行をそのまま書いた。</p><p>決算は、一つの関数になっている。クロベさんが、机の上の紙を一枚、私のほうへ滑らせた。</p><p>「本物は数百行あります。今日、検めに使うのは、形を保ったまま縮めた写しです」</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span><span class=lnt>51
+</span><span class=lnt>52
+</span><span class=lnt>53
+</span><span class=lnt>54
+</span><span class=lnt>55
+</span><span class=lnt>56
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Daikoku::Kessan</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>settle</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$sales</span><span class=p>,</span> <span class=nv>$rate</span><span class=p>,</span> <span class=nv>$day</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$cash</span>    <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$credit</span>  <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$gross</span>   <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$tax</span>     <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$net</span>     <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$rec</span>     <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$aged</span>    <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$bad</span>     <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$cap</span>     <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$reserve</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$fee</span>     <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$report</span>  <span class=o>=</span> <span class=s>&#39;&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>@lines</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=c1># 1. 集める</span>
+</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=k>my</span> <span class=nv>$s</span> <span class=p>(</span><span class=nv>@$sales</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>next</span> <span class=k>if</span> <span class=nv>$s</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>void</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=nv>$s</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>kind</span><span class=p>}</span> <span class=ow>eq</span> <span class=s>&#39;cash&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$cash</span> <span class=o>+=</span> <span class=nv>$s</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>amt</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span> <span class=k>else</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$credit</span> <span class=o>+=</span> <span class=nv>$s</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>amt</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=nb>push</span> <span class=nv>@lines</span><span class=p>,</span> <span class=nv>$s</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>id</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=c1># 2. 税</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$gross</span> <span class=o>=</span> <span class=nv>$cash</span> <span class=o>+</span> <span class=nv>$credit</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$tax</span>   <span class=o>=</span> <span class=nb>int</span><span class=p>(</span><span class=nv>$gross</span> <span class=o>*</span> <span class=nv>$rate</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$net</span>   <span class=o>=</span> <span class=nv>$gross</span> <span class=o>-</span> <span class=nv>$tax</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=c1># 3. 引当</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$rec</span>     <span class=o>=</span> <span class=nv>$credit</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$aged</span>    <span class=o>=</span> <span class=nv>$day</span> <span class=o>&gt;</span> <span class=mi>30</span> <span class=p>?</span> <span class=nv>$rec</span> <span class=p>:</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$bad</span>     <span class=o>=</span> <span class=nb>int</span><span class=p>(</span><span class=nv>$aged</span> <span class=o>*</span> <span class=mf>0.10</span><span class=p>)</span> <span class=o>+</span> <span class=nb>int</span><span class=p>((</span><span class=nv>$rec</span> <span class=o>-</span> <span class=nv>$aged</span><span class=p>)</span> <span class=o>*</span> <span class=mf>0.02</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$cap</span>     <span class=o>=</span> <span class=nb>int</span><span class=p>(</span><span class=nv>$gross</span> <span class=o>*</span> <span class=mf>0.05</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$reserve</span> <span class=o>=</span> <span class=nv>$bad</span> <span class=o>+</span> <span class=p>(</span><span class=nv>$credit</span> <span class=o>&gt;</span> <span class=nv>$cash</span> <span class=p>?</span> <span class=mi>10</span> <span class=p>:</span> <span class=mi>0</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$reserve</span> <span class=o>=</span> <span class=nv>$cap</span> <span class=k>if</span> <span class=nv>$reserve</span> <span class=o>&gt;</span> <span class=nv>$cap</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$net</span>    <span class=o>-=</span> <span class=nv>$reserve</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=c1># 4. 手数料</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$fee</span>  <span class=o>=</span> <span class=nb>int</span><span class=p>(</span><span class=nv>$net</span> <span class=o>*</span> <span class=mf>0.01</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$net</span> <span class=o>-=</span> <span class=nv>$fee</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=c1># 5. 報告</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$report</span> <span class=o>=</span> <span class=s>&#34;net=$net lines=&#34;</span> <span class=o>.</span> <span class=nb>scalar</span><span class=p>(</span><span class=nv>@lines</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nb>wantarray</span> <span class=p>?</span> <span class=p>(</span><span class=nv>$net</span><span class=p>,</span> <span class=nv>$report</span><span class=p>)</span> <span class=p>:</span> <span class=nv>$report</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>売上の明細と税率と、決算日までの日数を受け取る。現金の売りと掛売りに分けて集め、税を引き、掛売りの回収見込みを引当として引き、手数料を引いて、最後に報告の文字列を組む。取り消された売りは、一つ目の段の<code>next</code>で数えずに飛ばす。私にも、筋は追えた。</p><p>最後の行の<code>wantarray</code>は、この関数を呼んだ側が結果をどう受け取ろうとしているかを、関数の中から見るための組み込みだった。呼ぶ側が並びで受け取る形（Perlでは「リスト文脈」と呼ぶ）なら純額と報告の二つを、一つの変数で受け取る形（「スカラ文脈」）なら報告だけを返す。クロベさんは、呼び出しの側の二行も見せた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>my</span> <span class=p>(</span><span class=nv>$net</span><span class=p>,</span> <span class=nv>$report</span><span class=p>)</span> <span class=o>=</span> <span class=nn>Daikoku::Kessan::</span><span class=n>settle</span><span class=p>(</span><span class=nv>$sales</span><span class=p>,</span> <span class=mf>0.1</span><span class=p>,</span> <span class=mi>45</span><span class=p>);</span>   <span class=c1># 並びで受け取る</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$report2</span>        <span class=o>=</span> <span class=nn>Daikoku::Kessan::</span><span class=n>settle</span><span class=p>(</span><span class=nv>$sales</span><span class=p>,</span> <span class=mf>0.1</span><span class=p>,</span> <span class=mi>45</span><span class=p>);</span>   <span class=c1># 一つで受け取る</span>
+</span></span></code></pre></td></tr></table></div></div><p>「呼び出しは、この二通りが、実際にあります」</p><p>クロベさんは、紙の欄外を鉛筆の頭で示した。そこには、すでに表が書き込まれていた。段ごとに、その段が読む値と、書く値が並んでいる。</p><div class=table-wrapper><table><thead><tr><th>段</th><th>読む値</th><th>書く値</th></tr></thead><tbody><tr><td>1 集める</td><td>sales</td><td>cash, credit, lines</td></tr><tr><td>2 税</td><td>cash, credit, rate</td><td>gross, tax, net</td></tr><tr><td>3 引当</td><td>credit, cash, gross, net, day</td><td>rec, aged, bad, cap, reserve, net</td></tr><tr><td>4 手数料</td><td>net</td><td>fee, net</td></tr><tr><td>5 報告</td><td>net, lines</td><td>report</td></tr></tbody></table></div><p>私が来る前に、書いてあった。</p><p>「大物は、手を入れる前に、どこで何を読んで、どこへ書くかを、先に紙に取ります」</p><p>理由は、それだけだった。ナギさんも、驚いた様子は見せなかった。三人で仕事をしていると、そういう紙が先に机に載っていることが、ときどきある。</p><p>クロベさんは、紙を見たまま、この作りが今何を支えているかを言った。</p><p>「途中の値は、全部この関数の中に閉じています。年に一度、通している間、外から誰にも書き換えられずに済んでいる。この閉じ方が、今日まで決算を守ってきました」</p><p>それから、表の三つ目の行に、鉛筆の頭を置いた。</p><p>「ナギさん、三つ目だけ、走らせてみてください」</p><p>ナギさんが端末に手を伸ばしかけた。クロベさんは、私のほうを見た。</p><p>「シオリさんが預かる以上、聞くより、見ていただいたほうが早いですから」</p><h2 id=第2幕-手が入らない--三つ目に届かない>第2幕: 手が入らない ── 三つ目に届かない</h2><p>ナギさんは、決算を呼ぶ入力を作りはじめた。</p><p>三つ目に届くには、手前の二つの段を通らなければならない。売りの明細を作って、税率を決めて、日数を決める。掛売りの入った明細でなければ、引当は零のままだ。ナギさんは入力を一組作って呼び、結果を見て、別の一組を作った。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>my</span> <span class=nv>@r</span> <span class=o>=</span> <span class=nn>Daikoku::Kessan::</span><span class=n>settle</span><span class=p>([</span> <span class=p>{</span> <span class=n>id</span> <span class=o>=&gt;</span> <span class=s>&#39;G1&#39;</span><span class=p>,</span> <span class=n>kind</span> <span class=o>=&gt;</span> <span class=s>&#39;credit&#39;</span><span class=p>,</span> <span class=n>amt</span> <span class=o>=&gt;</span> <span class=mi>1000</span><span class=p>,</span> <span class=n>void</span> <span class=o>=&gt;</span> <span class=mi>0</span> <span class=p>}</span> <span class=p>],</span> <span class=mf>0.1</span><span class=p>,</span> <span class=mi>31</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=k>print</span> <span class=s>&#34;@r\n&#34;</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>842 net=842 lines=1
+</span></span></code></pre></td></tr></table></div></div><p>戻ってくるのは、純額と報告の二つだけだった。ナギさんは明細に現金五千円の売りを足し、日数を三十にして呼び、三十一にして呼んだ。手前の二つの段が同じなら、差は三つ目から来るはずだ。純額は、五三二七円と五二四七円になった。八十円の違いが出る。</p><p>私は、画面を横から見ていた。</p><p>「その八十円は、三つ目の値ですか」</p><p>「引当が増えた分、のはずです」</p><p>ナギさんは、そう答えてから、少し間を置いた。</p><p>「でも、そのあとに手数料の段があって、純額はそこでも変わります。三つ目が出した値は、純額の中に混ざっていて、取り出せません」</p><p>手は止まっていなかった。入力を作り、呼び、結果を見る。それを何度も繰り返している。ただ、確かめたい値だけが、関数の外へ出てこない。外へ出るのは戻り値だけだった。</p><p>「三つ目の段だけ、走らせられないんですか」</p><p>私が言うと、クロベさんは表の三つ目の欄を見た。</p><p>「走らせることは、できます。ただ、三つ目だけを、というのは、今の作りのままではできません。この関数は、一つ目から五つ目まで、必ず通して走ります」</p><p>クロベさんは、表の三つ目の行を、鉛筆の頭で順に指した。</p><p>「三つ目が読むのは、五つ。書くのは、六つ。純額は、読んで、書き直しますから、両方に数えて、合わせて十一。受け渡しの口が、十一あるということです」</p><p>ナギさんが、画面から顔を上げた。</p><p>「切り出せば、いいんじゃないですか。三つ目を、別の sub にして。それなら、単独で呼べます」</p><p>クロベさんは、否定しなかった。</p><p>「書いてみてください」</p><p>ナギさんが書いた。三つ目の中身をそのまま別の関数に移し、読む五つを引数にし、書く六つを戻り値にした。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>sub</span> <span class=nf>provision</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$credit</span><span class=p>,</span> <span class=nv>$day</span><span class=p>,</span> <span class=nv>$cash</span><span class=p>,</span> <span class=nv>$gross</span><span class=p>,</span> <span class=nv>$net</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$rec</span>     <span class=o>=</span> <span class=nv>$credit</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$aged</span>    <span class=o>=</span> <span class=nv>$day</span> <span class=o>&gt;</span> <span class=mi>30</span> <span class=p>?</span> <span class=nv>$rec</span> <span class=p>:</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$bad</span>     <span class=o>=</span> <span class=nb>int</span><span class=p>(</span><span class=nv>$aged</span> <span class=o>*</span> <span class=mf>0.10</span><span class=p>)</span> <span class=o>+</span> <span class=nb>int</span><span class=p>((</span><span class=nv>$rec</span> <span class=o>-</span> <span class=nv>$aged</span><span class=p>)</span> <span class=o>*</span> <span class=mf>0.02</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$cap</span>     <span class=o>=</span> <span class=nb>int</span><span class=p>(</span><span class=nv>$gross</span> <span class=o>*</span> <span class=mf>0.05</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$reserve</span> <span class=o>=</span> <span class=nv>$bad</span> <span class=o>+</span> <span class=p>(</span><span class=nv>$credit</span> <span class=o>&gt;</span> <span class=nv>$cash</span> <span class=p>?</span> <span class=mi>10</span> <span class=p>:</span> <span class=mi>0</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$reserve</span> <span class=o>=</span> <span class=nv>$cap</span> <span class=k>if</span> <span class=nv>$reserve</span> <span class=o>&gt;</span> <span class=nv>$cap</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$net</span> <span class=o>-=</span> <span class=nv>$reserve</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>(</span><span class=nv>$rec</span><span class=p>,</span> <span class=nv>$aged</span><span class=p>,</span> <span class=nv>$bad</span><span class=p>,</span> <span class=nv>$cap</span><span class=p>,</span> <span class=nv>$reserve</span><span class=p>,</span> <span class=nv>$net</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>呼び出す側は、決算の関数の中で、この六つを順番どおりに受け取る。動かすと、元の決算と同じ値が出た。</p><p>「動きます」</p><p>クロベさんが言った。</p><p>「引数が五つ、戻り値が六つです。しかも、どれも数です。<code>credit</code>と<code>cash</code>を、逆に渡してみてください」</p><p>ナギさんは、呼び出しの行の二つの引数を入れ替えて走らせた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>正しい順:   rec,aged,bad,cap,reserve,net = 1000 1000 100 300 100 5300
+</span></span><span class=line><span class=cl>取り違え:   rec,aged,bad,cap,reserve,net = 5000 5000 500 300 300 5100
+</span></span></code></pre></td></tr></table></div></div><p>「警告も、エラーも、出ません。数として合っていれば、Perlは何も言いません」</p><p>クロベさんは、それだけ言った。</p><p>「切り出した先でも、<code>rec</code>や<code>bad</code>を外から見たければ、戻り値に入れるしかありません。入れれば、六つです。一つだけなら、切り出しは動きます。ただ、決算は段が五つあります。五つとも切り出せば、段と段のあいだの受け渡しが、そのたびに口になります。位置で渡す引数を、毎回数えて合わせる仕事です」</p><p>クロベさんは、そこで言葉を切ってから、続けた。</p><p>「値ごと一つのクラスに持たせれば、段のあいだの口は要らなくなります。どの段も、同じ持ち物を、名前で読み書きします」</p><p>ナギさんの手が、一度止まった。それから、別の案を出した。</p><p>「じゃあ、sub の中に sub を書いたら、どうでしょう。中の sub なら、外側の<code>my</code>の値が見えます」</p><p>書いて、走らせた。三つ目に当たる部分を、決算の関数の中に、名前を付けた sub として置いた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># t/red/1_named_nested.pl</span>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>settle</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$cash</span><span class=p>,</span> <span class=nv>$credit</span><span class=p>,</span> <span class=nv>$day</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$gross</span> <span class=o>=</span> <span class=nv>$cash</span> <span class=o>+</span> <span class=nv>$credit</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>sub</span> <span class=nf>provision_named</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$aged</span> <span class=o>=</span> <span class=nv>$day</span> <span class=o>&gt;</span> <span class=mi>30</span> <span class=p>?</span> <span class=nv>$credit</span> <span class=p>:</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$bad</span>  <span class=o>=</span> <span class=nb>int</span><span class=p>(</span><span class=nv>$aged</span> <span class=o>*</span> <span class=mf>0.10</span><span class=p>)</span> <span class=o>+</span> <span class=nb>int</span><span class=p>((</span><span class=nv>$credit</span> <span class=o>-</span> <span class=nv>$aged</span><span class=p>)</span> <span class=o>*</span> <span class=mf>0.02</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$cap</span>  <span class=o>=</span> <span class=nb>int</span><span class=p>(</span><span class=nv>$gross</span> <span class=o>*</span> <span class=mf>0.05</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=k>my</span> <span class=nv>$reserve</span> <span class=o>=</span> <span class=nv>$bad</span> <span class=o>+</span> <span class=p>(</span><span class=nv>$credit</span> <span class=o>&gt;</span> <span class=nv>$cash</span> <span class=p>?</span> <span class=mi>10</span> <span class=p>:</span> <span class=mi>0</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=nv>$reserve</span> <span class=o>=</span> <span class=nv>$cap</span> <span class=k>if</span> <span class=nv>$reserve</span> <span class=o>&gt;</span> <span class=nv>$cap</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nv>$reserve</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=n>provision_named</span><span class=p>();</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>@in</span> <span class=o>=</span> <span class=p>([</span><span class=mi>5000</span><span class=p>,</span> <span class=mi>1000</span><span class=p>,</span> <span class=mi>30</span><span class=p>],</span> <span class=p>[</span><span class=mi>5000</span><span class=p>,</span> <span class=mi>2000</span><span class=p>,</span> <span class=mi>31</span><span class=p>],</span> <span class=p>[</span><span class=mi>5000</span><span class=p>,</span> <span class=mi>3000</span><span class=p>,</span> <span class=mi>31</span><span class=p>]);</span>
+</span></span><span class=line><span class=cl><span class=k>print</span> <span class=s>&#34;named: &#34;</span><span class=p>,</span> <span class=nb>join</span><span class=p>(</span><span class=s>&#39;,&#39;</span><span class=p>,</span> <span class=nb>map</span> <span class=p>{</span> <span class=n>settle</span><span class=p>(</span><span class=nv>@$_</span><span class=p>)</span> <span class=p>}</span> <span class=nv>@in</span><span class=p>),</span> <span class=s>&#34;\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>print</span> <span class=s>&#34;want:  20,200,300\n&#34;</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>Variable &#34;$day&#34; will not stay shared at t/red/1_named_nested.pl line 10.
+</span></span><span class=line><span class=cl>Variable &#34;$credit&#34; will not stay shared at t/red/1_named_nested.pl line 10.
+</span></span><span class=line><span class=cl>Variable &#34;$gross&#34; will not stay shared at t/red/1_named_nested.pl line 12.
+</span></span><span class=line><span class=cl>Variable &#34;$cash&#34; will not stay shared at t/red/1_named_nested.pl line 13.
+</span></span><span class=line><span class=cl>named: 20,20,20
+</span></span><span class=line><span class=cl>want:  20,200,300
+</span></span></code></pre></td></tr></table></div></div><p>出力より先に、警告が四行出た。</p><p>三回呼んで、三回とも同じ値だった。動いているのに、二度目からの値が古い。ナギさんは、画面の値とキーボードを、交互に見た。道具箱のほうへ伸ばしかけた手を、途中で引いた。</p><p>「名前を付けた sub は、外側の関数が最初に呼ばれたときの変数にだけ、繋がります」</p><p>クロベさんが、走らせたあとで言った。</p><p>「二度目からは、外側の変数は作り直されます。内側の sub は、最初のものを見続けている。警告は、そのことを先に教えていました」</p><p>それから、付け加えた。</p><p>「sub を変数に入れる書き方なら、呼ぶたびに正しい値が出ます。ただ、その変数は関数の中の<code>my</code>です。関数の外からは、名前でも触れません」</p><p>三つ目だけを外から検める道は、どちらにも無かった。私は、野帳に、切り出し、入れ子、と書いて、それぞれの脇に一行ずつ足した。動くが受け渡しが増える。値が古い。</p><p>「決算の全部に、手を入れることになるんでしょうか」</p><p>私は、野帳から顔を上げて言った。</p><p>「私が頼むとしたら、どこまでを、一度に頼めばいいんでしょう」</p><p>「頼み方は、直す形が見えてから決めましょう」</p><p>クロベさんは、鉛筆を机に置いた。</p><p>「先に、直し方です」</p><p>ナギさんが、道具箱の蓋を開ける音がした。</p><h2 id=第3幕-手立て--柱は建てたまま>第3幕: 手立て ── 柱は建てたまま</h2><p>クロベさんは、ここまでの三つを、順に短く言った。</p><p>「値が関数の中に閉じているから、外から見えません。切り出せば、受け渡しが増えます。入れ子にしても、古い値しか見えません。だったら、閉じている値のほうを、関数の外へ持ち出します」</p><p>それから、手立てを言った。</p><p>「長い関数を、一つのクラスに、丸ごと移します。関数の局所変数は、そのクラスのオブジェクトのフィールドにします。元の関数は、オブジェクトを一つ作って<code>run</code>を呼ぶだけの形で残します。移し終えてから、<code>run</code>の中身を、段ごとのメソッドに割ります」</p><p>局所変数がフィールドになれば、関数が終わったあとも、その値はオブジェクトの中に残る。外から読める。</p><p>「メソッドオブジェクトの抽出。Break Out Method Object と呼ばれる技法です」</p><p>Michael Feathers の『Working Effectively with Legacy Code』に載っている技法だと、クロベさんは言った。巨大な関数を新しいクラスへ移し、局所変数をフィールドにすると、途中の値を通して確かめられるようになる。そのかわり、割ったメソッドを単独で呼んだとき、フィールドが今何を持っているか分かりにくい、という弱点も、同じ本が認めている。私は、その二つを、野帳に分けて書いた。</p><p>「外した後に、同じ結果が出ることは、どうやって分かりますか」</p><p>私が訊いても、クロベさんは間を置かなかった。</p><p>「先に、今の戻り値を全部、書き取ります。直したあとで、同じ検めを、同じ形で通します」</p><p>仕様化テスト、と言った。正しい仕様ではなく、今の振る舞いをそのまま書き取った検めのことだ。ナギさんが、検めのファイルを開いた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Test::More</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Daikoku::Kessan</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>row</span> <span class=p>{</span> <span class=k>my</span> <span class=p>(</span><span class=nv>$id</span><span class=p>,</span> <span class=nv>$kind</span><span class=p>,</span> <span class=nv>$amt</span><span class=p>,</span> <span class=nv>$void</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span> <span class=k>return</span> <span class=p>{</span> <span class=n>id</span> <span class=o>=&gt;</span> <span class=nv>$id</span><span class=p>,</span> <span class=n>kind</span> <span class=o>=&gt;</span> <span class=nv>$kind</span><span class=p>,</span> <span class=n>amt</span> <span class=o>=&gt;</span> <span class=nv>$amt</span><span class=p>,</span> <span class=n>void</span> <span class=o>=&gt;</span> <span class=nv>$void</span> <span class=o>||</span> <span class=mi>0</span> <span class=p>}</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># [名前, 明細, 税率, 日数, 期待する純額, 期待する報告]</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>@table</span> <span class=o>=</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=p>[</span><span class=s>&#39;空の明細&#39;</span><span class=p>,</span>                   <span class=o>[]</span><span class=p>,</span>                                                        <span class=mf>0.1</span><span class=p>,</span> <span class=mi>10</span><span class=p>,</span>    <span class=mi>0</span><span class=p>,</span> <span class=s>&#39;net=0 lines=0&#39;</span><span class=p>],</span>
+</span></span><span class=line><span class=cl>    <span class=p>[</span><span class=s>&#39;現金だけ&#39;</span><span class=p>,</span>                   <span class=p>[</span> <span class=n>row</span><span class=p>(</span><span class=s>&#39;C1&#39;</span><span class=p>,</span> <span class=s>&#39;cash&#39;</span><span class=p>,</span> <span class=mi>1000</span><span class=p>)</span> <span class=p>],</span>                               <span class=mf>0.1</span><span class=p>,</span> <span class=mi>10</span><span class=p>,</span>  <span class=mi>891</span><span class=p>,</span> <span class=s>&#39;net=891 lines=1&#39;</span><span class=p>],</span>
+</span></span><span class=line><span class=cl>    <span class=p>[</span><span class=s>&#39;期日 日数30（超過にならない）&#39;</span><span class=p>,</span> <span class=p>[</span> <span class=n>row</span><span class=p>(</span><span class=s>&#39;E1&#39;</span><span class=p>,</span> <span class=s>&#39;cash&#39;</span><span class=p>,</span> <span class=mi>5000</span><span class=p>),</span> <span class=n>row</span><span class=p>(</span><span class=s>&#39;E2&#39;</span><span class=p>,</span> <span class=s>&#39;credit&#39;</span><span class=p>,</span> <span class=mi>1000</span><span class=p>)</span> <span class=p>],</span> <span class=mf>0.1</span><span class=p>,</span> <span class=mi>30</span><span class=p>,</span> <span class=mi>5327</span><span class=p>,</span> <span class=s>&#39;net=5327 lines=2&#39;</span><span class=p>],</span>
+</span></span><span class=line><span class=cl>    <span class=p>[</span><span class=s>&#39;期日 日数31（超過になる）&#39;</span><span class=p>,</span>    <span class=p>[</span> <span class=n>row</span><span class=p>(</span><span class=s>&#39;E1&#39;</span><span class=p>,</span> <span class=s>&#39;cash&#39;</span><span class=p>,</span> <span class=mi>5000</span><span class=p>),</span> <span class=n>row</span><span class=p>(</span><span class=s>&#39;E2&#39;</span><span class=p>,</span> <span class=s>&#39;credit&#39;</span><span class=p>,</span> <span class=mi>1000</span><span class=p>)</span> <span class=p>],</span>   <span class=mf>0.1</span><span class=p>,</span> <span class=mi>31</span><span class=p>,</span> <span class=mi>5247</span><span class=p>,</span> <span class=s>&#39;net=5247 lines=2&#39;</span><span class=p>],</span>
+</span></span><span class=line><span class=cl>    <span class=c1># ……上限に当たる場合・掛売りが現金より多い場合なども同じ形で並べる（全部で十行）</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>for</span> <span class=k>my</span> <span class=nv>$c</span> <span class=p>(</span><span class=nv>@table</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$name</span><span class=p>,</span> <span class=nv>$sales</span><span class=p>,</span> <span class=nv>$rate</span><span class=p>,</span> <span class=nv>$day</span><span class=p>,</span> <span class=nv>$net</span><span class=p>,</span> <span class=nv>$report</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@$c</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>@list</span> <span class=o>=</span> <span class=nn>Daikoku::Kessan::</span><span class=n>settle</span><span class=p>(</span><span class=nv>$sales</span><span class=p>,</span> <span class=nv>$rate</span><span class=p>,</span> <span class=nv>$day</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>is_deeply</span><span class=p>(</span><span class=o>\</span><span class=nv>@list</span><span class=p>,</span> <span class=p>[</span> <span class=nv>$net</span><span class=p>,</span> <span class=nv>$report</span> <span class=p>],</span> <span class=s>&#34;$name: list 文脈は (純額, 報告)&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$scalar</span> <span class=o>=</span> <span class=nn>Daikoku::Kessan::</span><span class=n>settle</span><span class=p>(</span><span class=nv>$sales</span><span class=p>,</span> <span class=nv>$rate</span><span class=p>,</span> <span class=nv>$day</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span><span class=p>(</span><span class=nv>$scalar</span><span class=p>,</span> <span class=nv>$report</span><span class=p>,</span> <span class=s>&#34;$name: scalar 文脈は報告だけ&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>done_testing</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>並びで受け取る場合と、一つで受け取る場合の両方を、同じ入力で書き取っている。日数が三十と三十一、掛売りが現金と同じ場合と多い場合、引当が上限に当たる場合と手前の場合。三つ目の境目は、両側を取った。期待値は、正しいはずの値ではなく、今の関数が返した値の写しだ。日数の三十と三十一は<code>$day > 30</code>、掛売りと現金は<code>$credit > $cash</code>、上限は<code>$reserve > $cap</code>という、コードの三つの条件に、それぞれ対応している。</p><p>表の十行を、並びと一つの二通りで検めて二十本。ほかに、明細を書き換えないこと、戻り値が二つだけであること、戻り値に引当の名前が出ないことを見る三本を足して、全部で二十三本になる。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>$ prove -Ilib t/settle_characterize.t
+</span></span><span class=line><span class=cl>t/settle_characterize.t .. ok
+</span></span><span class=line><span class=cl>All tests successful.
+</span></span><span class=line><span class=cl>Files=1, Tests=23, Result: PASS
+</span></span></code></pre></td></tr></table></div></div><p>この手立てが本来頼りにしているものが、Perlには無い。型のある言語なら、関数を移した途端に、まだ元の変数を使っている所を、コンパイラが赤く教えてくれる。Perlは、動かすまで何も言わない。だから、検めを先に書く。</p><p>まず丸ごと移して、割るのはそのあとにする、とクロベさんは言った。移している間は式に手を入れないので、検めが緑のままかどうかで、移し損ねを見つけられる。</p><p>ナギさんが、新しいクラスを書きはじめた。入力の三つと、これまで局所変数だった値のすべてを、フィールドとして持つ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Daikoku::Kessan::Settle</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Hash::Util</span> <span class=p>();</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>new</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$class</span><span class=p>,</span> <span class=nv>$sales</span><span class=p>,</span> <span class=nv>$rate</span><span class=p>,</span> <span class=nv>$day</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$self</span> <span class=o>=</span> <span class=nb>bless</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>sales</span>   <span class=o>=&gt;</span> <span class=nv>$sales</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>rate</span>    <span class=o>=&gt;</span> <span class=nv>$rate</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>day</span>     <span class=o>=&gt;</span> <span class=nv>$day</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>cash</span>    <span class=o>=&gt;</span> <span class=mi>0</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>credit</span>  <span class=o>=&gt;</span> <span class=mi>0</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>gross</span>   <span class=o>=&gt;</span> <span class=mi>0</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>tax</span>     <span class=o>=&gt;</span> <span class=mi>0</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>net</span>     <span class=o>=&gt;</span> <span class=mi>0</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>rec</span>     <span class=o>=&gt;</span> <span class=mi>0</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>aged</span>    <span class=o>=&gt;</span> <span class=mi>0</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>bad</span>     <span class=o>=&gt;</span> <span class=mi>0</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>cap</span>     <span class=o>=&gt;</span> <span class=mi>0</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>reserve</span> <span class=o>=&gt;</span> <span class=mi>0</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>fee</span>     <span class=o>=&gt;</span> <span class=mi>0</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>report</span>  <span class=o>=&gt;</span> <span class=s>&#39;&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>lines</span>   <span class=o>=&gt;</span> <span class=o>[]</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>},</span> <span class=nv>$class</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nn>Hash::Util::</span><span class=n>lock_keys</span><span class=p>(</span><span class=nv>%$self</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$self</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>Hash::Util::lock_keys</code>は、Perlに最初から付いているモジュールの関数で、ハッシュに、今ある名前以外のキーを足せないようにする。名前を綴り間違えると、その場で止まる。</p><p>「これが、コンパイラの代わりです」</p><p>クロベさんが言った。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># t/red/4_typo.pl（$free は錠を掛けていない複製、$locked は錠を掛けた本物）</span>
+</span></span><span class=line><span class=cl><span class=nv>$free</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>totl</span><span class=p>}</span> <span class=o>+=</span> <span class=mi>5</span><span class=p>;</span>      <span class=c1># 綴りの誤り。錠が無いと、警告もなく別のキーが生まれる</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>lock_keys 無し: gross=0 keys=gross,totl
+</span></span><span class=line><span class=cl>lock_keys 有り(書き込み): Attempt to access disallowed key &#39;totl&#39; in a restricted hash at t/red/4_typo.pl line 13.
+</span></span><span class=line><span class=cl>lock_keys 有り(読み出し): Attempt to access disallowed key &#39;totl&#39; in a restricted hash at t/red/4_typo.pl line 14.
+</span></span></code></pre></td></tr></table></div></div><p>錠が無ければ、<code>gross</code>と書くつもりで<code>totl</code>と書いても、Perlは何も言わない。<code>gross</code>は零のままで、別のキーが一つ増えるだけだ。錠があれば、書いたときも、読んだときも、その場で止まる。</p><p>ナギさんは、決算の関数の中身を、<code>run</code>という名前のメソッドへそのまま写した。局所変数の<code>my $cash</code>を、<code>$self->{cash}</code>へ、一つずつ置き換えていく。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=nv>$cash</span> <span class=o>+=</span> <span class=nv>$s</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>amt</span><span class=p>};</span>            <span class=c1># 元の関数（局所変数）</span>
+</span></span><span class=line><span class=cl><span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>cash</span><span class=p>}</span> <span class=o>+=</span> <span class=nv>$s</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>amt</span><span class=p>};</span>    <span class=c1># 移した先（フィールド）</span>
+</span></span></code></pre></td></tr></table></div></div><p>式の手順には、手を入れなかった。置き換えたのは、変数の書き方だけだった。</p><p>写し終えて、元の関数の中身を、これだけにした。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Daikoku::Kessan</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Daikoku::Kessan::Settle</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>settle</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nn>Daikoku::Kessan::Settle</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=nv>@_</span><span class=p>)</span><span class=o>-&gt;</span><span class=n>run</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>名前も、引数も、戻り値も、これまでと変わらない。ナギさんは、さっきの検めを、そのまま走らせた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>t/settle_characterize.t .. ok
+</span></span><span class=line><span class=cl>All tests successful.
+</span></span><span class=line><span class=cl>Files=1, Tests=23, Result: PASS
+</span></span></code></pre></td></tr></table></div></div><p>二十三本、緑だった。検めのファイルは、一字も書き換えていない。</p><p>呼び出しの側の二行は、<code>bin/kessan_run.pl</code>のままだ。並びで受け取る行も、一つで受け取る行も、これまでと同じに動く。組み立てているのは、元の関数の中の、この一行だけだった。決算の式の側は、計算の手順を変えていない。足したのは、新しいクラスと、<code>use</code>の一行だ。</p><p>「柱は、建てたままにします」</p><p>クロベさんが、大黒柱のほうを、ちらりと見た。</p><p>「周りの梁や貫を外して、組み直す。宮大工の言い方では、半解体です。柱は、元の関数の呼び口――名前と引数と、戻り値です。そこは、建てたまま動かしていません。外した周りは、元の関数の外の、新しいクラスに置きます。元の関数に残るのは、そのクラスへ繋ぐ一行の取次ぎだけです。外す、というのは、関数の中身をクラスへ移すこと。組み直す、というのは、移したものを段ごとに割ることです」</p><p>私は、その最後の言葉を、野帳に書き写した。帳場を、今日も店の人が通る。柱の周りには、通り道の分の養生が、板で組んであった。</p><p>「移す前の名前は、変えません。第1幕の表に書いた値の名前が、そのままフィールドの名前になります。<code>cash</code>は<code>cash</code>のまま、<code>reserve</code>は<code>reserve</code>のままです。検めが<code>rec</code>や<code>bad</code>を名前で読めるのも、そのおかげです」</p><p>クロベさんは、ナギさんの画面を指した。</p><p>「外した部材に、もとの位置を書いた札を付けます。番付札です。今日フィールドに付けた札は、この名前です」</p><p>頼み方の頁を、私は野帳に開いたままにしておいた。</p><h2 id=第4幕-検め--割る所と割らない所>第4幕: 検め ── 割る所と割らない所</h2><p>「直結を、わざと書き換えてください」</p><p>クロベさんが言った。</p><p>「結果をいったん変数に受けてから、返す形に」</p><p>ナギさんが、元の関数の一行を、二行にした。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>sub</span> <span class=nf>settle</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$r</span> <span class=o>=</span> <span class=nn>Daikoku::Kessan::Settle</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=nv>@_</span><span class=p>)</span><span class=o>-&gt;</span><span class=n>run</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$r</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>検めを走らせると、赤い行がいくつも出た。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>#   Failed test &#39;空の明細: list 文脈は (純額, 報告)&#39;
+</span></span><span class=line><span class=cl>#     $got-&gt;[0] = &#39;net=0 lines=0&#39;
+</span></span><span class=line><span class=cl>#     $expected-&gt;[0] = &#39;0&#39;
+</span></span></code></pre></td></tr></table></div></div><p>落ちたのは、並びで受け取る側の検めだった。一つで受け取る側は、緑のままだ。</p><p>「一度、変数に受けると」</p><p>クロベさんが言った。</p><p>「呼ぶ側が並びで受け取るのか、一つで受け取るのかという情報が、そこで無くなります。<code>my $r = ...</code>と書いた時点で、<code>run</code>は、いつも一つで受け取る形で呼ばれた扱いになります。<code>return f();</code>と書けば、この関数を呼んだ側の受け取り方が、そのまま<code>f</code>に伝わります。だから、直結でなければなりません」</p><p>ナギさんが、一行に書き直した。検めは、二十三本、緑になった。</p><p>「移すのは、ここまでです」</p><p>クロベさんが、私のほうを向いた。</p><p>「割るのは、これからです。割るたびに、同じ検めを通せます。ここから先は、シオリさんが決めてください。どこまで割るか」</p><p>私は、野帳の頁を繰って、決算の五つの段を書いた行を開いた。段の名前が、五つ並んでいる。集める、税、引当、手数料、報告。</p><p>それから、クロベさんの顔を見て、頼んだ。</p><p>「三つ目までを割ってください。集める、税、引当の三つです。手数料と報告は、割らずに、ひとまとまりで置いておいてください。割った所ごとに、同じ検めが緑なら、そこで引き取ります」</p><p>一息おいて、理由を足した。</p><p>「私が説明するのは、三つ目までです。割った数だけ、私が読む場所が増えます。緑を確かめられる量までに、しておきます」</p><p>クロベさんは、訂正しなかった。</p><p>「承りました」</p><p>それだけだった。ナギさんが、<code>run</code>の中身を、三つに割りはじめた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>sub</span> <span class=nf>run</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>collect</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>tax</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>provision</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=n>finish</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nb>wantarray</span> <span class=p>?</span> <span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>net</span><span class=p>},</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>report</span><span class=p>})</span> <span class=p>:</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>report</span><span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 1. 集める</span>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>collect</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=k>my</span> <span class=nv>$s</span> <span class=p>(</span><span class=nv>@</span><span class=p>{</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>sales</span><span class=p>}</span> <span class=p>})</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>next</span> <span class=k>if</span> <span class=nv>$s</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>void</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=nv>$s</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>kind</span><span class=p>}</span> <span class=ow>eq</span> <span class=s>&#39;cash&#39;</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>cash</span><span class=p>}</span> <span class=o>+=</span> <span class=nv>$s</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>amt</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span> <span class=k>else</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>credit</span><span class=p>}</span> <span class=o>+=</span> <span class=nv>$s</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>amt</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=nb>push</span> <span class=nv>@</span><span class=p>{</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>lines</span><span class=p>}</span> <span class=p>},</span> <span class=nv>$s</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>id</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 2. 税</span>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>tax</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>gross</span><span class=p>}</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>cash</span><span class=p>}</span> <span class=o>+</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>credit</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>tax</span><span class=p>}</span>   <span class=o>=</span> <span class=nb>int</span><span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>gross</span><span class=p>}</span> <span class=o>*</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>rate</span><span class=p>});</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>net</span><span class=p>}</span>   <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>gross</span><span class=p>}</span> <span class=o>-</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>tax</span><span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 3. 引当</span>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>provision</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>rec</span><span class=p>}</span>     <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>credit</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>aged</span><span class=p>}</span>    <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>day</span><span class=p>}</span> <span class=o>&gt;</span> <span class=mi>30</span> <span class=p>?</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>rec</span><span class=p>}</span> <span class=p>:</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>bad</span><span class=p>}</span>     <span class=o>=</span> <span class=nb>int</span><span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>aged</span><span class=p>}</span> <span class=o>*</span> <span class=mf>0.10</span><span class=p>)</span> <span class=o>+</span> <span class=nb>int</span><span class=p>((</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>rec</span><span class=p>}</span> <span class=o>-</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>aged</span><span class=p>})</span> <span class=o>*</span> <span class=mf>0.02</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>cap</span><span class=p>}</span>     <span class=o>=</span> <span class=nb>int</span><span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>gross</span><span class=p>}</span> <span class=o>*</span> <span class=mf>0.05</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>reserve</span><span class=p>}</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>bad</span><span class=p>}</span> <span class=o>+</span> <span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>credit</span><span class=p>}</span> <span class=o>&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>cash</span><span class=p>}</span> <span class=p>?</span> <span class=mi>10</span> <span class=p>:</span> <span class=mi>0</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>reserve</span><span class=p>}</span> <span class=o>=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>cap</span><span class=p>}</span> <span class=k>if</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>reserve</span><span class=p>}</span> <span class=o>&gt;</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>cap</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>net</span><span class=p>}</span>    <span class=o>-=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>reserve</span><span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 4. 手数料と 5. 報告（割らずにひとまとまり）</span>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>finish</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>fee</span><span class=p>}</span>  <span class=o>=</span> <span class=nb>int</span><span class=p>(</span><span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>net</span><span class=p>}</span> <span class=o>*</span> <span class=mf>0.01</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>net</span><span class=p>}</span> <span class=o>-=</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>fee</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>report</span><span class=p>}</span> <span class=o>=</span> <span class=s>&#34;net=$self-&gt;{net} lines=&#34;</span> <span class=o>.</span> <span class=nb>scalar</span><span class=p>(</span><span class=nv>@</span><span class=p>{</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>lines</span><span class=p>}</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>collect</code>の中には、取り消しを飛ばす<code>next</code>と、それを回すループが、そのまま入っている。ループの本体を二つのメソッドに分けなかったので、<code>next</code>は、ループの中にあるままだ。式は、写したときと一字も違わない。</p><p>検めは、二十三本、緑だった。</p><p>ここまでの形を、私は野帳に一枚の図に描いた。移す前は、五つの段と局所変数が一つの関数の中に閉じていて、外へ出るのは戻り値だけだった。移した後は、元の関数は取次ぎの一行だけになり、値はオブジェクトが持って、割った三つのメソッドが順に使う。柱として残した所、つまり今日は手を付けていない所は、薄い灰色の破線で描いた。</p><p><img src=/public_images/2026/code-carpenter-method-object-long-sub/infographic_1.webp loading=lazy alt="決算の関数を Daikoku::Kessan::Settle オブジェクトへ移す前後の比較図。移す前は五つの段と局所変数が一つの関数に閉じて戻り値しか見えないが、移した後は settle が取次ぎだけを残し、オブジェクトが値を持って collect、tax、provision、finish を順に呼び、provision は前段の値を置けば単独で呼べる。呼び出し元と settle と finish は今回触っていない所として灰色の破線で示している"></p><p>「それでは」</p><p>クロベさんが、ナギさんのほうへ体を向けた。</p><p>「最初の頼みを、もう一度」</p><p>ナギさんは、決算の関数を呼ぶ代わりに、新しいクラスのオブジェクトを作った。手前の段が置くはずの値を、自分の手で置いてから、三つ目のメソッドだけを呼ぶ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>my</span> <span class=nv>$o</span> <span class=o>=</span> <span class=nn>Daikoku::Kessan::Settle</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=o>[]</span><span class=p>,</span> <span class=mf>0.1</span><span class=p>,</span> <span class=mi>31</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=nv>$o</span><span class=o>-&gt;</span><span class=p>{</span><span class=nv>$_</span><span class=p>}</span> <span class=o>=</span> <span class=p>{</span> <span class=n>cash</span> <span class=o>=&gt;</span> <span class=mi>5000</span><span class=p>,</span> <span class=n>credit</span> <span class=o>=&gt;</span> <span class=mi>1000</span><span class=p>,</span> <span class=n>gross</span> <span class=o>=&gt;</span> <span class=mi>6000</span><span class=p>,</span> <span class=n>net</span> <span class=o>=&gt;</span> <span class=mi>5400</span> <span class=p>}</span><span class=o>-&gt;</span><span class=p>{</span><span class=nv>$_</span><span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=sx>qw(cash credit gross net)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=nv>$o</span><span class=o>-&gt;</span><span class=n>provision</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>print</span> <span class=nb>join</span><span class=p>(</span><span class=s>&#39; &#39;</span><span class=p>,</span> <span class=nb>map</span> <span class=p>{</span> <span class=s>&#34;$_=$o-&gt;{$_}&#34;</span> <span class=p>}</span> <span class=sx>qw(rec aged bad cap reserve net)</span><span class=p>),</span> <span class=s>&#34;\n&#34;</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>rec=1000 aged=1000 bad=100 cap=300 reserve=100 net=5300
+</span></span></code></pre></td></tr></table></div></div><p>三つ目が出した六つの値が、そのまま読めた。日数が三十一で、掛売りのすべてが期日を過ぎた。貸倒れの見込みは百円。上限の三百円には届かないので、引当は百円になり、純額はそのぶん減る。</p><p>私は、その六つを、野帳に書き写した。説明する言葉が、初めて手元に揃った。</p><p>切り出した版では、前の段の値を、位置で数えて渡していた。ここでは、値を置く行に、名前が書いてある。名前を綴り違えれば、錠が止める。</p><p>「前の段が置く値を、先に置いてから呼びました」</p><p>クロベさんが言った。</p><p>「三つ目だけを走らせるには、この手順が要ります。ここで置いた値が、本当に手前の段が作る値と合っているかは、この検めでは分かりません」</p><p>ナギさんは、境目の両側を、七つ並べた。日数が三十と三十一。掛売りと現金が同じ場合と、多い場合。引当が上限の手前と、ちょうどと、超える場合。それぞれ、六つの値をまとめて一本で検めた。ほかに、手数料に触れないことと、綴りの誤りが止まることを見る四本を足して、単独の検めは十一本になる。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>$ prove -Iafter/lib t/settle_characterize.t t/settle_provision.t
+</span></span><span class=line><span class=cl>t/settle_characterize.t .. ok
+</span></span><span class=line><span class=cl>t/settle_provision.t ..... ok
+</span></span><span class=line><span class=cl>All tests successful.
+</span></span><span class=line><span class=cl>Files=2, Tests=34, Result: PASS
+</span></span></code></pre></td></tr></table></div></div><p>クロベさんは、言えることと言えないことを、順に並べた。</p><p>「元の関数の名前と引数と戻り値は、変わっていません。並びで受け取っても、一つで受け取っても、これまでと同じ値を返します。三つ目だけを単独で検められて、途中の値を読めます」</p><p>それから、少し間を置いた。</p><p>「言わないことも、あります。一つ、段の中の計算が正しいことは、保証していません。今の振る舞いを、そのまま写しただけです。二つ、単独の検めは、前の段の値を手で置きます。置いた値が、現実に手前の段が作る値と合っているかは、別の話です。三つ、同じオブジェクトで<code>run</code>を二度呼ぶと、前の値が残ります。合計に足し込み、明細の一覧に書き足す作りなので、二度目は一度目の続きから始まってしまいます。呼ぶたびに、新しく作ります。四つ、手数料と報告は、割っていません。この二つは、通しの検めだけで確かめています。五つ、元の関数が<code>$_[0]</code>のように引数を直接書き換えていたら、この移し方では同じになりません。引数は、呼んだ側の変数の別名なので、書き換えれば呼んだ側の変数まで変わります。オブジェクトへ渡すと値はコピーされ、その変化は起きなくなるからです。この決算の関数は、<code>my (...) = @_;</code>で先にコピーしてから使っているので、その心配はありません。六つ、設計が良くなったわけではありません。長い関数が、一つのクラスに移っただけで、割っていない所は、これまでと同じ形です」</p><p>「七つ」</p><p>クロベさんは、ゆっくり言った。</p><p>「一度動かした話です。年に一度の決算が、毎年間違えないという保証では、ありません」</p><p>私は、その七つを、野帳の同じ頁に書き足した。</p><p>日が傾いて、大黒柱の根元まで、西日が届いていた。ナギさんは、自分の帳面を開き、明日の朝いちばんに通す検めの名前を二つ、欄外に書き付けた。私は帳場の灯りをつけた。</p><hr><h2 id=普請控>普請控</h2><ul><li><strong>見立て</strong>: 年に一度の決算の関数は、途中の値がすべて関数の中に閉じていて、三つ目の段（引当）だけを確かめる手立てが無かった。確かめられるのは戻り値の純額と報告だけで、引当の値は、税と手数料に挟まれて、純額の中に混ざっていた</li><li><strong>手を入れた所</strong>: メソッドオブジェクトの抽出（Break Out Method Object）を使った。決算の関数の中身を<code>Daikoku::Kessan::Settle</code>へ移し、局所変数をフィールドにして、集める・税・引当の三つに割った。元の<code>settle</code>は、それを組んで呼ぶ一行だけを残した</li><li><strong>触っていない所</strong>: <code>settle</code>の名前、引数の三つ、戻り値の形（並びで受け取ったときと、一つで受け取ったときの両方）は、変えていない。呼び出し元の<code>bin/kessan_run.pl</code>の二か所も、そのまま。各段の式の中身は、局所変数をフィールドに置き換えただけで、計算の手順は書き換えていない。手数料と報告の二段は、割らずに<code>finish</code>にひとまとまりで残した</li><li><strong>次の工程へ送ること</strong>: 手数料と報告の二段を割るかどうかは、今日は決めない。割った所ごとに検めが緑なのを確かめて引き取る、という進め方を、続きでも守る。割るほど、私が読む場所が増えるので、確かめられる量に収めるため</li><li><strong>私が引き受けたこと</strong>: 大物の直しを、割る所と割らない所に分けて、私から頼める。今日は、集める・税・引当の三つまでを割り、手数料と報告は割らないと決めて、その理由（私が説明できるのは三つ目まで。割った数だけ、私が読む場所が増える）を添えて、クロベさんに頼んだ。頼んだ範囲を引き取れるかどうかは、割った所ごとに、挙動が移す前と同じかどうかを、検めの緑で私が確かめる</li></ul></section><footer class=article-footer><section class=article-tags><a href=/tags/legacy-code/>Legacy-Code</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/perl/>Perl</a>
+<a href=/tags/break-out-method-object/>Break-Out-Method-Object</a>
+<a href=/tags/long-function/>Long-Function</a>
+<a href=/tags/code-carpenter/>Code-Carpenter</a></section><nav class=series-nav-container aria-label=シリーズ連載ナビゲーション><div class=series-nav-header><span class=series-badge>連載</span>
+<a href=/2026/09/24/060705/ class=series-title>コード大工</a><span class=series-count>第10話 / 全12話</span></div><div class=series-nav-grid><a href=/2026/10/02/070705/ class="series-nav-card prev" rel=prev><span class=series-nav-direction>← 前の話</span>
+<span class=series-nav-card-title>関数名を揃えたらモックが効かなくなった。テストは緑のまま本物が動く罠【Introduce Instance Delegator】</span>
+</a><a href=/2026/09/24/060705/ class=series-nav-toc-btn><span>連載目次</span>
+</a><a href=/2026/10/04/070705/ class="series-nav-card next" rel=next><span class=series-nav-direction>次の話 →</span>
+<span class=series-nav-card-title>差し替えた部品が月末だけ落ちる。Perl でインタフェースを書き、can で確かめる【Extract Interface】</span></a></div></nav></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/10/05/070705/><div class=article-image><img src=/public_images/2026/code-carpenter-pinch-point-handover/header.webp loading=lazy data-key data-hash=/public_images/2026/code-carpenter-pinch-point-handover/header.webp></div><div class=article-details><h2 class=article-title>単体テストは全部緑なのに締め処理が壊れる。1か所のテストで全体を守る【Pinch Point】</h2></div></a></article><article class=has-image><a href=/2026/10/04/070705/><div class=article-image><img src=/public_images/2026/code-carpenter-extract-interface-duck-contract/header.webp loading=lazy data-key data-hash=/public_images/2026/code-carpenter-extract-interface-duck-contract/header.webp></div><div class=article-details><h2 class=article-title>差し替えた部品が月末だけ落ちる。Perl でインタフェースを書き、can で確かめる【Extract Interface】</h2></div></a></article><article class=has-image><a href=/2026/10/02/070705/><div class=article-image><img src=/public_images/2026/code-carpenter-instance-delegator-silent-rename/header.webp loading=lazy data-key data-hash=/public_images/2026/code-carpenter-instance-delegator-silent-rename/header.webp></div><div class=article-details><h2 class=article-title>関数名を揃えたらモックが効かなくなった。テストは緑のまま本物が動く罠【Introduce Instance Delegator】</h2></div></a></article><article class=has-image><a href=/2026/10/01/070705/><div class=article-image><img src=/public_images/2026/code-carpenter-parameterize-constructor-nameless-dependency/header.webp loading=lazy data-key data-hash=/public_images/2026/code-carpenter-parameterize-constructor-nameless-dependency/header.webp></div><div class=article-details><h2 class=article-title>コンストラクタが本番の帳簿ファイルを開いてしまうクラスを、テストできる形にする【Parameterize Constructor】</h2></div></a></article><article class=has-image><a href=/2026/09/30/070705/><div class=article-image><img src=/public_images/2026/code-carpenter-extract-override-imported-copy/header.webp loading=lazy data-key data-hash=/public_images/2026/code-carpenter-extract-override-imported-copy/header.webp></div><div class=article-details><h2 class=article-title>テストのたびに外部 API を叩いてしまうコードを、サブクラスで差し替える【Extract and Override Call】</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>
