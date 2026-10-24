@@ -1,0 +1,427 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="関数名を揃えたら、テストは緑のまま、差し替えたはずの印字処理が本物のまま動いていた。名前で縛った差し替えは名前が変わると効かなくなる。インスタンス委譲の導入（Introduce Instance Delegator）で、差し替えを渡すオブジェクトで決める形にします。"><title>関数名を揃えたらモックが効かなくなった。テストは緑のまま本物が動く罠【Introduce Instance Delegator】</title><link rel=canonical href=https://www.nqou.net/2026/10/02/070705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="関数名を揃えたらモックが効かなくなった。テストは緑のまま本物が動く罠【Introduce Instance Delegator】"><meta property='og:description' content="関数名を揃えたら、テストは緑のまま、差し替えたはずの印字処理が本物のまま動いていた。名前で縛った差し替えは名前が変わると効かなくなる。インスタンス委譲の導入（Introduce Instance Delegator）で、差し替えを渡すオブジェクトで決める形にします。"><meta property='og:url' content='https://www.nqou.net/2026/10/02/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='legacy-code'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='perl'><meta property='article:tag' content='introduce-instance-delegator'><meta property='article:tag' content='silent-rename'><meta property='article:tag' content='code-carpenter'><meta property='article:published_time' content='2026-10-02T07:07:05+09:00'><meta property='article:modified_time' content='2026-10-02T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-carpenter-instance-delegator-silent-rename/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="関数名を揃えたらモックが効かなくなった。テストは緑のまま本物が動く罠【Introduce Instance Delegator】"><meta name=twitter:description content="関数名を揃えたら、テストは緑のまま、差し替えたはずの印字処理が本物のまま動いていた。名前で縛った差し替えは名前が変わると効かなくなる。インスタンス委譲の導入（Introduce Instance Delegator）で、差し替えを渡すオブジェクトで決める形にします。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-carpenter-instance-delegator-silent-rename/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><link rel=stylesheet href=/css/series-nav.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-10-02T07:07:05+09:00","datePublished":"2026-10-02T07:07:05+09:00","description":"関数名を揃えたら、テストは緑のまま、差し替えたはずの印字処理が本物のまま動いていた。名前で縛った差し替えは名前が変わると効かなくなる。インスタンス委譲の導入（Introduce Instance Delegator）で、差し替えを渡すオブジェクトで決める形にします。","headline":"関数名を揃えたらモックが効かなくなった。テストは緑のまま本物が動く罠【Introduce Instance Delegator】","image":"https://www.nqou.net/public_images/2026/code-carpenter-instance-delegator-silent-rename/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/10/02/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#第1幕-検分--雨上がりの縁側>第1幕: 検分 ── 雨上がりの縁側</a></li><li><a href=#第2幕-手が入らない--消して比べる>第2幕: 手が入らない ── 消して比べる</a></li><li><a href=#第3幕-手立て--相手で決める>第3幕: 手立て ── 相手で決める</a></li><li><a href=#第4幕-検め--名前を探す>第4幕: 検め ── 名前を探す</a></li><li><a href=#普請控>普請控</a></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/10/02/070705/><img src=/public_images/2026/code-carpenter-instance-delegator-silent-rename/header.webp loading=lazy alt="Featured image of post 関数名を揃えたらモックが効かなくなった。テストは緑のまま本物が動く罠【Introduce Instance Delegator】"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/10/02/070705/>関数名を揃えたらモックが効かなくなった。テストは緑のまま本物が動く罠【Introduce Instance Delegator】</a></h2><h3 class=article-subtitle>関数名を揃えたら、テストは緑のまま、差し替えたはずの印字処理が本物のまま動いていた。名前で縛った差し替えは名前が変わると効かなくなる。インスタンス委譲の導入（Introduce Instance Delegator）で、差し替えを渡すオブジェクトで決める形にします。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>02, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 22分</time></div></footer></div><div class=series-top-banner><span class=series-badge>連載</span>
+<a href=/2026/09/24/060705/ class=series-title>コード大工</a>
+<span class=series-count>（第9話 / 全12話）</span><div class=series-nav-links><a href=/2026/10/01/070705/ title="コンストラクタが本番の帳簿ファイルを開いてしまうクラスを、テストできる形にする【Parameterize Constructor】">← 前の話</a><a href=/2026/09/24/060705/>目次</a><a href=/2026/10/03/070705/ title="数百行の関数の「途中だけ」をテストしたい。関数をクラスへ移して段ごとに割る【Break Out Method Object】">次の話 →</a></div></div></header><section class=article-content><h2 id=第1幕-検分--雨上がりの縁側>第1幕: 検分 ── 雨上がりの縁側</h2><p>雨は、夜のうちに上がっていた。</p><p>樋を伝う水の音は、雨が止んでからも半日ほど残る。詰まっていれば音が濁り、通っていれば澄んで細くなる。縁側に出てその音を聞き分けるのが、雨の翌朝の、私の最初の仕事だった。今朝の音は細く澄んでいた。それでも軒先まで歩いて、樋の口に溜まった濡れ葉を手で掬い、縁側の板に落ちた滴を竹箒で寄せた。素屋根の縁からも、ときどき遅れて一粒、滴が落ちてくる。</p><p>次に、店の間へ回って印字機の出口の棚を見る。</p><p>店主は、請求書を起こす日に、その日の分を端末の中の置き場所へ置いていく。私たちはそれを待ち箱と呼んでいる。印字機は夜のうちにその箱を拾って紙にし、翌朝、出口の棚へ出す。請求書を起こすのは月末と月なかばだけで、昨日はどちらでもなかった。だから、今朝の棚は空のはずだった。</p><p>紙が三枚、載っていた。</p><p>店主の試し刷りか、書き損じだろう、と思った。角を揃えて、帳場の引き出しの端に入れた。この段取りは三十年、変わっていない。それ以上は、考えなかった。</p><p>帳場へ戻ると、クロベさんは素屋根の下での朝の見上げを終えたところだった。屋根の先の樋から軒先までを、ゆっくり目で辿るのが、クロベさんの朝の習いだ。ナギさんは文机の端末の前に座っていたが、私が上がると立ち上がった。</p><p>「印字の名前、揃えました」</p><p>背筋が伸びていた。声は抑えていたが、言い終えたあとで、ほんの少し顎が上がった。</p><p>「検めも、昨日の夕方に、全部通しています」</p><p>昨日の午後、クロベさんがナギさんに一言だけ言い付けたのを、私は聞いていた。印字の周りは、名前だけ揃えておけ。ほかの仕組みの名前は、単語を下線で繋ぐ書き方で揃っているのに、請求書を印字する関数だけは、単語の頭を大文字にして繋いだ名前だった。ナギさんは、それを一人でやり終えて、報告に来たのだった。</p><p>ナギさんは画面を私たちのほうへ向け、直した所を見せた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-diff data-lang=diff><span class=line><span class=cl><span class=gd>--- lib/Toi/Printer.pm
+</span></span></span><span class=line><span class=cl><span class=gd>-sub PrintInvoice {
+</span></span></span><span class=line><span class=cl><span class=gi>+sub print_invoice {
+</span></span></span><span class=line><span class=cl><span class=gd>--- lib/Toi/Invoice.pm
+</span></span></span><span class=line><span class=cl><span class=gd>-    Toi::Printer::PrintInvoice($invoice);
+</span></span></span><span class=line><span class=cl><span class=gi>+    Toi::Printer::print_invoice($invoice);
+</span></span></span></code></pre></td></tr></table></div></div><p>直したのは、この二か所だけだった。関数の定義と、それを呼ぶ一行。検めのほうは、触っていない。名前を揃えるだけの仕事のついでには、検めを書き換えない。それが、この建物の決まりだ。</p><p>クロベさんは差分を目で追い、それから一つだけ、認めるように言った。</p><p>「検めを通してから報告する。決まりどおりです」</p><p>それから、直した二つのファイルを順に開いた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Toi::Printer</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>print_invoice</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$invoice</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nb>open</span> <span class=k>my</span> <span class=nv>$fh</span><span class=p>,</span> <span class=s>&#39;&gt;&#39;</span><span class=p>,</span> <span class=s>&#34;spool/$invoice-&gt;{no}.inv&#34;</span> <span class=ow>or</span> <span class=nb>die</span> <span class=s>&#34;待ち箱に置けません: $!&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>print</span> <span class=p>{</span><span class=nv>$fh</span><span class=p>}</span> <span class=s>&#34;$invoice-&gt;{customer} 御中\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>print</span> <span class=p>{</span><span class=nv>$fh</span><span class=p>}</span> <span class=s>&#34;$_-&gt;[0]\t$_-&gt;[1]\n&#34;</span> <span class=k>for</span> <span class=nv>@</span><span class=p>{</span> <span class=nv>$invoice</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>items</span><span class=p>}</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=k>print</span> <span class=p>{</span><span class=nv>$fh</span><span class=p>}</span> <span class=s>&#34;合計\t$invoice-&gt;{total}\n&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nb>close</span> <span class=nv>$fh</span> <span class=ow>or</span> <span class=nb>die</span> <span class=s>&#34;待ち箱を閉じられません: $!&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=mi>1</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「請求書を一通、待ち箱へ置く仕組みです」</p><p><code>spool/</code>と書かれた所が、私たちの言う待ち箱のことだった。請求番号の名前を付けたファイルを一つ作り、宛名と明細と合計を書き入れる。置くだけで、紙にするのは夜の印字機の仕事だ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Toi::Invoice</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Toi::Printer</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>issue</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>%args</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$total</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$total</span> <span class=o>+=</span> <span class=nv>$_</span><span class=o>-&gt;</span><span class=p>[</span><span class=mi>1</span><span class=p>]</span> <span class=k>for</span> <span class=nv>@</span><span class=p>{</span> <span class=nv>$args</span><span class=p>{</span><span class=n>items</span><span class=p>}</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$invoice</span> <span class=o>=</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>no</span>       <span class=o>=&gt;</span> <span class=nv>$args</span><span class=p>{</span><span class=k>no</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>        <span class=n>customer</span> <span class=o>=&gt;</span> <span class=nv>$args</span><span class=p>{</span><span class=n>customer</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>        <span class=n>items</span>    <span class=o>=&gt;</span> <span class=nv>$args</span><span class=p>{</span><span class=n>items</span><span class=p>},</span>
+</span></span><span class=line><span class=cl>        <span class=n>total</span>    <span class=o>=&gt;</span> <span class=nv>$total</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=nn>Toi::Printer::</span><span class=n>print_invoice</span><span class=p>(</span><span class=nv>$invoice</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>$invoice</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「こちらは、請求書を組んで、合計を出して、印字の仕組みを呼んでから、組んだ請求書を返します」</p><p>印字の仕組みは、<code>Toi::Printer::print_invoice</code>と、パッケージの名前まで付けて呼ばれている。その呼び方は、店の間の値札のときにも見た形だった。呼ぶ側は、どこの何という関数を呼ぶのかを、名指しで書いている。</p><p>クロベさんは、<code>issue</code>の呼び出しの行をしばらく見てから、検めのファイルを開いた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Test::More</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>lib</span> <span class=s>&#39;lib&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Toi::Invoice</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;品目が1つの請求書&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=nb>local</span> <span class=o>*</span><span class=nn>Toi::Printer::</span><span class=n>PrintInvoice</span> <span class=o>=</span> <span class=k>sub</span> <span class=p>{</span> <span class=mi>1</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$inv</span> <span class=o>=</span> <span class=nn>Toi::Invoice::</span><span class=n>issue</span><span class=p>(</span><span class=k>no</span> <span class=o>=&gt;</span> <span class=mi>9001</span><span class=p>,</span> <span class=n>customer</span> <span class=o>=&gt;</span> <span class=s>&#39;大和屋&#39;</span><span class=p>,</span> <span class=n>items</span> <span class=o>=&gt;</span> <span class=p>[</span> <span class=p>[</span><span class=s>&#39;杉板&#39;</span><span class=p>,</span> <span class=mi>12000</span><span class=p>]</span> <span class=p>]);</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span><span class=p>(</span><span class=nv>$inv</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>total</span><span class=p>},</span> <span class=mi>12000</span><span class=p>,</span> <span class=s>&#39;合計は12000&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;複数の品目の請求書&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=nb>local</span> <span class=o>*</span><span class=nn>Toi::Printer::</span><span class=n>PrintInvoice</span> <span class=o>=</span> <span class=k>sub</span> <span class=p>{</span> <span class=mi>1</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$inv</span> <span class=o>=</span> <span class=nn>Toi::Invoice::</span><span class=n>issue</span><span class=p>(</span><span class=k>no</span> <span class=o>=&gt;</span> <span class=mi>9002</span><span class=p>,</span> <span class=n>customer</span> <span class=o>=&gt;</span> <span class=s>&#39;大和屋&#39;</span><span class=p>,</span> <span class=n>items</span> <span class=o>=&gt;</span> <span class=p>[</span> <span class=p>[</span><span class=s>&#39;杉板&#39;</span><span class=p>,</span> <span class=mi>12000</span><span class=p>],</span> <span class=p>[</span><span class=s>&#39;釘&#39;</span><span class=p>,</span> <span class=mi>980</span><span class=p>]</span> <span class=p>]);</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span><span class=p>(</span><span class=nv>$inv</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>total</span><span class=p>},</span> <span class=mi>12980</span><span class=p>,</span> <span class=s>&#39;合計は12980&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>subtest</span> <span class=s>&#39;空の明細の請求書&#39;</span> <span class=o>=&gt;</span> <span class=k>sub</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=nb>local</span> <span class=o>*</span><span class=nn>Toi::Printer::</span><span class=n>PrintInvoice</span> <span class=o>=</span> <span class=k>sub</span> <span class=p>{</span> <span class=mi>1</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>$inv</span> <span class=o>=</span> <span class=nn>Toi::Invoice::</span><span class=n>issue</span><span class=p>(</span><span class=k>no</span> <span class=o>=&gt;</span> <span class=mi>9003</span><span class=p>,</span> <span class=n>customer</span> <span class=o>=&gt;</span> <span class=s>&#39;大和屋&#39;</span><span class=p>,</span> <span class=n>items</span> <span class=o>=&gt;</span> <span class=o>[]</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>is</span><span class=p>(</span><span class=nv>$inv</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>total</span><span class=p>},</span> <span class=mi>0</span><span class=p>,</span> <span class=s>&#39;合計は0&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>done_testing</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>三つの場合が、同じ形で並んでいる。クロベさんは、<code>local</code>の行を順に目で追った。</p><p>「この<code>local</code>の行は、本物の印字の代わりに立つ代役を置く行です」</p><p>私が聞き慣れない顔をしたのを、クロベさんは察して続けた。</p><p>「検めのあいだだけ本物の代わりを務める部品を、代役と呼びます。テストダブルと呼ぶ人もいます。この行は、検めのあいだだけ、この名前の指す先を空の関数に入れ替えます。終われば、元の指す先が戻る。値札のときに使った、<code>local</code>の手です」</p><p>私は頷いた。あのときは税率だった。今度は、入れ替えられるのが、本物の印字だということだった。</p><p>クロベさんは、画面から顔を上げなかった。</p><p>「この検めが見ているのは、返ってきた請求書の合計だけです」</p><p>ナギさんが、はい、と頷いた。</p><p>「印字のほうは、この検めのどこにも出てきません」</p><p>ナギさんは、すぐには頷かなかった。画面とクロベさんの顔を、一度ずつ見た。何を言われたのか、測りかねているように見えた。</p><h2 id=第2幕-手が入らない--消して比べる>第2幕: 手が入らない ── 消して比べる</h2><p>「確かめるあいだだけ、差し替えの行を三行とも、コメントにして、もう一度走らせてください」</p><p>クロベさんが言った。ナギさんは戸惑いながら、三つの<code>local</code>の行の頭へ<code>#</code>を打ち、走らせた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>$ prove -l t/invoice_before.t
+</span></span><span class=line><span class=cl>t/invoice_before.t .. ok
+</span></span><span class=line><span class=cl>All tests successful.
+</span></span><span class=line><span class=cl>Result: PASS
+</span></span></code></pre></td></tr></table></div></div><p>昨日の夕方に見た画面と、同じ画面が出た。</p><p>ナギさんの手は、キーの上で止まった。画面のPASSの文字を、瞬きもせずに見ていた。</p><p>私は、口を開いた。訊かずには、通れなかった。この建物の検めは、通った、と野帳に書いてきたものばかりだ。通ったという字が何を指しているのかを、私は今日まで疑ったことがなかった。</p><p>「その行が効いているかどうかは、どうやって確かめるのですか」</p><p>「取り除いて比べます」</p><p>クロベさんは、平らな声で答えた。</p><p>「効いていた部品は、取り除けば何かが変わります。取り除いても何も変わらないなら、最初から効いていなかったということです」</p><p>「効いて、いなかった」</p><p>ナギさんが、低い声で繰り返した。</p><p>「名前が変わらなかった間は、この三行は確かに効いていました。今日まで、検めを走らせても本物の印字が動かずに済んだのは、このおかげです。この手が悪かったわけではありません。名前を揃えたのは、必要な仕事でした。通ったことを確かめるだけでは、足りなかった。それだけです」</p><p>クロベさんは、三つの<code>local</code>の行を、目で順に指した。</p><p>「差し替えの行が指している名前は<code>PrintInvoice</code>です。この名前の関数は、今、建物のどこにもありません。<code>lib</code>の中には、<code>print_invoice</code>があるだけです。<code>PrintInvoice</code>と書いてあるのは、この検めの三行だけです。<code>issue</code>が今呼んでいるのは、その<code>print_invoice</code>のほう、つまり本物です。代役は、<code>PrintInvoice</code>という別の名前に入っていました。だから、本物が走ります」</p><p>クロベさんは、一行目を指した。</p><p>「Perlには、名前ごとに、その名前が指す関数をしまっておく入れ物があります。<code>local *Toi::Printer::PrintInvoice = sub { 1 };</code>は、その入れ物に、代役を入れる、という一行です。入れ物の中に本物が入っていようが、いまいが、Perlは咎めません。空の名前に代役を入れたなら、代役の入った名前が一つできるだけです。誰も、その名前を呼ばない」</p><p>「警告も、出ないんですか」</p><p>ナギさんが訊いた。</p><p>「出ません。Perlは、一度しか書かれていない名前には、打ち間違いではないか、と警告を出します。この名前は、検めの中に三度書いてあるので、それも出ません」</p><p>ナギさんは、コメントにした三つの行を、じっと見ていた。それから、顔を上げた。</p><p>「……名前を変えただけで、検め用の代役が呼ばれなくなるんですか」</p><p>「なります」</p><p>クロベさんは続けた。</p><p>「差し替えの行は、関数を指しているのではありません。名前を指しているだけです。指された名前の先に、何が立っていても、何も立っていなくても、行は同じように受け付けられます」</p><p>ナギさんが、唇を結んだ。何か言おうとして、言わなかった。</p><p>「本物が走ったのなら」</p><p>クロベさんは、私に目を移した。</p><p>「印字機が、夜のうちに紙にして、今朝の出口の棚に三枚、出しているはずです。待ち箱に置いた分は、そうして出ていきますから」</p><p>私は、立ち上がった。</p><p>引き出しの端を開けて、揃えておいた三枚を取り出し、文机の上に置いた。紙の角を、机の縁に合わせた。</p><p>一枚目は、宛名が大和屋の請求書だった。店主が長く取引している得意先の名前だ。杉板が一行あって、合計は一万二千。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>大和屋 御中
+</span></span><span class=line><span class=cl>杉板	12000
+</span></span><span class=line><span class=cl>合計	12000
+</span></span></code></pre></td></tr></table></div></div><p>二枚目は、杉板と釘の二行があって、合計が一万二千九百八十。三枚目は、明細が一行も無く、合計の欄だけが0になっていた。今朝、これを見て、書き損じだと思ったのは、そのためだった。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>大和屋 御中
+</span></span><span class=line><span class=cl>杉板	12000
+</span></span><span class=line><span class=cl>釘	980
+</span></span><span class=line><span class=cl>合計	12980
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>大和屋 御中
+</span></span><span class=line><span class=cl>合計	0
+</span></span></code></pre></td></tr></table></div></div><p>三枚とも、店主の得意先の名前で刷られていた。検めの三つの場合が、一つずつ、一枚の紙になっていた。</p><p>縁側の外では、樋を伝う水の音が、まだ続いていた。</p><h2 id=第3幕-手立て--相手で決める>第3幕: 手立て ── 相手で決める</h2><p>クロベさんは、紙から目を上げて、ナギさんに言った。</p><p>「待ち箱に、いま走らせた分が、また三通置かれています。夜になる前に、消しておいてください」</p><p>ナギさんは黙って<code>spool/</code>を開き、三つのファイルを消した。コメントにしていた三行の<code>#</code>も、外して元に戻した。</p><p>「では、差し替えを、名前に頼らない形にします」</p><p>「名前に頼らない」</p><p>私が問い返すと、クロベさんは、机の上の三枚の紙を、一度だけ見た。</p><p>「今日使うのは、インスタンス委譲の導入――Introduce Instance Delegator――です。パッケージの関数を呼ぶだけのメソッドを持つクラスを作る。呼ぶ側は、そのクラスのオブジェクトを渡してもらって、それ経由で呼ぶ。差し替えたいときは、そのオブジェクトを、別のものに替えます」</p><p>「渡してもらう」</p><p>「関数の名前ではなく、渡す相手で差し替えを決める、ということです」</p><p>「テストの無い古い仕組みに手を入れる技法を、まとめた本があります。この技法は、その本に載っています。本の例が相手にしていたのは、静的メソッドでした。Perlなら、パッケージの関数が、それに当たります」</p><p>ナギさんが、画面の前に座り直した。</p><p>「本物のほうに、同じ名前のメソッドを、足すのではだめなんですか」</p><p>「だめです。置けません」</p><p>クロベさんは、空いた画面の隅に、短いコードを打った。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>A</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>f</span> <span class=p>{</span> <span class=k>return</span> <span class=s>&#34;fn:@_&#34;</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>package</span> <span class=nn>main</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>print</span> <span class=nn>A</span><span class=o>-&gt;</span><span class=n>f</span><span class=p>(</span><span class=mi>1</span><span class=p>),</span> <span class=s>&#34;|&#34;</span><span class=p>,</span> <span class=nn>A::</span><span class=n>f</span><span class=p>(</span><span class=mi>1</span><span class=p>),</span> <span class=s>&#34;\n&#34;</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>走らせると、一行だけ出た。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>fn:A 1|fn:1
+</span></span></code></pre></td></tr></table></div></div><p>「<code>A->f(1)</code>は、第一引数にクラスの名前の<code>A</code>が入るだけで、<code>A::f(1)</code>と、同じ関数を呼んでいます。パッケージの関数と、そのパッケージのメソッドは、同じ入れ物です。だから、<code>Toi::Printer</code>に同じ名前のメソッドを足せば、今ある<code>print_invoice</code>を上書きしてしまいます。しかも、メソッドとして呼べば、第一引数にクラスの名前が入って、今の関数が受け取る請求書とは、引数の並びが変わります。だから、別のクラスに、切ります」</p><p>ナギさんは、新しいファイルを開いた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Toi::InvoicePrinter</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Toi::Printer</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>new</span> <span class=p>{</span> <span class=k>my</span> <span class=p>(</span><span class=nv>$class</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span> <span class=k>return</span> <span class=nb>bless</span> <span class=p>{},</span> <span class=nv>$class</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>print_invoice</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$invoice</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nn>Toi::Printer::</span><span class=n>print_invoice</span><span class=p>(</span><span class=nv>$invoice</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>new</code>と<code>bless</code>は、最初の話に出てきた、オブジェクトを作る組み立て役だ。<code>print_invoice</code>のほうは、受け取った請求書を、そのまま<code>Toi::Printer::print_invoice</code>へ渡すだけの、一行だった。</p><p>「この中に、関数の名前を知っている場所は、一か所しかありません」</p><p>クロベさんは、<code>Toi::Printer::print_invoice</code>の一行を指した。</p><p>「次は、<code>issue</code>です。渡してもらえるようにします」</p><p>ナギさんが、続きを打った。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-diff data-lang=diff><span class=line><span class=cl> package Toi::Invoice;
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl> use strict;
+</span></span><span class=line><span class=cl> use warnings;
+</span></span><span class=line><span class=cl><span class=gd>-use Toi::Printer;
+</span></span></span><span class=line><span class=cl><span class=gi>+use Toi::InvoicePrinter;
+</span></span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl> sub issue {
+</span></span><span class=line><span class=cl>     my (%args) = @_;
+</span></span><span class=line><span class=cl><span class=gi>+    my $printer = $args{printer} // Toi::InvoicePrinter-&gt;new;
+</span></span></span><span class=line><span class=cl>     my $total = 0;
+</span></span><span class=line><span class=cl>     $total += $_-&gt;[1] for @{ $args{items} };
+</span></span><span class=line><span class=cl>     my $invoice = {
+</span></span><span class=line><span class=cl>         no       =&gt; $args{no},
+</span></span><span class=line><span class=cl>         customer =&gt; $args{customer},
+</span></span><span class=line><span class=cl>         items    =&gt; $args{items},
+</span></span><span class=line><span class=cl>         total    =&gt; $total,
+</span></span><span class=line><span class=cl>     };
+</span></span><span class=line><span class=cl><span class=gd>-    Toi::Printer::print_invoice($invoice);
+</span></span></span><span class=line><span class=cl><span class=gi>+    $printer-&gt;print_invoice($invoice);
+</span></span></span><span class=line><span class=cl>     return $invoice;
+</span></span><span class=line><span class=cl> }
+</span></span></code></pre></td></tr></table></div></div><p>ナギさんは、<code>//</code>を迷わずに打った。二階の大福帳のとき、打ちかけて手を止めた、あの演算子だった。</p><p>「渡さなければ、いつもの<code>Toi::InvoicePrinter</code>を自分で作る。二階の大福帳で使った形と同じです」</p><p>クロベさんは、そう言ってから続けた。</p><p>「今日の新しいところは、そこではありません。渡すものの中身のほうです」</p><p>それから、机の上の三枚の紙に目をやり、正面を向いた。</p><p>「樋は、壁に直には釘を打ちません。樋受けの金物に掛けます。樋を替えても、直すのは受けの一か所で済みます。今日組んだ<code>Toi::InvoicePrinter</code>は、その樋受けです。壁が<code>issue</code>、樋が印字の関数、そして、樋の名前を知っているのは、樋受けだけです。樋を仮のものに替えたいときも、替えるのは、受けに掛ける所だけで済みます」</p><p>樋受けという言葉が、頭の中で、縁側の外の樋に重なった。</p><p>「一つ、訊いてもいいでしょうか」</p><p>私は言った。</p><p>「関数一つのために、クラスをもう一つ足すのは、大げさではないでしょうか」</p><p>「大げさに見えます」</p><p>クロベさんは、はぐらかさなかった。</p><p>「本を書いた人自身が、そう書いています。関数がいくつもあるパッケージに、メソッドが一つだけ増えるのは、風変わりに見える、と。それでも、名前を知る場所が一つに絞れる。差し替える口が手に入る。見た目の重さと引き換えに、それを取ります」</p><p>「その本には、最後に、呼ぶ側が全部この委譲を通るようになったら、関数の本体を委譲クラスの中へ移して、元の名前を消してしまってよい、とも書いてあります。今日はしません」</p><p>ナギさんは、もう次の一手を考えているようだった。</p><p>「検め用の代役を、書きます」</p><p>ナギさんは、別のファイルを開いた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Fake::Printer</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>new</span> <span class=p>{</span> <span class=k>my</span> <span class=p>(</span><span class=nv>$class</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span> <span class=k>return</span> <span class=nb>bless</span> <span class=p>{</span> <span class=n>got</span> <span class=o>=&gt;</span> <span class=o>[]</span> <span class=p>},</span> <span class=nv>$class</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>print_invoice</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$invoice</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nb>push</span> <span class=nv>@</span><span class=p>{</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>got</span><span class=p>}</span> <span class=p>},</span> <span class=nv>$invoice</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>got</span> <span class=p>{</span> <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span> <span class=k>return</span> <span class=nv>@</span><span class=p>{</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>got</span><span class=p>}</span> <span class=p>}</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>渡された請求書を配列に溜めて、あとから<code>got</code>で取り出せるだけの、小さな部品だった。Perlは、型を見ない。呼ばれた名前のメソッドを持っていれば、継承していなくても使える。</p><p>「一つだけ、決めておきます」</p><p>クロベさんは、画面へ顔を向けたまま告げた。</p><p>「この代役は、本物の子にしません」</p><p>「継承しない、ということですか」</p><p>「はい。試します」</p><p>クロベさんは、古い名前しか持たない代役を書いた。名前を揃える前に誰かが書いた代役を、そのまま使ってしまった、という場面だ。持っているのは、<code>PrintInvoice</code>という名前だけ。Perlは、子のクラスに無い名前のメソッドを、親のクラスから探す。まず、本物の委譲クラスを継がない形で走らせ、そのあと、一行足して継ぐ形でも走らせる。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=p>{</span> <span class=k>package</span> <span class=nn>Fake::Old</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>  <span class=k>sub</span> <span class=nf>new</span> <span class=p>{</span> <span class=nb>bless</span> <span class=p>{</span> <span class=n>got</span> <span class=o>=&gt;</span> <span class=o>[]</span> <span class=p>},</span> <span class=nb>shift</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl>  <span class=k>sub</span> <span class=nf>PrintInvoice</span> <span class=p>{</span> <span class=k>my</span> <span class=p>(</span><span class=nv>$s</span><span class=p>,</span> <span class=nv>$i</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span> <span class=nb>push</span> <span class=nv>@</span><span class=p>{</span> <span class=nv>$s</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>got</span><span class=p>}</span> <span class=p>},</span> <span class=nv>$i</span> <span class=p>}</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$inv</span> <span class=o>=</span> <span class=nn>Toi::Invoice::</span><span class=n>issue</span><span class=p>(</span><span class=k>no</span> <span class=o>=&gt;</span> <span class=mi>9001</span><span class=p>,</span> <span class=n>customer</span> <span class=o>=&gt;</span> <span class=s>&#39;大和屋&#39;</span><span class=p>,</span> <span class=n>items</span> <span class=o>=&gt;</span> <span class=p>[</span> <span class=p>[</span><span class=s>&#39;杉板&#39;</span><span class=p>,</span> <span class=mi>12000</span><span class=p>]</span> <span class=p>],</span> <span class=n>printer</span> <span class=o>=&gt;</span> <span class=nn>Fake::Old</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=k>print</span> <span class=s>&#34;合計 $inv-&gt;{total}\n&#34;</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>継がない形を走らせる。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>Can&#39;t locate object method &#34;print_invoice&#34; via package &#34;Fake::Old&#34; at lib/Toi/Invoice.pm line 18.
+</span></span></code></pre></td></tr></table></div></div><p>その場で止まった。待ち箱を見ると、何も置かれていない。</p><p>次に、<code>{ package Fake::Old;</code>の次の行へ、<code>our @ISA = ("Toi::InvoicePrinter");</code>と一行足して、本物の委譲クラスを継いだ形で走らせる。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>合計 12000
+</span></span></code></pre></td></tr></table></div></div><p>エラーは、一行も出なかった。待ち箱を覗くと、<code>9001.inv</code>が一つ、できていた。</p><p>「継いだ代役は、自分が持っていない名前の呼び出しを、親に任せてしまいます」</p><p>クロベさんは、そこで言葉を足した。</p><p>「代役が旧い名前しか持っていなくても、親の<code>print_invoice</code>が黙って動きます。名前で縛った差し替えと、同じ黙り方です。だから、代役は、本物の子にはしません」</p><p>ナギさんは、<code>Fake::Printer</code>の一行目を、見直した。継承の行は、どこにも書かれていなかった。</p><p>「配線のことを、話しておきます」</p><p>クロベさんは、端末の別のファイルを、画面へ呼んだ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>lib</span> <span class=s>&#39;lib&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Toi::Invoice</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$invoice</span> <span class=o>=</span> <span class=nn>Toi::Invoice::</span><span class=n>issue</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=k>no</span>       <span class=o>=&gt;</span> <span class=mi>9001</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>customer</span> <span class=o>=&gt;</span> <span class=s>&#39;大和屋&#39;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=n>items</span>    <span class=o>=&gt;</span> <span class=p>[</span> <span class=p>[</span><span class=s>&#39;杉板&#39;</span><span class=p>,</span> <span class=mi>12000</span><span class=p>],</span> <span class=p>[</span><span class=s>&#39;釘&#39;</span><span class=p>,</span> <span class=mi>980</span><span class=p>]</span> <span class=p>],</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=k>print</span> <span class=s>&#34;合計 $invoice-&gt;{total}\n&#34;</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「本番で請求書を起こす呼び出しです。今朝までと、一字も変わっていません。<code>printer</code>を渡さないので、<code>issue</code>が自分で<code>Toi::InvoicePrinter</code>を組み立てます。検めのほうだけが、代役を組み立てて、<code>printer =></code>で渡します。代役を作って渡すのは、検めの側の書き手です」</p><p>クロベさんは、手を入れる前と後の呼び出しの道筋を、紙の上に並べて引いてみせた。</p><p><img src=/public_images/2026/code-carpenter-instance-delegator-silent-rename/infographic_1.webp loading=lazy alt=手を入れる前と後の対比図。前は、issueが印字の関数を名前で直に呼び、検めはPrintInvoiceという名前に代役を入れるが、その名前は今は建物のどこにも無く、代役は使われない。後は、issueが渡されたprinterを呼び、本番ではToi::InvoicePrinter、検めではFake::Printerになる。関数の名前を知っている場所は、Toi::InvoicePrinterの一行だけになる></p><p>手を入れる前は、印字の関数の名前を書いている場所が、<code>issue</code>と検めの二か所に分かれていた。検めが指した名前は今はどこにも無く、道筋は本物のほうへしか通じていない。手を入れた後は、その名前を書いているのは<code>Toi::InvoicePrinter</code>の一行だけになった。<code>issue</code>は渡された相手を呼ぶだけで、検めが代役を渡せば、道筋は代役へ折れて、本物には届かない。</p><p>「縄の手とは、どう違うんでしょう」</p><p>私が訊いた。井戸の一件のことだった。</p><p>「あのときは、同じクラスの中の呼び出しを、メソッドに切り出して、検めのときだけ子のクラスで上書きしました。今日は、関数を持っている相手の側に、薄い委譲を足して、渡すものを替えます。子のクラスは、要りません」</p><h2 id=第4幕-検め--名前を探す>第4幕: 検め ── 名前を探す</h2><p>同じ呼び出しを、手を入れる前の<code>issue</code>と、手を入れた後の<code>issue</code>とで、順に流して比べる。まず、それを走らせた。</p><p>比べるあいだだけ、手を入れる前の版を<code>Toi::Invoice</code>の名前のまま控えとして残し、手を入れた後の版を<code>Toi::InvoiceAfter</code>という別の名前で並べて置いた。比べ終えたら、控えは下げて、新しい版が<code>Toi::Invoice</code>の名前を引き継ぐ。入力は、品目が一つの場合、複数の品目の場合、明細が空の場合、それから日本語の品目名を入れた場合の四つ。それぞれを、二つの版へ、同じ呼び方で流す。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>my</span> <span class=p>(</span><span class=nv>$rb</span><span class=p>,</span> <span class=nv>$fb</span><span class=p>)</span> <span class=o>=</span> <span class=n>run_in_new_dir</span><span class=p>(</span><span class=k>sub</span> <span class=p>{</span> <span class=k>my</span> <span class=p>(</span><span class=nv>$no</span><span class=p>,</span> <span class=nv>$c</span><span class=p>,</span> <span class=nv>$i</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span> <span class=nn>Toi::Invoice::</span><span class=n>issue</span><span class=p>(</span><span class=k>no</span> <span class=o>=&gt;</span> <span class=nv>$no</span><span class=p>,</span> <span class=n>customer</span> <span class=o>=&gt;</span> <span class=nv>$c</span><span class=p>,</span> <span class=n>items</span> <span class=o>=&gt;</span> <span class=nv>$i</span><span class=p>)</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=p>(</span><span class=nv>$ra</span><span class=p>,</span> <span class=nv>$fa</span><span class=p>)</span> <span class=o>=</span> <span class=n>run_in_new_dir</span><span class=p>(</span><span class=k>sub</span> <span class=p>{</span> <span class=k>my</span> <span class=p>(</span><span class=nv>$no</span><span class=p>,</span> <span class=nv>$c</span><span class=p>,</span> <span class=nv>$i</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span> <span class=nn>Toi::InvoiceAfter::</span><span class=n>issue</span><span class=p>(</span><span class=k>no</span> <span class=o>=&gt;</span> <span class=nv>$no</span><span class=p>,</span> <span class=n>customer</span> <span class=o>=&gt;</span> <span class=nv>$c</span><span class=p>,</span> <span class=n>items</span> <span class=o>=&gt;</span> <span class=nv>$i</span><span class=p>)</span> <span class=p>});</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>is_deeply</span><span class=p>(</span><span class=nv>$ra</span><span class=p>,</span> <span class=nv>$rb</span><span class=p>,</span> <span class=s>&#39;全入力で戻り値が Before と After で一致する&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>is_deeply</span><span class=p>(</span><span class=nv>$fa</span><span class=p>,</span> <span class=nv>$fb</span><span class=p>,</span> <span class=s>&#39;待ち箱の中身がバイト列まで一致する&#39;</span><span class=p>);</span>
+</span></span></code></pre></td></tr></table></div></div><p>前の呼び出しの書き方を、そのまま新しい<code>issue</code>へも当てている。<code>printer</code>は、どちらにも渡していない。この検めは、走らせるたびに使い捨ての作業場所を作り、その中へ移って流す。店の待ち箱には、触れない。</p><p>「今までの呼び方で流せば、前と同じ請求書が、同じ形で待ち箱に置かれます」</p><p>クロベさんは、画面へ目を置いたまま続けた。</p><p>「本物を通る検めですから、待ち箱の中身が一致するところまで確かめられます」</p><p>続けて、代役の検めを走らせた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>my</span> <span class=nv>$fake</span> <span class=o>=</span> <span class=nn>Fake::Printer</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$inv</span> <span class=o>=</span> <span class=nn>Toi::InvoiceAfter::</span><span class=n>issue</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=k>no</span> <span class=o>=&gt;</span> <span class=mi>9002</span><span class=p>,</span> <span class=n>customer</span> <span class=o>=&gt;</span> <span class=s>&#39;大和屋&#39;</span><span class=p>,</span> <span class=n>items</span> <span class=o>=&gt;</span> <span class=p>[</span> <span class=p>[</span><span class=s>&#39;杉板&#39;</span><span class=p>,</span> <span class=mi>12000</span><span class=p>],</span> <span class=p>[</span><span class=s>&#39;釘&#39;</span><span class=p>,</span> <span class=mi>980</span><span class=p>]</span> <span class=p>],</span> <span class=n>printer</span> <span class=o>=&gt;</span> <span class=nv>$fake</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>is</span><span class=p>(</span><span class=nv>$inv</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>total</span><span class=p>},</span> <span class=mi>12980</span><span class=p>,</span> <span class=s>&#39;戻り値の合計は12980&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>@got</span> <span class=o>=</span> <span class=nv>$fake</span><span class=o>-&gt;</span><span class=n>got</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=n>is</span><span class=p>(</span><span class=nb>scalar</span> <span class=nv>@got</span><span class=p>,</span> <span class=mi>1</span><span class=p>,</span> <span class=s>&#39;代役に請求書が1通だけ渡された&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>is</span><span class=p>(</span><span class=nv>$got</span><span class=p>[</span><span class=mi>0</span><span class=p>]{</span><span class=n>customer</span><span class=p>},</span> <span class=s>&#39;大和屋&#39;</span><span class=p>,</span> <span class=s>&#39;得意先が渡っている&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>is_deeply</span><span class=p>(</span><span class=nv>$got</span><span class=p>[</span><span class=mi>0</span><span class=p>]{</span><span class=n>items</span><span class=p>},</span> <span class=p>[</span> <span class=p>[</span><span class=s>&#39;杉板&#39;</span><span class=p>,</span> <span class=mi>12000</span><span class=p>],</span> <span class=p>[</span><span class=s>&#39;釘&#39;</span><span class=p>,</span> <span class=mi>980</span><span class=p>]</span> <span class=p>],</span> <span class=s>&#39;品目が渡っている&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>is</span><span class=p>(</span><span class=nv>$got</span><span class=p>[</span><span class=mi>0</span><span class=p>]{</span><span class=n>total</span><span class=p>},</span> <span class=mi>12980</span><span class=p>,</span> <span class=s>&#39;合計が渡っている&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=n>ok</span><span class=p>(</span><span class=o>!</span><span class=nb>glob</span><span class=p>(</span><span class=s>&#39;spool/*&#39;</span><span class=p>),</span> <span class=s>&#39;本物は呼ばれず待ち箱は空のまま&#39;</span><span class=p>);</span>
+</span></span></code></pre></td></tr></table></div></div><p>全部を走らせる。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>t/invoice_before.t ....... ok
+</span></span><span class=line><span class=cl>t/invoice_delegator.t .... ok
+</span></span><span class=line><span class=cl>t/invoice_equivalence.t .. ok
+</span></span><span class=line><span class=cl>All tests successful.
+</span></span><span class=line><span class=cl>Result: PASS
+</span></span></code></pre></td></tr></table></div></div><p>前の検めが見ていたのは、合計だけだった。今度は、何が印字されたかまで見られる。得意先、品目、合計。そして、待ち箱は空のまま。本物は、一度も呼ばれていない。</p><p>「もう一度、名前を変えてみてください」</p><p>クロベさんが、ナギさんに言った。</p><p>「今度は、印字の関数を、<code>emit_invoice</code>に」</p><p>ナギさんは、<code>Toi::Printer</code>の定義の名前を書き換えた。それから、少しも迷わずに、<code>Toi::InvoicePrinter</code>の一行を指した。</p><p>「直すのは、ここです」</p><p>そこだけを、<code>emit_invoice</code>に直した。並べて置いていた前の<code>issue</code>も、同じ名前を呼んでいる。こちらは、比べるための足場なので、同時に直した。足場を下げれば、この名前を知っている場所は、委譲クラスの一行だけになる。</p><p>代役の検めを走らせる。検めには何も手を入れていないのに、通った。本物を通る検めも、通った。</p><p>「今度は、その一行を、直し忘れてみてください」</p><p>クロベさんが、頼んだ。ナギさんは、委譲クラスの行だけを、元の<code>print_invoice</code>に戻した。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>$ prove -l t/invoice_delegator.t
+</span></span><span class=line><span class=cl>t/invoice_delegator.t .. ok
+</span></span><span class=line><span class=cl>All tests successful.
+</span></span><span class=line><span class=cl>Result: PASS
+</span></span></code></pre></td></tr></table></div></div><p>代役の検めは、通った。本物を通る検めのほうを走らせる。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>$ prove -l t/invoice_equivalence.t
+</span></span><span class=line><span class=cl>Undefined subroutine &amp;Toi::Printer::print_invoice called at lib/Toi/InvoicePrinter.pm line 11.
+</span></span><span class=line><span class=cl>t/invoice_equivalence.t ..
+</span></span><span class=line><span class=cl>Dubious, test returned 255 (wstat 65280, 0xff00)
+</span></span><span class=line><span class=cl>No subtests run
+</span></span><span class=line><span class=cl>...
+</span></span><span class=line><span class=cl>Result: FAIL
+</span></span></code></pre></td></tr></table></div></div><p>今度は、止まった。止まった場所は、委譲クラスの一行だった。ナギさんは、定義と委譲の一行を、両方とも<code>print_invoice</code>に戻した。</p><p>「代役だけを相手にした検めは、この一行を、一度も通りません」</p><p>クロベさんは、二つの結果を、並べて指した。</p><p>「だから、本物を通る検めを、一本だけ残します。名前が変わったのに、委譲の一行だけが古いままなら、その検めが落ちる」</p><p>それから、区切って言った。</p><p>「今日の手で、言えることがあります。印字を、待ち箱に何も置かずに検められます。何が印字されたかまで見られます。印字の関数の名前が変わっても、直すのは委譲クラスの一行だけで、代役の検めは、書き換えなくて済みます。<code>issue</code>を呼ぶ側の書き方は、変えていません。<code>printer</code>は、省略できます」</p><p>「言えないことは」</p><p>私は訊いた。</p><p>「二つあります」</p><p>クロベさんは、指を折らなかった。</p><p>「一つ。今日直したのは、この検めの三行までです。二つ。Perlには、書き間違えた名前を、コンパイルのときに教えてくれる仕組みがありません。名前の付け間違いは、動かすまで分かりません」</p><p>少し間を置いてから、もう一つ加えた。</p><p>「それから、夜の印字機が待ち箱を拾って紙にするところは、検めの外です。今朝の三枚は、見えたから分かっただけです。この印字を、これで安心だと言い切ることは、できません」</p><p>ナギさんが、小さく息を吐いた。</p><p>私は、しばらく黙っていた。それから、自分の席の端末を引き寄せて、検めの束の入った場所を開いた。</p><p>今日直したのは、この検めの三行までだ、とクロベさんは言った。同じ書き方の行がほかにもあるのかどうかを、引き受ける前に、私は自分の目で知りたかった。</p><p>名前を指している行は、書き方に現れる。<code>local *</code>のあとに、パッケージの名前が続く。この形の行を、束の中から探せばいい。</p><p>私は、探す文字を打った。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>$ grep -rn &#39;local \*&#39; t/
+</span></span><span class=line><span class=cl>t/invoice_before.t:8:    local *Toi::Printer::PrintInvoice = sub { 1 };
+</span></span><span class=line><span class=cl>t/invoice_before.t:14:    local *Toi::Printer::PrintInvoice = sub { 1 };
+</span></span><span class=line><span class=cl>t/invoice_before.t:20:    local *Toi::Printer::PrintInvoice = sub { 1 };
+</span></span><span class=line><span class=cl>t/price_tag_seam_local.t:13:    local *Shop::Tax::rate = sub { return 0.08; };
+</span></span></code></pre></td></tr></table></div></div><p>四行、あった。探したのは、<code>local *</code>と書く形だけだ。ほかの書き方の差し替えは、今日は見ていない。</p><p>三行は、今日、直しの中心になった検めの中に。残る一行は、値札の検めの中だった。あのとき教わった、<code>Shop::Tax::rate</code>を検めのあいだだけ差し替える、一行。</p><p>野帳を開いて、私は、名前で差し替えている所を、書き出した。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>名前で差し替えている所
+</span></span><span class=line><span class=cl>  t/invoice_before.t         三行  PrintInvoice     今日、代役の検めに替える
+</span></span><span class=line><span class=cl>  t/price_tag_seam_local.t   一行  Shop::Tax::rate   手を付けていない
+</span></span></code></pre></td></tr></table></div></div><p>書き終えてから、クロベさんに訊いた。</p><p>「税のほうは、名前を変えたら、どうなりますか」</p><p>「落ちます」</p><p>クロベさんは、すぐに答えた。</p><p>「差し替えた税率が、戻り値に出ていますから。名前が変われば、代役は入らなくなって、本物の税率が返る。検めの期待した八パーセントの値とは、違う数が返ってきます」</p><p>「印字のほうは」</p><p>クロベさんは、机の上の紙を見た。</p><p>「戻り値に出ません。だから、名前が変わっても、黙りました」</p><p>私は、野帳の税率の行の脇に、小さく書き添えた。落ちて、気づく。印字の行の脇には、黙る、と。</p><p>「名前を変えたときに、黙るのは、差し替えた結果が戻り値に出ない所です」</p><p>クロベさんが、それだけ言った。</p><p>ナギさんが、古い検めのファイルを開いて、三つの<code>local</code>の行を、一つずつ消しはじめた。名前を揃えるだけの直しとは違う。差し替えの作りそのものを替えたのだから、この検めは、代役の検めに置き換わる。私は、机の上の三枚の紙を、そっと手に取り、野帳のあいだに挟んだ。店主には、処分してよいかを、訊いてからにしよう。</p><p>縁側の外で、樋を伝う水の音が、少しだけ低くなっていた。</p><hr><h2 id=普請控>普請控</h2><ul><li><strong>見立て</strong>: 請求書の印字は、<code>Toi::Printer::PrintInvoice</code>という名前を呼ぶ形で組まれ、検めもその同じ名前を<code>local</code>で差し替えていた。名前を揃えた日から、差し替えの行は無い名前を指すだけになり、検めは通ったまま、本物の印字が待ち箱に三通置かれ、夜のうちに紙になって店の間の出口の棚に出ていた</li><li><strong>手を入れた所</strong>: インスタンス委譲の導入（Introduce Instance Delegator）を使った。印字の関数を呼ぶだけの<code>Toi::InvoicePrinter</code>を作り、<code>issue</code>は省略できる<code>printer</code>を渡してもらって、それ経由で呼ぶ。検めでは、本物の子ではない代役を渡す。前の検めの<code>local</code>三行は、代役の検めに替えた</li><li><strong>触っていない所</strong>: <code>Toi::Printer::print_invoice</code>の中身（請求書の書式と待ち箱への置き方）は、一文字も変えていない。<code>issue</code>の呼び方、請求書の書式、店の間の印字機が夜に待ち箱を拾って紙にする仕組みも、そのまま。値札の検め（<code>t/price_tag_seam_local.t</code>の、<code>Shop::Tax::rate</code>を名前で差し替えている一行）も、今日は直していない</li><li><strong>次の工程へ送ること</strong>: 値札の検めは、名前が変われば戻り値が変わって落ちるので、急がず次に手を入れる。待ち箱の先で、印字機が紙にするところは検めていない。出口の棚に出ていた三枚の紙は、店主に見せて、処分してよいかを訊く</li><li><strong>私が引き受けたこと</strong>: 名前で差し替えている所を、自分で探して見つけられる。今日は、検めの束の中で<code>local *</code>と書かれた行を探して、四行を野帳に書き出した。探したのは、この書き方の行だけで、ほかの書き方の差し替えは、まだ見ていない。直すか、棟梁に頼むかも、まだ決めていない。見つけて、書き出すところまでは、自分でやる</li></ul></section><footer class=article-footer><section class=article-tags><a href=/tags/legacy-code/>Legacy-Code</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/perl/>Perl</a>
+<a href=/tags/introduce-instance-delegator/>Introduce-Instance-Delegator</a>
+<a href=/tags/silent-rename/>Silent-Rename</a>
+<a href=/tags/code-carpenter/>Code-Carpenter</a></section><nav class=series-nav-container aria-label=シリーズ連載ナビゲーション><div class=series-nav-header><span class=series-badge>連載</span>
+<a href=/2026/09/24/060705/ class=series-title>コード大工</a><span class=series-count>第9話 / 全12話</span></div><div class=series-nav-grid><a href=/2026/10/01/070705/ class="series-nav-card prev" rel=prev><span class=series-nav-direction>← 前の話</span>
+<span class=series-nav-card-title>コンストラクタが本番の帳簿ファイルを開いてしまうクラスを、テストできる形にする【Parameterize Constructor】</span>
+</a><a href=/2026/09/24/060705/ class=series-nav-toc-btn><span>連載目次</span>
+</a><a href=/2026/10/03/070705/ class="series-nav-card next" rel=next><span class=series-nav-direction>次の話 →</span>
+<span class=series-nav-card-title>数百行の関数の「途中だけ」をテストしたい。関数をクラスへ移して段ごとに割る【Break Out Method Object】</span></a></div></nav></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/10/05/070705/><div class=article-image><img src=/public_images/2026/code-carpenter-pinch-point-handover/header.webp loading=lazy data-key data-hash=/public_images/2026/code-carpenter-pinch-point-handover/header.webp></div><div class=article-details><h2 class=article-title>単体テストは全部緑なのに締め処理が壊れる。1か所のテストで全体を守る【Pinch Point】</h2></div></a></article><article class=has-image><a href=/2026/10/04/070705/><div class=article-image><img src=/public_images/2026/code-carpenter-extract-interface-duck-contract/header.webp loading=lazy data-key data-hash=/public_images/2026/code-carpenter-extract-interface-duck-contract/header.webp></div><div class=article-details><h2 class=article-title>差し替えた部品が月末だけ落ちる。Perl でインタフェースを書き、can で確かめる【Extract Interface】</h2></div></a></article><article class=has-image><a href=/2026/10/03/070705/><div class=article-image><img src=/public_images/2026/code-carpenter-method-object-long-sub/header.webp loading=lazy data-key data-hash=/public_images/2026/code-carpenter-method-object-long-sub/header.webp></div><div class=article-details><h2 class=article-title>数百行の関数の「途中だけ」をテストしたい。関数をクラスへ移して段ごとに割る【Break Out Method Object】</h2></div></a></article><article class=has-image><a href=/2026/10/01/070705/><div class=article-image><img src=/public_images/2026/code-carpenter-parameterize-constructor-nameless-dependency/header.webp loading=lazy data-key data-hash=/public_images/2026/code-carpenter-parameterize-constructor-nameless-dependency/header.webp></div><div class=article-details><h2 class=article-title>コンストラクタが本番の帳簿ファイルを開いてしまうクラスを、テストできる形にする【Parameterize Constructor】</h2></div></a></article><article class=has-image><a href=/2026/09/30/070705/><div class=article-image><img src=/public_images/2026/code-carpenter-extract-override-imported-copy/header.webp loading=lazy data-key data-hash=/public_images/2026/code-carpenter-extract-override-imported-copy/header.webp></div><div class=article-details><h2 class=article-title>テストのたびに外部 API を叩いてしまうコードを、サブクラスで差し替える【Extract and Override Call】</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

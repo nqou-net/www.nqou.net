@@ -1,0 +1,361 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="通知先を別の部品に替えたら、日次処理は通るのに月末処理だけがメソッド不足で止まった。使う側が呼ぶメソッド名の一覧を1か所に書き、can で本物と替えの両方を確かめる――インタフェースの抽出（Extract Interface）を素の Perl で書きます。"><title>差し替えた部品が月末だけ落ちる。Perl でインタフェースを書き、can で確かめる【Extract Interface】</title><link rel=canonical href=https://www.nqou.net/2026/10/04/070705/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="差し替えた部品が月末だけ落ちる。Perl でインタフェースを書き、can で確かめる【Extract Interface】"><meta property='og:description' content="通知先を別の部品に替えたら、日次処理は通るのに月末処理だけがメソッド不足で止まった。使う側が呼ぶメソッド名の一覧を1か所に書き、can で本物と替えの両方を確かめる――インタフェースの抽出（Extract Interface）を素の Perl で書きます。"><meta property='og:url' content='https://www.nqou.net/2026/10/04/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='legacy-code'><meta property='article:tag' content='refactoring'><meta property='article:tag' content='perl'><meta property='article:tag' content='extract-interface'><meta property='article:tag' content='unwritten-contract'><meta property='article:tag' content='code-carpenter'><meta property='article:published_time' content='2026-10-04T07:07:05+09:00'><meta property='article:modified_time' content='2026-10-04T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-carpenter-extract-interface-duck-contract/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="差し替えた部品が月末だけ落ちる。Perl でインタフェースを書き、can で確かめる【Extract Interface】"><meta name=twitter:description content="通知先を別の部品に替えたら、日次処理は通るのに月末処理だけがメソッド不足で止まった。使う側が呼ぶメソッド名の一覧を1か所に書き、can で本物と替えの両方を確かめる――インタフェースの抽出（Extract Interface）を素の Perl で書きます。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-carpenter-extract-interface-duck-contract/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><link rel=stylesheet href=/css/series-nav.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-10-04T07:07:05+09:00","datePublished":"2026-10-04T07:07:05+09:00","description":"通知先を別の部品に替えたら、日次処理は通るのに月末処理だけがメソッド不足で止まった。使う側が呼ぶメソッド名の一覧を1か所に書き、can で本物と替えの両方を確かめる――インタフェースの抽出（Extract Interface）を素の Perl で書きます。","headline":"差し替えた部品が月末だけ落ちる。Perl でインタフェースを書き、can で確かめる【Extract Interface】","image":"https://www.nqou.net/public_images/2026/code-carpenter-extract-interface-duck-contract/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/10/04/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#第1幕-検分--表の戸口>第1幕: 検分 ── 表の戸口</a></li><li><a href=#第2幕-手が入らない--月末の道>第2幕: 手が入らない ── 月末の道</a></li><li><a href=#第3幕-手立て--寸法を先に書く>第3幕: 手立て ── 寸法を先に書く</a></li><li><a href=#第4幕-検め--一覧が古くなるとき>第4幕: 検め ── 一覧が古くなるとき</a></li><li><a href=#普請控>普請控</a></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/10/04/070705/><img src=/public_images/2026/code-carpenter-extract-interface-duck-contract/header.webp loading=lazy alt="Featured image of post 差し替えた部品が月末だけ落ちる。Perl でインタフェースを書き、can で確かめる【Extract Interface】"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/10/04/070705/>差し替えた部品が月末だけ落ちる。Perl でインタフェースを書き、can で確かめる【Extract Interface】</a></h2><h3 class=article-subtitle>通知先を別の部品に替えたら、日次処理は通るのに月末処理だけがメソッド不足で止まった。使う側が呼ぶメソッド名の一覧を1か所に書き、can で本物と替えの両方を確かめる――インタフェースの抽出（Extract Interface）を素の Perl で書きます。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>04, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 18分</time></div></footer></div><div class=series-top-banner><span class=series-badge>連載</span>
+<a href=/2026/09/24/060705/ class=series-title>コード大工</a>
+<span class=series-count>（第11話 / 全12話）</span><div class=series-nav-links><a href=/2026/10/03/070705/ title="数百行の関数の「途中だけ」をテストしたい。関数をクラスへ移して段ごとに割る【Break Out Method Object】">← 前の話</a><a href=/2026/09/24/060705/>目次</a><a href=/2026/10/05/070705/ title="単体テストは全部緑なのに締め処理が壊れる。1か所のテストで全体を守る【Pinch Point】">次の話 →</a></div></div></header><section class=article-content><h2 id=第1幕-検分--表の戸口>第1幕: 検分 ── 表の戸口</h2><p>今朝の素屋根は、光が弱い。</p><p>薄曇りで、隙間から差す筋は細く、鉋屑が舞っても、光の中を降りてこない。表の戸口の土間には、夏のあいだ入れていた葦戸が外されて、壁に立てかけてあった。通りを人が行き来するので、戸口の半分には養生の板が渡してあり、店の人はその脇を通っていく。クロベさんとナギさんは、板の内側で、新しい板戸を敷居の溝へ入れようとしていた。板戸は、昨日の夕方に建具屋から届いたものだった。冬のあいだ、葦戸の代わりに立てる戸になる。</p><p>私は、通りがかりに足を止めた。</p><p>ナギさんが、板戸を下から支えて、溝へ滑らせた。戸は三分の二ほど進んで、止まった。さらに押しても動かない。木と木が当たる鈍い音がして、ナギさんは手を止め、戸を少し引き戻した。鉋には、手を伸ばさなかった。</p><p>クロベさんは、戸には触れなかった。溝の脇にしゃがんで、差し金の先を、敷居の溝へ当てた。</p><p>「九分」</p><p>それだけ言って、立ち上がらずに、ナギさんのほうを見た。ナギさんは、戸の下の桟に、差し金を当てた。</p><p>「九分五厘です」</p><p>五厘、戸のほうが厚い。ナギさんは鉋を取って、桟の下面を削りはじめた。削っては戸を溝に当て、また削る。何度か繰り返したあと、戸は、最後まで滑って溝に収まった。手を添えるだけで、開け閉めができる。</p><p>そのあいだ、私は、クロベさんの手元を見ていた。溝を測った差し金が、そのまま前掛けの隠しへ戻っていく。この溝の寸法を書いたものを、私は三十年のあいだ、一度も見たことがなかった。</p><p>クロベさんは、差し金を前掛けの隠しにしまった。戸口に、鉋屑の匂いだけが残っていた。</p><p>「帳場のほうも、今朝、替えたところです」</p><p>私が切り出すと、二人がこちらを向いた。</p><p>帳場の締めは、その日の売上を数えたあと、結果を一行にして、奥の間の知らせ板へ貼り出す。店主は朝と夕にそれを見る。月末の締めでは、貼り出したあとで、板を一か月分ひとまとめに閉じる。その貼り出す先を、店主は、月末を前に、板でなく書状に替えたいと言った。ナギさんが、今朝のうちに、書状の部品を書いてくれた。</p><p>「毎日の締めの検めは、通してあります」</p><p>ナギさんが言った。</p><p>「五本、緑です」</p><p>「月末の締めも、同じ替えで通りますか」</p><p>私が訊くと、ナギさんは、返事の前に、手拭いで手を拭いた。</p><p>「月末のほうは、まだ検めていません」</p><p>月末の締めは、二日後だった。毎日の締めは通っていて、月末の道は、一度も通っていない。</p><p>クロベさんは、土間の隅の桶で手を洗い、手拭いで拭いた。</p><p>「帳場へ」</p><p>三人で、戸口を離れた。戸は、背後で、開け閉めできる形のまま、溝に収まっていた。</p><h2 id=第2幕-手が入らない--月末の道>第2幕: 手が入らない ── 月末の道</h2><p>帳場の文机には、端末が開いてあった。</p><p>ナギさんが、書状の部品を画面に出した。書いたばかりの、短い部品だった。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Omote::Fumi</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>new</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$class</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nb>bless</span> <span class=p>{</span> <span class=n>sent</span> <span class=o>=&gt;</span> <span class=o>[]</span> <span class=p>},</span> <span class=nv>$class</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>open_line</span>   <span class=p>{</span> <span class=k>return</span> <span class=mi>1</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>send_notice</span> <span class=p>{</span> <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$text</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span> <span class=nb>push</span> <span class=nv>@</span><span class=p>{</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>sent</span><span class=p>}</span> <span class=p>},</span> <span class=nv>$text</span><span class=p>;</span> <span class=k>return</span> <span class=mi>1</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>bless</code>は、ハッシュを、そのクラスのオブジェクトにする組み込みだった。<code>open_line</code>は書状の口を開けること、<code>send_notice</code>は知らせを一件積むこと。ナギさんは、そう説明した。毎日の締めの検めは、この二つで通っている。</p><p>ナギさんは、誰にも言われないまま、月末の締めを、この書状で走らせた。抜けた版の書状を置いたフォルダを、先に指して読み込ませる。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>$ perl -Ired/lib -Ilib t/red/month_half.pl
+</span></span><span class=line><span class=cl>エラー: Can&#39;t locate object method &#34;close_line&#34; via package &#34;Omote::Fumi&#34; at lib/Omote/Shirase.pm line 22.
+</span></span><span class=line><span class=cl>知らせは出ている（send_notice が積んだ数）: 1
+</span></span><span class=line><span class=cl>控えの数: 0
+</span></span></code></pre></td></tr></table></div></div><p>エラーは一行だった。</p><p>ナギさんは、打ったコマンドの一行を、端から端まで読み直した。手は、そこで止まった。私は、出力の下の二行を読んだ。知らせは、出ている。止まったのは、そのあとだった。月末の締めを済ませたという記録は、残っていない。</p><p>「知らせは出たのに、締めが済んだことになっていません」</p><p>私が言うと、ナギさんは小さくうなずいた。</p><p>クロベさんは、書状のファイルを開かなかった。代わりに、締めを担う部品のほうを、画面に出させた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Omote::Shirase</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 使う側。渡された line に対して、三つの名前だけを呼ぶ。</span>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>new</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$class</span><span class=p>,</span> <span class=nv>%args</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nb>bless</span> <span class=p>{</span> <span class=n>line</span> <span class=o>=&gt;</span> <span class=nv>$args</span><span class=p>{</span><span class=n>line</span><span class=p>},</span> <span class=nb>log</span> <span class=o>=&gt;</span> <span class=o>[]</span> <span class=p>},</span> <span class=nv>$class</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>close_day</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$text</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>line</span><span class=p>}</span><span class=o>-&gt;</span><span class=n>open_line</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>line</span><span class=p>}</span><span class=o>-&gt;</span><span class=n>send_notice</span><span class=p>(</span><span class=nv>$text</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=s>&#39;day closed&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>close_month</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>,</span> <span class=nv>$text</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>line</span><span class=p>}</span><span class=o>-&gt;</span><span class=n>open_line</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>line</span><span class=p>}</span><span class=o>-&gt;</span><span class=n>send_notice</span><span class=p>(</span><span class=nv>$text</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=n>line</span><span class=p>}</span><span class=o>-&gt;</span><span class=n>close_line</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=nb>push</span> <span class=nv>@</span><span class=p>{</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=nb>log</span><span class=p>}</span> <span class=p>},</span> <span class=s>&#39;month closed&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=s>&#39;month closed&#39;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 控え（月末の締めが済んだ記録）</span>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>log_entries</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$self</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nv>@</span><span class=p>{</span> <span class=nv>$self</span><span class=o>-&gt;</span><span class=p>{</span><span class=nb>log</span><span class=p>}</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「毎日の締めと、月末の締めです。どちらも、渡された一つの部品に、決まった名前を呼んで頼んでいます」</p><p>クロベさんは、この作りが今まで何を支えてきたかを、先に言った。</p><p>「頼む相手が、板でも書状でも、頼み方は一つです。この一つの頼み方が、板の時代から、毎日の締めを守ってきました。ここには、手を入れません」</p><p>それから、画面の端末に、コマンドを打たせた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>$ grep -n &#39;line}-&gt;&#39; lib/Omote/Shirase.pm
+</span></span><span class=line><span class=cl>13:    $self-&gt;{line}-&gt;open_line;
+</span></span><span class=line><span class=cl>14:    $self-&gt;{line}-&gt;send_notice($text);
+</span></span><span class=line><span class=cl>20:    $self-&gt;{line}-&gt;open_line;
+</span></span><span class=line><span class=cl>21:    $self-&gt;{line}-&gt;send_notice($text);
+</span></span><span class=line><span class=cl>22:    $self-&gt;{line}-&gt;close_line;
+</span></span></code></pre></td></tr></table></div></div><p>部品に頼んでいる所を、上から拾った。クロベさんは、紙を一枚取って、鉛筆で表を書いた。</p><div class=table-wrapper><table><thead><tr><th>名前</th><th>呼ぶ所</th></tr></thead><tbody><tr><td>open_line</td><td>毎日の締め・月末の締め</td></tr><tr><td>send_notice</td><td>毎日の締め・月末の締め</td></tr><tr><td>close_line</td><td>月末の締めだけ</td></tr></tbody></table></div><p>「三つです。月末の締めだけが、三つ目を呼んでいます」</p><p>書状には、二つしか無かった。<code>close_line</code>の行は、月末の道でしか実行されない。毎日の締めは、その行まで届かないので、持っていない名前でも、落ちない。三つ目の名前が要るのは、月に一度、月末の道だけだった。</p><p>クロベさんは、もう一つ、端末に打たせた。今度は、本物の知らせ板のほうだった。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>$ grep -n &#39;^sub &#39; lib/Omote/Ita.pm
+</span></span><span class=line><span class=cl>6:sub new {
+</span></span><span class=line><span class=cl>10:sub open_line   { my ($self) = @_; $self-&gt;{open} = 1; return 1 }
+</span></span><span class=line><span class=cl>11:sub send_notice { my ($self, $text) = @_; push @{ $self-&gt;{notices} }, $text; return 1 }
+</span></span><span class=line><span class=cl>12:sub close_line  { my ($self) = @_; $self-&gt;{open} = 0; return 1 }
+</span></span><span class=line><span class=cl>13:sub history     { my ($self) = @_; return @{ $self-&gt;{notices} } }
+</span></span><span class=line><span class=cl>14:sub clear       { my ($self) = @_; $self-&gt;{notices} = []; return 1 }
+</span></span></code></pre></td></tr></table></div></div><p><code>new</code>を除いて、名前は五つある。表の三つのほかに、<code>history</code>と<code>clear</code>があった。</p><p>「この二つを呼んでいる所は、ありますか」</p><p>クロベさんは、ナギさんに、探させた。<code>history</code>と<code>clear</code>を、使う側のファイルも含めて、<code>lib</code>と<code>bin</code>の全部から探す。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>$ grep -rn -E &#39;history|clear&#39; lib bin
+</span></span><span class=line><span class=cl>lib/Omote/Ita.pm:13:sub history     { my ($self) = @_; return @{ $self-&gt;{notices} } }
+</span></span><span class=line><span class=cl>lib/Omote/Ita.pm:14:sub clear       { my ($self) = @_; $self-&gt;{notices} = []; return 1 }
+</span></span></code></pre></td></tr></table></div></div><p>出てきたのは、板のファイルの、定義の二行だけだった。呼んでいる所は、どこにも無かった。</p><p>ナギさんは、書状のファイルに戻って、一行足した。中身は何もしない、名前だけを満たす一行だった。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>sub</span> <span class=nf>close_line</span>  <span class=p>{</span> <span class=mi>1</span> <span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>月末の検めを、走らせ直した。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>$ prove -l t/shirase_monthly.t
+</span></span><span class=line><span class=cl>t/shirase_monthly.t .. ok
+</span></span><span class=line><span class=cl>All tests successful.
+</span></span><span class=line><span class=cl>Files=1, Tests=7,  0 wallclock secs
+</span></span><span class=line><span class=cl>Result: PASS
+</span></span></code></pre></td></tr></table></div></div><p>緑になった。月末の締めも、書状で通るようになった。クロベさんは、書状のファイルを閉じた。</p><p>私は、野帳を膝に置いていた。月末の朝に、締めを押すのは、私だ。押したあと、替えがこの建物に合っているのかどうかを、私は、今のところ、自分では言えない。ナギさんが一行足して、緑になった。その緑が、次の替えでも続くのかどうか、確かめる手立てが、私の手元には無い。</p><p>戸の溝の九分は、書いたものが無かった。この替えに求められる名前の数と顔ぶれは、どこかに書いてあるのだろうか。</p><p>私は、野帳を閉じて、クロベさんの顔を見た。</p><p>「替えの寸法は、どこに書いてあるんですか」</p><p>クロベさんは、机の上の表を、上から順に目で追った。</p><p>「どこにも、ありません。この表にしか」</p><h2 id=第3幕-手立て--寸法を先に書く>第3幕: 手立て ── 寸法を先に書く</h2><p>クロベさんは、表の紙を、机の真ん中へ寄せた。</p><p>「この表は、紙の上にしかありません。機械には、読めない。使う側が呼んでいる名前だけを取り出して、替えの部品が満たすべき形として、一か所に書いておく。その技法を、インタフェースの抽出、Extract Interface と呼びます」</p><p>形、というのは、この三つの名前のことです、とクロベさんは言い足した。以降、形も、名前の一覧も、同じものを指す。</p><p>Michael Feathers の『Working Effectively with Legacy Code』に載っている技法だった。Java のように、<code>interface</code>を書ける言語が前提になっている。本の例では、描画の部品が使う側に必要なのは、点を打つ一つだけだった。だから、インタフェースにも、その一つだけを書く。使う側が必要としない名前は、入れない。私は、この二文を野帳に書いた。手順そのものは、本の言い回しではなく、今日の Perl での形で見せる、とクロベさんは言った。</p><p>「他の言語には、満たすべき形を書く場所があります。Perl には、その場所がありません」</p><p>Perl は、型を宣言しない。部品が、呼ばれた名前のメソッドを持っていれば、動く。持っていなければ、呼ばれたその場で止まる。この動き方は、前に印字の部品を替えたときに見たものと同じだった。今日はそれを、説明し直さない、とクロベさんは言った。</p><p>「場所が無いなら、場所を作ります。ただの名前の一覧を、一つのファイルに書きます」</p><p>ナギさんが、新しいファイルに、その一覧を書いた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>package</span> <span class=nn>Omote::Sunpo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># 使う側（Omote::Shirase）が line に呼ぶ名前だけ。Ita の history / clear は入れない。</span>
+</span></span><span class=line><span class=cl><span class=k>our</span> <span class=nv>@REQUIRED</span> <span class=o>=</span> <span class=sx>qw(open_line send_notice close_line)</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>required</span> <span class=p>{</span> <span class=k>return</span> <span class=nv>@REQUIRED</span> <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># bless 済みのオブジェクトかクラス名を渡す。欠けた名前を並べて返す。</span>
+</span></span><span class=line><span class=cl><span class=k>sub</span> <span class=nf>missing</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=p>(</span><span class=nv>$thing</span><span class=p>)</span> <span class=o>=</span> <span class=nv>@_</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nb>grep</span> <span class=p>{</span> <span class=o>!</span><span class=nv>$thing</span><span class=o>-&gt;</span><span class=n>can</span><span class=p>(</span><span class=nv>$_</span><span class=p>)</span> <span class=p>}</span> <span class=nv>@REQUIRED</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=mi>1</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>「ここでいう寸法は、この名前の一覧のことです」</p><p>クロベさんは、パッケージの名前を指した。<code>Sunpo</code>。戸口の九分とは別のもので、同じ言葉で呼んでいる。以降、コードの話では、この言葉は、名前の一覧のほうを指す。戸口の話をするときは、戸口の、と付ける。</p><p><code>qw(...)</code>は、空白で区切った文字列の並びを作る書き方だった。<code>our</code>は、パッケージ変数に、この場所からも名前で届くようにする宣言で、前に使ったものと同じ。新しいのは、次の二つだった。</p><p>「<code>can</code>は、オブジェクトやクラスの名前に、<code>->can('名前')</code>と続けて呼ぶと、その名前のメソッドを持っていれば、そのメソッドへの参照を返し、持っていなければ、何も返さない組み込みです。親から受け継いだ名前も、持っているものに数えます」</p><p>返ってくる「メソッドへの参照」は、その名前の処理を、あとから呼べる形にしたものだった。ここでは、あるかないかの判定にだけ使う。</p><p>もう一つの<code>grep</code>は、条件に合う要素だけを、並びから取り出す組み込みだった。ここの<code>grep { ... }</code>は、さっき端末で打った<code>grep</code>コマンドとは、名前が同じだけの、別のものだ。一覧の名前を一つずつ取り、<code>can</code>で持っていない名前だけを残して返す。<code>can</code>は持っていなければ何も返さず、それは偽として扱われる。<code>!</code>で逆にするので、持っていない名前だけが残る。返ってくるのは、欠けている名前の並びになる。</p><p>「三つの部品に、同じ検めを通します」</p><p>ナギさんが、検めのファイルを書いた。本物の知らせ板、書状、それに、前に使った検め用の代役。検めのあいだだけ本物の代わりを務める、あの部品だった。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=k>use</span> <span class=nn>strict</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>warnings</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Test::More</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Omote::Sunpo</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Omote::Ita</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Omote::Fumi</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=k>use</span> <span class=nn>Stub::Line</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>for</span> <span class=k>my</span> <span class=nv>$obj</span> <span class=p>(</span><span class=nn>Omote::Ita</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>,</span> <span class=nn>Omote::Fumi</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>,</span> <span class=nn>Stub::Line</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>my</span> <span class=nv>@lack</span> <span class=o>=</span> <span class=nn>Omote::Sunpo::</span><span class=n>missing</span><span class=p>(</span><span class=nv>$obj</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=n>is_deeply</span><span class=p>(</span><span class=o>\</span><span class=nv>@lack</span><span class=p>,</span> <span class=o>[]</span><span class=p>,</span> <span class=nb>ref</span><span class=p>(</span><span class=nv>$obj</span><span class=p>)</span> <span class=o>.</span> <span class=s>&#39; は使う側が呼ぶ名前を全部持つ&#39;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=ow>or</span> <span class=n>diag</span> <span class=s>&#34;欠けた名前: @lack&#34;</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>done_testing</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><p>検めのファイルには、このほかに、一覧そのものと、欠けた名前を言えることを確かめる検めも書いてある。ここに出したのは、本物・替え・代役を通す部分だけだ。</p><p><code>ref</code>は、オブジェクトを渡すと、それが属するクラスの名前を返す組み込みだった。ここでは、検めの名前に、部品の名前を入れるためだけに使っている。</p><p>ナギさんは、まず、抜けた版の書状を先に指して、検めを走らせた。朝のうちに書いた、<code>close_line</code>の無い版だ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>$ perl -Ired/lib -Ilib t/contract.t
+</span></span><span class=line><span class=cl>ok 1 - 寸法（名前の一覧）は使う側が呼ぶ三つだけ
+</span></span><span class=line><span class=cl>ok 2 - Omote::Ita は使う側が呼ぶ名前を全部持つ
+</span></span><span class=line><span class=cl>not ok 3 - Omote::Fumi は使う側が呼ぶ名前を全部持つ
+</span></span><span class=line><span class=cl>#   Failed test &#39;Omote::Fumi は使う側が呼ぶ名前を全部持つ&#39;
+</span></span><span class=line><span class=cl>#   at t/contract.t line 16.
+</span></span><span class=line><span class=cl>#     Structures begin differing at:
+</span></span><span class=line><span class=cl>#          $got-&gt;[0] = &#39;close_line&#39;
+</span></span><span class=line><span class=cl>#     $expected-&gt;[0] = Does not exist
+</span></span><span class=line><span class=cl># 欠けた名前: close_line
+</span></span><span class=line><span class=cl>ok 4 - Stub::Line は使う側が呼ぶ名前を全部持つ
+</span></span><span class=line><span class=cl>ok 5 - 欠けた名前を名前で言える（オブジェクト）
+</span></span><span class=line><span class=cl>ok 6 - 欠けた名前を名前で言える（クラス名）
+</span></span><span class=line><span class=cl>ok 7 - 何も無ければ三つとも欠け（一覧の順）
+</span></span><span class=line><span class=cl>ok 8 - bless されていない参照は検めに渡せない
+</span></span><span class=line><span class=cl>ok 9 - Ita: history は積んだ知らせを返す
+</span></span><span class=line><span class=cl>ok 10 - Ita: clear で空になる
+</span></span><span class=line><span class=cl>1..10
+</span></span><span class=line><span class=cl># Looks like you failed 1 test of 10.
+</span></span></code></pre></td></tr></table></div></div><p>月末の締めを走らせなくても、書状に<code>close_line</code>が無いことが、名前つきで出た。ナギさんは、直した版の書状へ戻して、もう一度走らせた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>$ prove -l t/
+</span></span><span class=line><span class=cl>t/contract.t ......... ok
+</span></span><span class=line><span class=cl>t/shirase_daily.t .... ok
+</span></span><span class=line><span class=cl>t/shirase_monthly.t .. ok
+</span></span><span class=line><span class=cl>All tests successful.
+</span></span><span class=line><span class=cl>Files=3, Tests=22,  0 wallclock secs
+</span></span><span class=line><span class=cl>Result: PASS
+</span></span></code></pre></td></tr></table></div></div><p>「一覧に、板の持っている名前を、全部入れないのは、なぜですか」</p><p>私が訊くと、クロベさんは、板の側の二つの名前を指した。</p><p>「板の五つを全部入れれば、書状も代役も、<code>history</code>と<code>clear</code>が無くて、検めで落ちます。一覧が、使う側の必要でなく、板の持ち物になる。一覧は、使う側が呼んでいる名前だけです」</p><p>私は、検めの一行目を見た。一覧は三つだけだと、検めの側でも確かめてある。</p><p>次に、手を入れた範囲を確かめた。使う側のファイルは、一字も変えていない。一覧を読んでいるのは、検めだけだった。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>$ grep -rn Sunpo lib bin
+</span></span><span class=line><span class=cl>lib/Omote/Sunpo.pm:1:package Omote::Sunpo;
+</span></span></code></pre></td></tr></table></div></div><p><code>lib</code>と<code>bin</code>の中で、<code>Sunpo</code>という名前が出てくるのは、そのファイル自身だけだった。使う側も、本番の組み立ても、この一覧を知らない。この技法のために足したのは、一覧のファイルと、検めのファイルだけだ。</p><p>本番の組み立ては、これまでと同じ書き方だった。替えの部品に取り替えるとき、変わるのは、一か所だけだった。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-perl data-lang=perl><span class=line><span class=cl><span class=c1># 本番の組み立て。</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$honmono</span> <span class=o>=</span> <span class=nn>Omote::Shirase</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>line</span> <span class=o>=&gt;</span> <span class=nn>Omote::Ita</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=c1># 替えに替えた後の組み立て。違うのは line =&gt; の右側の一か所だけ。</span>
+</span></span><span class=line><span class=cl><span class=k>my</span> <span class=nv>$kae</span>     <span class=o>=</span> <span class=nn>Omote::Shirase</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>(</span><span class=n>line</span> <span class=o>=&gt;</span> <span class=nn>Omote::Fumi</span><span class=o>-&gt;</span><span class=k>new</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>print</span> <span class=nv>$_</span><span class=o>-&gt;</span><span class=n>close_month</span><span class=p>(</span><span class=s>&#39;bye&#39;</span><span class=p>),</span> <span class=s>&#34;\n&#34;</span> <span class=k>for</span> <span class=nv>$honmono</span><span class=p>,</span> <span class=nv>$kae</span><span class=p>;</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>month closed
+</span></span><span class=line><span class=cl>month closed
+</span></span></code></pre></td></tr></table></div></div><p>組み立てる場所は、消えていない。一覧が加わっても、そこに誰かが部品を渡す仕事は、これまでと同じ場所にある。</p><p>野帳を開いて、今日手を入れた所と入れなかった所を、一枚に写してみた。一覧のファイルと検めのファイルは、墨の実線で描いた。使う側と本物の知らせ板と本番の組み立ては、一字も変えていないので、薄い墨の破線にした。一覧から検めへ、検めから三つの部品へ引いた線は太くして、使う側へは、一本も引かなかった。</p><p><img src=/public_images/2026/code-carpenter-extract-interface-duck-contract/infographic_1.webp loading=lazy alt="野帳に描いた構成図。左の「この回で足した所」では、一覧 Omote::Sunpo から検め t/contract.t へ太い線が引かれ、検めから Omote::Fumi、Stub::Line、そして本物の Omote::Ita の三つの部品へ、同じ検めを通す太い線が伸びている。右の「この回で触っていない所」には、本番の組み立て、Omote::Shirase、Omote::Ita が灰色の破線で描かれ、組み立てから Omote::Shirase へ細い破線が一本引かれている。Omote::Shirase と一覧のあいだには線が無い"></p><p>ひと通り見せ終えると、クロベさんは席を立った。何も告げずに、戸口のほうへ出ていった。しばらくして戻ってきて、席に着いた。</p><p>「宮大工の言い方では、寸法を定める、です」</p><p>「使う側は、毎日の締めを支えています。だから手を入れずに、替えのほうを合わせます。戸口の戸は削って合わせられて、溝は建物です。入る寸法は、受ける側で、先に決めておきます」</p><p>墨差しを、机の端に置いた。</p><p>私は、野帳に、定める、と書いた。戸口の九分と、今日の三つの名前は、同じことをしている。受ける側が、入るものの寸法を、先に言葉にしておくこと。</p><h2 id=第4幕-検め--一覧が古くなるとき>第4幕: 検め ── 一覧が古くなるとき</h2><p>「使う側に、呼ぶ名前を、一つ足してみてください」</p><p>クロベさんが言った。</p><p>ナギさんは、使う側のファイルを別の場所へ写して、その写しの毎日の締めに、一行足した。本体には、触れていない。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>$ diff lib/Omote/Shirase.pm t/red/stale_list/lib/Omote/Shirase.pm
+</span></span><span class=line><span class=cl>14a15
+</span></span><span class=line><span class=cl>&gt;     $self-&gt;{line}-&gt;retry;
+</span></span></code></pre></td></tr></table></div></div><p><code>retry</code>という名前を、部品に頼む。一覧は、そのままだ。検めを走らせて、続けて、実際に毎日の締めを呼んだ。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>$ perl -It/red/stale_list/lib -Ilib t/red/stale_list/run.pl
+</span></span><span class=line><span class=cl>Omote::Ita 検め: 欠け 0
+</span></span><span class=line><span class=cl>Omote::Ita 実呼び出し: Can&#39;t locate object method &#34;retry&#34; via package &#34;Omote::Ita&#34; at t/red/stale_list/lib/Omote/Shirase.pm line 15.
+</span></span><span class=line><span class=cl>Omote::Fumi 検め: 欠け 0
+</span></span><span class=line><span class=cl>Omote::Fumi 実呼び出し: Can&#39;t locate object method &#34;retry&#34; via package &#34;Omote::Fumi&#34; at t/red/stale_list/lib/Omote/Shirase.pm line 15.
+</span></span></code></pre></td></tr></table></div></div><p>検めは、緑のままだった。実際に呼ぶと、板でも書状でも止まる。本物の知らせ板も<code>retry</code>を持っていないので、これは、替えの落ち度ではない。</p><p>「使う側が変わったときは、一覧は、誰が直すんですか」</p><p>私が訊くと、クロベさんは、短く答えた。</p><p>「人です。この検めは、一覧に書いてある名前を見ているだけで、使う側を見てはいません。一覧は、使う側の写しです。写しは、元が変われば、古くなります」</p><p>私は、野帳を開いた。一覧を直すのが人なら、その人は、使う側が変わったと、いつ知るのだろう。</p><p>「使う側に、呼ぶ名前を足す話は、私のところにも来ます。そのときは、一覧のことを、私から先に訊きます」</p><p>クロベさんは、うなずいた。私は、その一行を、野帳に書いた。</p><p>戸口の溝を彫り直したのに、墨で書いた九分が古いまま。そういう古さが、ここにも起こりうる。</p><p>クロベさんは、この手立てで言えることを、先に三つ言った。</p><p>「使う側と本物は、一字も変えていません。使う側が呼ぶ三つの名前が、本物にも、替えにも、代役にも揃っています。月末を待たずに、欠けた名前を、名前で言えます」</p><p>それから、言えないことを、一つずつ見せた。ナギさんが、<code>can</code>の見えないものを、実際に動かして並べた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>$ perl -Ilib t/red/limits.pl
+</span></span><span class=line><span class=cl>Wrong     missing=[]
+</span></span><span class=line><span class=cl>Child     missing=[]
+</span></span><span class=line><span class=cl>AutoLine  missing=[open_line send_notice close_line]
+</span></span><span class=line><span class=cl>unblessed hashref: DIED: Can&#39;t call method &#34;can&#34; on unblessed reference at lib/Omote/Sunpo.pm line 13.
+</span></span><span class=line><span class=cl>AutoLine-&gt;new-&gt;close_line (real call): 1
+</span></span></code></pre></td></tr></table></div></div><p><code>Wrong</code>は、渡された知らせを捨てて、意味のない文字列を返す<code>send_notice</code>と、呼ばれたら必ず<code>die</code>する<code>close_line</code>を持つ部品で、名前の有無だけを見る検めは「欠けなし」と答えた。<code>Child</code>は、三つの名前を全部、親から受け継いでいる。名前の有無だけを見る検めは、これも「欠けなし」とする。<code>AutoLine</code>は、持っていない名前の呼び出しを、まとめて自分で受ける仕組みを持つ部品で、実際には、呼べる。それなのに、検めは、三つとも欠けと答えた。<code>can</code>は、その仕組みで受ける名前が見えない。四行目は、bless されていない参照を渡したときで、<code>can</code>の呼び出し自体が止まる。最後の行は、<code>AutoLine</code>の<code>close_line</code>を、実際に呼んだ結果だった。</p><p>「見えるのは、名前の有無だけです」</p><p>クロベさんは、ナギさんの出力の脇に、七つの行を書いた。</p><div class=table-wrapper><table><thead><tr><th>言えないこと</th><th>わけ</th></tr></thead><tbody><tr><td>引数や中身が合っているか</td><td><code>can</code>は名前の有無だけを見る。<code>Wrong</code>を動かした結果</td></tr><tr><td>受け継いだ名前の中身が合っているか</td><td>持っている名前に数える。<code>Child</code>を動かした結果</td></tr><tr><td>持っていない名前をまとめて受ける部品</td><td>見えず、欠けと出る。<code>AutoLine</code>を動かした結果</td></tr><tr><td>一覧と使う側のずれ</td><td>検めは使う側を見ない。<code>retry</code>を動かした結果</td></tr><tr><td>bless されていない参照</td><td>検めに渡せない。止まる</td></tr><tr><td>書状が店主の手に届くか</td><td>見ていない。今日見たのは、一度動かした範囲</td></tr><tr><td>知らせの中身が正しいか</td><td>見ていない</td></tr></tbody></table></div><p>「最後の二つは、今日の検めの外です」</p><p>クロベさんは、鉛筆を置いた。</p><p>「今日の検めは、一度動かした話です。毎月、届き続ける保証では、ありません。もう一つ、入れていないことがあります。組み立ての時点で、欠けた名前を止める仕掛けです。入れると、これまで動いていた毎日の締めまで、止まる日が出ます。振る舞いが、変わってしまいます」</p><p>日が、午後に傾いていた。ナギさんが、自分の机から、紙を一枚持ってきた。</p><p>「シオリさん、これを通してください」</p><p>紙には、部品の名前だけが書いてあった。<code>Omote::Fusen</code>。ナギさんが、さっき、自分で書いた替えだった。何が抜けているかは、書いていなかった。私にも、聞かされていなかった。</p><p>私は、検めのファイルを開いた。三つの部品を並べた行の最後に、その名前を足した。<code>use</code>の行も一つ足して、走らせた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>$ perl -Ilib t/contract.t
+</span></span><span class=line><span class=cl>ok 1 - 寸法（名前の一覧）は使う側が呼ぶ三つだけ
+</span></span><span class=line><span class=cl>ok 2 - Omote::Ita は使う側が呼ぶ名前を全部持つ
+</span></span><span class=line><span class=cl>ok 3 - Omote::Fumi は使う側が呼ぶ名前を全部持つ
+</span></span><span class=line><span class=cl>ok 4 - Stub::Line は使う側が呼ぶ名前を全部持つ
+</span></span><span class=line><span class=cl>not ok 5 - Omote::Fusen は使う側が呼ぶ名前を全部持つ
+</span></span><span class=line><span class=cl>#   Failed test &#39;Omote::Fusen は使う側が呼ぶ名前を全部持つ&#39;
+</span></span><span class=line><span class=cl>#   at t/contract.t line 17.
+</span></span><span class=line><span class=cl>#     Structures begin differing at:
+</span></span><span class=line><span class=cl>#          $got-&gt;[0] = &#39;open_line&#39;
+</span></span><span class=line><span class=cl>#     $expected-&gt;[0] = Does not exist
+</span></span><span class=line><span class=cl># 欠けた名前: open_line
+</span></span></code></pre></td></tr></table></div></div><p>赤い行は、五つ目だった。欠けた名前の行を、私は、声に出して読んだ。</p><p>「<code>open_line</code>が、ありません」</p><p>ナギさんは、うなずいた。</p><p>「合っています。<code>open_line</code>を抜きました」</p><p>今朝、直したのは<code>close_line</code>だった。今日、私が読んだのは、別の名前だった。クロベさんは、何も言わなかった。ナギさんは、<code>Omote::Fusen</code>のファイルを開いて、<code>open_line</code>を一行、足しはじめた。</p><p>夕方、私は、表の戸を閉めに出た。</p><p>朝に入れた板戸を、溝に沿って滑らせる。戸は、最後まで滑って、溝に収まった。軽く手を添えると、音も立てずに閉まる。戸の下をのぞくと、敷居の内側に、墨で小さく、九分、と書いてあるのが見えた。</p><p>通りの人の足音が、戸の向こうで、遠ざかっていった。</p><hr><h2 id=普請控>普請控</h2><ul><li><strong>見立て</strong>: 知らせ先を板から書状に替えたところ、毎日の締めは通ったが、月末の締めだけが、書状に無い名前を呼んで止まった。使う側がどの名前を呼んでいるのかは、どこにも書かれておらず、替えを書く人は、使う側を読み取るほかなかった</li><li><strong>手を入れた所</strong>: インタフェースの抽出（Extract Interface）を使った。使う側が呼ぶ三つの名前を<code>Omote::Sunpo</code>に一覧として書き、本物の知らせ板・書状・検め用の代役に、同じ検めを通して、欠けた名前を名前で言えるようにした。書状には、欠けていた<code>close_line</code>を一行足した</li><li><strong>触っていない所</strong>: 使う側の<code>Omote::Shirase</code>（毎日の締めと月末の締めの呼び方）、本物の知らせ板<code>Omote::Ita</code>（<code>history</code>と<code>clear</code>は使う側が呼ばないので、一覧に入れていない）、本番の組み立ての書き方（<code>line =></code>の右側だけが替えの違い）は、一字も変えていない。<code>can</code>が区別できない所（引数と中身・受け継いだ名前の中身・まとめて受ける仕組みの名前）、一覧と使う側の呼び出しを突き合わせる仕掛け、書状が店主に実際に届くかどうかは、見ていない</li><li><strong>次の工程へ送ること</strong>: 組み立ての時点で、欠けた名前を止める仕掛けと、一覧と使う側の呼び出しを突き合わせる検めは、今日は置かない。前者は、これまで動いていた毎日の締めまで止めてしまい、振る舞いが変わるため。後者は、使う側の呼び出しが決まった書き方のうちは拾えても、名前を組み立てて呼ぶ所は見落とすため、呼び出しがどこに集まっているかを見てからにする</li><li><strong>私が引き受けたこと</strong>: 替えが寸法に合うかどうかを、私が自分の検めで確かめられる。ナギさんが用意した、何が抜けているかを聞かされていない替えに検めを通し、欠けた名前を読んで返した。使う側に呼ぶ名前を足す話を聞いたら、一覧のことを私から先に訊く、と決めて、野帳に控えた</li></ul></section><footer class=article-footer><section class=article-tags><a href=/tags/legacy-code/>Legacy-Code</a>
+<a href=/tags/refactoring/>Refactoring</a>
+<a href=/tags/perl/>Perl</a>
+<a href=/tags/extract-interface/>Extract-Interface</a>
+<a href=/tags/unwritten-contract/>Unwritten-Contract</a>
+<a href=/tags/code-carpenter/>Code-Carpenter</a></section><nav class=series-nav-container aria-label=シリーズ連載ナビゲーション><div class=series-nav-header><span class=series-badge>連載</span>
+<a href=/2026/09/24/060705/ class=series-title>コード大工</a><span class=series-count>第11話 / 全12話</span></div><div class=series-nav-grid><a href=/2026/10/03/070705/ class="series-nav-card prev" rel=prev><span class=series-nav-direction>← 前の話</span>
+<span class=series-nav-card-title>数百行の関数の「途中だけ」をテストしたい。関数をクラスへ移して段ごとに割る【Break Out Method Object】</span>
+</a><a href=/2026/09/24/060705/ class=series-nav-toc-btn><span>連載目次</span>
+</a><a href=/2026/10/05/070705/ class="series-nav-card next" rel=next><span class=series-nav-direction>次の話 →</span>
+<span class=series-nav-card-title>単体テストは全部緑なのに締め処理が壊れる。1か所のテストで全体を守る【Pinch Point】</span></a></div></nav></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/10/05/070705/><div class=article-image><img src=/public_images/2026/code-carpenter-pinch-point-handover/header.webp loading=lazy data-key data-hash=/public_images/2026/code-carpenter-pinch-point-handover/header.webp></div><div class=article-details><h2 class=article-title>単体テストは全部緑なのに締め処理が壊れる。1か所のテストで全体を守る【Pinch Point】</h2></div></a></article><article class=has-image><a href=/2026/10/03/070705/><div class=article-image><img src=/public_images/2026/code-carpenter-method-object-long-sub/header.webp loading=lazy data-key data-hash=/public_images/2026/code-carpenter-method-object-long-sub/header.webp></div><div class=article-details><h2 class=article-title>数百行の関数の「途中だけ」をテストしたい。関数をクラスへ移して段ごとに割る【Break Out Method Object】</h2></div></a></article><article class=has-image><a href=/2026/10/02/070705/><div class=article-image><img src=/public_images/2026/code-carpenter-instance-delegator-silent-rename/header.webp loading=lazy data-key data-hash=/public_images/2026/code-carpenter-instance-delegator-silent-rename/header.webp></div><div class=article-details><h2 class=article-title>関数名を揃えたらモックが効かなくなった。テストは緑のまま本物が動く罠【Introduce Instance Delegator】</h2></div></a></article><article class=has-image><a href=/2026/10/01/070705/><div class=article-image><img src=/public_images/2026/code-carpenter-parameterize-constructor-nameless-dependency/header.webp loading=lazy data-key data-hash=/public_images/2026/code-carpenter-parameterize-constructor-nameless-dependency/header.webp></div><div class=article-details><h2 class=article-title>コンストラクタが本番の帳簿ファイルを開いてしまうクラスを、テストできる形にする【Parameterize Constructor】</h2></div></a></article><article class=has-image><a href=/2026/09/30/070705/><div class=article-image><img src=/public_images/2026/code-carpenter-extract-override-imported-copy/header.webp loading=lazy data-key data-hash=/public_images/2026/code-carpenter-extract-override-imported-copy/header.webp></div><div class=article-details><h2 class=article-title>テストのたびに外部 API を叩いてしまうコードを、サブクラスで差し替える【Extract and Override Call】</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>
