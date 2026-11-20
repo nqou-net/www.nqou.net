@@ -1,0 +1,425 @@
+<!doctype html><html lang=ja dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="去年の報告書を今のツールで計算し直すと、一件だけ数字が合わない。怪しい変更を戻しても直らない。良い版と悪い版の間の履歴を判定プログラムで二分する git bisect（git bisect run）で、最初に壊れたコミットまで辿ります。"><title>去年の報告書を計算し直すと、数字が合わない。怪しいと読んだ変更は無実だった</title><link rel=canonical href=https://www.nqou.net/2026/11/19/070705/><link rel=stylesheet href=/scss/style.min.9a6f47bb0cccb59cea32f2407a4d279494201cb8a12596986b2cc96158da0dea.css><meta property='og:title' content="去年の報告書を計算し直すと、数字が合わない。怪しいと読んだ変更は無実だった"><meta property='og:description' content="去年の報告書を今のツールで計算し直すと、一件だけ数字が合わない。怪しい変更を戻しても直らない。良い版と悪い版の間の履歴を判定プログラムで二分する git bisect（git bisect run）で、最初に壊れたコミットまで辿ります。"><meta property='og:url' content='https://www.nqou.net/2026/11/19/070705/'><meta property='og:site_name' content='設計パターンを疑え'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='debugging'><meta property='article:tag' content='incident-investigation'><meta property='article:tag' content='go'><meta property='article:tag' content='git-bisect'><meta property='article:tag' content='regression'><meta property='article:tag' content='code-salvager'><meta property='article:published_time' content='2026-11-19T07:07:05+09:00'><meta property='article:modified_time' content='2026-11-19T07:07:05+09:00'><meta property='og:image' content='https://www.nqou.net/public_images/2026/code-salvager-git-bisect-first-bad-commit/header.webp'><meta name=twitter:site content="@nqounet"><meta name=twitter:creator content="@nqounet"><meta name=twitter:title content="去年の報告書を計算し直すと、数字が合わない。怪しいと読んだ変更は無実だった"><meta name=twitter:description content="去年の報告書を今のツールで計算し直すと、一件だけ数字が合わない。怪しい変更を戻しても直らない。良い版と悪い版の間の履歴を判定プログラムで二分する git bisect（git bisect run）で、最初に壊れたコミットまで辿ります。"><meta name=twitter:card content="summary_large_image"><meta name=twitter:image content='https://www.nqou.net/public_images/2026/code-salvager-git-bisect-first-bad-commit/header.webp'><link rel="shortcut icon" href=/favicon.png><style>@import 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap';:root{--base-font-family:Arial, "Noto Sans JP", sans-serif}</style><link rel=stylesheet href=/css/linkcard.css><link rel=stylesheet href=/css/series-nav.css><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3923446804785015" crossorigin=anonymous></script><script src=https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js defer></script><script defer>document.addEventListener("DOMContentLoaded",function(){try{typeof mermaid!="undefined"&&document.querySelector(".mermaid")&&mermaid.initialize({startOnLoad:!0,securityLevel:"strict"})}catch(e){console.warn("Mermaid failed to initialize:",e)}})</script><script async src="https://www.googletagmanager.com/gtag/js?id=G-E50H9ESN7E"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-E50H9ESN7E")</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"若林信敬","url":"https://www.nqou.net/page/about/"},"dateModified":"2026-11-19T07:07:05+09:00","datePublished":"2026-11-19T07:07:05+09:00","description":"去年の報告書を今のツールで計算し直すと、一件だけ数字が合わない。怪しい変更を戻しても直らない。良い版と悪い版の間の履歴を判定プログラムで二分する git bisect（git bisect run）で、最初に壊れたコミットまで辿ります。","headline":"去年の報告書を計算し直すと、数字が合わない。怪しいと読んだ変更は無実だった","image":"https://www.nqou.net/public_images/2026/code-salvager-git-bisect-first-bad-commit/header.webp","mainEntityOfPage":{"@id":"https://www.nqou.net/2026/11/19/070705/","@type":"WebPage"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://www.nqou.net/public_images/blog-nqounet-square.jpg"},"name":"設計パターンを疑え"}}</script></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=メニューを開く・閉じる>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/public_images/blog-nqounet-square.jpg width=300 height=300 class=site-logo loading=lazy alt=Avatar></a></figure><div class=site-meta><h1 class=site-name><a href=/>設計パターンを疑え</a></h1><h2 class=site-description>名前の嘘を暴き、意図で設計を語る</h2></div></header><ol class=menu-social><li><a href=https://github.com/nqounet target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://x.com/nqounet target=_blank title=X rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/about/><svg class="icon icon-tabler icon-tabler-user" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
+<span>About</span></a></li><li><a href=https://www.meetsource.work/#contact target=_blank><svg class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M21 14l-3-3h-7a1 1 0 01-1-1V4a1 1 0 011-1h9a1 1 0 011 1v10"/><path d="M14 15v2a1 1 0 01-1 1H6l-3 3V11a1 1 0 011-1h2"/></svg>
+<span>お仕事のご依頼</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/privacy-policy/><svg class="icon icon-tabler icon-tabler-shield-lock" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 008.5 3A12 12 0 0112 21 12 12 0 013.5 6 12 12 0 0012 3"/><path d="M11 11a1 1 0 102 0 1 1 0 10-2 0"/><path d="M12 12v2.5"/></svg>
+<span>プライバシーポリシー</span></a></li><li><a href=/contact/><svg class="icon icon-tabler icon-tabler-mail" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#bababa" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7"/><path d="M3 7l9 6 9-6"/></svg>
+<span>お問い合わせ</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>ダークモード</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目次</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#第1幕-綴りの箱>第1幕: 綴りの箱</a></li><li><a href=#第2幕-fail-の続き>第2幕: FAIL の続き</a></li><li><a href=#第3幕-分からないと言える>第3幕: 分からない、と言える</a></li><li><a href=#第4幕-綴じる>第4幕: 綴じる</a></li><li><a href=#野帳の写し>野帳の写し</a></li></ol></nav></div></section></aside><main class="main full-width"><article class="has-image main-article"><header class=article-header><div class=article-image><a href=/2026/11/19/070705/><img src=/public_images/2026/code-salvager-git-bisect-first-bad-commit/header.webp loading=lazy alt="Featured image of post 去年の報告書を計算し直すと、数字が合わない。怪しいと読んだ変更は無実だった"></a></div><div class=article-details><header class=article-category><a href=/categories/tech/>Tech</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/2026/11/19/070705/>去年の報告書を計算し直すと、数字が合わない。怪しいと読んだ変更は無実だった</a></h2><h3 class=article-subtitle>去年の報告書を今のツールで計算し直すと、一件だけ数字が合わない。怪しい変更を戻しても直らない。良い版と悪い版の間の履歴を判定プログラムで二分する git bisect（git bisect run）で、最初に壊れたコミットまで辿ります。</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>2026-11-19</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>読了時間: 32分</time></div></footer></div><div class=series-top-banner><span class=series-badge>連載</span>
+<a href=/2026/11/16/060705/ class=series-title>コードサルベージャー</a>
+<span class=series-count>（第4話 / 全6話）</span><div class=series-nav-links><a href=/2026/11/18/070705/ title=800行のデータを流すとだけ落ちる。原因は1行ではなかった>← 前の話</a><a href=/2026/11/16/060705/>目次</a><a href=/2026/11/20/070705/ title=グラフの最高潮位が、気象台の発表と合わない。途中に立てた検査は、壊れた値を通していた>次の話 →</a></div></div></header><section class=article-content><h2 id=第1幕-綴りの箱>第1幕: 綴りの箱</h2><p>去年わたしが出した査定の報告書の数字が、同じツールで計算し直すと合わない。十件のうち九件は合う。合わないのは一件だけで、差は三十万円。誰かに指摘されたのではない。自分で流して、自分で気づいた。監査の締め切りは来週の金曜日だ。</p><p>段ボール箱の底が、腕の内側に食い込んでいた。</p><p>ドック事務所の外階段は、鉄の板を組んだだけのものだった。一段ごとに、靴の下で板が鳴る。手すりは錆びていて、つかめば手のひらが赤茶になる。両腕が箱で塞がっているので、つかめない。</p><p>箱の中身は、二十年前の請求ファイルの写しだ。綴りが七冊。会社の書庫から、朝いちばんに出してきた。</p><p>北西の風が強い。階段の途中で、細かい水しぶきが頬に当たった。ドックの底から、高圧洗浄機の唸りが上がってくる。水の匂いに、鉄と泥の匂いが混じっていた。</p><p>再保険会社の監査が、先月の末に入った。去年わたしが査定した案件から十件を選び、今の査定ツールで計算し直す。その数字を報告書の数字と並べて出す。それが監査の求めだった。</p><p>九件は、一円まで合った。</p><p>一件だけ、合わなかった。報告書の支払額は二百五十万円。今のツールは二百二十万円を返す。</p><p>報告書の数字が間違っていたのか。今のツールが、この一年のどこかで変わったのか。どちらなのかは、まだ分からない。どちらだとしても、わたしの名前で出した報告書だ。</p><p>階段を上りきった。事務所の扉は、外開きではなかった。</p><p>箱の角で、扉を押し開けた。</p><p>事務所は、ストーブの灯油の匂いがした。</p><p>入ってすぐの机で、引き揚げ会社の社長が電話をしていた。こちらを見ると、受話器を耳に当てたまま、手のひらで奥を示した。奥の窓際に、もう一つ机がある。</p><p>汐見さんは、その机で紙の束を揃えていた。</p><p>細かい数字の並んだ記録用紙が、机いっぱいに広がっている。汐見さんは、わたしの抱えた箱に目を留めると、用紙を手早く一つにまとめた。まとめた束を窓枠に載せて、机の上を空けた。それから、こちらへ両手を伸ばした。</p><p>箱を渡した。汐見さんは、箱を空いた机の真ん中に置いた。</p><p>「鳴海さん。重かったでしょう」</p><p>「七冊です。重さは、書類の重さです」</p><p>汐見さんは、箱の蓋を開けた。綴りの背表紙には、年が書いてある。汐見さんは胸ポケットから、手書きの一覧を出した。罫線の入った紙に、年が縦に並んでいる。一冊ずつ背表紙を指で押さえて、一覧の年と照らしていく。</p><p>わたしは鞄から、持ち出しの記録の用紙を出した。書庫から書類を出すときは、誰が、何を、いつまで預かるかを書いて、預かった人に署名をもらう。</p><p>「こちらに、署名をお願いします。返却の予定日は、空けておいてください。決まったら、わたしが書きます」</p><p>汐見さんは一覧を照らす手を止めずに、片手でペンを取った。署名をして、用紙をこちらへ戻した。整った字だった。</p><p>一覧の最後の年まで照らし終えて、汐見さんは顔を上げた。</p><p>「揃ってます」</p><p>汐見さんとは、事故の現場で、二度会ったことがある。</p><p>一度目は貨物船の座礁で、二度目は漁船の火災だった。汐見さんは国の調査で、わたしは保険の査定で来ていた。立場が違うので、話したのは、どちらも数分ずつだ。どこまで船に近づいてよいか、何を触ってはいけないか。その確認だけだった。</p><p>数年前、腕のいい調査官が突然辞めた、という話を、業界の集まりで聞いた。名前は出なかった。先週、汐見さんから会社に電話をもらって、あの話はこの人のことだったのだと、結びついた。</p><p>辞めた理由は知らない。訊くつもりもない。保険の仕事は、訊かれたくないことを訊かずに、書類で確かめられることだけで書く仕事だ。</p><p>汐見さんは、二度の現場のことには触れなかった。覚えているのかどうかは、わたしには分からない。確かめるつもりもなかった。</p><p>用は済んだ、と思った。綴りを渡し、署名をもらった。あとは会社に戻って、監査の一件に取りかかればいい。</p><p>汐見さんは箱の蓋を閉じて、立ち上がった。</p><p>「綴りを開く前に、少し、外を見ていただけますか」</p><p>理由は言わなかった。上着を羽織って、扉のほうへ歩いていく。</p><p>ついていった。</p><p>外階段の上から、ドックの全体が見えた。</p><p>船は、ドックの底に据わっていた。鋼の船体で、マストはまだ無い。甲板の縁から下、船の横腹にあたる所を、作業員が二人、高圧洗浄機で洗っている。</p><p>汐見さんが、階段を下りながら言った。</p><p>「今日は、外板を洗って、厚さを測る日です」</p><p>外板というのは、船体の外側を覆っている鋼の板だ。船の皮にあたる。保険の仕事で、損傷の見積書には何度も出てくる語だ。</p><p>噴き付ける水の筋が往復するたびに、外板の泥と付着物が削げていく。削げた跡に、錆の地肌がのぞく。古い塗膜が、ところどころに島のように残っていて、色がまだらになっていた。</p><p>洗い終えた所には、チョークで格子が引いてある。別の作業員が、格子の交点に円筒形の探触子を押し当てていた。線の先の計器を見て、数字を小さな札に書き、札を交点の脇に貼っていく。</p><p>「超音波の厚さ計です。片側から当てて、板の厚さを測ります」</p><p>汐見さんの説明は、それだけだった。</p><p>厚さが減っていれば、その分、板は弱くなっている。わたしの仕事でも、厚さの計測表は修繕の見積もりの根拠になる。札の数字を、目で一つ拾った。読む前に、汐見さんが手で制した。</p><p>「そちらは、風下です」</p><p>汐見さんは、船首寄りの、水しぶきの届かない場所を指さした。そこに立った。さっきまでいた場所の地面は、黒く濡れていた。</p><p>汐見さんは船尾のほうへ歩いていった。ついていくと、船尾の甲板の縁で、立ち止まった。</p><p>甲板の縁には、腰の高さほどの低い壁が立ち上がっている。舷墻（げんしょう）という。甲板から人や物が落ちないための壁だ。その外側に、木の板が一枚、取り付けてあった。</p><p>洗い終えたばかりらしい。板の表面は濡れて、黒っぽく光っている。浮き彫りの文字が三つ並んでいて、その溝に、まだ水が残っていた。</p><p>船の名前は、法律で外板に記すことになっている。船尾の外板にも、塗膜の剥げた白い文字の跡があった。この板は、それとは別の、名を掲げるための飾りの板だ。練習船が、こういう板を付けることがある。</p><p>汐見さんは、板の前で立ち止まった。何も指さず、わたしのほうも見ずに、待っていた。</p><p>文字を読んだ。</p><p>暁凪丸。</p><p>「……あかつき、なぎ、で、いいんでしょうか」</p><p>「あかつきなぎまる、です」</p><p>暁凪丸（あかつきなぎまる）。</p><p>請求ファイルの表紙に書いてあった名前だ。書類の上では、何百回も見た。この三文字を実物で読むのは、初めてだった。</p><p>汐見さんは、板から目を離して、こちらを向いた。</p><p>「鳴海さん。お願いがあります」</p><p>「はい」</p><p>「綴りを全部読み終えるまで、今日はここに居ていただけませんか。持ち出していただいた書類を、持ち主のいない所で開きたくないので」</p><p>書庫から出した書類は、わたしの責任で預けている。持ち主のいない所で開きたくない、というのは、わたしが書類を人に預けない理由と、同じだった。</p><p>腕時計を見た。十時二十分。</p><p>監査の件は、ノートパソコンでここでもできる。リポジトリは手元にある。</p><p>「承知しました。夕方まででしたら」</p><p>汐見さんは頷いて、事務所の階段のほうへ戻っていった。</p><p>事務所に戻ると、汐見さんは綴りを机に広げた。一冊目の表紙を開き、目次の頁から読み始めている。</p><p>わたしは、隣の空いた机を借りた。ノートパソコンを開いた。</p><p>査定ツールは、うちの部の社内のツールだ。Go で書いてある。部の若手が書き始めて、三年前に異動した。それからは、わたしが保っている。独学だが、読めるし直せる。</p><p>ツールが計算するのは、保険で払う額だ。船が事故で傷めば、修繕の見積もりが出る。そこから、新旧交換控除と、免責額を引く。</p><p>新旧交換控除は、古い部品を新品に替えた分を差し引く控除だ。二十年使った鋼板を新しい鋼板に替えれば、船は事故の前より良くなる。その良くなった分は、保険では払わない。差し引く率は、船齢、つまり船ができてから満何年たったかの区分で決まる。免責額は、契約で決めた、船主が自分で負担する額だ。</p><p>去年の一件を、もう一度並べた。</p><div class=table-wrapper><table><thead><tr><th>項目</th><th>値</th></tr></thead><tbody><tr><td>竣工</td><td>2010年11月</td></tr><tr><td>事故</td><td>2025年9月14日</td></tr><tr><td>修繕費</td><td>3,000,000円</td></tr><tr><td>免責額</td><td>200,000円</td></tr><tr><td>報告書の支払額</td><td>2,500,000円</td></tr><tr><td>今のツールの支払額</td><td>2,200,000円</td></tr></tbody></table></div><p>控除の率は、船齢の区分でこう決めてある。</p><div class=table-wrapper><table><thead><tr><th>船齢</th><th>新旧交換控除の率</th></tr></thead><tbody><tr><td>5年未満</td><td>5%</td></tr><tr><td>15年未満</td><td>10%</td></tr><tr><td>15年以上</td><td>20%</td></tr></tbody></table></div><p>差は三十万円。修繕費のちょうど一割だ。最初にそれを見たとき、率の表そのものが変わったのだと読んだ。</p><p>報告書を出した時点の版には、<code>report-2025</code> というタグを付けてある。そこから今の <code>main</code> までの履歴を出した。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>$ git log --oneline report-2025..main
+</span></span><span class=line><span class=cl>fe2a5cf 手順書の誤字を直す
+</span></span><span class=line><span class=cl>793edc5 メモ: 書類の保管場所
+</span></span><span class=line><span class=cl>4197bb3 メモ: 現地調査の持ち物
+</span></span><span class=line><span class=cl>00ecbf7 査定の流れの図を差し替える
+</span></span><span class=line><span class=cl>d2e34d9 担当者の連絡先を更新する
+</span></span><span class=line><span class=cl>08381dc 支払額の端数処理を千円未満切り捨てに統一する
+</span></span><span class=line><span class=cl>f6fe247 README の実行手順を更新する
+</span></span><span class=line><span class=cl>5a6efab 査定手順書の見出しを整える
+</span></span><span class=line><span class=cl>729ec55 用語集に項目を追加する
+</span></span><span class=line><span class=cl>227189c 運用メモを追記する
+</span></span><span class=line><span class=cl>b4ede98 メモ: 年次報告の締め日
+</span></span><span class=line><span class=cl>46daa97 用語集の並びを整える
+</span></span><span class=line><span class=cl>807e2c2 手順書の誤字を直す
+</span></span><span class=line><span class=cl>be066e0 船齢の計算を共通関数 yearsBetween へまとめる
+</span></span><span class=line><span class=cl>17a1563 メモ: 現地調査の持ち物
+</span></span><span class=line><span class=cl>14b1357 査定の流れの図を差し替える
+</span></span><span class=line><span class=cl>0113b6b parseYM の呼び出しを新しい名前へ置き換える
+</span></span><span class=line><span class=cl>1714006 parseYM を parseYearMonth に改名する（途中）
+</span></span><span class=line><span class=cl>e8cfc8f README の実行手順を更新する
+</span></span><span class=line><span class=cl>c4d1226 査定手順書の見出しを整える
+</span></span><span class=line><span class=cl>96ab3e7 用語集に項目を追加する
+</span></span><span class=line><span class=cl>a24c8b8 運用メモを追記する
+</span></span><span class=line><span class=cl>83bd0a0 メモ: 年次報告の締め日
+</span></span><span class=line><span class=cl>f17935e 用語集の並びを整える
+</span></span><span class=line><span class=cl>b38a9ac 料率表を今年の改定に合わせる（5年未満の区分）
+</span></span><span class=line><span class=cl>906f33d メモ: 書類の保管場所
+</span></span><span class=line><span class=cl>773e1fa メモ: 現地調査の持ち物
+</span></span><span class=line><span class=cl>528f7ed 査定の流れの図を差し替える
+</span></span><span class=line><span class=cl>9400789 担当者の連絡先を更新する
+</span></span><span class=line><span class=cl>455568b 問い合わせ対応の記録を追記する
+</span></span><span class=line><span class=cl>dfa86d5 README の実行手順を更新する
+</span></span><span class=line><span class=cl>94a5406 査定手順書の見出しを整える
+</span></span><span class=line><span class=cl>039697b 用語集に項目を追加する
+</span></span></code></pre></td></tr></table></div></div><p>三十三件。上が新しく、下が古い。このツールのリポジトリには、手順書もメモも一緒に入れてある。だから、計算に関わらない件名が多い。</p><p>この一週間、これを上から読んできた。件名を見て、計算に触れていそうなものは差分を開く。</p><p>怪しいと読んだのは、二つだった。</p><p>一つは、<code>b38a9ac</code> の料率表の改定。控除の率の表の値を、今年の改定に合わせて書き換えている。差が修繕費のちょうど一割なら、率が変わったと読むのが筋だった。</p><p>二つ目は、<code>08381dc</code> の端数処理の統一。支払額の千円未満を切り捨てる。支払額の計算に、直に触れている。</p><p>二つとも、今の <code>main</code> の上から <code>git revert --no-commit</code> で戻して、去年の一件を流した。戻した版で、数字が直るかを見るためだ。</p><p>料率表を戻した。二百二十万円。</p><p>戻しを取り消して、端数処理を戻した。二百二十万円。</p><p>一円も変わらなかった。</p><p>読みが外れたのは、読み方が足りなかったからだ。そう考えた。差分をもっと丁寧に読めば、分かるはずだ。十八年、修繕の見積書と請求書の不備を、目で見つけてきた。見積書の一行に、前の年の単価が残っているのを見つける。それがわたしの仕事だ。</p><p>これまでのやり方は、読んで怪しいものから試す、というものだった。それで二回試して、二回とも外れた。</p><h2 id=第2幕-fail-の続き>第2幕: FAIL の続き</h2><p>昼になった。</p><p>洗浄機の唸りが止まった。作業員たちは、ドックの脇の詰所へ引き上げていった。急に静かになって、風が窓を叩く音だけが残った。</p><p>汐見さんは、机の端に自分の弁当を広げた。わたしは、途中のコンビニで買ったおにぎりを、鞄から出した。</p><p>おにぎりの包みを片手で剥がしながら、もう片方の手で差分を送った。料率表と端数処理のほかに、まだ読んでいない差分がある。</p><p>「仕事の、ですか」</p><p>汐見さんの声で、手が止まった。汐見さんは箸を持ったまま、わたしの画面を見ていた。差分の、赤と緑の行が並んでいる。</p><p>一瞬、言い淀んだ。それから、正確に言うことにした。</p><p>「監査の準備です。去年わたしが出した査定の報告書を、今のツールで計算し直しています。十件のうち一件だけ、支払額が合いません。報告書が二百五十万円、今のツールが二百二十万円。差は三十万円です」</p><p>汐見さんは、黙って聞いていた。箸は止まっていた。</p><p>「この一年の変更を読んで、怪しいものを二つ戻しました。どちらでも変わりませんでした。今は、三つ目を探しています」</p><p>汐見さんは、少しだけ間を置いて、訊いた。</p><p>「報告書を出した時点の版は、分かりますか」</p><p>「タグを付けてあります。<code>report-2025</code> です。その版で流すと、二百五十万円が出ます。報告書と一致します。それは、先週、確かめました」</p><p>確かめてあることは、確かめてあると言える。それだけは、言えた。</p><p>汐見さんは頷いた。箸を置いて、綴りの次の頁を開いた。</p><p>わたしは、おにぎりを置いた。</p><p>三つ目を、差分から選んだ。</p><p><code>1714006 parseYM を parseYearMonth に改名する（途中）</code>。</p><p><code>parseYM</code> は、竣工の年月や事故日の文字列から、年と月を取り出す関数だ。日付の扱いに触れている。それに、件名に「途中」とある。途中のまま入った変更は、書類でも、いちばん危ない。</p><p>今度は、戻すのをやめた。<code>1714006</code> を今の <code>main</code> の上から戻そうとすると、後の変更とぶつかる。同じ関数の名前を、次のコミットが書き換えているからだ。</p><p>そこで、やり方を変えた。<code>1714006</code> と、その一つ前の <code>e8cfc8f</code> を、それぞれチェックアウトする。それぞれで <code>go test ./...</code> を流す。既存のテストが一つ前で通って、<code>1714006</code> で落ちれば、そこで何かが変わった印になる。</p><p>一つ前を流した。ok。</p><p><code>1714006</code> を流した。FAIL。</p><p>身を乗り出していた。左手が、机に置いた去年の報告書の、支払額の行を指でなぞっていた。</p><p>これだ、と思った。日付の読み取りを変えて、途中で止まったコミット。船齢が変わって、控除の率が変わる。筋が通る。</p><p>画面の出力を、上から目で追った。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>$ go test ./...
+</span></span><span class=line><span class=cl># hullassess [hullassess.test]
+</span></span><span class=line><span class=cl>./assess.go:21:12: undefined: parseYM
+</span></span><span class=line><span class=cl>./assess.go:22:12: undefined: parseYM
+</span></span><span class=line><span class=cl>FAIL	hullassess [build failed]
+</span></span><span class=line><span class=cl>FAIL
+</span></span></code></pre></td></tr></table></div></div><p><code>[build failed]</code>。</p><p><code>undefined: parseYM</code>。</p><p>このコミットは、関数の名前を <code>parseYearMonth</code> に変えていた。でも、呼び出している側は、古い名前の <code>parseYM</code> のままだった。だから、ビルドが通らない。テストは、一つも走っていない。FAIL は、テストが落ちたという意味ではなかった。ビルドができなかったという意味だった。</p><p>次のコミット、<code>0113b6b</code> で、呼び出し側が新しい名前に置き換えてある。一つのコミットの中だけで、名前の変更が途中だった。</p><p>背もたれに、体を戻した。</p><p>FAIL の一語で、決めかけていた。確かめたのは、FAIL が出たことだけだ。去年の一件の数字が、このコミットで変わったことは、何も確かめていない。</p><p>保険の仕事でも、似たことがあった。若い頃、修理業者の請求書を、署名と社印の欄だけ見て通しかけた。中身の明細を見たのは、課長に戻されてからだ。欄が埋まっていることと、中身が正しいことは、違う。</p><p>おにぎりの残りを、食べた。味は、あまりしなかった。</p><p>食べ終えて、画面に戻った。</p><p>怪しいものは、もう残っていなかった。</p><p>読んで怪しいと思ったのは、三つ。料率表、端数処理、改名。三つとも違った。</p><p>残りの三十件を、一つずつ前後で試すか。一件に数分。来週の締め切りには、間に合わなくはない。でも、途中にビルドのできない版が、まだあるかもしれない。そのたびに FAIL の続きを確かめるのか。</p><p>それとも、差分を読み直すか。</p><p>そこで、引っかかった。三回、読んで選んで、三回とも外れた。</p><p>去年の報告書を、裏返して机に伏せた。</p><p><code>git log --oneline</code> の一覧を、画面の上から下まで、ゆっくり一度スクロールした。</p><p>一番下が、去年の版だ。<code>report-2025</code>。そこでは、去年の一件が合う。先週、確かめた。</p><p>一番上が、今の版だ。<code>main</code>。そこでは、合わない。</p><p>その間に、三十三件のコミットが、一本の列で並んでいる。枝分かれはない。</p><p>どこかで一度、合わなくなった。途中で一度直って、また壊れた、ということもありうる。ただ、そういう修正の件名は一覧に無い。一度壊れて、そのまま戻っていない、と置いてみる。</p><p>だとすると、ある版で去年の一件が合うなら、それより下の版は、全部合う。合わないなら、それより上の版は、全部合わない。合うと合わないの境目は、一本の列の中に、一つしかない。この置き方が崩れていたら、半分ずつの探し方は、境目のどれか一つを返すだけになる。</p><p>だから、真ん中の版を一つ試せば、半分が要らなくなる。</p><p>真ん中で合えば、境目は真ん中より上にある。下の半分は、もう見なくていい。合わなければ、境目は真ん中かそれより下にある。上の半分は見なくていい。</p><p>こうして、候補を半分ずつに減らしながら探すやり方を、二分探索という。</p><p>三十三件なら、十六、八、四、二、一。五回か、六回で一つに絞れる。三十件を一つずつ試すのとは、桁が違う。</p><p>その考え方で、履歴を探す道具の名前を、わたしは知っていた。</p><p>汐見さんが、綴りから顔を上げた。頁をめくる手が止まったところだった。</p><p>「汐見さん」</p><p>汐見さんは、頁に指を挟んだまま、こちらを向いた。</p><p>「履歴の中で、合うと合わないの境目は一つです。だから、半分ずつ探せます。git に、そのための git bisect という機能があります。社内の勉強会で、名前は聞きました」</p><p>「はい」</p><p>「git bisect は、最初に悪くなったコミットを探す機能です。良い版と悪い版を一つずつ渡すと、その間のコミットの並びを二分探索します。<code>git bisect run</code> に判定のコマンドを渡せば、良いか悪いかは、そのコマンドの終了コードで機械が決めます」</p><p>終了コードは、プログラムが終わるときに返す数だ。0 なら成功、それ以外なら失敗、というのが慣例になっている。</p><p>「使ったことは、ありません。途中にビルドのできない版がある履歴では、使えないと思っていました。でも、ビルドのできない版は、三十三件のうち一つか二つです。半分ずつ試すなら、当たらずに済むかもしれません」</p><p>最後の一言には、条件を付けた。付けながら、半分は期待していた。</p><p>汐見さんは、指を挟んだまま、短く言った。</p><p>「試してみては」</p><p>それだけ言って、綴りに目を戻した。</p><p>判定を書いた。</p><p>去年の一件のテストは、過去の版には無い。今日、わたしが書いたばかりだからだ。だから、テストのファイルはリポジトリの外に置いておく。判定のたびに、チェックアウトされた版の作業ツリーへ持ち込んで、<code>go test</code> を流す。終わったら消す。</p><p>テストは、去年の一件を一つ流して、支払額が報告書の二百五十万円と一致するかを見るだけのものにした。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=c1>// 去年の報告書の一件（監査で数字が合わなかった案件）。</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=nf>TestLastYearReport</span><span class=p>(</span><span class=nx>t</span><span class=w> </span><span class=o>*</span><span class=nx>testing</span><span class=p>.</span><span class=nx>T</span><span class=p>)</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>got</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nf>Assess</span><span class=p>(</span><span class=nx>Claim</span><span class=p>{</span><span class=nx>Completed</span><span class=p>:</span><span class=w> </span><span class=s>&#34;2010-11&#34;</span><span class=p>,</span><span class=w> </span><span class=nx>Accident</span><span class=p>:</span><span class=w> </span><span class=s>&#34;2025-09-14&#34;</span><span class=p>,</span><span class=w> </span><span class=nx>Repair</span><span class=p>:</span><span class=w> </span><span class=mi>3000000</span><span class=p>,</span><span class=w> </span><span class=nx>Deductible</span><span class=p>:</span><span class=w> </span><span class=mi>200000</span><span class=p>})</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>got</span><span class=p>.</span><span class=nx>Payment</span><span class=w> </span><span class=o>!=</span><span class=w> </span><span class=mi>2500000</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nx>t</span><span class=p>.</span><span class=nf>Errorf</span><span class=p>(</span><span class=s>&#34;Payment = %d, want 2500000&#34;</span><span class=p>,</span><span class=w> </span><span class=nx>got</span><span class=p>.</span><span class=nx>Payment</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p>判定のスクリプトは、テストのファイルの場所を引数で受け取る。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-sh data-lang=sh><span class=line><span class=cl><span class=cp>#!/bin/sh
+</span></span></span><span class=line><span class=cl>cp <span class=s2>&#34;</span><span class=nv>$1</span><span class=s2>&#34;</span> lastyear_test.go
+</span></span><span class=line><span class=cl>go <span class=nb>test</span> -count<span class=o>=</span><span class=m>1</span> -run TestLastYearReport . &gt;/dev/null 2&gt;<span class=p>&amp;</span><span class=m>1</span>
+</span></span><span class=line><span class=cl><span class=nv>code</span><span class=o>=</span><span class=nv>$?</span>
+</span></span><span class=line><span class=cl>rm -f lastyear_test.go
+</span></span><span class=line><span class=cl><span class=nb>exit</span> <span class=nv>$code</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>go test</code> の終了コードを、そのまま返す。去年の一件が合えば 0、合わなければ 0 以外。それを、<code>git bisect run</code> に渡した。</p><p><code>git bisect start</code> には、悪い版と良い版を、この順で渡す。手で一つずつ良い悪いを打つのでなく、範囲を渡して、あとは <code>run</code> に任せる。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>$ git bisect start main report-2025
+</span></span><span class=line><span class=cl>Bisecting: 16 revisions left to test after this (roughly 4 steps)
+</span></span><span class=line><span class=cl>[171400644dfaf2e7f9092f57f0b826d3a9130ed2] parseYM を parseYearMonth に改名する（途中）
+</span></span><span class=line><span class=cl>$ git bisect run ../first-judge.sh ../lastyear_test.go
+</span></span><span class=line><span class=cl>running &#39;../first-judge.sh&#39; &#39;../lastyear_test.go&#39;
+</span></span><span class=line><span class=cl>Bisecting: 7 revisions left to test after this (roughly 3 steps)
+</span></span><span class=line><span class=cl>[906f33d0b7698b61a2542df03a39e59c181c1593] メモ: 書類の保管場所
+</span></span><span class=line><span class=cl>running &#39;../first-judge.sh&#39; &#39;../lastyear_test.go&#39;
+</span></span><span class=line><span class=cl>Bisecting: 3 revisions left to test after this (roughly 2 steps)
+</span></span><span class=line><span class=cl>[a24c8b85d5f52e8627be18736533fb097ad4fbb3] 運用メモを追記する
+</span></span><span class=line><span class=cl>running &#39;../first-judge.sh&#39; &#39;../lastyear_test.go&#39;
+</span></span><span class=line><span class=cl>Bisecting: 1 revision left to test after this (roughly 1 step)
+</span></span><span class=line><span class=cl>[c4d1226dfa85518ab6b2eef0857c215cd48fc34c] 査定手順書の見出しを整える
+</span></span><span class=line><span class=cl>running &#39;../first-judge.sh&#39; &#39;../lastyear_test.go&#39;
+</span></span><span class=line><span class=cl>Bisecting: 0 revisions left to test after this (roughly 0 steps)
+</span></span><span class=line><span class=cl>[e8cfc8fd655d5ee98fe7d17f3b7a6758712542e6] README の実行手順を更新する
+</span></span><span class=line><span class=cl>running &#39;../first-judge.sh&#39; &#39;../lastyear_test.go&#39;
+</span></span><span class=line><span class=cl>171400644dfaf2e7f9092f57f0b826d3a9130ed2 is the first &#39;bad&#39; commit
+</span></span><span class=line><span class=cl>commit 171400644dfaf2e7f9092f57f0b826d3a9130ed2
+</span></span><span class=line><span class=cl>Author: Narumi &lt;narumi@example.com&gt;
+</span></span><span class=line><span class=cl>Date:   Tue Jan 20 10:00:00 2026 +0900
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    parseYM を parseYearMonth に改名する（途中）
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl> assess.go | 2 +-
+</span></span><span class=line><span class=cl> 1 file changed, 1 insertion(+), 1 deletion(-)
+</span></span><span class=line><span class=cl>bisect found first &#39;bad&#39; commit
+</span></span></code></pre></td></tr></table></div></div><p>最初に <code>git bisect start</code> が選んだ真ん中は、よりによって <code>1714006</code> だった。三十三件の中の、ビルドのできない一件。</p><p>当たらずに済むかもしれない、という期待は、一回目で外れていた。</p><p>判定は五回。最後に、<code>1714006</code> のハッシュの後ろに、<code>is the first 'bad' commit</code> と出ている。最初に悪くなったコミットは、これだ、という意味だ。</p><p>キーボードの上で、手が止まった。</p><p>機械は、わたしが三つ目でしたのと同じ読み違いを、迷わずにしていた。ビルドが通らなくて落ちたのを、去年の一件が合わないのと同じに数えた。悪いと数えた瞬間に、その版より上は、本当の原因の <code>be066e0</code> ごと候補から外れた。あとは下の版をいくつか良いと判定して、確かそうな一文を返した。</p><p>警告は、何も出ていない。</p><p><code>git bisect reset</code> を打った。作業ツリーが、<code>main</code> に戻った。</p><p>椅子を、汐見さんのほうへ回した。</p><h2 id=第3幕-分からないと言える>第3幕: 分からない、と言える</h2><p>「機械に任せても、同じでした」</p><p>汐見さんが、綴りから顔を上げた。</p><p>「ビルドのできない版を、最初に壊れたコミットとして返しました。わたしが昼にしたのと、同じ間違いです。昼のわたしは、出力の続きを読んで気づけました。機械には、どう伝えればよかったのか」</p><p>汐見さんは、わたしの画面を見た。<code>is the first 'bad' commit</code> の行に、目が留まっている。</p><p>顔を上げて、問いを一つだけ置いた。</p><p>「その版は、壊れているんですか。それとも、分からないんですか」</p><p>口を開きかけて、画面の判定のスクリプトを見た。<code>exit $code</code>。</p><p><code>1714006</code> がビルドのできない版だということは、知っている。昼に、自分の目で確かめた。</p><p>でも、わたしの判定には、答えが二つしか書いていない。0 か、0 以外か。良いか、悪いか。</p><p>ビルドのできない版では、去年の一件は流れていない。テストは一つも走っていない。合うとも、合わないとも、確かめていない。それなのに、機械には「悪い」と伝わっていた。</p><p>分からない、と伝える手段を、わたしは書いていなかった。</p><p>「……分からない、が正しいです。あの版では、去年の一件を流せていません」</p><p>汐見さんは、手元の野帳を少し持ち上げた。</p><p>「私は、確かめて違ったことと、確かめられなかったことを、別の所に書きます。同じ所に書くと、あとで、どちらだったか分からなくなるので」</p><p>野帳は、元の机の端に戻された。</p><p>査定の書類にも、その欄がある。判定不能。損傷が事故によるものか、前からあったものか、現物で確かめられないときに使う欄だ。わたしは毎週、その欄を使っている。</p><p>ビルドのできない版には、判定不能の欄を作っていなかった。</p><p>自分で確かめることにした。もう一度、<code>1714006</code> をチェックアウトした。今度は、<code>go test</code> の文字を見ずに、終了コードだけを出した。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>$ go test ./... &gt;/dev/null 2&gt;&amp;1; echo $?
+</span></span><span class=line><span class=cl>1
+</span></span></code></pre></td></tr></table></div></div><p>次に、去年の一件が本当に合わない版、今の <code>main</code> に戻った。去年の一件のテストを置いて、同じように終了コードだけを出した。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>$ go test ./... &gt;/dev/null 2&gt;&amp;1; echo $?
+</span></span><span class=line><span class=cl>1
+</span></span></code></pre></td></tr></table></div></div><p>どちらも 1。</p><p>FAIL の文字だけの話ではなかった。機械に渡る数の段でも、ビルドができないことと、去年の一件が合わないことが、同じ 1 になっている。わたしのスクリプトは、その 1 を、そのまま渡していた。</p><p>git bisect の公式のドキュメントを開いた。<code>git bisect run</code> の節に、終了コードの決まりが書いてある。</p><div class=table-wrapper><table><thead><tr><th>終了コード</th><th><code>git bisect run</code> での意味</th></tr></thead><tbody><tr><td>0</td><td>良い（good）</td></tr><tr><td>1〜127（125 を除く）</td><td>悪い（bad）</td></tr><tr><td>125</td><td>このコミットは調べられない。飛ばす（skip）</td></tr><tr><td>それ以外</td><td>bisect を中止する</td></tr></tbody></table></div><p>125 の行を、指先で押さえた。</p><p>ビルドのできない版は、良いとも悪いとも言えない。そういう版のために、125 が用意してあった。125 を返せば、bisect はその版を飛ばす。飛ばした版の前後で、境目を探し続ける。</p><p>途中にビルドのできない版がある履歴では使えない、と思っていた。使えなかったのではない。わたしが、125 を返していなかった。</p><p>判定を書き直した。</p><p>今度は Go で書いた。去年の一件のテストを、プログラムの中に埋め込める。毎回テストのファイルの場所を引数で渡さなくて済む。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=c1>// judge は git bisect run に渡す判定プログラム。</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=c1>// 0 が良い、1 が壊れている、125 が調べられない（飛ばす）。</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kn>package</span><span class=w> </span><span class=nx>main</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kn>import</span><span class=w> </span><span class=p>(</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>_</span><span class=w> </span><span class=s>&#34;embed&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=s>&#34;os&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=s>&#34;os/exec&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=cp>//go:embed testdata/lastyear_test.go</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>var</span><span class=w> </span><span class=nx>lastYearTest</span><span class=w> </span><span class=p>[]</span><span class=kt>byte</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=nf>main</span><span class=p>()</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>exec</span><span class=p>.</span><span class=nf>Command</span><span class=p>(</span><span class=s>&#34;go&#34;</span><span class=p>,</span><span class=w> </span><span class=s>&#34;build&#34;</span><span class=p>,</span><span class=w> </span><span class=s>&#34;./...&#34;</span><span class=p>).</span><span class=nf>Run</span><span class=p>()</span><span class=w> </span><span class=o>!=</span><span class=w> </span><span class=kc>nil</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nx>os</span><span class=p>.</span><span class=nf>Exit</span><span class=p>(</span><span class=mi>125</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>os</span><span class=p>.</span><span class=nf>WriteFile</span><span class=p>(</span><span class=s>&#34;lastyear_test.go&#34;</span><span class=p>,</span><span class=w> </span><span class=nx>lastYearTest</span><span class=p>,</span><span class=w> </span><span class=mi>0</span><span class=nx>o644</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>err</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>exec</span><span class=p>.</span><span class=nf>Command</span><span class=p>(</span><span class=s>&#34;go&#34;</span><span class=p>,</span><span class=w> </span><span class=s>&#34;test&#34;</span><span class=p>,</span><span class=w> </span><span class=s>&#34;-count=1&#34;</span><span class=p>,</span><span class=w> </span><span class=s>&#34;-run&#34;</span><span class=p>,</span><span class=w> </span><span class=s>&#34;TestLastYearReport&#34;</span><span class=p>,</span><span class=w> </span><span class=s>&#34;.&#34;</span><span class=p>).</span><span class=nf>Run</span><span class=p>()</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>os</span><span class=p>.</span><span class=nf>Remove</span><span class=p>(</span><span class=s>&#34;lastyear_test.go&#34;</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>err</span><span class=w> </span><span class=o>!=</span><span class=w> </span><span class=kc>nil</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nx>os</span><span class=p>.</span><span class=nf>Exit</span><span class=p>(</span><span class=mi>1</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p><code>//go:embed</code> は、ビルドのときに、指定したファイルの中身を変数に詰める指示だ。<code>lastYearTest</code> には、さっきの <code>TestLastYearReport</code> のファイルが、そのまま入る。</p><p>上から順に、三つの答えがある。</p><p>まず、<code>go build ./...</code> を流す。ビルドが通らなければ、125 で終わる。この版は調べられない、という答えだ。</p><p>ビルドが通れば、去年の一件のテストを作業ツリーに置いて、<code>go test</code> を流す。終わったらすぐに消す。チェックアウトされた版に、余計なファイルを残したまま次の版へ進まないためだ。テストが落ちれば 1。壊れている、という答えだ。</p><p>テストが通れば、そのまま <code>main</code> を抜けて、0 で終わる。良い、という答えだ。</p><p>さっきのスクリプトとやっていることの違いは、最初の <code>go build</code> で 125 を返す段があるかどうか、それだけだ。</p><p>書き直した判定を、答えの出口ごとに並べ直すと、こうなる。札の「組み立て」は <code>go build</code>、「見送る」は <code>git bisect run</code> の skip のことだ。</p><p><img src=/public_images/2026/code-salvager-git-bisect-first-bad-commit/infographic_1.svg loading=lazy alt="判定プログラムの三つの出口。組み立てが通らない版は 125 で見送り、通った版は去年の一件のテストが合えば 0、合わなければ 1 を返す"></p><p>出口が三つになった。確かめられない版は、良いの側にも悪いの側にも入らない。</p><p>判定プログラムは、リポジトリの外でビルドして、外に置いた。</p><p>公式のドキュメント（<a class=link href=https://git-scm.com/docs/git-bisect#_bisect_run target=_blank rel=noopener>git-bisect の Bisect run の節</a>）の例でも、判定のスクリプトはリポジトリの外に置くよう勧めている。理由は、読めば分かった。bisect は、古い版を次々にチェックアウトする。古い版に切り替わると、中に置いた判定のファイルは消えたり、古い中身に戻ったりする。判定が版ごとに変わったら、良い悪いの物差しが揺れる。</p><p>渡し方は、さっきと同じだ。<code>git bisect start</code> で範囲を渡し、<code>git bisect run</code> に判定プログラムのパスを渡す。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>$ git bisect start main report-2025
+</span></span><span class=line><span class=cl>Bisecting: 16 revisions left to test after this (roughly 4 steps)
+</span></span><span class=line><span class=cl>[171400644dfaf2e7f9092f57f0b826d3a9130ed2] parseYM を parseYearMonth に改名する（途中）
+</span></span><span class=line><span class=cl>$ git bisect run ../judge
+</span></span><span class=line><span class=cl>running &#39;../judge&#39;
+</span></span><span class=line><span class=cl>Bisecting: 15 revisions left to test after this (roughly 4 steps)
+</span></span><span class=line><span class=cl>[0113b6b1c8801f07e20a61c525fb74edc98b7145] parseYM の呼び出しを新しい名前へ置き換える
+</span></span><span class=line><span class=cl>running &#39;../judge&#39;
+</span></span><span class=line><span class=cl>Bisecting: 7 revisions left to test after this (roughly 3 steps)
+</span></span><span class=line><span class=cl>[729ec553fecfc44072069ce17cd20a5d6bdd5d06] 用語集に項目を追加する
+</span></span><span class=line><span class=cl>running &#39;../judge&#39;
+</span></span><span class=line><span class=cl>Bisecting: 3 revisions left to test after this (roughly 2 steps)
+</span></span><span class=line><span class=cl>[807e2c28f83a1dcee2299e7e8484ac1c51bc4a47] 手順書の誤字を直す
+</span></span><span class=line><span class=cl>running &#39;../judge&#39;
+</span></span><span class=line><span class=cl>Bisecting: 1 revision left to test after this (roughly 1 step)
+</span></span><span class=line><span class=cl>[17a1563200526206fdc37778b3eb3f6a62030f3a] メモ: 現地調査の持ち物
+</span></span><span class=line><span class=cl>running &#39;../judge&#39;
+</span></span><span class=line><span class=cl>Bisecting: 0 revisions left to test after this (roughly 0 steps)
+</span></span><span class=line><span class=cl>[be066e01937dfe5b8be19c5cfdd66d5d7eb19072] 船齢の計算を共通関数 yearsBetween へまとめる
+</span></span><span class=line><span class=cl>running &#39;../judge&#39;
+</span></span><span class=line><span class=cl>be066e01937dfe5b8be19c5cfdd66d5d7eb19072 is the first &#39;bad&#39; commit
+</span></span><span class=line><span class=cl>commit be066e01937dfe5b8be19c5cfdd66d5d7eb19072
+</span></span><span class=line><span class=cl>Author: Narumi &lt;narumi@example.com&gt;
+</span></span><span class=line><span class=cl>Date:   Sat Jan 24 10:00:00 2026 +0900
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    船齢の計算を共通関数 yearsBetween へまとめる
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl> assess.go | 13 +++++++------
+</span></span><span class=line><span class=cl> 1 file changed, 7 insertions(+), 6 deletions(-)
+</span></span><span class=line><span class=cl>bisect found first &#39;bad&#39; commit
+</span></span></code></pre></td></tr></table></div></div><p>一回目は、また <code>1714006</code> から始まっている。</p><p>その次の行で、さっきと分かれた。残りが七件に減るのでなく、十五件になっている。<code>1714006</code> を良いとも悪いとも数えずに、隣の <code>0113b6b</code> へ移った。判定プログラムが 125 を返して、飛ばされたらしい。</p><p><code>0113b6b</code> は良い。去年の一件が合う。だとすると、それより下は全部合う。境目は、それより上にある。</p><p>そこから先は、まっすぐだった。上の半分の真ん中を試して悪い。その下を試して悪い。その下で良い。最後に <code>be066e0</code> を試して悪い。判定は六回。一回は、ビルドのできない版を飛ばすのに使った。</p><p><code>report-2025</code> から <code>main</code> までを、一本の列に描き直した。境目は一つで、二つの判定が違ったのは <code>1714006</code> の数え方だけだった。</p><p><img src=/public_images/2026/code-salvager-git-bisect-first-bad-commit/infographic_2.svg loading=lazy alt="report-2025 から main までの一本の列。125 のない判定は組み立て不能の 1714006 を返し、125 のある判定はそれを見送って境目の be066e0 を返す"></p><p>125 を返さなければ、<code>1714006</code> から上は候補から消えていた。本当の境目の <code>be066e0</code> も、そこに含まれていた。</p><p>最後の行に、<code>be066e0</code> がある。</p><p><code>船齢の計算を共通関数 yearsBetween へまとめる</code>。</p><p>一度も、怪しいと思わなかったコミットだった。</p><p>この一週間、件名は何度も見ていた。「船齢」とある。去年の一件の差は、控除の率の差だった。率は、船齢の区分で決まる。それでも素通りした。件名に「まとめる」とあったからだ。整理のコミットだと思った。整理は、振る舞いを変えないためにするものだ。</p><p><code>git show</code> で、変更の大きさを確かめた。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>$ git show --stat --oneline be066e0
+</span></span><span class=line><span class=cl>be066e0 船齢の計算を共通関数 yearsBetween へまとめる
+</span></span><span class=line><span class=cl> assess.go | 13 +++++++------
+</span></span><span class=line><span class=cl> 1 file changed, 7 insertions(+), 6 deletions(-)
+</span></span></code></pre></td></tr></table></div></div><p>十三行。差分を開いた。行は少なく、きれいに揃っていた。<code>Assess</code> の中にあった船齢の計算を、<code>yearsBetween</code> という関数へ出している。今の <code>main</code> では、こうなっている。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=c1>// Assess は修繕費から新旧交換控除と免責額を引いた支払額を返す。</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=nf>Assess</span><span class=p>(</span><span class=nx>c</span><span class=w> </span><span class=nx>Claim</span><span class=p>)</span><span class=w> </span><span class=nx>Result</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>age</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nf>yearsBetween</span><span class=p>(</span><span class=nx>c</span><span class=p>.</span><span class=nx>Completed</span><span class=p>,</span><span class=w> </span><span class=nx>c</span><span class=p>.</span><span class=nx>Accident</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>deduction</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>c</span><span class=p>.</span><span class=nx>Repair</span><span class=w> </span><span class=o>*</span><span class=w> </span><span class=nf>depreciationRate</span><span class=p>(</span><span class=nx>age</span><span class=p>)</span><span class=w> </span><span class=o>/</span><span class=w> </span><span class=mi>100</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>pay</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>c</span><span class=p>.</span><span class=nx>Repair</span><span class=w> </span><span class=o>-</span><span class=w> </span><span class=nx>deduction</span><span class=w> </span><span class=o>-</span><span class=w> </span><span class=nx>c</span><span class=p>.</span><span class=nx>Deductible</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>pay</span><span class=w> </span><span class=p>&lt;</span><span class=w> </span><span class=mi>0</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nx>pay</span><span class=w> </span><span class=p>=</span><span class=w> </span><span class=mi>0</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>pay</span><span class=w> </span><span class=p>=</span><span class=w> </span><span class=nx>pay</span><span class=w> </span><span class=o>/</span><span class=w> </span><span class=mi>1000</span><span class=w> </span><span class=o>*</span><span class=w> </span><span class=mi>1000</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>return</span><span class=w> </span><span class=nx>Result</span><span class=p>{</span><span class=nx>Age</span><span class=p>:</span><span class=w> </span><span class=nx>age</span><span class=p>,</span><span class=w> </span><span class=nx>Payment</span><span class=p>:</span><span class=w> </span><span class=nx>pay</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=nf>yearsBetween</span><span class=p>(</span><span class=nx>from</span><span class=p>,</span><span class=w> </span><span class=nx>to</span><span class=w> </span><span class=kt>string</span><span class=p>)</span><span class=w> </span><span class=kt>int</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>fy</span><span class=p>,</span><span class=w> </span><span class=nx>_</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nf>parseYearMonth</span><span class=p>(</span><span class=nx>from</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>ty</span><span class=p>,</span><span class=w> </span><span class=nx>_</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nf>parseYearMonth</span><span class=p>(</span><span class=nx>to</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>return</span><span class=w> </span><span class=nx>ty</span><span class=w> </span><span class=o>-</span><span class=w> </span><span class=nx>fy</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p><code>parseYearMonth</code> は、年と月の二つを返す。<code>yearsBetween</code> は、そのうちの年だけを受け取って、月を <code>_</code> で捨てている。年の差だけを返している。</p><p>差分の消えた側を、もう一度見た。元の計算は、事故の月が竣工の月より前なら、一年引いていた。満年数にするためだ。</p><p>竣工は 2010年11月。事故は 2025年9月。年の差は15。でも、9月は11月より前だから、満年数は14年だ。</p><p>元の計算なら14年で、15年未満の区分。控除は一割で、三十万円。</p><p><code>yearsBetween</code> では15年で、15年以上の区分。控除は二割で、六十万円。</p><p>差の三十万円は、これだった。</p><p>背筋を伸ばして、画面から少し離れた。</p><p>読んで怪しいと思った三つは、無実だった。料率表も、端数処理も、改名も。</p><p>犯人は、読んでも怪しく見えない整理だった。月を捨てる <code>_</code> は、一文字だ。差分を読み直していたら、わたしはまた読み飛ばしていた。読んでも分からなかったはずだ。</p><p>機械は、差分を読まない。去年の一件が合うかどうかだけを、版ごとに確かめた。ビルドのできない版では、調べられないと言わせて、飛ばした。それで、ここまで届いた。</p><p>汐見さんが、まだこちらを見ていた。わたしは口を開いた。</p><p>「読むのを、やめればよかったんですね。何が怪しいかを読むのでなく、何をもって良いとするかの判定だけを書いて、あとは機械に版を渡させる」</p><p>汐見さんは、窓の外へ目をやった。</p><p>ドックの底で、作業員が外板の格子に、探触子を当てていた。札が一枚、また一枚と貼られていく。汐見さんは、しばらくそれを見ていた。</p><p>わたしは、分かったことを、監査用のメモに書き付けた。良い版、悪い版、判定の中身、判定の回数、最初に悪くなったコミット。書き終えて、上着を取った。</p><p>外の空気が吸いたかった。</p><p>外階段を下りると、風が少し弱まっていた。洗浄機は、船尾から船の中ほどへ移っていた。</p><p>汐見さんは、先に外板の前に戻っていた。左舷の、船尾寄りの所だ。作業員から厚さ計を受け取って、チョークの格子の交点に、探触子を一つずつ当てている。計器の数字を見て、野帳に書く。次の交点へ移る。また当てて、書く。</p><p>ある交点で、汐見さんの手が止まった。</p><p>計器の表示が、定まらずに揺れていた。数字が出ては消え、別の数字が出る。そこは、古い塗膜が浮いて、下の錆がくぼんでいる所だった。</p><p>汐見さんは、探触子を二度、当て直した。表示は、やはり揺れた。</p><p>汐見さんは野帳に、その交点の数字の代わりに、何か短く書いた。肩越しに、字が見えた。</p><p>読めない。</p><p>それから、チョークで、その交点を小さな丸で囲んだ。丸を付け終えると、隣の交点へ移って、探触子を当てた。数字が出た。それを書いた。</p><p>そう書くのか、と思った。</p><p>汐見さんが探触子を外したところで、訊いた。</p><p>「一つ、伺ってもいいですか」</p><p>汐見さんは、計器を持ったまま、こちらを向いた。</p><p>「さっきの判定ですが。もし判定が、同じ版で、ときどき違う答えを返したら、どうなりますか」</p><p>「違うコミットを、確かそうに返します」</p><p>汐見さんは、計器の電源を切りながら続けた。</p><p>「一度、良いと言われた版より古い側は、全部捨てられます。境目はそれより新しい側にある、と決めつけられます。たまたま通った版で良いと言われたら、本当の境目はもう候補に残りません。警告は出ません。ですから、揺れる判定は渡しません」</p><p>さっきの一文を思い出した。<code>is the first 'bad' commit</code>。迷いのない一文だった。判定が揺れていても、あれと同じ顔で出てくる。</p><p>ノートパソコンを、外階段の段に置いて開いた。判定に使ったテストを、もう一度見た。<code>Assess</code> に、竣工年月と事故日と金額を、文字列と数で渡しているだけだ。<code>Assess</code> の中も追った。テストも <code>Assess</code> も、時計や乱数をどこにも読んでいない。何度流しても、同じ版なら同じ答えになる。</p><p>「時計も乱数も、使っていません」</p><p>汐見さんは頷いて、厚さ計を作業員に返した。</p><p>事務所に戻った。</p><p>汐見さんは、綴りの続きを読み始めた。わたしは、残りの九件の報告書を、監査の書式に整えていった。九件は、もう合っている。数字を写して、根拠の頁を添えるだけだ。</p><p>ストーブの上で、やかんが小さく鳴っていた。</p><p>手を動かしながら、何とはなしに口が開いた。</p><p>「保険の請求では、事故の前の改修の記録を、まず見るんです」</p><p>汐見さんが、頁をめくる手を止めた。</p><p>「船の姿が、図面から変わっていないかを見るためです。保険を引き受けたときの図面と、事故のときの船が、同じとは限りません。変わっていれば、どこが変わったかを、書類で確かめます。それから損傷を見ます」</p><p>十八年、そうしてきた。見積書より先に、改修の記録を見る。新人の頃に、そう教わった。</p><p>汐見さんは、綴りの背表紙の列に、指を置いた。</p><p>年の書かれた背表紙を、指でたどっていく。一冊ずつ、順に。ある年のところで、指が止まった。沈む四年前の綴りだった。</p><p>汐見さんはそれを抜いて、目次の頁を開いた。入渠の記録の頁番号を確かめて、その頁を直接開いた。</p><p>入渠（にゅうきょ）は、船をドックに入れることだ。水から上げて、船体の検査や修理をする。</p><p>汐見さんが開いた頁は、入渠の工事の一覧だった。上に、入渠の年月が書いてある。その下に、工事の項目が一行ずつ並んでいる。外板の塗装。プロペラの点検。弁の交換。</p><p>汐見さんの指が、一つの行で止まった。</p><p>甲板上に、構造物を増設する改修。</p><p>汐見さんは、その一行を、野帳に書き写した。</p><p>書き終えると、頁を開いたまま、一度だけ、事務所の窓の外を見た。窓からは、船の甲板が見える。汐見さんの目は、そこにしばらく留まっていた。</p><p>それから、綴りの次の頁に手をかけた。</p><p>わたしは、汐見さんの指が止まった一行を、横から見ていた。甲板上に、構造物を増設する改修。</p><p>改修の記録があること自体は、保険の人間には、ありふれている。</p><p>わたしは、九件の書類に戻った。</p><h2 id=第4幕-綴じる>第4幕: 綴じる</h2><p><code>yearsBetween</code> を直した。</p><p>事故の月が竣工の月より前なら、一年引く。消えていた一段を、関数の中に戻す。関数の形は変えない。<code>Assess</code> も、呼び出している所も、触らない。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span><span class=lnt>9
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=nf>yearsBetween</span><span class=p>(</span><span class=nx>from</span><span class=p>,</span><span class=w> </span><span class=nx>to</span><span class=w> </span><span class=kt>string</span><span class=p>)</span><span class=w> </span><span class=kt>int</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>fy</span><span class=p>,</span><span class=w> </span><span class=nx>fm</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nf>parseYearMonth</span><span class=p>(</span><span class=nx>from</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>ty</span><span class=p>,</span><span class=w> </span><span class=nx>tm</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nf>parseYearMonth</span><span class=p>(</span><span class=nx>to</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=nx>years</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>ty</span><span class=w> </span><span class=o>-</span><span class=w> </span><span class=nx>fy</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>if</span><span class=w> </span><span class=nx>tm</span><span class=w> </span><span class=p>&lt;</span><span class=w> </span><span class=nx>fm</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>		</span><span class=nx>years</span><span class=o>--</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>	</span><span class=k>return</span><span class=w> </span><span class=nx>years</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p>去年の一件を流した。二百五十万円。報告書の数字と、一円まで一致した。</p><p>直して変わるのは、どの案件か。保険の書類の書き方で、条件を付けて考えた。</p><p>直した一段が効くのは、事故の月が竣工の月より前のときだけだ。そのときだけ、船齢が一年減る。さらに、一年減ったことで船齢の区分が変わる案件でなければ、控除の率は変わらない。支払額も変わらない。</p><p>だから、直す前と後で支払額が変わるのは、事故の月が竣工の月より前で、しかも船齢が区分の境目にかかる案件だけだ。</p><p>それを、代表の案件をテストに流して確かめた。事故の月が竣工の月と同じ案件では、直す前も後も同じ額が出た。月が後の案件も、同じだった。月が前でも、船齢が区分の境目から離れている案件は、やはり同じ額だった。挙動が変わったのは、去年の一件のような、境目にかかる案件だけだった。</p><p>比べたのは、<code>Assess</code> の返す支払額だ。bisect の出力も、判定の回数も、処理の速さも、査定の結果ではないので外した。</p><p>判定プログラムと bisect は、製品のコードに、一行も足していない。判定プログラムはリポジトリの外にある。去年の一件のテストも、判定のあいだは持ち込んで、終わるたびに消していた。製品のファイルに差分がないことを、<code>git status</code> で確かめた。</p><p>それから、去年の一件のテストを、<code>TestLastYearReport</code> のまま、製品のテストに加えた。判定に使ったものを、そのまま入れた。次に誰かが船齢の計算をまとめ直しても、この一件が落ちる。</p><p>ここで、一つ気になった。</p><p>今日は、運が良かったのではないか。ビルドのできない版が、原因の <code>be066e0</code> から離れていた。<code>1714006</code> と <code>be066e0</code> の間には、良い版が何件か挟まっていた。</p><p>もし、ビルドのできない版が、原因のすぐ隣にあったら。</p><p>条件を変えて確かめるのは、査定の癖だ。手元のノートパソコンで、同じ形の小さな履歴を作った。良い版から、計算に触れないコミットを何件か積む。ビルドのできない改名の途中のコミットを置く。そのすぐ次に、船齢をまとめるコミットを置く。このコミットは、<code>Assess</code> の中の古い名前の呼び出しを <code>yearsBetween</code> へ置き換えるので、ここでビルドは通る。改名の続きはその後にして、残りを積む。十二件の小さな履歴だ。</p><p>同じ判定プログラムを渡した。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>$ git bisect start main report-2025
+</span></span><span class=line><span class=cl>Bisecting: 5 revisions left to test after this (roughly 3 steps)
+</span></span><span class=line><span class=cl>[44eafbcc96cbcd1168a543e48bc0e9025d2c28bb] 査定の流れの図を差し替える
+</span></span><span class=line><span class=cl>$ git bisect run ../judge
+</span></span><span class=line><span class=cl>running &#39;../judge&#39;
+</span></span><span class=line><span class=cl>Bisecting: 2 revisions left to test after this (roughly 2 steps)
+</span></span><span class=line><span class=cl>[7c643a8e453e3dbba4060439a92c1ea1002ec6b5] 手順書の誤字を直す
+</span></span><span class=line><span class=cl>running &#39;../judge&#39;
+</span></span><span class=line><span class=cl>Bisecting: 0 revisions left to test after this (roughly 1 step)
+</span></span><span class=line><span class=cl>[e2e45baaf013773c5d7ae95b4598d6cddb59a001] 船齢の計算を共通関数 yearsBetween へまとめる
+</span></span><span class=line><span class=cl>running &#39;../judge&#39;
+</span></span><span class=line><span class=cl>Bisecting: 0 revisions left to test after this (roughly 0 steps)
+</span></span><span class=line><span class=cl>[e5b2e5db4b75c5743d977435dc84025115c9d512] parseYM を parseYearMonth に改名する（途中）
+</span></span><span class=line><span class=cl>running &#39;../judge&#39;
+</span></span><span class=line><span class=cl>There are only &#39;skip&#39;ped commits left to test.
+</span></span><span class=line><span class=cl>The first &#39;bad&#39; commit could be any of:
+</span></span><span class=line><span class=cl>e5b2e5db4b75c5743d977435dc84025115c9d512
+</span></span><span class=line><span class=cl>e2e45baaf013773c5d7ae95b4598d6cddb59a001
+</span></span><span class=line><span class=cl>We cannot bisect more!
+</span></span><span class=line><span class=cl>error: bisect run cannot continue any more
+</span></span></code></pre></td></tr></table></div></div><p>判定は四回。最後に、候補が二つ並んで止まった。</p><p>一つは改名の途中のコミットで、もう一つは船齢をまとめるコミットだ。最初に悪くなったのは、このどちらかだ、と書いてある。</p><p>理屈をたどった。改名の途中の版では、ビルドができない。判定プログラムは、分からないと答えた。船齢をまとめた版では、去年の一件が合わない。改名の前の版では、合う。</p><p>だとすると、悪くなったのは、改名の途中の版かもしれない。その版がビルドできたなら、そこでもう合わなくなっていた可能性を、誰も否定できない。だから、二つまでしか絞れない。</p><p>判定プログラムは、嘘をつかずに、分からないと答えた。その結果、二つまで絞って止まった。分からない版を悪いと言わせていたら、一つに絞った顔で、改名の途中のほうを返していたはずだ。昼に書いた、わたしの最初の判定のように。</p><p>そこから先は、人が見る。改名の途中の版の呼び出し側だけ直して、そこで試す。あるいは、二つの差分を見比べる。二つなら、見比べられる。</p><p>汐見さんに、画面を見せた。</p><p>汐見さんは、候補が二つ並んだ行を見て、言った。</p><p>「二つまで、と書けば足ります」</p><p>査定の書類でも、二つのうちどちらか、とだけ書くことがある。損傷の原因が、事故か、その前の荒天か。書類で絞れるのはそこまでで、残りは現場で確かめる。</p><p>監査への報告を書き始めた。</p><p>原因のコミットの説明より先に、どう特定したかを書いた。良い版は <code>report-2025</code>。悪い版は <code>main</code>。判定の条件は、去年の一件の支払額が二百五十万円になること。ビルドのできない版は、調べられない版として飛ばしたこと。判定は六回だったこと。</p><p>それから、原因を書いた。<code>be066e0</code> で、船齢の計算を共通の関数にまとめたときに、月の比べを落としたこと。その後に、直した一手と、確かめた範囲を書いた。</p><p>一週間前のわたしなら、原因から書いていた。この差分が怪しいと読みました、と。</p><p><code>git bisect log</code> を出した。bisect が、どの版を、どう判定したかの記録だ。この記録があれば、同じ手順を誰でも辿り直せる。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span><span class=lnt>9
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-text data-lang=text><span class=line><span class=cl>$ git bisect log
+</span></span><span class=line><span class=cl># bad: [fe2a5cf2075e27b47772f33127b34510476936ef] 手順書の誤字を直す
+</span></span><span class=line><span class=cl># good: [b9020e0c77b12947af2a85aa0d7b513acbb0ef92] 2025年の報告書の版を確定する
+</span></span><span class=line><span class=cl>git bisect start &#39;main&#39; &#39;report-2025&#39;
+</span></span><span class=line><span class=cl># skip: [171400644dfaf2e7f9092f57f0b826d3a9130ed2] parseYM を parseYearMonth に改名する（途中）
+</span></span><span class=line><span class=cl>git bisect skip 171400644dfaf2e7f9092f57f0b826d3a9130ed2
+</span></span><span class=line><span class=cl># good: [0113b6b1c8801f07e20a61c525fb74edc98b7145] parseYM の呼び出しを新しい名前へ置き換える
+</span></span><span class=line><span class=cl>git bisect good 0113b6b1c8801f07e20a61c525fb74edc98b7145
+</span></span><span class=line><span class=cl># bad: [729ec553fecfc44072069ce17cd20a5d6bdd5d06] 用語集に項目を追加する
+</span></span></code></pre></td></tr></table></div></div><p>ここに載せたのは、冒頭の数行だけだ。最初の二行に、悪い版と良い版が書いてある。その後に、<code>skip</code> の行がある。<code>1714006</code> を、調べられない版として飛ばした記録だ。わたしが判定不能の欄に書いたことが、ここに残っている。</p><p>社長に断って、事務所のプリンタを借りた。印刷が出てくるのを、待った。</p><p>紙を取って、汐見さんの机のほうを向いた。</p><p>「汐見さん。今日の野帳の頁を、写させていただけませんか。監査の報告に、特定の手順を付けます。その綴りにも、今日の分を残しておきたいので」</p><p>汐見さんは、野帳を胸ポケットから出した。今日の頁を開いて、下の余白を空けた。</p><p>「鳴海さんの件を、先にここへ書きます」</p><p>わたしが数字と版の名前を言うと、汐見さんはそれを、位置と数字だけの短い行にして書いた。料率表、外れ。端数処理、外れ。書き終えると、立ち上がって、プリンタの隣の、古いコピー機の前へ行った。蓋を持ち上げて、野帳を今日の頁で開き、ガラスの上に伏せて置いた。蓋を、手で軽く押さえる。ボタンを押した。</p><p>光が、蓋の隙間から一往復した。</p><p>出てきた写しを、汐見さんは窓の明かりにかざした。罫線の上の、小さな数字の列。測点ごとに一つずつ、数字が並んでいる。その中に一か所だけ、数字の代わりに「読めない」と書いた所がある。</p><p>汐見さんは、写しの濃さを確かめていた。それから、写しをわたしに差し出して、その一か所を指で押さえた。</p><p>「ここの横に、塗膜を落として測り直す、と書いておいていただけますか。原本には、チョークの丸で印を付けてあるだけなので」</p><p>写しを受け取った。わたしのペンで、その横に書いた。塗膜を落として、測り直す。</p><p>写しを、もう一度、上から見た。</p><p>汐見さんの字だった。</p><p>事務所の棚から、穴あけ器を借りた。</p><p>二十年前の請求ファイルの、一番新しい綴りを、箱から出した。最後の頁の後ろに、<code>git bisect log</code> の印刷と、野帳の写しを重ねた。穴を二つ開けて、綴じ紐を通す。うちの会社の綴じ方で、紐の端を表紙の内側で結んだ。</p><p>二十年前の書類の後ろに、今日の日付の紙が二枚、綴じてある。</p><p>箱の蓋を閉めた。綴りは、汐見さんに預けたまま帰る。</p><p>「返却の日が決まったら、ご連絡します。それまでは、こちらでお願いします」</p><p>「お預かりします」</p><p>外階段を、空の手で下りた。来たときは、箱で足もとが見えなかった。今は、一段ずつの鉄の板が見える。</p><p>ドックの縁を、船尾のほうへ回った。洗浄は止まっていた。外板の格子に、数字の札が並んでいる。船尾寄りの左舷は、半分ほどが札で埋まっていた。チョークの丸が、いくつか混じっている。</p><p>舷墻の外の、木の板の前を通った。</p><p>溝の水は、もう乾いていた。浮き彫りの文字が、午後の光で影を作っている。</p><p>暁凪丸。</p><p>声には出さずに、読んだ。</p><hr><h2 id=野帳の写し>野帳の写し</h2><ul><li><strong>見たこと</strong>: 鳴海さんの件: <code>report-2025</code> で去年の一件は合います。<code>main</code> で合いません。料率表・端数処理を戻しても変わりません。<code>1714006</code> はビルドできません。判定プログラムで6回、<code>be066e0</code> が残りました。外板: 船尾側の左舷を洗い、測点の半分を測りました</li><li><strong>思ったこと</strong>: 料率表が原因（外れでした）。端数処理が原因（外れでした）。改名の途中のコミットが原因（外れでした。ビルドできないだけでした）</li><li><strong>調べ方</strong>: git bisect（<code>git bisect run</code>）。良い版と悪い版の間のコミットの並びを二分探索し、判定の終了コードで、最初に悪くなったコミットを特定します</li><li><strong>固定したもの</strong>: 判定プログラム（リポジトリの外。0 良い・1 壊れている・125 調べられない）と <code>git bisect log</code> を残しました。去年の一件を <code>TestLastYearReport</code> として製品のテストに加えました</li><li><strong>変えていないもの</strong>: 判定プログラムと bisect は、製品のコードに触れていません。直したあとも、事故の月が竣工の月と同じか後の案件、月が前でも船齢の区分が変わらない案件では、支払額が直す前と一致します。bisect の出力・判定の回数・所要時間は、照合から外しています</li><li><strong>まだ見ていない所</strong>: ビルドできない版が原因のすぐ隣にある場合（2つまでしか絞れません）。判定が揺れる場合。持ち込んだテストのほうが古い版でビルドできない場合（今回は <code>Claim</code> と <code>Assess</code> の形が全版で同じでした）。読めない測点（チョークの丸）は、塗膜を落として測り直します</li><li><strong>船について</strong>: （記録）沈没の4年前の入渠で、甲板上に構造物を増設する改修が行われています</li></ul><p>前の話: <a class=link href=/2026/11/18/070705/>800行のデータを流すとだけ落ちる。原因は1行ではなかった</a>／<a class=link href=/2026/11/16/060705/>コードサルベージャー シリーズ目次</a></p></section><footer class=article-footer><section class=article-tags><a href=/tags/debugging/>Debugging</a>
+<a href=/tags/incident-investigation/>Incident-Investigation</a>
+<a href=/tags/go/>Go</a>
+<a href=/tags/git-bisect/>Git-Bisect</a>
+<a href=/tags/regression/>Regression</a>
+<a href=/tags/code-salvager/>Code-Salvager</a></section><nav class=series-nav-container aria-label=シリーズ連載ナビゲーション><div class=series-nav-header><span class=series-badge>連載</span>
+<a href=/2026/11/16/060705/ class=series-title>コードサルベージャー</a><span class=series-count>第4話 / 全6話</span></div><div class=series-nav-grid><a href=/2026/11/18/070705/ class="series-nav-card prev" rel=prev><span class=series-nav-direction>← 前の話</span>
+<span class=series-nav-card-title>800行のデータを流すとだけ落ちる。原因は1行ではなかった</span>
+</a><a href=/2026/11/16/060705/ class=series-nav-toc-btn><span>連載目次</span>
+</a><a href=/2026/11/20/070705/ class="series-nav-card next" rel=next><span class=series-nav-direction>次の話 →</span>
+<span class=series-nav-card-title>グラフの最高潮位が、気象台の発表と合わない。途中に立てた検査は、壊れた値を通していた</span></a></div></nav></footer></article><aside class=related-content--wrapper><h2 class=section-title>関連するコンテンツ</h2><div class=related-content><div class="flex article-list--tile"><article class=has-image><a href=/2026/11/21/070705/><div class=article-image><img src=/public_images/2026/code-salvager-happened-before-log-order/header.webp loading=lazy data-key data-hash=/public_images/2026/code-salvager-happened-before-log-order/header.webp></div><div class=article-details><h2 class=article-title>複数サーバーのログを時刻順に並べたら、返信が問い合わせより前の時刻で記録されていた</h2></div></a></article><article class=has-image><a href=/2026/11/20/070705/><div class=article-image><img src=/public_images/2026/code-salvager-wolf-fence-debugging/header.webp loading=lazy data-key data-hash=/public_images/2026/code-salvager-wolf-fence-debugging/header.webp></div><div class=article-details><h2 class=article-title>グラフの最高潮位が、気象台の発表と合わない。途中に立てた検査は、壊れた値を通していた</h2></div></a></article><article class=has-image><a href=/2026/11/18/070705/><div class=article-image><img src=/public_images/2026/code-salvager-delta-debugging-minimal-input/header.webp loading=lazy data-key data-hash=/public_images/2026/code-salvager-delta-debugging-minimal-input/header.webp></div><div class=article-details><h2 class=article-title>800行のデータを流すとだけ落ちる。原因は1行ではなかった</h2></div></a></article><article class=has-image><a href=/2026/11/17/070705/><div class=article-image><img src=/public_images/2026/code-salvager-bug-reproduction-steps/header.webp loading=lazy data-key data-hash=/public_images/2026/code-salvager-bug-reproduction-steps/header.webp></div><div class=article-details><h2 class=article-title>同じCSVなのに、ある月だけ取り込めない。違っていたのは中身ではなかった</h2></div></a></article><article class=has-image><a href=/2026/11/16/070705/><div class=article-image><img src=/public_images/2026/code-salvager-scientific-debugging-hypotheses/header.webp loading=lazy data-key data-hash=/public_images/2026/code-salvager-scientific-debugging-hypotheses/header.webp></div><div class=article-details><h2 class=article-title>深夜の注文が締め切り前なのに断られる。3回直したのは、どれも見当違いの場所だった</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//nqounet.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2000 -
+2026 設計パターンを疑え</section><section class=powerby>システム開発・AIワークフローのご相談は <a href=https://www.meetsource.work/#contact target=_blank rel=noopener>Meetsource</a> へ<br><a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> で構築されています。<br>テーマ <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.29.0>Stack</a></b> は <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> によって設計されています。</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>
